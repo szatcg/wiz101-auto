@@ -114,9 +114,13 @@ class Fighter(CombatHandler):
                     return
 
             action = decide(battle, self.strategy, discards_left=discards_left)
+            foes = ", ".join(
+                f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
+                for e in battle.enemies
+            )
             logger.info(
                 f"[round {battle.round}] pips={battle.pips}+{battle.power_pips}P "
-                f"hp={battle.me.health}/{battle.me.max_health} -> {action.describe()}"
+                f"hp={battle.me.health}/{battle.me.max_health} vs {foes} -> {action.describe()}"
             )
 
             if action.kind is ActionKind.PASS or action.card is None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 
 from loguru import logger
@@ -113,19 +114,52 @@ async def mob_positions(client) -> list[tuple[float, float, float]]:
         return []
 
 
+UNREACHABLE_WISP_MINUTES = 15.0
+_unreachable: dict[tuple[str, tuple[float, float, float]], float] = {}  # (zone, spot) -> when
+
+
+def _is_unreachable(zone: str, p: tuple[float, float, float]) -> bool:
+    now = time.monotonic()
+    return any(
+        z == zone and now - t < UNREACHABLE_WISP_MINUTES * 60 and math.dist(p, q) < 60
+        for (z, q), t in _unreachable.items()
+    )
+
+
 async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
-    """Teleport onto nearby health/mana wisps that aren't close to mobs. Returns how many were taken."""
+    """Teleport onto nearby health/mana wisps that aren't close to mobs. Returns how many were taken.
+
+    A wisp still there after landing on it can't be picked up (e.g. outside the
+    playable map): it's skipped for a while, forgotten as a spawn spot, and the
+    wizard goes back to where it was."""
     try:
+        zone = await client.zone_name() or "?"
         wisps = await scan_wisps(client)
         safe = await client.find_safe_entities_from(wisps, safe_distance=cfg.wisp_safe_distance)
         if not safe:
             return 0
-        me = await client.body.position()
-        spots = sorted([await w.location() for w in safe], key=lambda p: p.distance(me))[:limit]
+        start = await client.body.position()
+        spots = [_pt(await w.location()) for w in safe]
+        spots = [p for p in spots if not _is_unreachable(zone, p)]
+        spots = sorted(spots, key=lambda p: math.dist(p, _pt(start)))[:limit]
+        taken = 0
+        stranded = False
         for spot in spots:
-            await client.teleport(spot)
-            await asyncio.sleep(0.6)
-        return len(spots)
+            await client.teleport(XYZ(*spot))
+            await asyncio.sleep(0.8)
+            remaining = [_pt(await w.location()) for w in await scan_wisps(client)]
+            if any(math.dist(spot, r) < 60 for r in remaining):
+                logger.info(f"wisp at ({spot[0]:.0f}, {spot[1]:.0f}) can't be collected; skipping it")
+                _unreachable[(zone, spot)] = time.monotonic()
+                if wisp_memory().forget(zone, spot):
+                    wisp_memory().save()
+                stranded = True
+            else:
+                taken += 1
+        if stranded:
+            await client.teleport(start)
+            await asyncio.sleep(0.5)
+        return taken
     except Exception as exc:
         logger.debug(f"wisp collection failed: {exc}")
         return 0

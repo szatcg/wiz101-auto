@@ -39,3 +39,11 @@ def test_best_wisp_zone_prefers_most_spots_in_the_same_world():
     assert best_wisp_zone("WizardCity/WC_Streets/WC_Cyclops", spots) == "WizardCity/WC_Streets/WC_Triton"
     assert best_wisp_zone("WizardCity/WC_Hub", {}) == "WizardCity/WC_Streets/WC_Unicorn"
     assert best_wisp_zone("MooShu/MS_Hub", {}) is None
+
+
+def test_forget_drops_an_unreachable_spot(tmp_path):
+    mem = WispMemory(tmp_path / "w.json")
+    mem.record("Z", [(0, 0, 0), (1000, 0, 0)])
+    assert mem.forget("Z", (10, 0, 0))
+    assert mem.spots["Z"] == [(1000, 0, 0)]
+    assert not mem.forget("Z", (5000, 0, 0))

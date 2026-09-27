@@ -53,6 +53,13 @@ class WispMemory:
                 added += 1
         return added
 
+    def forget(self, zone: str, spot: Point) -> bool:
+        """Drop a remembered spot (e.g. a wisp that can't be reached). True if one was removed."""
+        known = self.spots.get(zone, [])
+        keep = [k for k in known if _dist(k, spot) > MERGE_DISTANCE]
+        self.spots[zone] = keep
+        return len(keep) < len(known)
+
     def mark_visited(self, zone: str, spot: Point, now: float | None = None):
         self._visited[(zone, spot)] = time.monotonic() if now is None else now
 
