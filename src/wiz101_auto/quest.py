@@ -24,6 +24,7 @@ from . import ui
 from .collect import Collector, collect_item_name, landmarks, spread_points
 from .config import QuestConfig
 from .deck import close_spellbook
+from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
 from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free, wisp_memory
@@ -274,6 +275,7 @@ class Quester:
                     await wait_for_loading(self.client)
                     logger.success("entered the dungeon")
                     self._sigil_failed_at = None
+                    await self._remember_dungeon(zone, sigil)
                     return True
                 await ui.confirm_modal(self.client)  # "enter alone?" confirmation
                 await asyncio.sleep(0.5)
@@ -282,6 +284,20 @@ class Quester:
         logger.warning("stood on the sigil but the dungeon did not start; will re-arm it")
         self._sigil_failed_at = sigil
         return False
+
+    async def _remember_dungeon(self, outside: str | None, sigil: XYZ):
+        """Note where this dungeon's sigil is and where/which way we arrive inside
+        (the exit is behind the arrival point): boss farming reuses it."""
+        try:
+            interior = await self.client.zone_name()
+            pos = await self._position()
+            yaw = await self.client.body.yaw()
+            DungeonMemory.load().record_entry(
+                interior,
+                DungeonEntry(outside or "", (sigil.x, sigil.y, sigil.z), (pos.x, pos.y, pos.z), yaw),
+            )
+        except Exception as exc:
+            logger.debug(f"could not remember the dungeon: {exc!r}")
 
     async def _far_spot(self, sigil: XYZ) -> XYZ:
         """An on-map spot well outside the sigil's area: a remembered wisp spot or

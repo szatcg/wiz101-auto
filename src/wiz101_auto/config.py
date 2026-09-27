@@ -81,8 +81,15 @@ class ProgressionConfig:
 
 
 @dataclass
+class BossFarmConfig:
+    boss: str = ""  # e.g. "Alicane Swiftarrow" (its dungeon is learned while questing)
+    until_item: str = ""  # stop once the backpack holds this, e.g. "Humongofrog"
+    max_runs: int = 0  # 0 = keep going
+
+
+@dataclass
 class Config:
-    mode: str = "quest"  # quest | fight | farm
+    mode: str = "quest"  # quest | fight | farm | boss
     farm_seconds_between_fights: float = 2.0
     log_file: str = "wiz101-auto.log"
     quest: QuestConfig = field(default_factory=QuestConfig)
@@ -90,6 +97,7 @@ class Config:
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     combat: CombatConfig = field(default_factory=CombatConfig)
     progression: ProgressionConfig = field(default_factory=ProgressionConfig)
+    boss_farm: BossFarmConfig = field(default_factory=BossFarmConfig)
 
 
 def _merge(obj: Any, data: dict[str, Any], path: str = "") -> Any:
@@ -123,6 +131,8 @@ def load_config(path: str | Path | None) -> Config:
 
     parse_hotkey(cfg.safety.stop_key)  # fail early on a typo, not mid-session
     parse_hotkey(cfg.safety.pause_key)
-    if cfg.mode not in ("quest", "fight", "farm"):
-        raise ValueError(f"mode must be quest, fight or farm, not {cfg.mode!r}")
+    if cfg.mode not in ("quest", "fight", "farm", "boss"):
+        raise ValueError(f"mode must be quest, fight, farm or boss, not {cfg.mode!r}")
+    if cfg.mode == "boss" and not cfg.boss_farm.boss:
+        raise ValueError("mode: boss needs boss_farm.boss (the boss's name)")
     return cfg

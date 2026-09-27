@@ -8,6 +8,7 @@ from loguru import logger
 from wizwalker.combat import CombatHandler
 
 from .. import ui
+from ..dungeons import DungeonMemory
 from .brain import Strategy, decide
 from .model import ActionKind
 from .reader import read_battle
@@ -90,6 +91,19 @@ class Fighter(CombatHandler):
             return False
         return True
 
+    async def _remember_bosses(self, battle):
+        """Bosses fought inside a dungeon: remember which dungeon (for boss farming)."""
+        try:
+            zone = await self.client.zone_name() or ""
+            if "interiors" not in zone.lower():
+                return
+            mem = DungeonMemory.load()
+            for e in battle.enemies:
+                if e.is_boss and mem.record_boss(e.name, zone):
+                    logger.info(f"remembered boss {e.name} in {zone}")
+        except Exception as exc:
+            logger.debug(f"could not remember bosses: {exc!r}")
+
     async def cancel_flee_box(self) -> bool:
         box = await ui.modal_box(self.client)
         if box is None or "flee" not in (await ui.modal_text(box)).lower():
@@ -142,6 +156,9 @@ class Fighter(CombatHandler):
                 logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: passing")
                 await self.pass_button()
                 return
+
+            if not self._judged_fight:
+                await self._remember_bosses(battle)
 
             # Decide once, on the first round, whether this fight is worth having.
             if self.unneeded_fight and not self._judged_fight:

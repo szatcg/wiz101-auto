@@ -11,6 +11,7 @@ from wizwalker import ClientHandler
 from wizwalker.errors import PatternFailed
 from wizwalker.extensions.wizsprinter import SprintyClient
 
+from .bossfarm import BossFarmer
 from .combat.fighter import Fighter
 from .config import Config
 from .gear import GearManager
@@ -210,6 +211,10 @@ async def run(cfg: Config):
                 battle_stall_seconds=s.battle_stall_seconds,
             )
             tasks.append(asyncio.create_task(watchdog.run(), name="watchdog"))
+        if cfg.mode == "boss":
+            boss_quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
+            farmer = BossFarmer(boss_quester, cfg.boss_farm, cfg.upkeep, controller)
+            tasks.append(asyncio.create_task(farmer.run(), name="boss"))
         if cfg.mode == "farm":
             tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
 
