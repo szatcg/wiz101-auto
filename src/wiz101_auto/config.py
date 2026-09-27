@@ -16,7 +16,7 @@ from .deck_plan import DeckPolicy
 class QuestConfig:
     enabled: bool = True
     teleport: bool = True  # teleport to objectives; False = walk (slower, lower detection risk)
-    accept_side_quests: bool = False
+    accept_side_quests: bool = True  # every quest is experience; areas are cleared in order
     photomancy: bool = True
     # Abort questing if the objective hasn't changed for this long.
     stuck_minutes: float = 12.0

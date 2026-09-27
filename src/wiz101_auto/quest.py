@@ -57,7 +57,7 @@ WISP_SCAN_SECONDS = 30.0
 STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
-RANK_QUESTS_EVERY = 300.0  # seconds between quest-book rankings
+RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objective changes)
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
@@ -85,34 +85,58 @@ class QuestEntry:
     reward: int = 0  # first reward amount shown in the quest book
     world: str = ""  # area shown in the book, e.g. "Triton Avenue"
     hops: int | None = None  # gate hops from where the wizard is (None = unknown)
+    goal: str = ""  # current objective shown in the book, e.g. "Talk To Private Stillson"
 
 
 UNKNOWN_HOPS = 5  # an area we can't route to counts as fairly far
 
 
-def quest_rank(q: QuestEntry) -> tuple:
-    """Higher is better: activity quests make the wizard stronger, the main story
-    unlocks content, side quests only give their reward; nearer beats farther."""
+# Wizard City's street areas in the order the story opens them. Quests are
+# cleared area by area, earliest first; hubs (Commons, Ravenwood, Shopping
+# District, Olde Town...) aren't listed and count as the current area.
+AREA_ORDER = (
+    "unicorn way",
+    "triton avenue",
+    "firecat alley",
+    "cyclops lane",
+    "haunted cave",
+    "firefly forest",
+    "colossus boulevard",
+    "sunken city",
+    "golem court",
+    "storm tower",
+    "lost city",
+)
+
+
+def area_rank(world: str) -> int | None:
+    """Position of a quest's area in AREA_ORDER (None: a hub or unknown place)."""
+    w = world.lower()
+    return next((i for i, a in enumerate(AREA_ORDER) if a in w), None)
+
+
+def quest_rank(q: QuestEntry, current_area: int = 0) -> tuple:
+    """Higher is better. Spell quests make the wizard stronger; then the earliest
+    area is cleared first; within an area, quests without a fight (talk, go to,
+    collect) are quick experience; nearer beats farther; the tracked quest wins
+    ties so the bot doesn't flip between equals."""
     hops = UNKNOWN_HOPS if q.hops is None else q.hops
-    return (q.activity, q.mainline, -hops, q.reward)
+    area = area_rank(q.world)
+    area = current_area if area is None else area
+    easy = bool(q.goal) and not is_combat_objective(q.goal)
+    return (q.activity, -area, easy, -hops, q.active, q.mainline, q.reward)
 
 
 def choose_quest(quests: list[QuestEntry], set_aside: set[str] = frozenset()) -> QuestEntry | None:
-    """Which quest to track. Stick with the tracked questline until it's done;
-    only a spell/class quest may interrupt it. Quests set aside (lost to twice)
-    are skipped while anything else is available."""
+    """Which quest to track: spell/class quests first, then clear the earliest
+    area's quests (the easy ones first). Quests set aside (lost to twice) are
+    skipped while anything else is available."""
     quests = [q for q in quests if q.name not in set_aside] or quests
     if not quests:
         return None
-    active = next((q for q in quests if q.active), None)
-    if active and active.activity:
-        return active
-    spell_quests = [q for q in quests if q.activity]
-    if spell_quests:
-        return max(spell_quests, key=quest_rank)
-    if active:
-        return active
-    return max(quests, key=quest_rank)
+    areas = [a for a in (area_rank(q.world) for q in quests) if a is not None]
+    current = min(areas) if areas else 0
+    return max(quests, key=lambda q: quest_rank(q, current))
 
 
 def is_combat_objective(objective: str) -> bool:
@@ -691,11 +715,13 @@ class Quester:
             reward_path = [*base, "wndReward1", "imgReward1Scroll", "txtReward1Amount"]
             reward = await ui.text_at(self.client, reward_path)
             world = (await ui.text_at(self.client, [*base, "txtWorld"])).strip()
+            goal = (await ui.text_at(self.client, [*base, "txtGoal"])).strip()
             out.append(
                 QuestEntry(
                     slot=i,
                     name=name,
                     world=world,
+                    goal=goal,
                     hops=hops_to_place(zone, world) if world else None,
                     activity=await ui.is_visible(self.client, [*base, "imgActivityQuestType"]),
                     mainline=await ui.is_visible(self.client, [*base, "LeftMainline"]),
@@ -754,6 +780,8 @@ class Quester:
             await ui.click(self.client, slot)
             await asyncio.sleep(0.6)
             kind = "spell/activity" if entry.activity else "main story" if entry.mainline else "side"
+            if entry.goal and not is_combat_objective(entry.goal):
+                kind += ", no fight"
             where = f"{entry.world}, {entry.hops} hops" if entry.hops is not None else entry.world
             logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest in {where})")
             self._active_quest = entry.name

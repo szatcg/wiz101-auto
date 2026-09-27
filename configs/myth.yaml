@@ -8,7 +8,7 @@ mode: quest
 
 quest:
   teleport: true
-  accept_side_quests: false
+  accept_side_quests: true
   stuck_minutes: 12
 
 upkeep:

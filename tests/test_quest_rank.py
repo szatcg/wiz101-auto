@@ -26,14 +26,26 @@ def test_combat_objectives():
     assert not is_combat_objective("Collect Cog in Triton Avenue (1 of 3)")
 
 
-def test_keeps_the_tracked_questline_unless_a_spell_quest_is_waiting():
+def test_clears_the_earliest_area_first_easy_quests_first():
     from wiz101_auto.quest import choose_quest
 
-    tracked = QuestEntry(0, "Clear as Crystal", mainline=True, active=True, hops=3)
-    near_side = QuestEntry(1, "Looking Sharp!", hops=0, reward=99)
-    assert choose_quest([tracked, near_side]) is tracked
-    spell = QuestEntry(2, "Not So Welcome to Myth", activity=True, hops=2)
-    assert choose_quest([tracked, near_side, spell]) is spell
+    tracked = QuestEntry(0, "Throwing Nightshade", mainline=True, active=True, world="Haunted Cave",
+                         goal="Defeat Lord Nightshade in Haunted Cave", hops=0)
+    unicorn_fight = QuestEntry(1, "Dreadful Assignment", world="Unicorn Way",
+                               goal="Defeat Lost Souls in Unicorn Way", hops=4)
+    unicorn_talk = QuestEntry(2, "Mail Call", world="Unicorn Way", goal="Talk To Private Stillson", hops=4)
+    assert choose_quest([tracked, unicorn_fight]) is unicorn_fight  # earlier area wins
+    assert choose_quest([tracked, unicorn_fight, unicorn_talk]) is unicorn_talk  # no fight first
+    spell = QuestEntry(3, "Not So Welcome to Myth", activity=True, world="Triton Avenue", hops=2)
+    assert choose_quest([tracked, unicorn_talk, spell]) is spell
+
+
+def test_hub_quests_count_as_the_current_area():
+    from wiz101_auto.quest import choose_quest
+
+    triton = QuestEntry(0, "Cog Collection", world="Triton Avenue", goal="Collect Cog", hops=2)
+    commons = QuestEntry(1, "Talk Shop", world="The Commons", goal="Talk To Dworgyn", hops=1)
+    assert choose_quest([triton, commons]) is commons  # same tier, nearer
 
 
 def test_nearer_quest_wins_when_nothing_is_tracked():

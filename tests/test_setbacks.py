@@ -22,7 +22,7 @@ def test_set_aside_expires_after_a_while(tmp_path):
 
 
 def test_choose_quest_skips_a_set_aside_questline():
-    stuck = QuestEntry(0, "Throwing Nightshade", mainline=True, active=True)
+    stuck = QuestEntry(0, "Throwing Nightshade", mainline=True, active=True, hops=1)
     other = QuestEntry(1, "Cog Collection", hops=1)
     assert choose_quest([stuck, other]) is stuck
     assert choose_quest([stuck, other], {"Throwing Nightshade"}) is other
