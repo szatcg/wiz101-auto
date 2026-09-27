@@ -9,6 +9,29 @@ echo   wiz101-auto  (one-click launcher)
 echo ============================================================
 echo.
 
+REM ---- 0. Self-update from GitHub -------------------------------------------
+REM Your config.yaml, state folder and .venv are never touched (they're
+REM git-ignored). The whole block is parsed before it runs, so replacing this
+REM file mid-update is safe; the new launcher is then restarted.
+set "REPO=https://github.com/szatcg/wiz101-auto.git"
+if /i not "%~1"=="--updated" (
+  where git >nul 2>&1 && (
+    echo [0/4] Checking for updates...
+    if not exist .git (
+      git init -q
+      git remote add origin "%REPO%"
+    )
+    git fetch -q origin main && (
+      git reset -q --hard origin/main
+      for /f %%h in ('git rev-parse --short HEAD') do echo       on version %%h
+      "%~f0" --updated
+      exit /b
+    ) || (
+      echo       could not reach GitHub; using the files already here.
+    )
+  )
+)
+
 REM ---- 1. Stop any other copy of the bot (old versions, other folders) ----
 echo [1/4] Checking for other running copies of the bot...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and $_.CommandLine -match 'wiz101[_-]auto' }; foreach ($x in $p) { Write-Host ('      stopping old bot, PID ' + $x.ProcessId); Stop-Process -Id $x.ProcessId -Force -ErrorAction SilentlyContinue }; if ($p) { exit 1 } else { exit 0 }"

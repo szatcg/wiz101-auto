@@ -37,9 +37,12 @@ the nearest mob over and over).
    - create `config.yaml` from the Myth preset if you don't have one,
    - show a menu and start the bot after 8 seconds unless you pick something else.
 
-To update: extract the new zip to a new folder and double-click `wiz101.bat`
-there. Copy your old `config.yaml` and `state` folder across if you want to keep
-your settings and what the bot has learned.
+**Updates are automatic.** Every time `wiz101.bat` starts, it pulls the latest
+version from GitHub (`szatcg/wiz101-auto`, branch `main`) before doing anything
+else. Your `config.yaml`, `state` folder and installed packages are never
+touched. The first update may open a GitHub sign-in window, because the repo is
+private. If GitHub can't be reached, the launcher carries on with the files it
+already has.
 
 If hooks fail to activate, fully restart Wizard101 and try again. Moving your
 wizard one step while it starts can also help.
