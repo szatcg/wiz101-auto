@@ -11,7 +11,7 @@ from wizwalker.extensions.scripting.deck_builder import DeckBuilder
 from . import ui
 from .combat.model import Card
 from .combat.reader import read_effects
-from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_deck
+from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_deck, unknown_deck_spells
 
 
 async def _spell_info(entry) -> SpellInfo | None:
@@ -551,11 +551,12 @@ async def _is_list_control(window) -> bool:
         return False
 
 
-async def _log_current_deck(client, builder):
+async def _log_current_deck(client, builder) -> list[str] | None:
+    """Log and return the spell names in the current deck (None if unreadable)."""
     try:
         deck_window = await _first_visible(builder._deck_config_window, "CardsInDeck")
         if not deck_window:
-            return
+            return None
         names = []
         for e in await find_spell_entries(client, deck_window):
             t = await e.template()
@@ -563,13 +564,15 @@ async def _log_current_deck(client, builder):
                 names.append(await t.name())
         counts = {n: names.count(n) for n in dict.fromkeys(names)}
         logger.info("current deck: " + (", ".join(f"{n} x{c}" for n, c in counts.items()) or "(empty)"))
+        return names
     except Exception as exc:
         logger.debug(f"could not read current deck: {exc!r}")
+        return None
 
 
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
     builder = await _attach_builder(client)
-    await _log_current_deck(client, builder)
+    deck_names = await _log_current_deck(client, builder)
     known = await read_known_spells(builder)
     plan = plan_deck(known, school, policy)
     logger.info(f"known spells: {', '.join(s.name for s in known) or '(none)'}")
@@ -578,6 +581,16 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         return known, plan
     if not known:
         logger.warning("spellbook read returned no spells; leaving the deck alone")
+        return known, plan
+    if deck_names is None:
+        logger.warning("could not read the current deck; leaving it alone")
+        return known, plan
+    missing = unknown_deck_spells(deck_names, [s.name for s in known])
+    if missing:
+        logger.warning(
+            f"spellbook read looks incomplete (deck has {', '.join(missing)} but they weren't read "
+            "as known spells); leaving the deck alone"
+        )
         return known, plan
 
     await builder.clear_deck()

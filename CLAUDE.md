@@ -90,6 +90,7 @@ while the bot is stopped.
 | `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
 | `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |
 | `collect.py` | "Collect X" objectives (entity name matching) |
+| `travel_data.py` | no-marker fallback: zone gates/names and Zeke/Eloise quest spots from WizSprinter's `traversalData` |
 | `upkeep.py` | dialogue loop, quest-offer policy, potions, wisps, recovery, popups, Crowns window |
 | `wisps.py` | remembered wisp spawn points |
 | `watchdog.py` | 15 s stall detection and escalating recovery |
@@ -106,10 +107,15 @@ read their source there when you need the memory API.
 
 ## Known gaps / open work
 
-- Deck building: known spells are read by walking spellbook tabs; adding cards
-  (`add_by_name` click positions, `set_page` offset) is unverified on the
+- Deck building: the known-spell read is unreliable (0 or 1 spells per tab,
+  sometimes only the wand's item card; the detected entry size varies between
+  runs). Rebuilds are skipped unless every card already in the deck was read
+  as known. Card clicks (`clear_deck`, `add_by_name`) did not register on the
   current client. `CardsInDeck` reads correctly (layout auto-detected).
-- Prospector Pete / Golem Court: stalls reported without logs yet.
+- Prospector Zeke's "Go To <place> Smith in <place>" quests have no quest
+  marker; `travel_data.py` routes through gates and to the known Zeke spot.
+  Quest-text place names missing from `displayZones.txt` go in
+  `EXTRA_DISPLAY_ZONES`.
 - Spell trainer automation is heuristic until `state/trainer_window_*.txt`
   has been captured and mapped.
 - Minion spells are excluded from decks (the brain can't use them yet).

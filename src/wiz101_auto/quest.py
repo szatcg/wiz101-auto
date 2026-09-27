@@ -22,6 +22,7 @@ from . import ui
 from .collect import Collector, collect_item_name
 from .config import QuestConfig
 from .npc import ServicesMenu
+from .travel_data import find_zone_gate, objective_zone, quest_spots
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
 from .wisps import sweep_points
 
@@ -228,6 +229,7 @@ class Quester:
         self.services._tried.clear()
         self._swept_for = None
         self._attempts = 0
+        self._fallback_tried_for = None
         self.collector._taken.clear()
         self.collector._cache = None
 
@@ -343,6 +345,29 @@ class Quester:
                 return
             await asyncio.sleep(3.0)
 
+    async def _no_marker_fallback(self, objective: str, zone: str) -> bool:
+        """Walk through a known gate toward the place the objective names, else
+        try the known hidden quest-target spots in this zone. True if it acted."""
+        gate = find_zone_gate(objective, zone)
+        if gate:
+            pos, dest_zone = gate
+            logger.info(f"no quest marker for {objective!r}; walking to {dest_zone} via a known gate")
+            await self.controller.checkpoint()
+            await self.travel(pos)
+            if await self.client.zone_name() != zone:
+                return True
+        if objective_zone(objective) not in (None, zone):
+            return False  # the target is in another zone; its spots here are someone else's
+        for pos in quest_spots(zone):
+            logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
+            await self.controller.checkpoint()
+            await self.travel(pos)
+            if not await wait_until_free(self.client, timeout=5):
+                return True
+            if distance(await self._position(), pos) < INTERACT_RANGE and await self.interact(objective):
+                return True
+        return False
+
     # --- main step -----------------------------------------------------------
 
     async def step(self):
@@ -397,6 +422,10 @@ class Quester:
             await self.client.send_key(Keycode.Z, 0.1)
 
         if distance(target, XYZ(0, 0, 0)) < 1:
+            if getattr(self, "_fallback_tried_for", None) != (objective, zone):
+                self._fallback_tried_for = (objective, zone)
+                if await self._no_marker_fallback(objective, zone):
+                    return
             logger.debug(f"no quest marker for {objective!r}; waiting")
             await asyncio.sleep(2.0)
             return

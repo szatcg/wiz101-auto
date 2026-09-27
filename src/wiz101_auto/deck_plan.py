@@ -148,3 +148,10 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
                 total += add
                 steps.append((name, add))
     return DeckPlan({n: c for n, c in counts.items() if c > 0}, steps)
+
+
+def unknown_deck_spells(deck_names: list[str], known_names: list[str]) -> list[str]:
+    """Deck spells missing from the known-spell read. Every deck card is a known
+    spell, so any here means the spellbook read is incomplete and unsafe to plan from."""
+    known = set(known_names)
+    return [n for n in dict.fromkeys(deck_names) if n not in known]
