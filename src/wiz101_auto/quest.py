@@ -58,6 +58,7 @@ APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
+RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
@@ -394,17 +395,34 @@ class Quester:
         logger.info(f"recalling to the mark in {marked_zone} instead of walking back")
         self._mark = None  # one try per mark: never loop on a failing recall
         _save_mark(None)
-        if not await ui.click_named(self.client, "RecallButton"):
-            logger.warning("no Recall button to click")
+        self.controller.allow_idle(40)
+        try:
+            for attempt in range(2):
+                timer = await ui.named_text(self.client, "txtRecallTimer")
+                if not await ui.click_named(self.client, "RecallButton"):
+                    logger.warning("no Recall button to click")
+                    return False
+                logger.debug(f"clicked Recall (try {attempt + 1}; timer text {timer!r})")
+                # The teleport plays a short animation before the loading screen.
+                deadline = time.monotonic() + RECALL_WAIT
+                while time.monotonic() < deadline:
+                    await asyncio.sleep(0.5)
+                    box = await ui.modal_box(self.client)
+                    if box:
+                        logger.info(f"recall message: {(await ui.modal_text(box))[:120]!r}")
+                        await ui.confirm_modal(self.client)
+                    if await self.client.is_loading():
+                        await wait_for_loading(self.client)
+                    if await self.client.zone_name() == marked_zone:
+                        logger.success("back at the dungeon mark")
+                        return True
+                    if not await is_free(self.client):
+                        return False
+            timer = await ui.named_text(self.client, "txtRecallTimer")
+            logger.warning(f"recall didn't take us back to the dungeon (recall timer text {timer!r})")
             return False
-        await asyncio.sleep(1.0)
-        await ui.confirm_modal(self.client)
-        await wait_for_loading(self.client, appear_timeout=5.0)
-        if await self.client.zone_name() == marked_zone:
-            logger.success("back at the dungeon mark")
-            return True
-        logger.warning("recall didn't take us back to the dungeon")
-        return False
+        finally:
+            self.controller.end_idle()
 
     async def _remember_dungeon(self, outside: str | None, sigil: XYZ):
         """Note where this dungeon's sigil is and where/which way we arrive inside

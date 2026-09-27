@@ -109,6 +109,16 @@ async def click_named(client, name: str) -> bool:
     return False
 
 
+async def named_text(client, name: str) -> str:
+    """Text of the first window called `name` anywhere in the tree ("" if none)."""
+    try:
+        for w in await client.root_window.get_windows_with_name(name):
+            return (await w.maybe_text() or "").strip()
+    except Exception:
+        pass
+    return ""
+
+
 async def modal_click(client, box, button: str) -> bool:
     """Click `button` ("centerButton" = yes/ok, "rightButton" = no/cancel) in `box`."""
     for b in await box.get_windows_with_name(button):
