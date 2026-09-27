@@ -19,9 +19,11 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
+from .collect import Collector, collect_item_name
 from .config import QuestConfig
 from .npc import ServicesMenu
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
+from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
@@ -43,6 +45,7 @@ class Quester:
         self._last_wisp_scan = 0.0
         self.progression = progression
         self.services = ServicesMenu(client)
+        self.collector = Collector(client)
         self.cfg = cfg
         self.controller = controller
         self.sprinter = client  # SprintyClient (bot.new_handler)
@@ -206,6 +209,44 @@ class Quester:
             logger.debug(f"closed {closed} menu(s)")
         return True
 
+    async def _press_collect(self):
+        if not await ui.is_visible(self.client, ui.NPC_RANGE):
+            return
+        for _ in range(3):
+            await self.client.send_key(Keycode.X, 0.1)
+            await asyncio.sleep(0.2)
+        await wait_until_free(self.client, timeout=15)
+
+    async def collect(self, item: str, objective: str) -> bool:
+        """Handle a collect objective. Returns True if it did something this step."""
+        if await self.collector.collect_once(item, self._press_collect):
+            await asyncio.sleep(0.5)
+            if await self.objective() != objective:
+                logger.success(f"collected {item}")
+            return True
+        # Nothing matching in view: look around the zone once per objective.
+        if getattr(self, "_swept_for", None) != objective:
+            self._swept_for = objective
+            start = await self.client.body.position()
+            points = sweep_points((start.x, start.y, start.z), [], 0)
+            logger.info(f"searching the zone for {item!r} ({len(points)} spots)")
+            for p in points:
+                if not await is_free(self.client):
+                    return True
+                await self.client.teleport(XYZ(*p))
+                await asyncio.sleep(0.8)
+                if await self.collector.collect_once(item, self._press_collect):
+                    return True
+            await self.client.teleport(start)
+            return True
+        # Already searched: let the quest marker (if any) guide us, else wait for respawns.
+        if distance(await self.client.quest_position.position(), XYZ(0, 0, 0)) < 1:
+            logger.debug(f"no {item!r} found; waiting for respawns")
+            await asyncio.sleep(10)
+            self._swept_for = None
+            return True
+        return False
+
     async def pull_mob(self):
         """For defeat objectives: teleport onto the closest mob to start a fight."""
         for _ in range(3):
@@ -245,6 +286,10 @@ class Quester:
             if not await self.services.choose(objective):
                 await self.services.close()
             await asyncio.sleep(2.0)
+            return
+
+        item = collect_item_name(objective)
+        if item and await self.collect(item, objective):
             return
 
         target = await self.client.quest_position.position()
