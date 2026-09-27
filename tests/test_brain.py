@@ -186,3 +186,31 @@ def test_summons_the_newest_minion():
     puppet = Card(0, "Golem Minion", effects=summon, template_name="Minion Myth 000")
     troll = Card(1, "Troll Minion", effects=summon, template_name="Minion Myth 001")
     assert decide(battle([puppet, troll], [enemy("Troll", 500)])).card.name == "Troll Minion"
+
+
+def test_finishing_the_last_enemy_beats_healing_and_summoning():
+    summon = Card(2, "Troll Minion", effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400), summon]
+    b = battle(hand, [enemy("Troll", 500)], my=me(hp=100))
+    b.enemies[0].health = 40
+    action = decide(b)
+    assert action.card.name == "Blood Bat" and action.reason.startswith("finish")
+
+
+def test_kill_counts_traps_and_ignores_accuracy():
+    hit = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 80)]
+    bat = Card(0, "Blood Bat", pip_cost=1, accuracy=80, effects=hit)
+    target = enemy("Troll", 100, incoming_boost=0.3)  # trapped: 80 * 1.3 = 104 >= 100
+    action = decide(battle([bat], [target]))
+    assert action.reason.startswith("finish")
+
+
+def test_focuses_the_weakest_of_several_enemies():
+    b = battle([dmg_card(0, "Blood Bat", 90)], [enemy("Big", 600), enemy("Small", 200)])
+    assert decide(b, Strategy(boss_setup=False)).target.name == "Small"
+
+
+def test_heals_before_a_kill_that_does_not_end_the_fight():
+    hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400)]
+    b = battle(hand, [enemy("A", 50), enemy("B", 500)], my=me(hp=100))
+    assert decide(b).card.name == "Pixie"

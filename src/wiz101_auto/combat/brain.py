@@ -5,12 +5,15 @@ discards do not end the turn, so the fighter executes them, re-reads the
 battle and calls `decide()` again until it gets a CAST or PASS.
 
 The strategy is a greedy heuristic tuned for PvE questing:
-  1. Heal if we (or an ally) are in danger.
-  2. If an attack is available, enchant it if possible, then pick the target
-     and spell that removes the most enemy health (kills weighted heavily).
-  3. Against bosses/high-health targets, stack a blade or trap first.
-  4. While waiting for pips, set up blades/traps/shields.
-  5. Otherwise discard dead cards (only when the hand is full) and pass.
+  1. If a spell can finish the last enemy, cast it (the fight ends).
+  2. Heal if we (or an ally) are in danger.
+  3. Finish off any enemy we can (one fewer attacker), then summon a minion.
+  4. If an attack is available, enchant it if possible, then pick the target
+     and spell that removes the most enemy health, weakest target first.
+  5. Against bosses/high-health targets, stack a blade or trap first.
+  6. While waiting for pips, set up blades/traps/shields.
+  7. Otherwise discard dead cards (only when the hand is full) and pass.
+Damage counts blades, traps, shields, weaknesses and school resistances.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ class Strategy:
     max_hand_size: int = 7
     allow_discard: bool = True
     summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage
+    focus_bonus: float = 60.0  # value of taking a target's whole remaining health
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -68,10 +72,17 @@ def school_multiplier(card: Card, attacker: Combatant, target: Combatant) -> flo
     return max(0.0, 1 - resist) * (1 + attacker.damage_bonus.get(school, 0.0))
 
 
-def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
+def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
+    """Damage if the spell lands: base damage with blades/weaknesses on the
+    attacker, traps/shields on the target, and school resist/bonus."""
     mult = (1 + attacker.outgoing_boost) * (1 + target.incoming_boost)
     mult *= school_multiplier(card, attacker, target)
-    return max(0.0, card.base_damage() * mult * (card.accuracy / 100.0))
+    return max(0.0, card.base_damage() * mult)
+
+
+def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
+    """hit_damage weighted by the chance to land (for comparing spells)."""
+    return hit_damage(card, attacker, target) * (card.accuracy / 100.0)
 
 
 def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: Strategy) -> float:
@@ -83,6 +94,9 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
         value += min(dmg, t.health)
         if dmg >= t.health:
             value += strat.kill_bonus
+        # Focus fire: the bigger the share of a target's remaining health we take,
+        # the sooner it stops attacking (so the weakest enemy goes first).
+        value += strat.focus_bonus * min(1.0, dmg / max(1, t.health))
     # Prefer cheaper spells for the same result so we keep pips for later.
     return value - card.pip_cost * 5
 
@@ -127,6 +141,26 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
         return None
     card = max(summons, key=lambda c: minion_rank(c.template_name or c.name))  # newest minion is the best one
     return Action(ActionKind.CAST, card, None, reason="summon minion")
+
+
+def _kill_action(battle: Battle) -> Action | None:
+    """A cast that finishes off at least one enemy if it lands: most kills first,
+    then the cheapest spell (keep pips), then the weakest target."""
+    best: tuple[tuple, Action] | None = None
+    for card in _castable(battle.cards):
+        if not card.is_damage:
+            continue
+        options = [None] if card.is_aoe else battle.live_enemies
+        for target in options:
+            victims = battle.live_enemies if target is None else [target]
+            kills = [t for t in victims if hit_damage(card, battle.me, t) >= t.health]
+            if not kills:
+                continue
+            key = (len(kills), -card.pip_cost, -min(t.health for t in kills))
+            if best is None or key > best[0]:
+                name = kills[0].name if len(kills) == 1 else f"{len(kills)} enemies"
+                best = (key, Action(ActionKind.CAST, card, target, reason=f"finish {name}"))
+    return best[1] if best else None
 
 
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
@@ -225,9 +259,18 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     if not battle.live_enemies:
         return Action(ActionKind.PASS, reason="no enemies")
 
+    # Finishing the last enemy ends the fight: nothing else matters then.
+    kill = _kill_action(battle)
+    if kill and len(battle.live_enemies) == 1:
+        return kill
+
     heal = _best_heal(battle, strat)
     if heal:
         return heal
+
+    # With several enemies, removing one means one fewer attacker every round.
+    if kill:
+        return kill
 
     summon = _summon_action(battle, strat)
     if summon:
