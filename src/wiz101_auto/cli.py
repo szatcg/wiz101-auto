@@ -30,6 +30,57 @@ def _setup_logging(log_file: str | None, verbose: bool):
         )
 
 
+_ESC = "\033"
+_COLORS = {
+    "SUCCESS": _ESC + "[32m",
+    "WARNING": _ESC + "[33m",
+    "ERROR": _ESC + "[31m",
+    "CRITICAL": _ESC + "[31m",
+}
+_PLAN_COLOR = _ESC + "[36m"
+_RESET = _ESC + "[0m"
+
+
+def _watch(path: str, backlog: int = 30):
+    """Print the last lines of the activity log, then follow it (Ctrl+C to quit)."""
+    import os
+    import time
+
+    if sys.platform == "win32":
+        os.system("")  # enable ANSI colours in the Windows console
+    print(f"following {path} (Ctrl+C to stop)")
+    print()
+    pos = 0
+    shown_backlog = False
+    while True:
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            time.sleep(1)
+            continue
+        if size < pos:
+            pos = 0  # rotated
+        with open(path, encoding="utf-8", errors="replace") as f:
+            if not shown_backlog:
+                lines = f.readlines()
+                pos = f.tell()
+                new = lines[-backlog:]
+                shown_backlog = True
+            else:
+                f.seek(pos)
+                new = f.readlines()
+                pos = f.tell()
+        for line in new:
+            line = line.rstrip()
+            level = line.split("|")[1].strip() if line.count("|") >= 2 else ""
+            color = _PLAN_COLOR if "| plan" in line else _COLORS.get(level, "")
+            print(f"{color}{line}{_RESET}" if color else line, flush=True)
+        try:
+            time.sleep(0.5)
+        except KeyboardInterrupt:
+            return
+
+
 def _lower_priority():
     """Run below normal priority so the bot can never starve the game or the PC."""
     if sys.platform != "win32":
@@ -67,6 +118,7 @@ def main(argv: list[str] | None = None):
     deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
 
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
+    sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
     shot_p = sub.add_parser("screenshot", help="save the game window as a PNG (works while the bot runs)")
     shot_p.add_argument("-o", "--output", default="state/screenshot.png")
 
@@ -111,6 +163,10 @@ def main(argv: list[str] | None = None):
         from .inspect_state import inspect
 
         asyncio.run(inspect(show_windows=args.windows))
+        return
+
+    if args.command == "watch":
+        _watch(ACTIVITY_LOG)
         return
 
     if args.command == "screenshot":

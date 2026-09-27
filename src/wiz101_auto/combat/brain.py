@@ -55,6 +55,7 @@ class Strategy:
     save_for_stronger: float = 0.6
     discard_junk: bool = True  # bin off-school gear attack cards to draw deck spells
     hold_big_hit_until_pips: int = 4  # wait for a trap before a 2+ pip hit, up to this many pips
+    quick_fight_rounds: int = 3  # no boss and done within this many rounds: don't summon
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -316,6 +317,60 @@ def _discard_action(battle: Battle, strat: Strategy) -> Action | None:
     return Action(ActionKind.DISCARD, candidate, reason="hand full")
 
 
+@dataclass
+class FightPlan:
+    rounds: int  # estimated rounds of our casts to end the fight
+    text: str  # human-readable plan, logged by the fighter
+    skip_summon: bool
+
+
+def _rounds_to_kill(battle: Battle, target: Combatant) -> tuple[int, str]:
+    """Fewest of our turns to kill `target` with the attacks in hand: now, trap
+    then hit, or repeated best hits (waiting a round for pips when needed)."""
+    me, pips = battle.me, battle.pips + battle.power_pips
+    attacks = [c for c in battle.cards if c.is_damage and not c.is_enchant and not c.treasure]
+    if not attacks:
+        return 99, "no attack in hand"
+    now = [c for c in attacks if c.castable]
+    for c in sorted(now, key=lambda c: c.pip_cost):
+        if hit_damage(c, me, target) >= target.health:
+            return 1, f"{c.name} now (~{hit_damage(c, me, target):.0f})"
+    traps = [c for c in battle.cards if c.castable and EffectKind.TRAP in c.kinds and not c.is_enchant]
+    if traps and not _is_trapped(target):
+        trap = max(traps, key=lambda c: sum(e.value for e in c.effects))
+        boost = sum(e.value for e in trap.effects if e.kind is EffectKind.TRAP) / 100
+        trapped = Combatant(**{**target.__dict__, "incoming_boost": target.incoming_boost + boost})
+        for c in sorted(attacks, key=lambda c: c.pip_cost):
+            if c.pip_cost <= pips + 1 and hit_damage(c, me, trapped) >= target.health:
+                return 2, f"{trap.name}, then {c.name} (~{hit_damage(c, me, trapped):.0f})"
+    usable = [c for c in attacks if c.pip_cost <= pips + 1]
+    if not usable:
+        return 99, "no affordable attack"
+    best = max(usable, key=lambda c: expected_damage(c, me, target))
+    per_round = max(1.0, expected_damage(best, me, target))
+    wait = 0 if best.castable else 1
+    rounds = wait + -(-target.health // int(per_round))
+    return rounds, f"{best.name} x{rounds - wait} (~{per_round:.0f} each)"
+
+
+def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
+    """How we expect to end this fight, weakest enemy first. A quick fight
+    (no boss, a few rounds) isn't worth a round summoning a minion."""
+    strat = strat or Strategy()
+    enemies = sorted(battle.live_enemies, key=lambda e: e.health)
+    if not enemies:
+        return FightPlan(0, "no enemies", True)
+    parts, total = [], 0
+    for e in enemies:
+        n, how = _rounds_to_kill(battle, e)
+        total += n
+        parts.append(f"{e.name} {e.health}hp: {how} = {n} round{'s' if n != 1 else ''}")
+    boss = any(e.is_boss for e in enemies)
+    skip = not boss and total <= strat.quick_fight_rounds
+    note = "; skipping the minion (quick fight)" if skip else ""
+    return FightPlan(total, f"plan (~{total} rounds): " + " | ".join(parts) + note, skip)
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
     strat = strat or Strategy()
 
@@ -343,7 +398,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
         if junk:
             return junk
 
-    summon = _summon_action(battle, strat)
+    summon = None if plan_fight(battle, strat).skip_summon else _summon_action(battle, strat)
     if summon:
         return summon
 

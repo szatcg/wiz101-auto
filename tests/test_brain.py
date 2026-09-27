@@ -294,3 +294,18 @@ def test_holds_troll_until_the_target_is_trapped():
     b.enemies[0].trap_count, b.enemies[0].incoming_boost = 0, 0.0
     b.pips = 4  # don't wait forever
     assert decide(b).card.name == "Troll"
+
+
+def test_quick_fight_skips_the_minion_and_plans_trap_then_troll():
+    from wiz101_auto.combat.brain import plan_fight
+
+    troll = dmg_card(0, "Troll", 190, pips=2)
+    summon = Card(1, "Troll Minion", pip_cost=1, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    myth_trap = Card(2, "Myth Trap", effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40)])
+    b = battle([troll, summon, myth_trap], [enemy("Fire Elf Hunter", 250)])
+    b.pips = 1
+    plan = plan_fight(b)
+    assert plan.skip_summon and plan.rounds == 2 and "Myth Trap, then Troll" in plan.text
+    assert decide(b).card.name == "Myth Trap"
+    boss = battle([troll, summon, myth_trap], [enemy("Alicane", 480, boss=True)])
+    assert not plan_fight(boss).skip_summon

@@ -9,7 +9,7 @@ from wizwalker.combat import CombatHandler
 
 from .. import ui
 from ..dungeons import DungeonMemory
-from .brain import Strategy, decide
+from .brain import Strategy, decide, plan_fight
 from .model import ActionKind
 from .reader import read_battle
 
@@ -37,6 +37,7 @@ class Fighter(CombatHandler):
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
         self._judged_fight = False
+        self._last_plan = ""
 
     async def _hand_size(self) -> int:
         try:
@@ -169,6 +170,10 @@ class Fighter(CombatHandler):
                     await self.flee_button()
                     return
 
+            plan = plan_fight(battle, self.strategy).text
+            if plan != self._last_plan:
+                logger.info(plan)
+                self._last_plan = plan
             action = decide(battle, self.strategy, discards_left=discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
@@ -225,6 +230,7 @@ class Fighter(CombatHandler):
     async def handle_combat(self):
         self._unusable.clear()
         self._judged_fight = False
+        self._last_plan = ""
         await super().handle_combat()
         self.fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")
