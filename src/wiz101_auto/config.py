@@ -35,11 +35,17 @@ class UpkeepConfig:
     # whenever health is below min_health_to_fight, until rest_until_health.
     min_health_to_fight: float = 0.8
     rest_until_health: float = 0.95
+    # Spells cost mana: at 0 every card is grayed out, so top mana up too.
+    min_mana_to_fight: float = 0.3
+    rest_until_mana: float = 0.8
     rest_max_minutes: float = 8.0  # give up and stop the bot if still too low after this
     wisp_safe_distance: float = 900.0  # skip wisps closer than this to a mob
 
-    def needs_recovery(self, health_ratio: float) -> bool:
-        return health_ratio < self.min_health_to_fight
+    def needs_recovery(self, health_ratio: float, mana_ratio: float = 1.0) -> bool:
+        return health_ratio < self.min_health_to_fight or mana_ratio < self.min_mana_to_fight
+
+    def recovered(self, health_ratio: float, mana_ratio: float) -> bool:
+        return health_ratio >= self.rest_until_health and mana_ratio >= self.rest_until_mana
 
 
 @dataclass

@@ -91,9 +91,9 @@ def _pt(xyz) -> tuple[float, float, float]:
 
 
 async def scan_wisps(client) -> list:
-    """Visible health wisps; their positions are remembered for later."""
+    """Visible health and mana wisps; their positions are remembered for later."""
     try:
-        wisps = await client.get_health_wisps()
+        wisps = await client.get_health_wisps() + await client.get_mana_wisps()
         if wisps:
             zone = await client.zone_name() or "?"
             added = wisp_memory().record(zone, [_pt(await w.location()) for w in wisps])
@@ -113,12 +113,10 @@ async def mob_positions(client) -> list[tuple[float, float, float]]:
         return []
 
 
-async def collect_wisps(client, cfg: UpkeepConfig, *, mana_too: bool = False, limit: int = 6) -> int:
-    """Teleport onto nearby wisps that aren't close to mobs. Returns how many were taken."""
+async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
+    """Teleport onto nearby health/mana wisps that aren't close to mobs. Returns how many were taken."""
     try:
         wisps = await scan_wisps(client)
-        if mana_too:
-            wisps += await client.get_mana_wisps()
         safe = await client.find_safe_entities_from(wisps, safe_distance=cfg.wisp_safe_distance)
         if not safe:
             return 0
@@ -211,9 +209,9 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
     (a fight, dialogue, loading) interrupted the recovery.
     """
     hp, mana = await health_mana(client)
-    if not cfg.needs_recovery(hp):
+    if not cfg.needs_recovery(hp, mana):
         return True
-    logger.info(f"health {hp:.0%} is below {cfg.min_health_to_fight:.0%}; recovering before going on")
+    logger.info(f"health {hp:.0%}, mana {mana:.0%}: recovering before going on")
 
     loop = asyncio.get_running_loop()
     started = loop.time()
@@ -226,21 +224,22 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
         if not await is_free(client):
             return False
         hp, mana = await health_mana(client)
-        if hp >= cfg.rest_until_health:
-            logger.success(f"recovered to {hp:.0%} health")
+        if cfg.recovered(hp, mana):
+            logger.success(f"recovered to {hp:.0%} health, {mana:.0%} mana")
             return True
 
-        if cfg.use_potions and hp < cfg.potion_health_ratio and await client.stats.potion_charge() >= 1.0:
-            logger.info(f"drinking potion (hp {hp:.0%})")
+        low = hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio
+        if cfg.use_potions and low and await client.stats.potion_charge() >= 1.0:
+            logger.info(f"drinking potion (hp {hp:.0%}, mana {mana:.0%})")
             await ui.click(client, ui.POTION_BUTTON)
             await asyncio.sleep(1.5)
             continue
 
         if cfg.collect_wisps:
             # 1. wisps in view  2. remembered spawn points  3. search the zone once
-            if await collect_wisps(client, cfg, mana_too=mana < 0.5):
+            if await collect_wisps(client, cfg):
                 await asyncio.sleep(0.5)
-                if (await health_mana(client))[0] > hp:
+                if await health_mana(client) > (hp, mana):
                     continue
             zone = await client.zone_name() or "?"
             if await visit_known_spot(client, cfg, zone):
@@ -266,15 +265,15 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
 
         elapsed = loop.time() - started
         if elapsed > cfg.rest_max_minutes * 60:
-            if hp >= cfg.min_health_to_fight:
+            if not cfg.needs_recovery(hp, mana):
                 return True
             controller.stop(
-                f"could not recover health ({hp:.0%}) within {cfg.rest_max_minutes:g} min: "
-                "no potions and no safe wisps nearby"
+                f"could not recover (health {hp:.0%}, mana {mana:.0%}) within "
+                f"{cfg.rest_max_minutes:g} min: no potions and no safe wisps nearby"
             )
             return False
         if loop.time() - last_report > 60:
-            logger.info(f"resting: health {hp:.0%}, waiting for regeneration or wisps to respawn")
+            logger.info(f"resting: health {hp:.0%}, mana {mana:.0%}; waiting for regeneration or wisps")
             last_report = loop.time()
         controller.allow_idle(10)
         await asyncio.sleep(5)

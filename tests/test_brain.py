@@ -214,3 +214,12 @@ def test_heals_before_a_kill_that_does_not_end_the_fight():
     hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400)]
     b = battle(hand, [enemy("A", 50), enemy("B", 500)], my=me(hp=100))
     assert decide(b).card.name == "Pixie"
+
+
+def test_out_of_mana_detection():
+    from wiz101_auto.combat.fighter import out_of_mana
+
+    grayed = [dmg_card(0, "Blood Bat", 90, castable=False)]
+    assert out_of_mana(battle(grayed, [enemy("Harvest Lord", 900)], my=me(mana=0)))
+    assert not out_of_mana(battle(grayed, [enemy("Harvest Lord", 900)], my=me(mana=20)))
+    assert not out_of_mana(battle([dmg_card(0, "Blood Bat", 90)], [enemy("X", 90)], my=me(mana=2)))

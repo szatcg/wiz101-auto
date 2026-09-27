@@ -109,6 +109,7 @@ class Combatant:
     is_boss: bool = False
     is_dead: bool = False
     is_minion: bool = False
+    mana: int | None = None  # read for the wizard only
     school: str = ""  # lower case, e.g. "myth"
     # Per-school incoming damage reduction as a fraction (0.3 = resists 30%,
     # negative = takes extra). None when the stats couldn't be read.

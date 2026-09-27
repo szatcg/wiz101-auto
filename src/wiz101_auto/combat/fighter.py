@@ -15,6 +15,14 @@ MAX_STEPS_PER_ROUND = 8
 CLICK_PROBES = (0.1, 0.5)  # fallbacks if the default click point stops working
 
 
+LOW_MANA = 5  # spells cost roughly a mana per pip
+
+
+def out_of_mana(battle) -> bool:
+    mana = battle.me.mana
+    return mana is not None and mana < LOW_MANA and not any(c.castable for c in battle.cards)
+
+
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0):
         super().__init__(client)
@@ -87,6 +95,12 @@ class Fighter(CombatHandler):
 
             if self.flee_below and battle.me.health_ratio < self.flee_below:
                 logger.warning(f"health {battle.me.health}/{battle.me.max_health}: fleeing")
+                await self.flee_button()
+                return
+
+            # Out of mana every card is grayed out: passing until defeat helps nobody.
+            if out_of_mana(battle):
+                logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: fleeing")
                 await self.flee_button()
                 return
 

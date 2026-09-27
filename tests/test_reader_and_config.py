@@ -140,3 +140,12 @@ def test_per_school_maps_the_stat_vector_and_normalises_percents():
 
     assert per_school([0.0, 0.0, 0.0, 0.4], 0.05)["myth"] == 0.45
     assert per_school([10.0, -20.0])["ice"] == -0.2
+
+
+def test_recovery_covers_mana():
+    from wiz101_auto.config import UpkeepConfig
+
+    cfg = UpkeepConfig()
+    assert cfg.needs_recovery(1.0, 0.0)
+    assert not cfg.needs_recovery(0.9, 0.5)
+    assert not cfg.recovered(1.0, 0.5) and cfg.recovered(1.0, 0.9)

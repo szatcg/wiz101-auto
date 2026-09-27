@@ -278,6 +278,10 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
     my_team = await (await me_member.get_participant()).team_id()
 
     me = await read_combatant(me_member, my_team)
+    try:
+        me.mana = await me_member.mana()
+    except Exception:
+        pass
     members: dict[int, CombatMember] = {id(me): me_member}
     allies: list[Combatant] = []
     enemies: list[Combatant] = []
