@@ -36,6 +36,7 @@ from .model import (
 @dataclass
 class Strategy:
     heal_threshold: float = 0.45  # heal self below this health ratio
+    boss_heal_threshold: float = 0.6  # bosses can take half our health in one round
     ally_heal_threshold: float = 0.35
     shield_threshold: float = 0.6  # shield self below this if no heal is available
     max_blades: int = 2
@@ -106,13 +107,18 @@ def _castable(cards: list[Card]) -> list[Card]:
     return [c for c in cards if c.castable]
 
 
+def heal_threshold(battle: Battle, strat: Strategy) -> float:
+    boss = any(e.is_boss for e in battle.live_enemies)
+    return max(strat.heal_threshold, strat.boss_heal_threshold) if boss else strat.heal_threshold
+
+
 def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
     heals = [c for c in _castable(battle.cards) if c.is_heal and not c.is_enchant]
     if not heals:
         return None
 
     me = battle.me
-    if me.health_ratio < strat.heal_threshold:
+    if me.health_ratio < heal_threshold(battle, strat):
         missing = me.max_health - me.health
         # Biggest heal that doesn't massively overheal; otherwise the biggest.
         fitting = [c for c in heals if c.heal_amount() <= missing * 1.25]
@@ -160,14 +166,15 @@ def _kill_action(battle: Battle) -> Action | None:
             key = (len(kills), -card.pip_cost, -min(t.health for t in kills))
             if best is None or key > best[0]:
                 name = kills[0].name if len(kills) == 1 else f"{len(kills)} enemies"
-                best = (key, Action(ActionKind.CAST, card, target, reason=f"finish {name}"))
+                dmg = hit_damage(card, battle.me, kills[0])
+                best = (key, Action(ActionKind.CAST, card, target, reason=f"finish {name}: ~{dmg:.0f} dmg"))
     return best[1] if best else None
 
 
 def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
     """Low on health with a heal in hand we can't afford yet: spend nothing, so
     it's castable next round (a pip comes in every round)."""
-    if battle.me.health_ratio >= strat.heal_threshold:
+    if battle.me.health_ratio >= heal_threshold(battle, strat):
         return None
     pips = battle.pips + battle.power_pips
     waiting = [c for c in battle.cards if c.is_heal and not c.is_enchant and pips < c.pip_cost <= pips + 1]

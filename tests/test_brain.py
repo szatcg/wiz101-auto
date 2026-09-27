@@ -236,3 +236,11 @@ def test_saves_pips_for_a_heal_when_low():
     # ...but a blow that ends the fight still wins
     b.enemies[0].health = 60
     assert decide(b).card.name == "Blood Bat"
+
+
+def test_heals_earlier_against_a_boss():
+    hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400)]
+    boss_fight = battle(hand, [enemy("Alicane", 480, boss=True)], my=me(hp=325, max_hp=628))
+    assert decide(boss_fight).card.name == "Pixie"
+    normal = battle(hand, [enemy("Magma Man", 235)], my=me(hp=325, max_hp=628))
+    assert decide(normal).card.name == "Blood Bat"
