@@ -15,21 +15,27 @@ from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_deck
 
 
 async def _spell_info(entry) -> SpellInfo | None:
+    """Build a planner SpellInfo from a list entry. Works whether the entry points
+    at a GraphicalSpell (deck/item lists) or straight at a SpellTemplate."""
     try:
-        gspell = await entry.graphical_spell()
-        if not gspell:
-            return None
-        template = await gspell.spell_template()
+        template = await entry.template() if hasattr(entry, "template") else None
+        gspell = None
+        if not getattr(entry, "_template_ptr", False):
+            gspell = await entry.graphical_spell()
+            if gspell and template is None:
+                template = await gspell.spell_template()
         if not template:
             return None
         name = await template.name()
         if not name:
             return None
+        source = gspell or template  # both expose effects/accuracy
         effects = []
-        for eff in await gspell.spell_effects():
+        raw_effects = await (gspell.spell_effects() if gspell else template.effects())
+        for eff in raw_effects:
             effects.extend(await read_effects(eff))
         pip_cost = 0
-        rank = await gspell.pip_cost()
+        rank = await (gspell.pip_cost() if gspell else template.spell_rank())
         if rank is not None:
             pip_cost = await rank.spell_rank()
         school = ""
@@ -42,7 +48,7 @@ async def _spell_info(entry) -> SpellInfo | None:
             name=name,
             school=school,
             pip_cost=pip_cost,
-            accuracy=await gspell.accuracy(),
+            accuracy=await source.accuracy(),
             effects=effects,
         )
         return SpellInfo(card=card, max_copies=await entry.max_copies())
@@ -329,13 +335,25 @@ _layouts: dict[str, tuple] = {}  # control type name -> (offset, gap, size, ptr_
 class SpellEntry:
     """A spell list entry: a GraphicalSpell pointer plus copy counts."""
 
-    def __init__(self, hook_handler, address: int, spell_ptr_offset: int = 0):
+    def __init__(self, hook_handler, address: int, spell_ptr_offset: int = 0, template_ptr: bool = False):
         from wizwalker.memory.memory_object import DynamicMemoryObject
 
         self._mem = DynamicMemoryObject(hook_handler, address)
         self._hook = hook_handler
         self._ptr_off = spell_ptr_offset
+        self._template_ptr = template_ptr  # pointer is a SpellTemplate, not a GraphicalSpell
         self.base_address = address
+
+    async def template(self):
+        from wizwalker.memory.memory_objects.spell_template import DynamicSpellTemplate
+
+        addr = await self._u(self._ptr_off, "q")
+        if not addr:
+            return None
+        if self._template_ptr:
+            return DynamicSpellTemplate(self._hook, addr)
+        g = await self.graphical_spell()
+        return await g.spell_template() if g else None
 
     async def _u(self, offset: int, size: str) -> int:
         from wizwalker.memory.memory_object import Primitive
@@ -367,15 +385,14 @@ async def _spell_name_at(entry: SpellEntry) -> str | None:
     if addr == 0:
         return ""
     try:
-        g = await entry.graphical_spell()
-        t = await g.spell_template()
+        t = await entry.template()
         name = await t.name() if t else ""
     except Exception:
         return None
     return name if name and name.isprintable() and len(name) < 80 else None
 
 
-async def _make_entries(hook, start, count, size, ptr_off, indirect) -> list[SpellEntry]:
+async def _make_entries(hook, start, count, size, ptr_off, indirect, template_ptr=False) -> list[SpellEntry]:
     from wizwalker.memory.memory_object import DynamicMemoryObject, Primitive
 
     out = []
@@ -385,21 +402,23 @@ async def _make_entries(hook, start, count, size, ptr_off, indirect) -> list[Spe
             addr = await DynamicMemoryObject(hook, addr).read_value_from_offset(0, Primitive.uint64)
             if not addr:
                 continue
-        out.append(SpellEntry(hook, addr, ptr_off))
+        out.append(SpellEntry(hook, addr, ptr_off, template_ptr))
     return out
 
 
-async def _check_layout(hook, start, end, size, ptr_off, indirect) -> list[SpellEntry] | None:
+async def _check_layout(
+    hook, start, end, size, ptr_off, indirect, template_ptr=False
+) -> list[SpellEntry] | None:
     if (end - start) % size:
         return None
     count = (end - start) // size
     if count == 0 or count > 500:
         return None
-    probe = await _make_entries(hook, start, min(count, PROBE), size, ptr_off, indirect)
+    probe = await _make_entries(hook, start, min(count, PROBE), size, ptr_off, indirect, template_ptr)
     names = [await _spell_name_at(e) for e in probe]
     if not names or any(n is None for n in names) or not any(names):
         return None  # something unreadable, or nothing but empty slots
-    entries = await _make_entries(hook, start, count, size, ptr_off, indirect)
+    entries = await _make_entries(hook, start, count, size, ptr_off, indirect, template_ptr)
     return [e for e in entries if await _spell_name_at(e)]
 
 
@@ -423,11 +442,11 @@ async def find_spell_entries(client, list_window) -> list[SpellEntry]:
 
     known = _layouts.get(kind)
     if known:
-        offset, gap, size, ptr_off, indirect = known
+        offset, gap, size, ptr_off, indirect, template_ptr = known
         p = await pair(offset, gap)
         if p is None:
             return []  # layout known, list currently empty
-        found = await _check_layout(hook, *p, size, ptr_off, indirect)
+        found = await _check_layout(hook, *p, size, ptr_off, indirect, template_ptr)
         if found is not None:
             return found
 
@@ -436,16 +455,18 @@ async def find_spell_entries(client, list_window) -> list[SpellEntry]:
             p = await pair(offset, gap)
             if p is None:
                 continue
-            candidates = [(8, o, True) for o in SPELL_PTR_OFFSETS]  # vector of pointers
-            candidates += [(size, o, False) for size in ENTRY_SIZES for o in SPELL_PTR_OFFSETS]
-            for size, ptr_off, indirect in candidates:
-                found = await _check_layout(hook, *p, size, ptr_off, indirect)
+            base = [(8, o, True) for o in SPELL_PTR_OFFSETS]  # vector of pointers
+            base += [(size, o, False) for size in ENTRY_SIZES for o in SPELL_PTR_OFFSETS]
+            candidates = [(*c, False) for c in base] + [(*c, True) for c in base]
+            for size, ptr_off, indirect, template_ptr in candidates:
+                found = await _check_layout(hook, *p, size, ptr_off, indirect, template_ptr)
                 if found:
-                    layout = (offset, gap, size, ptr_off, indirect)
+                    layout = (offset, gap, size, ptr_off, indirect, template_ptr)
                     if _layouts.get(kind) != layout:
                         logger.info(
                             f"{kind} layout found: vector at {offset:#x}, entry size {size:#x}, "
                             f"spell pointer at +{ptr_off:#x}{', indirect' if indirect else ''}"
+                            f"{', template pointer' if template_ptr else ''}"
                         )
                     _layouts[kind] = layout
                     return found
@@ -488,8 +509,25 @@ async def _is_list_control(window) -> bool:
         return False
 
 
+async def _log_current_deck(client, builder):
+    try:
+        deck_window = await _first_visible(builder._deck_config_window, "CardsInDeck")
+        if not deck_window:
+            return
+        names = []
+        for e in await find_spell_entries(client, deck_window):
+            t = await e.template()
+            if t:
+                names.append(await t.name())
+        counts = {n: names.count(n) for n in dict.fromkeys(names)}
+        logger.info("current deck: " + (", ".join(f"{n} x{c}" for n, c in counts.items()) or "(empty)"))
+    except Exception as exc:
+        logger.debug(f"could not read current deck: {exc!r}")
+
+
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
     builder = await _attach_builder(client)
+    await _log_current_deck(client, builder)
     known = await read_known_spells(builder)
     plan = plan_deck(known, school, policy)
     logger.info(f"known spells: {', '.join(s.name for s in known) or '(none)'}")
