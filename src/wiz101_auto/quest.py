@@ -45,6 +45,7 @@ APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_BACKOFF = 400.0  # how far to step off a sigil to re-arm it
+SIGIL_PAD_RADII = (60.0, 120.0, 180.0)  # where a sigil's pads sit around its center
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
 
@@ -256,9 +257,13 @@ class Quester:
             await self.client.teleport(sigil)
             await asyncio.sleep(0.8)
         await wait_for_loading(self.client)
-        self.controller.allow_idle(SIGIL_WAIT + 10)
+        self.controller.allow_idle(SIGIL_WAIT + 40)
         try:
             await asyncio.sleep(0.5)
+            if not await self._find_sigil_pad(sigil):
+                logger.warning("no 'press X' prompt anywhere around the sigil")
+                self._sigil_failed_at = sigil
+                return False
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
             deadline = time.monotonic() + SIGIL_WAIT
@@ -274,6 +279,21 @@ class Quester:
             self.controller.end_idle()
         logger.warning("stood on the sigil but the dungeon did not start; will re-arm it")
         self._sigil_failed_at = sigil
+        return False
+
+    async def _find_sigil_pad(self, sigil: XYZ) -> bool:
+        """A sigil is several pads around its center: the prompt only shows on a
+        pad. Walk to spots around the center until it appears."""
+        if await ui.is_visible(self.client, ui.NPC_RANGE):
+            return True
+        for radius in SIGIL_PAD_RADII:
+            for i in range(8):
+                ang = i * math.pi / 4
+                await self.client.goto(sigil.x + radius * math.cos(ang), sigil.y + radius * math.sin(ang))
+                await asyncio.sleep(0.6)
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    logger.info(f"found the sigil pad {radius:.0f} units from its center")
+                    return True
         return False
 
     async def _walk_in_from_around(self, target: XYZ, zone: str | None) -> bool:
