@@ -43,7 +43,8 @@ DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
-SIGIL_WAIT = 20.0  # the countdown after pressing X is ~10s
+SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
+SIGIL_BACKOFF = 400.0  # how far to step off a sigil to re-arm it
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
 
@@ -136,6 +137,7 @@ class Quester:
         self.objectives_completed = 0
         self.gear = None  # GearManager, set by the bot
         self._activity_quests: set[str] = set()  # spell quests seen in the book
+        self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -237,36 +239,41 @@ class Quester:
         return None
 
     async def _enter_by_sigil(self, sigil: XYZ, zone: str | None) -> bool:
-        """Dungeons start with X on the sigil, then a ~10s countdown; any
-        movement (including watchdog nudges) cancels it."""
+        """Dungeons start with ONE press of X on the sigil, then a ~10s countdown
+        that any movement or another X press cancels. After a failed try the
+        prompt won't restart until we step off the sigil and back on."""
         # An open menu (e.g. the spellbook) hides the "press X" prompt.
         await close_spellbook(self.client)
         await ui.close_menus(self.client)
-        if distance(await self._position(), sigil) > SIGIL_RANGE:
+        if self._sigil_failed_at is not None and distance(self._sigil_failed_at, sigil) < SIGIL_RANGE:
+            # Re-arm the sigil: walk away a distance and back onto it.
+            logger.info("re-arming the dungeon sigil: stepping away and walking back on")
+            await self.client.teleport(XYZ(sigil.x + SIGIL_BACKOFF, sigil.y, sigil.z))
+            await asyncio.sleep(1.0)
+            await self.client.goto(sigil.x, sigil.y)
+            await asyncio.sleep(1.0)
+        elif distance(await self._position(), sigil) > SIGIL_RANGE:
             await self.client.teleport(sigil)
             await asyncio.sleep(0.8)
         await wait_for_loading(self.client)
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
             await asyncio.sleep(0.5)
-            logger.info("on the dungeon sigil; pressing X and holding still for the countdown")
+            logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
-            pressed_again = False
             deadline = time.monotonic() + SIGIL_WAIT
             while time.monotonic() < deadline:
-                if not pressed_again and time.monotonic() > deadline - SIGIL_WAIT + 3:
-                    if await ui.is_visible(self.client, ui.NPC_RANGE):
-                        await self.client.send_key(Keycode.X, 0.1)  # first press didn't take
-                    pressed_again = True
                 if await self.client.is_loading() or await self.client.zone_name() != zone:
                     await wait_for_loading(self.client)
                     logger.success("entered the dungeon")
+                    self._sigil_failed_at = None
                     return True
                 await ui.confirm_modal(self.client)  # "enter alone?" confirmation
                 await asyncio.sleep(0.5)
         finally:
             self.controller.end_idle()
-        logger.warning("stood on the sigil but the dungeon did not start")
+        logger.warning("stood on the sigil but the dungeon did not start; will re-arm it")
+        self._sigil_failed_at = sigil
         return False
 
     async def _walk_in_from_around(self, target: XYZ, zone: str | None) -> bool:
