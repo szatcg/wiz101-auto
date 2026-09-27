@@ -93,12 +93,18 @@ def _pt(xyz) -> tuple[float, float, float]:
 
 
 async def scan_wisps(client) -> list:
-    """Visible health and mana wisps; their positions are remembered for later."""
+    """Visible health and mana wisps; their positions are remembered for later,
+    along with wisp stand-ins (fixed markers where a taken wisp respawns)."""
     try:
         wisps = await client.get_health_wisps() + await client.get_mana_wisps()
-        if wisps:
+        stand_ins = [
+            e for e in await client.get_base_entities_with_vague_name("StandIn")
+            if "wisp" in ((await (await e.object_template()).object_name()) or "").lower()
+        ]
+        seen = wisps + stand_ins
+        if seen:
             zone = await client.zone_name() or "?"
-            added = wisp_memory().record(zone, [_pt(await w.location()) for w in wisps])
+            added = wisp_memory().record(zone, [_pt(await w.location()) for w in seen])
             if added:
                 logger.debug(f"remembered {added} new wisp spot(s) in {zone}")
                 wisp_memory().save()
@@ -212,7 +218,9 @@ async def sweep_for_wisps(client, cfg: UpkeepConfig) -> int:
     """Hop across the zone's landmarks (on the map, away from mobs) to discover
     its wisp spawns; wisps only load near the wizard."""
     start = await client.body.position()
-    spots = away_from(await landmarks(client), await mob_positions(client), cfg.wisp_safe_distance)
+    # Only skip landmarks right next to mobs: busy streets (Unicorn Way) would
+    # otherwise leave nothing to search. Wisps near mobs are still skipped.
+    spots = away_from(await landmarks(client), await mob_positions(client), SWEEP_MOB_DISTANCE)
     points = spread_points(spots, _pt(start), WISP_SWEEP_SPACING)[:WISP_SWEEP_MAX]
     zone = await client.zone_name() or "?"
     before = len(wisp_memory().spots.get(zone, []))
@@ -250,6 +258,7 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         return False
 
 
+SWEEP_MOB_DISTANCE = 500.0
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
