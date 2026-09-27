@@ -13,6 +13,7 @@ from wizwalker.extensions.wizsprinter import SprintyClient
 
 from .combat.fighter import Fighter
 from .config import Config
+from .gear import GearManager
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
@@ -195,6 +196,7 @@ async def run(cfg: Config):
         quester = None
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
+            quester.gear = GearManager(client, progression.school or "")
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):

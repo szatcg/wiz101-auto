@@ -84,6 +84,7 @@ class Quester:
         self._last_progress = (None, None)
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0
+        self.gear = None  # GearManager, set by the bot
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -626,6 +627,16 @@ class Quester:
             self._last_wisp_scan = time.monotonic()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return
+        if self.gear:
+            self.controller.allow_idle(180)  # trying gear on looks like "nothing happening"
+            try:
+                await self.gear.tick()
+            except Exception as exc:
+                logger.opt(exception=exc).warning("gear check failed")
+            finally:
+                self.controller.end_idle()
+            if not await is_free(self.client):
+                return
         if self.progression:
             self.controller.allow_idle(90)  # spellbook work looks like "nothing happening"
             try:
