@@ -292,7 +292,7 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         return False
 
 
-SWEEP_MOB_DISTANCE = 500.0
+SWEEP_MOB_DISTANCE = 1000.0  # hopping next to a mob starts a fight
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geometry

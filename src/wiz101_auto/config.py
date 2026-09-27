@@ -40,7 +40,7 @@ class UpkeepConfig:
     min_mana_to_fight: float = 0.5
     rest_until_mana: float = 0.85
     rest_max_minutes: float = 8.0  # give up and stop the bot if still too low after this
-    wisp_safe_distance: float = 900.0  # skip wisps closer than this to a mob
+    wisp_safe_distance: float = 1000.0  # skip wisps (and wisp spots) this close to a mob
     # Zones to go heal in when the current one has no wisps (first same-world match wins).
     heal_zones: list[str] = field(default_factory=lambda: ["WizardCity/WC_Streets/WC_Unicorn"])
 

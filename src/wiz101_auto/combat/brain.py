@@ -179,6 +179,15 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     summons = [c for c in _castable(battle.cards) if EffectKind.SUMMON in c.kinds]
     if not summons:
         return None
+    # Minion spells are X-pip: they spend every pip we have. If a trapped target
+    # can be hit with a big spell now (or next round), that hit is worth more.
+    pips = battle.pips + battle.power_pips
+    for target in battle.live_enemies:
+        for c in battle.cards:
+            if not c.is_damage or c.pip_cost < 2 or c.pip_cost > pips + 1:
+                continue
+            if effect_multiplier(target.incoming_effects, target.incoming_boost, c.school) > 1.0:
+                return None
     card = max(summons, key=lambda c: minion_rank(c.template_name or c.name))  # newest minion is the best one
     return Action(ActionKind.CAST, card, None, reason="summon minion")
 

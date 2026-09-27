@@ -324,3 +324,14 @@ def test_identical_traps_trigger_once_and_only_for_their_school():
     assert round(hit_damage(storm, me(), target)) == 100  # a Myth Trap doesn't boost Storm
     target.incoming_effects.append(("spell:2", "", 0.3))  # a different, all-school trap
     assert round(hit_damage(troll, me(), target)) == 182  # 1.4 * 1.3
+
+
+def test_hits_a_trapped_target_instead_of_summoning():
+    summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    troll = dmg_card(0, "Troll", 190, pips=2)
+    boss = enemy("Harvest Lord", 900, boss=True, trap_count=2, incoming_boost=0.8)
+    b = battle([troll, summon], [boss])
+    b.pips = 2
+    assert decide(b).card.name == "Troll"
+    untrapped = battle([troll, summon], [enemy("Harvest Lord", 900, boss=True)])
+    assert decide(untrapped).card.name == "Troll Minion"
