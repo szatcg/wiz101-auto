@@ -86,7 +86,7 @@ def test_plan_keeps_a_minion():
     bat = SpellInfo(Card(0, "Bloodbat", school="Myth", pip_cost=1, effects=hit), 3)
     golem = SpellInfo(Card(0, "Minion Myth 000", school="Myth", pip_cost=1, effects=summon), 3)
     plan = plan_deck([bat, golem], "Myth", DeckPolicy())
-    assert plan.totals.get("Minion Myth 000") == 2
+    assert plan.totals.get("Minion Myth 000") == 3
 
 
 def test_cards_to_add_only_adds_what_is_missing():
@@ -95,3 +95,17 @@ def test_cards_to_add_only_adds_what_is_missing():
     deck = ["Pixie"] * 3 + ["Bloodbat"] * 3 + ["Minion Myth 000"] * 3
     plan = {"Bloodbat": 3, "Troll": 2, "Pixie": 3, "Minion Myth 000": 2}
     assert cards_to_add(plan, deck) == [("Troll", 2)]
+
+
+def test_only_the_newest_minion_stays():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+    from wiz101_auto.deck_plan import cards_to_remove, minion_rank
+
+    summon = [Effect(EffectKind.SUMMON, Target.SELF, 0)]
+    puppet = SpellInfo(Card(0, "Minion Myth 000", school="Myth", effects=summon), 3)
+    troll = SpellInfo(Card(0, "Minion Myth 001", school="Myth", effects=summon), 3)
+    plan = plan_deck([puppet, troll], "Myth", DeckPolicy())
+    assert plan.totals == {"Minion Myth 001": 3}
+    deck = ["Minion Myth 000"] * 3 + ["Minion Myth 001"] * 3
+    assert cards_to_remove(plan.totals, deck) == [("Minion Myth 000", 3)]
+    assert minion_rank("Minion Myth 001") > minion_rank("Minion Myth 000")

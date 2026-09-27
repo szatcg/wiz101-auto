@@ -16,6 +16,7 @@ from .deck_plan import (
     DeckPolicy,
     SpellInfo,
     cards_to_add,
+    cards_to_remove,
     plan_adds_cards,
     plan_deck,
     unknown_deck_spells,
@@ -583,7 +584,7 @@ async def _is_list_control(window) -> bool:
         return False
 
 
-async def _log_current_deck(client, builder) -> list[str] | None:
+async def _log_current_deck(client, builder, *, quiet: bool = False) -> list[str] | None:
     """Log and return the spell names in the current deck (None if unreadable)."""
     try:
         deck_window = await _first_visible(builder._deck_config_window, "CardsInDeck")
@@ -595,7 +596,8 @@ async def _log_current_deck(client, builder) -> list[str] | None:
             if t:
                 names.append(await t.name())
         counts = {n: names.count(n) for n in dict.fromkeys(names)}
-        logger.info("current deck: " + (", ".join(f"{n} x{c}" for n, c in counts.items()) or "(empty)"))
+        if not quiet:
+            logger.info("current deck: " + (", ".join(f"{n} x{c}" for n, c in counts.items()) or "(empty)"))
         return names
     except Exception as exc:
         logger.debug(f"could not read current deck: {exc!r}")
@@ -624,9 +626,28 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
             "as known spells); leaving the deck alone"
         )
         return known, plan
-    if not plan_adds_cards(plan.totals, deck_names):
-        logger.info("deck plan adds nothing the deck doesn't already have; leaving it alone")
+    removals = cards_to_remove(plan.totals, deck_names)
+    if not plan_adds_cards(plan.totals, deck_names) and not removals:
+        logger.info("deck already matches the plan; leaving it alone")
         return known, plan
+
+    # Remove what the plan dropped (e.g. an older minion) one card at a time,
+    # re-reading the deck after each click since the list shifts.
+    for name, copies in removals:
+        for _ in range(copies):
+            names = await _log_current_deck(client, builder, quiet=True) or []
+            if name not in names:
+                break
+            cells = builder.divide_rectangle(await builder.get_deck_list_rectangle(), columns=8, rows=8)
+            r = cells[names.index(name)]
+            await client.mouse_handler.click(int(r.x1 + (r.x2 - r.x1) * 0.25), int((r.y1 + r.y2) / 2))
+            await asyncio.sleep(0.6)
+            after = await _log_current_deck(client, builder, quiet=True) or []
+            if after.count(name) >= names.count(name):
+                logger.warning(f"deck: removing {name} didn't take; leaving the rest")
+                break
+            logger.info(f"deck: removed a {name}")
+    deck_names = await _log_current_deck(client, builder, quiet=True) or deck_names
 
     # Add only what's missing (new spells, extra copies). Never clear first: if
     # the add clicks fail, the deck must not end up empty.
@@ -638,10 +659,7 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         except Exception as exc:  # max copies, deck full, or UI hiccup
             logger.debug(f"add {name} x{copies} stopped: {exc}")
         await asyncio.sleep(0.3)
-    await asyncio.sleep(0.5)
-    count = await builder.get_deck_count()
-    if count <= before:
-        logger.warning(f"deck: adding cards didn't take ({before} -> {count} cards)")
-        return known, plan
-    logger.success(f"deck updated ({before} -> {count} cards)")
+    await asyncio.sleep(1.5)  # the deck list lags a moment behind removals
+    final = await _log_current_deck(client, builder) or []
+    logger.success(f"deck updated ({before} -> {len(final)} cards)")
     return known, plan

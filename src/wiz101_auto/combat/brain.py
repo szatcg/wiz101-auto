@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..deck_plan import minion_rank
 from .model import (
     Action,
     ActionKind,
@@ -124,7 +125,7 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     summons = [c for c in _castable(battle.cards) if EffectKind.SUMMON in c.kinds]
     if not summons:
         return None
-    card = max(summons, key=lambda c: c.pip_cost)  # the costlier minion is the stronger one
+    card = max(summons, key=lambda c: minion_rank(c.template_name or c.name))  # newest minion is the best one
     return Action(ActionKind.CAST, card, None, reason="summon minion")
 
 

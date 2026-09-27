@@ -179,3 +179,10 @@ def test_falls_back_to_school_opposites_without_stats():
     myth = school_card(1, "Blood Bat", "Myth", 100)
     target = enemy("Troll", 1000, school="myth")
     assert expected_damage(storm, me(), target) > expected_damage(myth, me(), target)
+
+
+def test_summons_the_newest_minion():
+    summon = [Effect(EffectKind.SUMMON, Target.SELF, 0)]
+    puppet = Card(0, "Golem Minion", effects=summon, template_name="Minion Myth 000")
+    troll = Card(1, "Troll Minion", effects=summon, template_name="Minion Myth 001")
+    assert decide(battle([puppet, troll], [enemy("Troll", 500)])).card.name == "Troll Minion"

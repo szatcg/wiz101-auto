@@ -46,7 +46,7 @@ class DeckPolicy:
     blade_copies: int = 2
     trap_copies: int = 2
     shield_copies: int = 1
-    minion_copies: int = 2
+    minion_copies: int = 3  # of the newest minion only
     core_copies: int = 2
     capacity: int = 0  # 0 = let the game enforce its own limit
     exclude: list[str] = field(default_factory=list)
@@ -62,6 +62,13 @@ def attack_score(card: Card, my_school: str) -> float:
     if my_school and card.school.lower() == my_school.lower():
         score *= 1.1  # power pips count double on school spells
     return score + dmg * 0.05
+
+
+def minion_rank(name: str) -> tuple[int, str]:
+    """Newer minion spells have higher template numbers ("Minion Myth 001" is the
+    Troll, learned after "Minion Myth 000", the Puppet): newest is best."""
+    digits = "".join(ch for ch in name.split()[-1] if ch.isdigit()) if name.split() else ""
+    return (int(digits) if digits else -1, name)
 
 
 def _role(card: Card) -> str | None:
@@ -124,7 +131,7 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
         (best("blade", value), policy.blade_copies),
         (best("trap", value), policy.trap_copies),
         (best("shield", lambda s: -value(s)), policy.shield_copies),
-        (best("minion", lambda s: s.card.pip_cost), policy.minion_copies),
+        (best("minion", lambda s: minion_rank(s.card.name)), policy.minion_copies),
     ]
 
     targets: dict[str, int] = {}
@@ -172,3 +179,9 @@ def plan_adds_cards(plan_totals: dict[str, int], deck_names: list[str]) -> bool:
 def cards_to_add(plan_totals: dict[str, int], deck_names: list[str]) -> list[tuple[str, int]]:
     """(spell, copies) the deck is missing to reach the plan; nothing is removed."""
     return [(n, c - deck_names.count(n)) for n, c in plan_totals.items() if c > deck_names.count(n)]
+
+
+def cards_to_remove(plan_totals: dict[str, int], deck_names: list[str]) -> list[tuple[str, int]]:
+    """(spell, copies) in the deck beyond what the plan wants (e.g. an older minion)."""
+    have = {n: deck_names.count(n) for n in dict.fromkeys(deck_names)}
+    return [(n, c - plan_totals.get(n, 0)) for n, c in have.items() if c > plan_totals.get(n, 0)]
