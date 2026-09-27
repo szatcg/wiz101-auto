@@ -236,6 +236,40 @@ async def sweep_for_wisps(client, cfg: UpkeepConfig) -> int:
     return found
 
 
+async def can_move(client) -> bool:
+    """Tap forward and back: a wizard wedged in a wall or building barely moves."""
+    start = _pt(await client.body.position())
+    moved = 0.0
+    for key in (Keycode.W, Keycode.S):
+        await client.send_key(key, 0.5)
+        await asyncio.sleep(0.2)
+        moved = max(moved, math.dist(start, _pt(await client.body.position())))
+    return moved > STUCK_MOVE_DISTANCE
+
+
+async def unstick(client) -> bool:
+    """If the wizard can't walk (clipped into geometry after a teleport), move it
+    to the nearest on-map landmark it can walk from. True if it was stuck."""
+    try:
+        if await can_move(client):
+            return False
+        me = _pt(await client.body.position())
+        logger.warning(f"wizard seems stuck at ({me[0]:.0f}, {me[1]:.0f}): can't walk; moving to a landmark")
+        spots = away_from(await landmarks(client), await mob_positions(client), 400.0)
+        spots = sorted((p for p in spots if math.dist(p, me) > 150), key=lambda p: math.dist(p, me))
+        for p in spots[:8]:
+            await client.teleport(XYZ(*p))
+            await asyncio.sleep(1.0)
+            if await can_move(client):
+                logger.success(f"unstuck: now at ({p[0]:.0f}, {p[1]:.0f})")
+                return True
+        logger.warning("still stuck after trying nearby landmarks")
+        return True
+    except Exception as exc:
+        logger.debug(f"unstick failed: {exc!r}")
+        return False
+
+
 async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
     """If a mob is close, teleport to the nearest spot with no mob around."""
     try:
@@ -261,6 +295,7 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
 SWEEP_MOB_DISTANCE = 500.0
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
+STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geometry
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 # Interiors recovery gave up on (walk out on the quest path instead).

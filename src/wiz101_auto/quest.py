@@ -27,7 +27,16 @@ from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
 from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
-from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free, wisp_memory
+from .upkeep import (
+    clear_popups,
+    is_free,
+    recover,
+    scan_wisps,
+    unstick,
+    wait_for_loading,
+    wait_until_free,
+    wisp_memory,
+)
 from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
@@ -44,6 +53,8 @@ DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
+STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
+STUCK_CHECK_EVERY = 30.0
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
@@ -139,6 +150,7 @@ class Quester:
         self.gear = None  # GearManager, set by the bot
         self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
+        self._last_stuck_check = 0.0
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -755,6 +767,14 @@ class Quester:
             self._ranked_for = objective
         zone = await self.client.zone_name()
         await self._note_progress(objective, zone)
+        # Stalled on one objective: make sure we aren't wedged inside a building
+        # or wall from a teleport (walking then does nothing).
+        now = time.monotonic()
+        stalled = now - self._last_progress_time > STUCK_CHECK_AFTER
+        if stalled and now - self._last_stuck_check > STUCK_CHECK_EVERY:
+            self._last_stuck_check = now
+            if await unstick(self.client):
+                return
         if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
             self._last_status = time.monotonic()
             waited = time.monotonic() - self._last_progress_time
