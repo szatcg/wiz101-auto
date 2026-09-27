@@ -55,3 +55,8 @@ def test_wrong_type_rejected(tmp_path):
     p.write_text("quest:\n  teleport: maybe\n")
     with pytest.raises(ValueError):
         load_config(p)
+
+
+def test_myth_preset_loads():
+    cfg = load_config(Path(__file__).parent.parent / "configs" / "myth.yaml")
+    assert cfg.progression.school == "Myth"

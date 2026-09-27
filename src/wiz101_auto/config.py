@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from .combat.brain import Strategy
+from .deck_plan import DeckPolicy
 
 
 @dataclass
@@ -47,6 +48,17 @@ class CombatConfig:
 
 
 @dataclass
+class ProgressionConfig:
+    enabled: bool = True
+    school: str = ""  # blank = read from the game
+    rebuild_on_start: bool = True
+    check_minutes: float = 30.0  # re-read the spellbook this often (0 = only on events)
+    auto_train: bool = True  # experimental: train spells when the trainer window opens
+    remind_to_train: bool = True
+    deck: DeckPolicy = field(default_factory=DeckPolicy)
+
+
+@dataclass
 class Config:
     mode: str = "quest"  # quest | fight | farm
     farm_seconds_between_fights: float = 2.0
@@ -55,6 +67,7 @@ class Config:
     upkeep: UpkeepConfig = field(default_factory=UpkeepConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     combat: CombatConfig = field(default_factory=CombatConfig)
+    progression: ProgressionConfig = field(default_factory=ProgressionConfig)
 
 
 def _merge(obj: Any, data: dict[str, Any], path: str = "") -> Any:

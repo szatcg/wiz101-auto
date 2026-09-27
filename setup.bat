@@ -5,7 +5,7 @@ py -3.13 -m venv .venv || (echo Python 3.13 not found. Install it from python.or
 call .venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -e .
-if not exist config.yaml copy config.example.yaml config.yaml
+if not exist config.yaml copy configs\myth.yaml config.yaml
 echo.
 echo Setup done. Log into Wizard101, then run run.bat
 pause

@@ -1,0 +1,51 @@
+# Myth wizard preset (Wizard City onwards). Use with:
+#   wiz101-auto run -c configs/myth.yaml
+#
+# Myth hits hard but has 80% base accuracy and no heals of its own, so this
+# leans on potions and wisps, stacks a Myth blade/trap before big targets,
+# and keeps shields in the deck.
+mode: quest
+
+quest:
+  teleport: true
+  accept_side_quests: false
+  stuck_minutes: 12
+
+upkeep:
+  use_potions: true
+  potion_health_ratio: 0.55
+  potion_mana_ratio: 0.25
+  collect_wisps: true
+  wisp_health_ratio: 0.85
+
+safety:
+  max_hours: 3.0
+  max_deaths: 4
+
+combat:
+  max_discards: 2
+  flee_below: 0.0
+  strategy:
+    heal_threshold: 0.5       # only matters once you have a heal (e.g. a Life secondary)
+    shield_threshold: 0.55
+    max_blades: 2
+    max_traps: 2
+    boss_setup: true
+    setup_health_multiplier: 2.0
+
+progression:
+  enabled: true
+  school: Myth
+  rebuild_on_start: true
+  check_minutes: 30
+  auto_train: true
+  deck:
+    attack_spells: 4
+    attack_copies: 4
+    heal_copies: 3
+    blade_copies: 2
+    trap_copies: 2
+    shield_copies: 2
+    core_copies: 2
+    exclude: []               # spell names to never put in the deck
+    include: {}               # e.g. {"Pixie": 2} to force a card in

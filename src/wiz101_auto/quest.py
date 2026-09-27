@@ -32,8 +32,9 @@ def distance(a: XYZ, b: XYZ) -> float:
 
 
 class Quester:
-    def __init__(self, client, cfg: QuestConfig, controller):
+    def __init__(self, client, cfg: QuestConfig, controller, progression=None):
         self.client = client
+        self.progression = progression
         self.cfg = cfg
         self.controller = controller
         self.sprinter = SprintyClient(client)
@@ -132,6 +133,8 @@ class Quester:
                 await asyncio.sleep(0.3)
             await wait_for_loading(self.client)
 
+        if self.progression:
+            await self.progression.handle_trainer()
         closed = await ui.close_menus(self.client)
         if closed:
             logger.debug(f"closed {closed} menu(s)")
@@ -155,6 +158,10 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if self.progression:
+            await self.progression.tick()
+            if not await is_free(self.client):
+                return
 
         objective = await self.objective()
         zone = await self.client.zone_name()

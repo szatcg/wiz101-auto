@@ -40,13 +40,14 @@ MISSING_AREA = ["MessageBoxModalWindow", "messageBoxBG", "messageBoxLayout", "Ad
 MISSING_AREA_RETRY = [*MISSING_AREA, "RetryBtn"]
 CANCEL_CHEST_REROLL = ["WorldView", "Container", "background", "", "CancelButton"]
 
+TRAINER_EXIT = ["WorldView", "NPCTrainingGUI", "TrainingSelection", "Exit"]
+
 # Menus that NPC interactions can leave open; closed after every interaction.
 CLOSE_BUTTONS = [
     ["WorldView", "shopGUI", "buyWindow", "exit"],
     ["WorldView", "ShoppingPetSnackWindow", "buyWindow", "exit"],
     ["WorldView", "ShoppingReagentWindow", "buyWindow", "exit"],
     ["WorldView", "NPCServicesWin", "wndDialogMain", "Exit"],
-    ["WorldView", "NPCTrainingGUI", "TrainingSelection", "Exit"],
     ["WorldView", "main", "exit"],
     ["WorldView", "mainwindow", "exit"],
     ["WorldView", "TournamentRanking", "exit"],
@@ -117,13 +118,15 @@ async def click(client, path: list[str]) -> bool:
 
 async def close_menus(client) -> int:
     closed = 0
-    for path in CLOSE_BUTTONS:
+    for path in [*CLOSE_BUTTONS, TRAINER_EXIT]:
         if await click(client, path):
             closed += 1
     return closed
 
 
-async def dump_tree(window, depth: int = 0, max_depth: int = 6, only_visible: bool = True) -> list[str]:
+async def dump_tree(
+    window, depth: int = 0, max_depth: int = 6, only_visible: bool = True, with_types: bool = False
+) -> list[str]:
     """Readable window tree, for debugging paths after game patches."""
     lines: list[str] = []
     try:
@@ -138,8 +141,15 @@ async def dump_tree(window, depth: int = 0, max_depth: int = 6, only_visible: bo
         text = _TAGS.sub("", await window.maybe_text() or "")[:60]
     except Exception:
         pass
-    lines.append(f"{'  ' * depth}{name or '<unnamed>'}{'  : ' + text if text else ''}")
+    kind = ""
+    if with_types:
+        try:
+            kind = f"[{await window.maybe_read_type_name()}] "
+        except Exception:
+            kind = "[?] "
+    hidden = "" if visible else " (hidden)"
+    lines.append(f"{'  ' * depth}{kind}{name or '<unnamed>'}{hidden}{'  : ' + text if text else ''}")
     if depth < max_depth:
         for child in await window.children():
-            lines.extend(await dump_tree(child, depth + 1, max_depth, only_visible))
+            lines.extend(await dump_tree(child, depth + 1, max_depth, only_visible, with_types))
     return lines

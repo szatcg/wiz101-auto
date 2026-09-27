@@ -103,7 +103,7 @@ _RANDOM = {"RandomSpellEffect", "RandomPerTargetSpellEffect"}
 _LIST = {"EffectListSpellEffect", "ShadowSpellEffect", "ShadowPactSpellEffect"}
 
 
-async def _read_effect(effect, depth: int = 0) -> list[Effect]:
+async def read_effects(effect, depth: int = 0) -> list[Effect]:
     if depth > 4:
         return []
     try:
@@ -113,22 +113,22 @@ async def _read_effect(effect, depth: int = 0) -> list[Effect]:
 
     try:
         if type_name in _RANDOM:
-            groups = [await _read_effect(c, depth + 1) for c in await effect.maybe_effect_list()]
+            groups = [await read_effects(c, depth + 1) for c in await effect.maybe_effect_list()]
             return average_effects([g for g in groups if g])
         if type_name == "VariableSpellEffect":
             # Variable effects scale with pips; plan with the strongest branch.
-            groups = [await _read_effect(c, depth + 1) for c in await effect.maybe_effect_list()]
+            groups = [await read_effects(c, depth + 1) for c in await effect.maybe_effect_list()]
             groups = [g for g in groups if g]
             return max(groups, key=lambda g: sum(e.value for e in g)) if groups else []
         if type_name in _LIST:
             out: list[Effect] = []
             for c in await effect.maybe_effect_list():
-                out.extend(await _read_effect(c, depth + 1))
+                out.extend(await read_effects(c, depth + 1))
             return out
         if type_name == "ConditionalSpellEffect":
             elements = await effect.elements()
             if elements:
-                return await _read_effect(await elements[-1].effect(), depth + 1)
+                return await read_effects(await elements[-1].effect(), depth + 1)
             return []
     except Exception as exc:  # compound layout changed after a patch; degrade
         logger.debug(f"compound effect {type_name} unreadable: {exc}")
@@ -155,7 +155,7 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
             pass
         effects: list[Effect] = []
         for eff in await gspell.spell_effects():
-            effects.extend(await _read_effect(eff))
+            effects.extend(await read_effects(eff))
         pip_cost = 0
         try:
             rank = await gspell.pip_cost()

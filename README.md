@@ -15,6 +15,7 @@ card-evaluation logic.
 |---|---|
 | **Questing** | Reads the objective text and the quest marker position, teleports there (walks if the server bounces the teleport), presses X on NPCs, doors, sigils and objects, confirms dungeon entry, uses world gates, closes shops and training menus it opens, and pulls the nearest mob for "Defeat…" objectives. |
 | **Combat** | Reads every card in hand (damage, target, pips, accuracy, enchants), every combatant (health, blades, traps, shields, boss flag) and your pips. Each step it heals when low, enchants its attack, stacks blades or traps against bosses, picks the spell and target that removes the most enemy health (kills weighted heavily), sets up while waiting for pips, and discards dead cards. |
+| **Progression** | Notices level-ups and new spells and rebuilds your deck from your spellbook: the best attacks (always keeping a cheap one for round one), a heal, a blade, a trap and a shield, all within copy limits. When a spell trainer window is open, it tries to train (experimental). |
 | **Upkeep** | Advances dialogue, declines side quests (configurable), drinks potions, picks up health and mana wisps after fights, and retries areas that haven't downloaded. |
 | **Safety** | **F9** stops the bot and **F10** pauses or resumes it. It also stops after a maximum run time, too many deaths, or no quest progress for N minutes. |
 
@@ -32,7 +33,7 @@ the nearest mob over and over).
    py -3.13 -m venv .venv
    .venv\Scripts\activate
    pip install -e .
-   copy config.example.yaml config.yaml
+   copy configs\myth.yaml config.yaml
    ```
    Or just run `setup.bat`, which does the same thing.
 3. Start Wizard101, log in, and load into the world with your wizard.
@@ -52,6 +53,41 @@ the nearest mob over and over).
 If hooks fail to activate, run the terminal **as Administrator** and move
 your wizard one step (some hooks only fire on movement).
 
+## Controlling the bot
+
+**Commands** (run them in the activated `.venv`):
+
+| Command | What it does |
+|---|---|
+| `wiz101-auto run -c config.yaml` | Start the bot (`run.bat` does the same). Add `-m fight` or `-m farm` to change mode, and `-v` for detailed output. |
+| `wiz101-auto inspect` | Print what the bot sees right now: zone, health, quest, and in battle your cards and the move it would make. |
+| `wiz101-auto inspect --windows` | Also print the game's UI window tree. |
+| `wiz101-auto deck` | Show the known spells and the deck the bot would build. Changes nothing. |
+| `wiz101-auto deck --apply` | Rebuild the in-game deck from that plan. |
+| `wiz101-auto explore` | Save every nearby NPC, door and mob with its position to `state/explore_*.txt`. |
+
+**Keys while running:** **F9** stops and **F10** pauses or resumes. The keys
+can be changed under `safety`.
+
+**Settings:** everything is in `config.yaml`, which starts as a copy of
+`configs/myth.yaml`. See `config.example.yaml` for every option. The ones you
+will actually touch:
+
+- `mode`: `quest`, `fight` or `farm`
+- `safety.max_hours` / `safety.max_deaths`: session limits
+- `quest.teleport`: `false` to walk instead of teleporting
+- `progression.deck.include` / `exclude`: force a card in or keep one out,
+  e.g. `include: {"Pixie": 2}`
+- `progression.auto_train`: turn the experimental trainer clicks off
+
+**Files the bot writes:**
+
+- `wiz101-auto.log`: full debug log
+- `state/progress.json`: level, known spells and the deck it last built
+- `state/trainer_window_*.txt`: the layout of the spell trainer's window,
+  saved the first time it opens
+- `state/explore_*.txt`: output of `explore`
+
 ## Starting a brand-new wizard
 
 The bot starts once your wizard is standing in the world, so do these by hand:
@@ -62,10 +98,13 @@ The bot starts once your wizard is standing in the world, so do these by hand:
    finish that part yourself and restart it.
 3. From Wizard City onward, run `wiz101-auto run`.
 
-**Spells and deck:** the bot fights with whatever is in your deck. When you
-level up, visit your school's professor, train the new spells, and put them
-in your deck. Automatic training and deck building are on the roadmap. A
-good early deck is 2-3 copies of each attack spell plus a heal.
+**Spells and deck:** the bot rebuilds your deck on startup, on every level
+up, whenever a trainer window closes, and every 30 minutes. Training new
+spells still needs a visit to your professor (Cyrus Drake, the Myth
+professor, in Ravenwood). The quest line takes you there sometimes. Auto
+training clicks inside the trainer window are experimental until its
+layout has been mapped. Walking to the professor automatically is on the
+roadmap and needs `explore` output from Ravenwood and the Myth school.
 
 **Progress limits:** Wizard City is free to play. Areas after it need a
 membership or crown-purchased zones. Without either, the quest line
@@ -104,6 +143,10 @@ src/wiz101_auto/
   upkeep.py         dialogue, potions, wisps, popups
   safety.py         F9/F10 keys, run limits, death counter
   ui.py             UI window paths and helpers
+  progression.py    level-up / new-spell detection, trainer handling
+  deck.py           spellbook reading and deck rebuilding (DeckBuilder)
+  deck_plan.py      which spells go in the deck (unit tested)
+  explore.py        zone entity dump for route building
   combat/
     model.py        pure data model (cards, combatants, actions)
     brain.py        turn decision logic (unit tested)
@@ -126,8 +169,9 @@ the Windows game client.
 
 ## Roadmap
 
-- Automatic spell training on level-up and deck building (WizWalker ships a
-  `DeckBuilder` helper)
+- Map the trainer window exactly (from `state/trainer_window_*.txt`) and
+  walk to the professor on level-up
+- Minion support in the combat brain (Myth has several minion spells)
 - Smarter collision-aware teleporting (see Deimos' `collision_tp`)
 - School-aware pip accounting, and handling of shadow magic and
   multi-target spells

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from loguru import logger
 from wizwalker import ClientHandler
@@ -10,6 +11,7 @@ from wizwalker.extensions.wizsprinter import SprintyClient
 
 from .combat.fighter import Fighter
 from .config import Config
+from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
 from .upkeep import dialogue_loop, is_free, maintain
@@ -55,13 +57,14 @@ async def quest_loop(quester: Quester, controller: Controller):
         await asyncio.sleep(0.5)
 
 
-async def farm_loop(client, cfg: Config, controller: Controller):
+async def farm_loop(client, cfg: Config, controller: Controller, progression: Progression):
     """Stay in the current area and fight the nearest mob, repeatedly."""
     sprinter = SprintyClient(client)
     while not controller.stopped.is_set():
         await controller.checkpoint()
         if await is_free(client):
             await maintain(client, cfg.upkeep)
+            await progression.tick()
             try:
                 await sprinter.tp_to_closest_mob()
             except Exception as exc:
@@ -77,10 +80,13 @@ async def run(cfg: Config):
     handler = ClientHandler()
     client = None
     tasks: list[asyncio.Task] = []
+    stack = contextlib.AsyncExitStack()
     try:
         client = await connect(handler)
         if s.mouseless:
-            await client.mouse_handler.activate_mouseless()
+            # Managed mode: helpers like DeckBuilder nest `async with mouse_handler`
+            # and must not switch mouseless off underneath us.
+            await stack.enter_async_context(client.mouse_handler)
 
         c = cfg.combat
         fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below)
@@ -89,12 +95,14 @@ async def run(cfg: Config):
             asyncio.create_task(combat_loop(client, fighter, cfg, controller), name="combat"),
             asyncio.create_task(dialogue_loop(client, cfg.quest, controller), name="dialogue"),
         ]
+        progression = Progression(client, cfg.progression)
+        await progression.start()
         quester = None
         if cfg.mode == "quest":
-            quester = Quester(client, cfg.quest, controller)
+            quester = Quester(client, cfg.quest, controller, progression)
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         elif cfg.mode == "farm":
-            tasks.append(asyncio.create_task(farm_loop(client, cfg, controller), name="farm"))
+            tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
 
         stop_waiter = asyncio.create_task(controller.stopped.wait())
         done, _ = await asyncio.wait([*tasks, stop_waiter], return_when=asyncio.FIRST_COMPLETED)
@@ -112,9 +120,8 @@ async def run(cfg: Config):
         for t in tasks:
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        if client and s.mouseless:
-            try:
-                await client.mouse_handler.deactivate_mouseless()
-            except Exception:
-                pass
+        try:
+            await stack.aclose()
+        except Exception:
+            pass
         await handler.close()

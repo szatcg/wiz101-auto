@@ -31,6 +31,12 @@ def main(argv: list[str] | None = None):
     insp = sub.add_parser("inspect", help="print what the bot sees (state, battle, UI)")
     insp.add_argument("--windows", action="store_true", help="also dump the visible UI window tree")
 
+    deck_p = sub.add_parser("deck", help="show the planned deck from known spells, optionally apply it")
+    deck_p.add_argument("-c", "--config", default=None)
+    deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
+
+    sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
+
     args = parser.parse_args(argv)
 
     if sys.platform != "win32":
@@ -43,7 +49,20 @@ def main(argv: list[str] | None = None):
         asyncio.run(inspect(show_windows=args.windows))
         return
 
+    if args.command == "explore":
+        _setup_logging(None, True)
+        from .explore import explore
+
+        asyncio.run(explore())
+        return
+
     cfg = load_config(args.config)
+
+    if args.command == "deck":
+        _setup_logging(None, True)
+        asyncio.run(_deck(cfg, args.apply))
+        return
+
     if args.mode:
         cfg.mode = args.mode
     _setup_logging(cfg.log_file, args.verbose)
@@ -54,6 +73,29 @@ def main(argv: list[str] | None = None):
         asyncio.run(run(cfg))
     except KeyboardInterrupt:
         logger.info("interrupted")
+
+
+async def _deck(cfg, apply: bool):
+    from wizwalker import ClientHandler
+
+    from .bot import connect
+    from .deck import current_school, rebuild_deck
+
+    handler = ClientHandler()
+    try:
+        client = await connect(handler)
+        school = cfg.progression.school or await current_school(client)
+        async with client.mouse_handler:
+            known, plan = await rebuild_deck(client, school, cfg.progression.deck, dry_run=not apply)
+        print(f"\nschool: {school}\nknown spells ({len(known)}):")
+        for s in known:
+            effects = ", ".join(f"{e.kind.name}:{e.value:g}" for e in s.card.effects)
+            print(f"  {s.name} [{s.card.school}] {s.card.pip_cost}p max {s.max_copies} -> {effects}")
+        print(f"\ndeck plan: {plan.describe()}")
+        if not apply:
+            print("(dry run; add --apply to rebuild the in-game deck)")
+    finally:
+        await handler.close()
 
 
 if __name__ == "__main__":
