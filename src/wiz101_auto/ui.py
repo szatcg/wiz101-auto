@@ -8,6 +8,7 @@ if the game UI changes after a patch, update them here and use
 
 from __future__ import annotations
 
+import asyncio
 import re
 
 from loguru import logger
@@ -153,10 +154,24 @@ async def dismiss_notice(client) -> bool:
     if "flee" in low or not any(w in low for w in NOTICE_WORDS):
         return False
     logger.info(f"closing message: {text[:100]!r}")
-    for b in ("centerButton", "rightButton", "leftButton"):
-        if await modal_click(client, box, b):
-            return True
-    return False
+    # Only a visible button, clicked at its exact center: a one-button box
+    # keeps hidden siblings, and the usual left-shifted click can miss.
+    for name in ("centerButton", "rightButton", "leftButton"):
+        for btn in await box.get_windows_with_name(name):
+            try:
+                if not await btn.is_visible():
+                    continue
+                await click_center(client, btn)
+            except Exception:
+                continue
+            await asyncio.sleep(0.4)
+            if not await box.is_visible():
+                return True
+    from wizwalker import Keycode
+
+    await client.send_key(Keycode.ENTER, 0.1)
+    await asyncio.sleep(0.4)
+    return True
 
 
 async def click_center(client, window) -> None:
