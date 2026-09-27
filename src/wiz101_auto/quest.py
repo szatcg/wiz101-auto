@@ -25,6 +25,9 @@ from .upkeep import clear_popups, is_free, wait_for_loading, wait_until_free
 
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
+DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
+DOOR_OVERSHOOT = 200.0
+APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -59,41 +62,85 @@ class Quester:
 
     # --- movement ------------------------------------------------------------
 
+    async def _position(self) -> XYZ:
+        return await self.client.body.position()
+
+    async def _zone_changed(self, zone: str | None) -> bool:
+        await wait_for_loading(self.client, appear_timeout=0.8)
+        return await self.client.zone_name() != zone
+
+    async def walk_through(self, target: XYZ, zone: str | None, overshoot: float = DOOR_OVERSHOOT) -> bool:
+        """Walk straight at `target` and a little past it.
+
+        Doors and zone exits only trigger when you walk into them; teleporting
+        onto one gets rejected by the game and snaps you back.
+        """
+        pos = await self._position()
+        dx, dy = target.x - pos.x, target.y - pos.y
+        length = math.hypot(dx, dy)
+        if length < 1:
+            return False
+        beyond = XYZ(target.x + dx / length * overshoot, target.y + dy / length * overshoot, target.z)
+        logger.debug(f"walking through objective ({length:.0f} units + {overshoot:.0f} overshoot)")
+        await self.client.goto(beyond.x, beyond.y)
+        return await self._zone_changed(zone)
+
+    async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
+        """Teleport to a spot in front of `target` (on the side we came from), then walk in."""
+        pos = await self._position()
+        dx, dy = pos.x - target.x, pos.y - target.y
+        length = math.hypot(dx, dy)
+        ux, uy = (dx / length, dy / length) if length > 1 else (1.0, 0.0)
+        for back in APPROACH_DISTANCES:
+            spot = XYZ(target.x + ux * back, target.y + uy * back, target.z)
+            before = await self._position()
+            await self.client.teleport(spot)
+            await asyncio.sleep(0.8)
+            if await self._zone_changed(zone):
+                return True
+            if distance(await self._position(), before) <= BOUNCE_DISTANCE and distance(before, spot) > 50:
+                continue  # this spot was rejected too; try further back
+            if await self.walk_through(target, zone):
+                return True
+        return False
+
     async def travel(self, target: XYZ) -> bool:
         """Get within interact range of `target`. Returns True on success."""
-        start = await self.client.body.position()
+        start = await self._position()
         if distance(start, target) <= 5:
             return True
+        zone = await self.client.zone_name()
 
         if not self.cfg.teleport:
             await self.client.goto(target.x, target.y)
-            return distance(await self.client.body.position(), target) < INTERACT_RANGE
+            if await self._zone_changed(zone):
+                return True
+            return distance(await self._position(), target) < INTERACT_RANGE
 
-        zone = await self.client.zone_name()
         await self.client.teleport(target)
         await asyncio.sleep(0.8)
-        await wait_for_loading(self.client, appear_timeout=0.5)
-        if await self.client.zone_name() != zone:
-            return True  # walked into a zone transition; that's progress
-
-        pos = await self.client.body.position()
-        if distance(pos, start) > BOUNCE_DISTANCE:
+        if await self._zone_changed(zone):
+            return True  # the teleport itself went through a zone transition
+        if distance(await self._position(), start) > BOUNCE_DISTANCE:
             return True
 
-        # The server rejected the teleport (collision). Try points around the
-        # target, then fall back to walking in a straight line.
-        logger.debug("teleport bounced; trying nearby points")
+        # Rejected: usually a door/zone exit, or a spot inside collision.
+        logger.info("teleport was rejected (door or blocked spot); approaching on foot")
+        if await self.approach_and_walk(target, zone):
+            return True
+
+        logger.debug("approach failed; trying points around the objective")
         for radius in (120, 250, 400):
             for i in range(8):
                 ang = i * math.pi / 4
                 p = XYZ(target.x + radius * math.cos(ang), target.y + radius * math.sin(ang), target.z)
                 await self.client.teleport(p)
                 await asyncio.sleep(0.5)
-                if distance(await self.client.body.position(), start) > BOUNCE_DISTANCE:
+                if distance(await self._position(), start) > BOUNCE_DISTANCE:
                     return True
         logger.debug("walking toward objective")
         await self.client.goto(target.x, target.y)
-        return distance(await self.client.body.position(), target) < INTERACT_RANGE
+        return distance(await self._position(), target) < INTERACT_RANGE
 
     # --- interaction ---------------------------------------------------------
 
@@ -207,9 +254,17 @@ class Quester:
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
-        near = distance(await self.client.body.position(), target) < INTERACT_RANGE
-        if near and await self.interact(objective):
+        dist = distance(await self.client.body.position(), target)
+        if dist < INTERACT_RANGE and await self.interact(objective):
             return
 
-        if "defeat" in objective.lower() and not await self.client.in_battle():
-            await self.pull_mob()
+        if "defeat" in objective.lower():
+            if not await self.client.in_battle():
+                await self.pull_mob()
+            return
+
+        if dist < DOOR_RANGE and await self.client.zone_name() == zone:
+            # Standing on the marker with nothing to interact with: it's most
+            # likely a door or zone exit, which needs walking into.
+            if await self.walk_through(target, zone):
+                logger.info("walked through a door")
