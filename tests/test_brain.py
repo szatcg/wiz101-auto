@@ -223,3 +223,16 @@ def test_out_of_mana_detection():
     assert out_of_mana(battle(grayed, [enemy("Harvest Lord", 900)], my=me(mana=0)))
     assert not out_of_mana(battle(grayed, [enemy("Harvest Lord", 900)], my=me(mana=20)))
     assert not out_of_mana(battle([dmg_card(0, "Blood Bat", 90)], [enemy("X", 90)], my=me(mana=2)))
+
+
+def test_saves_pips_for_a_heal_when_low():
+    summon = Card(2, "Troll Minion", pip_cost=1, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    pixie = Card(1, "Pixie", pip_cost=2, castable=False, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)])
+    hand = [dmg_card(0, "Blood Bat", 90), pixie, summon]
+    b = battle(hand, [enemy("Alicane", 480, boss=True)], my=me(hp=68, max_hp=628))
+    b.pips = 1
+    action = decide(b)
+    assert action.kind is ActionKind.PASS and "Pixie" in action.reason
+    # ...but a blow that ends the fight still wins
+    b.enemies[0].health = 60
+    assert decide(b).card.name == "Blood Bat"

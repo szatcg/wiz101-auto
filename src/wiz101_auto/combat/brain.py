@@ -6,7 +6,8 @@ battle and calls `decide()` again until it gets a CAST or PASS.
 
 The strategy is a greedy heuristic tuned for PvE questing:
   1. If a spell can finish the last enemy, cast it (the fight ends).
-  2. Heal if we (or an ally) are in danger.
+  2. Heal if we (or an ally) are in danger; if the heal needs one more pip,
+     pass to save for it.
   3. Finish off any enemy we can (one fewer attacker), then summon a minion.
   4. If an attack is available, enchant it if possible, then pick the target
      and spell that removes the most enemy health, weakest target first.
@@ -163,6 +164,19 @@ def _kill_action(battle: Battle) -> Action | None:
     return best[1] if best else None
 
 
+def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
+    """Low on health with a heal in hand we can't afford yet: spend nothing, so
+    it's castable next round (a pip comes in every round)."""
+    if battle.me.health_ratio >= strat.heal_threshold:
+        return None
+    pips = battle.pips + battle.power_pips
+    waiting = [c for c in battle.cards if c.is_heal and not c.is_enchant and pips < c.pip_cost <= pips + 1]
+    if not waiting:
+        return None
+    card = max(waiting, key=lambda c: c.heal_amount())
+    return Action(ActionKind.PASS, reason=f"saving pips to cast {card.name} next round")
+
+
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
     best: tuple[Card, Combatant | None, float] | None = None
     for card in _castable(battle.cards):
@@ -267,6 +281,9 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     heal = _best_heal(battle, strat)
     if heal:
         return heal
+    save = _save_for_heal(battle, strat)
+    if save:
+        return save
 
     # With several enemies, removing one means one fewer attacker every round.
     if kill:
