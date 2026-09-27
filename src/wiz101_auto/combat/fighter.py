@@ -12,7 +12,7 @@ from .model import ActionKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
-CLICK_PROBES = (0.25, 0.1)  # left of center; never right, which could hit the next card
+CLICK_PROBES = (0.1, 0.5)  # fallbacks if the default click point stops working
 
 
 class Fighter(CombatHandler):
@@ -23,7 +23,7 @@ class Fighter(CombatHandler):
         self.flee_below = flee_below
         self.fights = 0
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
-        self._card_click_x = 0.5  # where across a card's width to click it
+        self._card_click_x = 0.25  # the hit area sits left of the reported card rect
 
     async def _hand_size(self) -> int:
         try:
