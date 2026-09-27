@@ -288,12 +288,24 @@ def test_holds_troll_until_the_target_is_trapped():
     troll = dmg_card(0, "Troll", 190, pips=2)
     b = battle([troll], [enemy("Alicane", 480, boss=True)], my=_myth_me())
     b.pips = 2
+    assert decide(b).card.name == "Troll"  # nothing could trap it: don't wait
+    b.allies.append(Combatant("Troll Defender", 300, 300, is_minion=True))  # our minion traps
     assert decide(b).kind is ActionKind.PASS
     b.enemies[0].trap_count, b.enemies[0].incoming_boost = 1, 0.4  # trapped (by us or the minion)
     assert decide(b).card.name == "Troll"
     b.enemies[0].trap_count, b.enemies[0].incoming_boost = 0, 0.0
     b.pips = 4  # don't wait forever
     assert decide(b).card.name == "Troll"
+
+
+def test_does_not_wait_for_a_trap_on_a_shielded_target():
+    troll = dmg_card(0, "Troll", 190, pips=2)
+    boss = enemy("Harvest Lord", 510, boss=True, shield_count=2)
+    boss.incoming_effects = [("spell:7", "", -0.5), ("spell:8", "myth", -0.4)]
+    b = battle([troll], [boss], my=_myth_me())
+    b.allies.append(Combatant("Troll Defender", 300, 300, is_minion=True))
+    b.pips = 2
+    assert decide(b).card.name == "Troll"  # waiting never removes shields; hitting does
 
 
 def test_quick_fight_skips_the_minion_and_plans_trap_then_troll():

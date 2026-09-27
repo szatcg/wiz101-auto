@@ -226,6 +226,13 @@ def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
     return Action(ActionKind.PASS, reason=f"saving pips to cast {card.name} next round")
 
 
+def _trap_coming(battle: Battle) -> bool:
+    """Could a trap land on an enemy soon: one in our hand, or our minion alive?"""
+    if any(EffectKind.TRAP in c.kinds and not c.is_enchant for c in battle.cards):
+        return True
+    return any(a.is_minion and not a.is_dead for a in battle.allies)
+
+
 def _stronger_next_round(battle: Battle, focus: Combatant, dmg_now: float, strat: Strategy) -> Card | None:
     """An attack one pip out of reach that hits much harder than the best we can
     cast now (Troll vs a 1-pip wand card): worth passing a round for it."""
@@ -458,11 +465,14 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
                 return setup
 
         # A 2+ pip hit is worth most on a trapped target: wait for a trap (ours or
-        # the minion's) unless pips are piling up.
+        # the minion's) unless pips are piling up. Only on a bare target, and only
+        # when a trap can actually come: waiting never removes shields.
         if (
             card.pip_cost >= 2
             and dmg < focus.health
-            and effect_multiplier(focus.incoming_effects, focus.incoming_boost, card.school) <= 1.0
+            and not focus.incoming_effects
+            and focus.trap_count == 0
+            and _trap_coming(battle)
             and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips
         ):
             return Action(ActionKind.PASS, reason=f"holding {card.name} until {focus.name} is trapped")

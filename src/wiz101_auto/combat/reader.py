@@ -254,6 +254,19 @@ async def _effect_identity(eff, param) -> tuple[str, str]:
     return (f"spell:{tid}" if tid else f"{param}:{school}"), school
 
 
+_last_effects: dict[str, str] = {}
+
+
+def _log_effects(c: Combatant):
+    """Log what hangs on a combatant (traps, shields, blades) when it changes."""
+    parts = [f"incoming {k} {s or 'all'} {v:+.0%}" for k, s, v in c.incoming_effects]
+    parts += [f"outgoing {k} {s or 'all'} {v:+.0%}" for k, s, v in c.outgoing_effects]
+    text = ", ".join(parts) or "none"
+    if _last_effects.get(c.name) != text:
+        _last_effects[c.name] = text
+        logger.info(f"{c.name} effects: {text}")
+
+
 async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
     participant = await member.get_participant()
     team = await participant.team_id()
@@ -292,6 +305,7 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
                 c.shield_count += 1
     except Exception as exc:
         logger.debug(f"hanging effects unreadable for {c.name}: {exc}")
+    _log_effects(c)
     return c
 
 
