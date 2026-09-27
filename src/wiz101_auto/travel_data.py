@@ -72,11 +72,15 @@ def named_zone(objective: str, display_zones: DisplayZones) -> str | None:
 
 
 def find_gate(
-    objective: str, current_zone: str, gates: Gates, display_zones: DisplayZones
+    objective: str,
+    current_zone: str,
+    gates: Gates,
+    display_zones: DisplayZones,
+    blocked: set[tuple[str, str]] = frozenset(),
 ) -> tuple[XYZ, str] | None:
     """First gate on the shortest gate path from `current_zone` to the place
-    `objective` names. None if it names no known place, the current zone, or
-    a place no gate path reaches."""
+    `objective` names, avoiding `blocked` (from_zone, to_zone) gates. None if it
+    names no known place, the current zone, or a place no gate path reaches."""
     dest = named_zone(objective, display_zones)
     if dest is None or dest == current_zone:
         return None
@@ -87,7 +91,7 @@ def find_gate(
         nxt = []
         for zone in frontier:
             for pos, to_zone in gates.get(zone, []):
-                if to_zone in seen:
+                if to_zone in seen or (zone, to_zone) in blocked:
                     continue
                 seen.add(to_zone)
                 first_hop[to_zone] = (pos, to_zone) if zone == current_zone else first_hop[zone]
@@ -115,9 +119,11 @@ def _data() -> tuple[Gates, DisplayZones, Spots]:
     return _cache
 
 
-def find_zone_gate(objective: str, current_zone: str) -> tuple[XYZ, str] | None:
+def find_zone_gate(
+    objective: str, current_zone: str, blocked: set[tuple[str, str]] = frozenset()
+) -> tuple[XYZ, str] | None:
     gates, display_zones, _ = _data()
-    return find_gate(objective, current_zone, gates, display_zones)
+    return find_gate(objective, current_zone, gates, display_zones, blocked)
 
 
 def objective_zone(objective: str) -> str | None:

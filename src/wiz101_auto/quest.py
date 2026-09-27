@@ -61,6 +61,7 @@ class Quester:
         self._last_progress = (None, None)
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0
+        self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
         return await ui.text_at(self.client, ui.QUEST_GOAL_TEXT)
@@ -348,15 +349,30 @@ class Quester:
     async def _no_marker_fallback(self, objective: str, zone: str) -> bool:
         """Walk through a known gate toward the place the objective names, else
         try the known hidden quest-target spots in this zone. True if it acted."""
-        gate = find_zone_gate(objective, zone)
-        if gate:
+        for _ in range(3):
+            gate = find_zone_gate(objective, zone, self._bad_gates)
+            if not gate:
+                break
             pos, dest_zone = gate
             logger.info(f"no quest marker for {objective!r}; walking to {dest_zone} via a known gate")
             await self.controller.checkpoint()
             await self.travel(pos)
             if await self.client.zone_name() != zone:
                 return True
-        if objective_zone(objective) not in (None, zone):
+            # Landing on the gate point doesn't always cross the trigger; walk into it.
+            if await self.approach_and_walk(pos, zone):
+                return True
+            # Some gate entries in the data are wrong; route around this one from now on.
+            logger.warning(f"gate {zone} -> {dest_zone} did not work; avoiding it")
+            self._bad_gates.add((zone, dest_zone))
+        target_zone = objective_zone(objective)
+        if target_zone not in (None, zone):
+            if any(to == target_zone for _frm, to in self._bad_gates) and not find_zone_gate(
+                objective, zone, self._bad_gates
+            ):
+                # Every way in refused us: the zone is still locked by the story.
+                logger.warning(f"{target_zone} looks locked (every gate refused); switching quests")
+                return await self.switch_quest()
             return False  # the target is in another zone; its spots here are someone else's
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")

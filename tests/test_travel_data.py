@@ -77,3 +77,16 @@ def test_find_gate_returns_none_without_a_matching_destination_or_zone():
     assert find_gate("Defeat 3 Storm Snakes", "WizardCity/WC_Hub", gates, zones) is None
     assert find_gate("Go To Golem Court Smith", "WizardCity/WC_Unknown", gates, zones) is None
     assert find_gate("Go To Golem Court Smith", "WizardCity/WC_Golem_Tower", gates, zones) is None
+
+
+def test_find_gate_routes_around_blocked_gates():
+    gates = parse_gates(
+        "standard;1;1;0;Cyclops;Colossus\n"
+        "standard;2;2;0;Cyclops;OldeTown\n"
+        "standard;3;3;0;OldeTown;Shop\n"
+        "standard;4;4;0;Shop;Colossus\n"
+    )
+    zones = [("colossus boulevard", "Colossus")]
+    objective = "Go To Colossus Boulevard Smith in Colossus Boulevard"
+    assert find_gate(objective, "Cyclops", gates, zones)[1] == "Colossus"
+    assert find_gate(objective, "Cyclops", gates, zones, {("Cyclops", "Colossus")})[1] == "OldeTown"
