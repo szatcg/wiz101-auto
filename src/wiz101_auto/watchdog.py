@@ -35,6 +35,7 @@ class Watchdog:
         self.stall_seconds = stall_seconds
         self.battle_stall_seconds = battle_stall_seconds
         self.nudges = 0
+        self._last_error_log = 0.0
 
     async def _fingerprint(self) -> tuple:
         c = self.client
@@ -71,14 +72,20 @@ class Watchdog:
                 if await self.client.is_loading():
                     changed = now
                     continue
-                fp = await self._fingerprint()
             except Exception:
-                changed = now  # memory shifting (zone change); not a stall
-                continue
+                pass
+            try:
+                fp = await self._fingerprint()
+            except Exception as exc:
+                # Unreadable state for a while is itself a stall, so don't reset.
+                if now - self._last_error_log > 15:
+                    logger.debug(f"watchdog could not read game state: {exc!r}")
+                    self._last_error_log = now
+                fp = ("unreadable",)
             if fp != last:
                 last, changed, level = fp, now, 0
                 continue
-            in_battle = fp[6]
+            in_battle = len(fp) > 6 and fp[6]
             limit = self.battle_stall_seconds if in_battle else self.stall_seconds
             if now - changed < limit:
                 continue

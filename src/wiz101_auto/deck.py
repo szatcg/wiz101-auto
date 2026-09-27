@@ -275,33 +275,21 @@ class _Builder(DeckBuilder):
         logger.warning("deck may not be fully cleared")
 
     async def get_spell_list(self):
-        """Known-spell entries. Waits for the list to populate and logs what it
-        saw, since a silent empty result is impossible to debug remotely."""
-        from wizwalker.memory.memory_objects.window import DynamicSpellListControl
+        """Known-spell entries, read with an auto-detected memory layout.
 
+        WizWalker's fixed offsets for this list are stale in the current game
+        (every list reads as empty), so we scan for the entry vector instead.
+        """
         valid: list = []
         for attempt in range(6):
-            control = DynamicSpellListControl(
-                self.client.hook_handler, await self._spell_list_window.read_base_address()
-            )
+            current = await _find_spell_list(self._deck_config_window) or self._spell_list_window
+            self._spell_list_window = current
             try:
-                entries = await control.spell_entries()
+                valid = await find_spell_entries(self.client, current)
             except Exception as exc:
-                logger.warning(f"spell list read failed: {exc!r}")
-                entries = []
-            valid, first_error = [], None
-            for entry in entries:
-                try:
-                    graphical = await entry.graphical_spell()
-                    if graphical and (template := await graphical.spell_template()):
-                        await template.name()
-                        valid.append(entry)
-                except Exception as exc:
-                    first_error = first_error or exc
-            logger.debug(
-                f"spell list attempt {attempt + 1}: {len(entries)} raw entries, {len(valid)} readable"
-                + (f", first error: {first_error!r}" if first_error else "")
-            )
+                logger.debug(f"spell list scan failed: {exc!r}")
+                valid = []
+            logger.debug(f"spell list attempt {attempt + 1}: {len(valid)} spells")
             if valid:
                 break
             await asyncio.sleep(0.5)
@@ -310,21 +298,106 @@ class _Builder(DeckBuilder):
         return valid
 
     async def _log_list_diagnostics(self):
-        """Record every spell-list-like window and its raw entry count."""
-        from wizwalker.memory.memory_objects.window import DynamicSpellListControl
-
         lines = []
         for w in await self._deck_config_window.get_windows_with_predicate(_is_list_control):
             try:
-                control = DynamicSpellListControl(self.client.hook_handler, await w.read_base_address())
-                raw = await control.spell_entries()
-                lines.append(
-                    f"{await w.name()} [{await w.maybe_read_type_name()}] visible={await w.is_visible()} "
-                    f"entries={len(raw)}"
-                )
+                n = len(await find_spell_entries(self.client, w))
+                lines.append(f"{await w.name()} visible={await w.is_visible()} spells={n}")
             except Exception as exc:
                 lines.append(f"{await w.name()}: {exc!r}")
-        logger.warning("spell list is empty; list windows seen: " + " | ".join(lines))
+        logger.warning("could not find any spells; list windows seen: " + " | ".join(lines))
+
+
+# --- spell list memory layout detection --------------------------------------
+
+ENTRY_SIZES = (0xA8, 0xB0, 0xA0, 0xB8, 0x98, 0xC0, 0x90, 0xC8, 0x88, 0xD0)
+_layout: tuple[int, int, int] | None = None  # (vector offset, end-pointer gap, entry size)
+
+
+class SpellEntry:
+    """A spell list entry: a GraphicalSpell pointer followed by copy counts."""
+
+    def __init__(self, hook_handler, address: int):
+        from wizwalker.memory.memory_object import DynamicMemoryObject
+
+        self._mem = DynamicMemoryObject(hook_handler, address)
+        self._hook = hook_handler
+        self.base_address = address
+
+    async def _u(self, offset: int, size: str) -> int:
+        from wizwalker.memory.memory_object import Primitive
+
+        prim = Primitive.uint64 if size == "q" else Primitive.uint32
+        return await self._mem.read_value_from_offset(offset, prim)
+
+    async def graphical_spell(self):
+        from wizwalker.memory.memory_objects.spell import DynamicGraphicalSpell
+
+        addr = await self._u(0, "q")
+        return DynamicGraphicalSpell(self._hook, addr) if addr else None
+
+    async def max_copies(self) -> int:
+        v = await self._u(0x10, "d")
+        return v if 1 <= v <= 12 else 4  # sane fallback if the field moved
+
+    async def current_copies(self) -> int:
+        v = await self._u(0x14, "d")
+        return v if 0 <= v <= 12 else 0
+
+
+async def _spell_name_at(entry: SpellEntry) -> str:
+    g = await entry.graphical_spell()
+    if not g:
+        return ""
+    t = await g.spell_template()
+    if not t:
+        return ""
+    name = await t.name()
+    return name if name and name.isprintable() and len(name) < 80 else ""
+
+
+async def find_spell_entries(client, list_window) -> list[SpellEntry]:
+    """Locate the entry vector inside a spell list window and return its entries."""
+    global _layout
+    from wizwalker.memory.memory_object import DynamicMemoryObject, Primitive
+
+    hook = client.hook_handler
+    ctrl = DynamicMemoryObject(hook, await list_window.read_base_address())
+
+    async def entries_for(offset: int, gap: int, sizes) -> list[SpellEntry] | None:
+        global _layout
+        try:
+            start = await ctrl.read_value_from_offset(offset, Primitive.uint64)
+            end = await ctrl.read_value_from_offset(offset + gap, Primitive.uint64)
+        except Exception:
+            return None
+        if not (0x10000 < start < end) or end - start > 0xD0 * 500:
+            return None
+        for size in sizes:
+            if (end - start) % size:
+                continue
+            count = (end - start) // size
+            probe = [SpellEntry(hook, start + i * size) for i in range(min(count, 3))]
+            try:
+                if all([await _spell_name_at(e) for e in probe]):
+                    if _layout != (offset, gap, size):
+                        logger.info(f"spell list layout found: vector at {offset:#x}, entry size {size:#x}")
+                    _layout = (offset, gap, size)
+                    return [SpellEntry(hook, start + i * size) for i in range(count)]
+            except Exception:
+                continue
+        return None
+
+    if _layout:
+        found = await entries_for(_layout[0], _layout[1], (_layout[2],))
+        if found is not None:
+            return found
+    for offset in range(0x200, 0x480, 8):
+        for gap in (16, 8):
+            found = await entries_for(offset, gap, ENTRY_SIZES)
+            if found is not None:
+                return found
+    return []
 
 
 async def _is_list_control(window) -> bool:

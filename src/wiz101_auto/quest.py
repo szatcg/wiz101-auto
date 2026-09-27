@@ -28,6 +28,7 @@ from .wisps import sweep_points
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
 WISP_SCAN_SECONDS = 30.0
+STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
 # Quest book window paths (mapped by Deimos).
@@ -365,6 +366,10 @@ class Quester:
         objective = await self.objective()
         zone = await self.client.zone_name()
         await self._note_progress(objective, zone)
+        if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
+            self._last_status = time.monotonic()
+            waited = time.monotonic() - self._last_progress_time
+            logger.info(f"working on: {objective or '(no objective shown)'} [{zone}] for {waited:.0f}s")
 
         if await self.services.is_open():
             # A services menu left open (e.g. after an error) blocks the X prompt.
