@@ -48,6 +48,9 @@ class Strategy:
     allow_discard: bool = True
     summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage
     focus_bonus: float = 60.0  # value of taking a target's whole remaining health
+    # Pass a round for an attack one pip away when the best castable one does
+    # less than this share of its damage (two 1-pip hits < one 2-pip Troll).
+    save_for_stronger: float = 0.6
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -184,6 +187,22 @@ def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
     return Action(ActionKind.PASS, reason=f"saving pips to cast {card.name} next round")
 
 
+def _stronger_next_round(battle: Battle, focus: Combatant, dmg_now: float, strat: Strategy) -> Card | None:
+    """An attack one pip out of reach that hits much harder than the best we can
+    cast now (Troll vs a 1-pip wand card): worth passing a round for it."""
+    pips = battle.pips + battle.power_pips
+    waiting = [
+        c for c in battle.cards
+        if c.is_damage and not c.castable and not c.treasure and pips < c.pip_cost <= pips + 1
+    ]
+    if not waiting:
+        return None
+    best = max(waiting, key=lambda c: expected_damage(c, battle.me, focus))
+    if dmg_now < expected_damage(best, battle.me, focus) * strat.save_for_stronger:
+        return best
+    return None
+
+
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
     best: tuple[Card, Combatant | None, float] | None = None
     for card in _castable(battle.cards):
@@ -315,6 +334,13 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
             setup = _setup_action(battle, strat, focus)
             if setup:
                 return setup
+
+        stronger = _stronger_next_round(battle, focus, dmg, strat)
+        if stronger:
+            setup = _setup_action(battle, strat, focus)  # free traps/blades while we wait
+            if setup:
+                return setup
+            return Action(ActionKind.PASS, reason=f"saving pips for {stronger.name} (~{dmg:.0f} now)")
 
         enchant = _pick_enchant(battle, card)
         if enchant:

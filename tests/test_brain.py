@@ -244,3 +244,17 @@ def test_heals_earlier_against_a_boss():
     assert decide(boss_fight).card.name == "Pixie"
     normal = battle(hand, [enemy("Magma Man", 235)], my=me(hp=325, max_hp=628))
     assert decide(normal).card.name == "Blood Bat"
+
+
+def test_saves_a_pip_for_a_much_stronger_attack():
+    wand = dmg_card(0, "Fire Cat", 70)
+    troll = dmg_card(1, "Troll", 190, pips=2, castable=False)
+    trap = trap_card(2)
+    b = battle([wand, troll], [enemy("Alicane", 480, boss=True)])
+    b.pips = 1
+    assert decide(b, Strategy(boss_setup=False)).kind is ActionKind.PASS
+    b.cards.append(trap)  # a free trap is played while waiting
+    assert decide(b, Strategy(boss_setup=False)).card.name == "Fire Trap"
+    b2 = battle([dmg_card(0, "Blood Bat", 90), troll], [enemy("Imp", 80)])
+    b2.pips = 1
+    assert decide(b2).card.name == "Blood Bat"  # a kill now beats waiting
