@@ -275,21 +275,63 @@ class _Builder(DeckBuilder):
         logger.warning("deck may not be fully cleared")
 
     async def get_spell_list(self):
+        """Known-spell entries. Waits for the list to populate and logs what it
+        saw, since a silent empty result is impossible to debug remotely."""
         from wizwalker.memory.memory_objects.window import DynamicSpellListControl
 
-        control = DynamicSpellListControl(
-            self.client.hook_handler, await self._spell_list_window.read_base_address()
-        )
-        valid = []
-        for entry in await control.spell_entries():
+        valid: list = []
+        for attempt in range(6):
+            control = DynamicSpellListControl(
+                self.client.hook_handler, await self._spell_list_window.read_base_address()
+            )
             try:
-                graphical = await entry.graphical_spell()
-                if graphical and (template := await graphical.spell_template()):
-                    await template.name()
-                    valid.append(entry)
-            except Exception:
-                pass
+                entries = await control.spell_entries()
+            except Exception as exc:
+                logger.warning(f"spell list read failed: {exc!r}")
+                entries = []
+            valid, first_error = [], None
+            for entry in entries:
+                try:
+                    graphical = await entry.graphical_spell()
+                    if graphical and (template := await graphical.spell_template()):
+                        await template.name()
+                        valid.append(entry)
+                except Exception as exc:
+                    first_error = first_error or exc
+            logger.debug(
+                f"spell list attempt {attempt + 1}: {len(entries)} raw entries, {len(valid)} readable"
+                + (f", first error: {first_error!r}" if first_error else "")
+            )
+            if valid:
+                break
+            await asyncio.sleep(0.5)
+        if not valid:
+            await self._log_list_diagnostics()
         return valid
+
+    async def _log_list_diagnostics(self):
+        """Record every spell-list-like window and its raw entry count."""
+        from wizwalker.memory.memory_objects.window import DynamicSpellListControl
+
+        lines = []
+        for w in await self._deck_config_window.get_windows_with_predicate(_is_list_control):
+            try:
+                control = DynamicSpellListControl(self.client.hook_handler, await w.read_base_address())
+                raw = await control.spell_entries()
+                lines.append(
+                    f"{await w.name()} [{await w.maybe_read_type_name()}] visible={await w.is_visible()} "
+                    f"entries={len(raw)}"
+                )
+            except Exception as exc:
+                lines.append(f"{await w.name()}: {exc!r}")
+        logger.warning("spell list is empty; list windows seen: " + " | ".join(lines))
+
+
+async def _is_list_control(window) -> bool:
+    try:
+        return "ListControl" in (await window.maybe_read_type_name() or "")
+    except Exception:
+        return False
 
 
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
