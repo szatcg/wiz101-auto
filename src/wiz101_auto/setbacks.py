@@ -1,0 +1,66 @@
+"""Quests set aside after repeated defeats.
+
+Losing the same fight twice usually means the wizard isn't strong enough yet
+(e.g. a dungeon boss a level or two early). The quest is put aside until the
+wizard levels up or some time has passed, and another questline is followed
+meanwhile. Pure bookkeeping (plus a JSON file) so it can be unit tested.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+DEFEATS_TO_DEFER = 2
+DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
+
+
+@dataclass
+class Setbacks:
+    path: Path = Path("state") / "setbacks.json"
+    defeats: dict[str, int] = field(default_factory=dict)  # objective -> defeats
+    deferred: dict[str, dict] = field(default_factory=dict)  # quest -> {"level", "at", "objective"}
+
+    @classmethod
+    def load(cls, path: Path | None = None) -> Setbacks:
+        s = cls(path or cls.path)
+        try:
+            raw = json.loads(s.path.read_text(encoding="utf-8"))
+            s.defeats = dict(raw.get("defeats", {}))
+            s.deferred = dict(raw.get("deferred", {}))
+        except Exception:
+            pass
+        return s
+
+    def save(self):
+        try:
+            self.path.parent.mkdir(exist_ok=True)
+            data = {"defeats": self.defeats, "deferred": self.deferred}
+            self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        except OSError:
+            pass
+
+    def record_defeat(self, objective: str, quest: str | None, level: int, now: float | None = None) -> bool:
+        """Count a defeat on `objective`. True when its quest is now set aside."""
+        n = self.defeats.get(objective, 0) + 1
+        self.defeats[objective] = n
+        if n < DEFEATS_TO_DEFER or not quest:
+            return False
+        self.defeats.pop(objective, None)  # a fresh count when we come back
+        now = time.time() if now is None else now
+        self.deferred[quest] = {"level": level, "at": now, "objective": objective}
+        return True
+
+    def set_aside(self, level: int, now: float | None = None) -> set[str]:
+        """Quests still set aside; those whose time is up (a level gained, or
+        DEFER_SECONDS passed) are released."""
+        now = time.time() if now is None else now
+        done = [
+            q for q, d in self.deferred.items()
+            if level > d.get("level", 0) or now - d.get("at", 0) > DEFER_SECONDS
+        ]
+        for q in done:
+            del self.deferred[q]
+        return set(self.deferred)

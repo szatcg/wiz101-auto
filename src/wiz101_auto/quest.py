@@ -28,6 +28,7 @@ from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
+from .setbacks import Setbacks
 from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
 from .upkeep import (
     clear_popups,
@@ -88,9 +89,11 @@ def quest_rank(q: QuestEntry) -> tuple:
     return (q.activity, q.mainline, -hops, q.reward)
 
 
-def choose_quest(quests: list[QuestEntry]) -> QuestEntry | None:
+def choose_quest(quests: list[QuestEntry], set_aside: set[str] = frozenset()) -> QuestEntry | None:
     """Which quest to track. Stick with the tracked questline until it's done;
-    only a spell/class quest may interrupt it."""
+    only a spell/class quest may interrupt it. Quests set aside (lost to twice)
+    are skipped while anything else is available."""
+    quests = [q for q in quests if q.name not in set_aside] or quests
     if not quests:
         return None
     active = next((q for q in quests if q.active), None)
@@ -179,6 +182,9 @@ class Quester:
         self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
+        self.setbacks = Setbacks.load()
+        self._active_quest: str | None = None  # tracked quest's name, from the quest book
+        self._seen_deaths = 0
         self._mark: tuple[str | None, str] | None = _load_mark()  # (dungeon zone, objective) we marked
         self._bad_gates: set[tuple[str, str]] = set()
 
@@ -362,6 +368,32 @@ class Quester:
             logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
+
+    async def _note_defeats(self):
+        """After a defeat, count it against the objective; the second one sets the
+        quest aside for another questline (until a level-up or an hour passes)."""
+        deaths = self.controller.deaths
+        if deaths <= self._seen_deaths:
+            return
+        self._seen_deaths = deaths
+        objective = await self.objective()
+        if not is_combat_objective(objective):
+            return
+        level = await self.client.stats.reference_level()
+        quest = self._active_quest
+        if self.setbacks.record_defeat(objective, quest, level):
+            logger.warning(
+                f"lost {objective!r} twice: setting {quest!r} aside until level {level + 1} "
+                "(or an hour) and following another questline"
+            )
+            self._mark = None  # no point recalling to it now
+            _save_mark(None)
+            self._ranked_for = None
+            self._last_rank = -1e9  # re-rank quests on this step
+        else:
+            n = self.setbacks.defeats.get(objective, 0)
+            logger.info(f"defeat {n} on {objective!r}; trying again")
+        self.setbacks.save()
 
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
@@ -666,7 +698,10 @@ class Quester:
                     break
                 await asyncio.sleep(0.6)
             activities = {q.name for _, q in all_quests if q.activity}
-            chosen = choose_quest([q for _, q in all_quests])
+            active = next((q for _, q in all_quests if q.active), None)
+            self._active_quest = active.name if active else self._active_quest
+            level = await self.client.stats.reference_level()
+            chosen = choose_quest([q for _, q in all_quests], self.setbacks.set_aside(level))
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities
@@ -692,6 +727,7 @@ class Quester:
             kind = "spell/activity" if entry.activity else "main story" if entry.mainline else "side"
             where = f"{entry.world}, {entry.hops} hops" if entry.hops is not None else entry.world
             logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest in {where})")
+            self._active_quest = entry.name
             return True
         finally:
             await self._close_quest_book()
@@ -858,6 +894,7 @@ class Quester:
         if time.monotonic() - self._last_wisp_scan > WISP_SCAN_SECONDS:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
+        await self._note_defeats()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return
         if await self._recall_to_mark():
