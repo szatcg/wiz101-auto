@@ -66,6 +66,9 @@ your wizard one step (some hooks only fire on movement).
 | `wiz101-auto deck --apply` | Rebuild the in-game deck from that plan. |
 | `wiz101-auto explore` | Save every nearby NPC, door and mob with its position to `state/explore_*.txt`. |
 
+**Double-click shortcuts:** `inspect.bat`, `deck.bat` and `explore.bat`
+run those commands and save the output to the `state` folder, ready to send.
+
 **Keys while running:** **F9** stops and **F10** pauses or resumes. The keys
 can be changed under `safety`.
 
