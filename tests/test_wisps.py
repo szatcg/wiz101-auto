@@ -47,3 +47,13 @@ def test_forget_drops_an_unreachable_spot(tmp_path):
     assert mem.forget("Z", (10, 0, 0))
     assert mem.spots["Z"] == [(1000, 0, 0)]
     assert not mem.forget("Z", (5000, 0, 0))
+
+
+def test_preferred_heal_zone_wins():
+    from wiz101_auto.upkeep import best_wisp_zone
+
+    spots = {"WizardCity/WC_Streets/WC_Cyclops": [(0, 0, 0)] * 46}
+    unicorn = ["WizardCity/WC_Streets/WC_Unicorn"]
+    assert best_wisp_zone("WizardCity/WC_Hub", spots, unicorn) == "WizardCity/WC_Streets/WC_Unicorn"
+    here = "WizardCity/WC_Streets/WC_Unicorn"
+    assert best_wisp_zone(here, spots, unicorn) == "WizardCity/WC_Streets/WC_Cyclops"

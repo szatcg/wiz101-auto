@@ -247,11 +247,17 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         return False
 
 
-def best_wisp_zone(current_zone: str, spots: dict | None = None) -> str | None:
-    """The same-world zone with the most remembered wisp spots (Unicorn Way as a
-    Wizard City fallback before any are learned)."""
+FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
+
+
+def best_wisp_zone(current_zone: str, spots: dict | None = None, preferred: list[str] = ()) -> str | None:
+    """Where to go heal: a preferred heal zone in the same world, else the zone
+    with the most remembered wisp spots (Unicorn Way as a Wizard City fallback)."""
     spots = wisp_memory().spots if spots is None else spots
     world = current_zone.split("/", 1)[0]
+    for z in preferred:
+        if z.split("/", 1)[0] == world and z != current_zone:
+            return z
     same_world = [(len(pts), z) for z, pts in spots.items() if z.split("/", 1)[0] == world]
     zones = sorted(((n, z) for n, z in same_world if n >= 3), reverse=True)
     for _, z in zones:
@@ -278,6 +284,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
     last_report = started
     rested = False
     travelled = False
+    fruitless = 0  # remembered spots visited in a row without gaining anything
     swept: set[str] = set()
     while True:
         await controller.checkpoint()
@@ -305,16 +312,21 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
             zone = await client.zone_name() or "?"
             if await visit_known_spot(client, cfg, zone):
                 rested = False
-                continue
+                now_hp, now_mana = await health_mana(client)
+                fruitless = 0 if (now_hp > hp or now_mana > mana) else fruitless + 1
+                if travelled or fruitless < FRUITLESS_VISITS:
+                    continue
             if zone not in swept:
                 swept.add(zone)
                 if await sweep_for_wisps(client, cfg):
                     continue
-            if go_to_zone and not travelled and len(wisp_memory().spots.get(zone, [])) < 3:
-                # No wisps worth waiting for here (e.g. the hub after a defeat):
-                # go heal where they're known to spawn instead of resting.
+            poor_zone = len(wisp_memory().spots.get(zone, [])) < 3 or fruitless >= FRUITLESS_VISITS
+            if go_to_zone and not travelled and poor_zone:
+                # No wisps to be had here right now (e.g. the hub after a defeat):
+                # go heal where they spawn instead of waiting for respawns.
                 travelled = True
-                dest = best_wisp_zone(zone)
+                fruitless = 0
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones)
                 if dest:
                     logger.info(f"no wisps in {zone}; going to {dest} to heal")
                     if await go_to_zone(dest):
