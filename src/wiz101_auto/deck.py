@@ -11,7 +11,15 @@ from wizwalker.extensions.scripting.deck_builder import DeckBuilder
 from . import ui
 from .combat.model import Card
 from .combat.reader import read_effects
-from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_adds_cards, plan_deck, unknown_deck_spells
+from .deck_plan import (
+    DeckPlan,
+    DeckPolicy,
+    SpellInfo,
+    cards_to_add,
+    plan_adds_cards,
+    plan_deck,
+    unknown_deck_spells,
+)
 
 
 async def _spell_info(entry) -> SpellInfo | None:
@@ -620,20 +628,20 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         logger.info("deck plan adds nothing the deck doesn't already have; leaving it alone")
         return known, plan
 
-    await builder.clear_deck()
-    await asyncio.sleep(0.5)
-    for name, copies in plan.steps:
+    # Add only what's missing (new spells, extra copies). Never clear first: if
+    # the add clicks fail, the deck must not end up empty.
+    before = len(deck_names)
+    for name, copies in cards_to_add(plan.totals, deck_names):
         try:
             await builder.add_by_name(name, copies)
+            logger.info(f"deck: adding {name} x{copies}")
         except Exception as exc:  # max copies, deck full, or UI hiccup
             logger.debug(f"add {name} x{copies} stopped: {exc}")
         await asyncio.sleep(0.3)
     await asyncio.sleep(0.5)
     count = await builder.get_deck_count()
-    if count == 0:
-        raise DeckPageNotFound(
-            "Deck rebuild left the deck EMPTY (card clicks did not register). "
-            "Re-add your spells by hand in the spellbook (P) and send wiz101-auto.log to Claude."
-        )
-    logger.success(f"deck rebuilt ({count} cards)")
+    if count <= before:
+        logger.warning(f"deck: adding cards didn't take ({before} -> {count} cards)")
+        return known, plan
+    logger.success(f"deck updated ({before} -> {count} cards)")
     return known, plan

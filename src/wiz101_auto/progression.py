@@ -51,6 +51,10 @@ class Progression:
         if self.state.get("level") and self.level > self.state["level"]:
             self._pending_reason = f"levelled up to {self.level} since last run"
 
+    def request_check(self, reason: str):
+        """Re-read the spellbook at the next tick (e.g. a spell quest was finished)."""
+        self._pending_reason = self._pending_reason or reason
+
     async def tick(self):
         """Call while the wizard is free. Rebuilds the deck when something changed."""
         if not self.cfg.enabled:

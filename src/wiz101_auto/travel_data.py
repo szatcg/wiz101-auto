@@ -111,6 +111,25 @@ def first_hop_toward(
     return None
 
 
+def hop_count(current_zone: str, dest: str, gates: Gates) -> int | None:
+    """Gate hops from `current_zone` to `dest` (0 if already there, None if unreachable)."""
+    if dest == current_zone:
+        return 0
+    frontier, seen, hops = [current_zone], {current_zone}, 0
+    while frontier:
+        hops += 1
+        nxt = []
+        for zone in frontier:
+            for _pos, to_zone in gates.get(zone, []):
+                if to_zone == dest:
+                    return hops
+                if to_zone not in seen:
+                    seen.add(to_zone)
+                    nxt.append(to_zone)
+        frontier = nxt
+    return None
+
+
 _cache: tuple[Gates, DisplayZones, Spots] | None = None
 
 
@@ -137,6 +156,13 @@ def find_zone_gate(
 
 def gate_toward(current_zone: str, dest: str, blocked: set[tuple[str, str]] = frozenset()):
     return first_hop_toward(current_zone, dest, _data()[0], blocked)
+
+
+def hops_to_place(current_zone: str, place: str) -> int | None:
+    """Gate hops to a place named like the quest book shows it ("Triton Avenue")."""
+    gates, display_zones, _ = _data()
+    dest = named_zone(place, display_zones)
+    return hop_count(current_zone, dest, gates) if dest else None
 
 
 def objective_zone(objective: str) -> str | None:

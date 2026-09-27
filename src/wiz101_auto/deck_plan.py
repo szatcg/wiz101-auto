@@ -46,6 +46,7 @@ class DeckPolicy:
     blade_copies: int = 2
     trap_copies: int = 2
     shield_copies: int = 1
+    minion_copies: int = 2
     core_copies: int = 2
     capacity: int = 0  # 0 = let the game enforce its own limit
     exclude: list[str] = field(default_factory=list)
@@ -77,7 +78,9 @@ def _role(card: Card) -> str | None:
         return "trap"
     if EffectKind.SHIELD in kinds:
         return "shield"
-    return None  # minions, utility, unknown: the combat brain can't use them yet
+    if EffectKind.SUMMON in kinds:
+        return "minion"
+    return None  # utility, unknown: the combat brain can't use them yet
 
 
 def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None = None) -> DeckPlan:
@@ -89,7 +92,8 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
             by_name.setdefault(s.name, s)
     pool = list(by_name.values())
 
-    roles: dict[str, list[SpellInfo]] = {"attack": [], "heal": [], "blade": [], "trap": [], "shield": []}
+    role_names = ("attack", "heal", "blade", "trap", "shield", "minion")
+    roles: dict[str, list[SpellInfo]] = {r: [] for r in role_names}
     for s in pool:
         r = _role(s.card)
         if r:
@@ -120,6 +124,7 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
         (best("blade", value), policy.blade_copies),
         (best("trap", value), policy.trap_copies),
         (best("shield", lambda s: -value(s)), policy.shield_copies),
+        (best("minion", lambda s: s.card.pip_cost), policy.minion_copies),
     ]
 
     targets: dict[str, int] = {}
@@ -162,3 +167,8 @@ def plan_adds_cards(plan_totals: dict[str, int], deck_names: list[str]) -> bool:
     that only removes cards (e.g. drops minions the planner skips) isn't worth a
     clear-and-rebuild."""
     return any(copies > deck_names.count(name) for name, copies in plan_totals.items())
+
+
+def cards_to_add(plan_totals: dict[str, int], deck_names: list[str]) -> list[tuple[str, int]]:
+    """(spell, copies) the deck is missing to reach the plan; nothing is removed."""
+    return [(n, c - deck_names.count(n)) for n, c in plan_totals.items() if c > deck_names.count(n)]

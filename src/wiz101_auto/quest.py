@@ -24,7 +24,7 @@ from .collect import LANDMARK_NAMES, Collector, collect_item_name, spread_points
 from .config import QuestConfig
 from .deck import close_spellbook
 from .npc import ServicesMenu
-from .travel_data import find_zone_gate, gate_toward, objective_zone, quest_spots
+from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
 from .wisps import sweep_points
 
@@ -55,12 +55,40 @@ class QuestEntry:
     mainline: bool = False
     active: bool = False
     reward: int = 0  # first reward amount shown in the quest book
+    world: str = ""  # area shown in the book, e.g. "Triton Avenue"
+    hops: int | None = None  # gate hops from where the wizard is (None = unknown)
+
+
+UNKNOWN_HOPS = 5  # an area we can't route to counts as fairly far
 
 
 def quest_rank(q: QuestEntry) -> tuple:
     """Higher is better: activity quests make the wizard stronger, the main story
-    unlocks content, side quests only give their reward."""
-    return (q.activity, q.mainline, q.reward)
+    unlocks content, side quests only give their reward; nearer beats farther."""
+    hops = UNKNOWN_HOPS if q.hops is None else q.hops
+    return (q.activity, q.mainline, -hops, q.reward)
+
+
+def choose_quest(quests: list[QuestEntry]) -> QuestEntry | None:
+    """Which quest to track. Stick with the tracked questline until it's done;
+    only a spell/class quest may interrupt it."""
+    if not quests:
+        return None
+    active = next((q for q in quests if q.active), None)
+    if active and active.activity:
+        return active
+    spell_quests = [q for q in quests if q.activity]
+    if spell_quests:
+        return max(spell_quests, key=quest_rank)
+    if active:
+        return active
+    return max(quests, key=quest_rank)
+
+
+def is_combat_objective(objective: str) -> bool:
+    """Objectives met by fighting: 'Defeat X', 'Summon Myth Minion', 'Cast ...'."""
+    first = objective.strip().lower().split(" ", 1)[0]
+    return first in ("defeat", "summon", "cast")
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -85,6 +113,7 @@ class Quester:
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0
         self.gear = None  # GearManager, set by the bot
+        self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -390,6 +419,7 @@ class Quester:
             await asyncio.sleep(0.8)
 
     async def _read_quest_page(self) -> list[QuestEntry]:
+        zone = await self.client.zone_name() or ""
         out = []
         for i in range(MAX_QUEST_SLOTS):
             base = [*QUEST_LIST, f"wndQuestInfo{i}", "questInfoWindow", "wndQuestInfo"]
@@ -398,10 +428,13 @@ class Quester:
                 continue
             reward_path = [*base, "wndReward1", "imgReward1Scroll", "txtReward1Amount"]
             reward = await ui.text_at(self.client, reward_path)
+            world = (await ui.text_at(self.client, [*base, "txtWorld"])).strip()
             out.append(
                 QuestEntry(
                     slot=i,
                     name=name,
+                    world=world,
+                    hops=hops_to_place(zone, world) if world else None,
                     activity=await ui.is_visible(self.client, [*base, "imgActivityQuestType"]),
                     mainline=await ui.is_visible(self.client, [*base, "LeftMainline"]),
                     active=await ui.is_visible(self.client, [*base, "imgActiveQuest"]),
@@ -411,34 +444,39 @@ class Quester:
         return out
 
     async def prioritize_quests(self) -> bool:
-        """Track the most valuable quest in the book (spell/activity quests first,
-        then the main story, then side quests by reward). True if it switched."""
+        """Track the quest `choose_quest` picks (keep the current questline unless a
+        spell quest is waiting). True if it switched."""
         if not await self._open_quest_book():
             logger.warning("could not open the quest book to rank quests")
             return False
         page_button = [*QUEST_LIST, "btnNextPage"]
         back_button = [*QUEST_LIST, "btnPrevPage"]
-        best: tuple[int, QuestEntry] | None = None
-        seen: set[str] = set()
+        all_quests: list[tuple[int, QuestEntry]] = []
         pages = 0
         try:
             for page in range(5):
-                entries = [e for e in await self._read_quest_page() if e.name not in seen]
+                known = {q.name for _, q in all_quests}
+                entries = [e for e in await self._read_quest_page() if e.name not in known]
                 if not entries:
                     break
                 pages = page + 1
-                for e in entries:
-                    seen.add(e.name)
-                    if best is None or quest_rank(e) > quest_rank(best[1]):
-                        best = (page, e)
+                all_quests += [(page, e) for e in entries]
                 if not await ui.click(self.client, page_button):
                     break
                 await asyncio.sleep(0.6)
+            activities = {q.name for _, q in all_quests if q.activity}
+            chosen = choose_quest([q for _, q in all_quests])
+            best = next(((p, q) for p, q in all_quests if q is chosen), None)
+            # A spell quest that left the book was completed: it usually taught a spell.
+            finished = self._activity_quests - activities
+            if finished and self.progression:
+                self.progression.request_check(f"finished {', '.join(sorted(finished))}")
+            self._activity_quests = activities
             if best is None:
                 return False
             page, entry = best
             if entry.active:
-                logger.info(f"quest priority: already tracking {entry.name!r}")
+                logger.info(f"quest priority: continuing {entry.name!r}")
                 return False
             for _ in range(pages):
                 await ui.click(self.client, back_button)
@@ -451,7 +489,8 @@ class Quester:
             await ui.click(self.client, slot)
             await asyncio.sleep(0.6)
             kind = "spell/activity" if entry.activity else "main story" if entry.mainline else "side"
-            logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest, reward {entry.reward})")
+            where = f"{entry.world}, {entry.hops} hops" if entry.hops is not None else entry.world
+            logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest in {where})")
             return True
         finally:
             await self._close_quest_book()
@@ -705,6 +744,12 @@ class Quester:
                 self._fallback_tried_for = (objective, zone)
                 if await self._no_marker_fallback(objective, zone):
                     return
+            if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
+                # "Summon Myth Minion in Unicorn Way": any fight here will do
+                # (the brain summons/casts what the objective asks for).
+                if not await self.client.in_battle():
+                    await self.pull_mob()
+                return
             logger.debug(f"no quest marker for {objective!r}; waiting")
             await asyncio.sleep(2.0)
             return
@@ -733,7 +778,7 @@ class Quester:
                 await self._count_attempt()
                 return
 
-        if "defeat" in objective.lower():
+        if is_combat_objective(objective):
             if not await self.client.in_battle():
                 await self.pull_mob()
             return

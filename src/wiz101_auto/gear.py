@@ -80,8 +80,19 @@ async def read_stats(client, school: str) -> StatSnapshot:
     )
 
 
+# Template name prefixes of wearable gear ("Hat-T1-018", "Shoe-T1-011"...).
+WEARABLE_PREFIXES = ("hat-", "robe-", "shoe-", "athame-", "amulet-", "ring-")
+
+
+def is_wearable(template_name: str) -> bool:
+    return template_name.lower().startswith(WEARABLE_PREFIXES)
+
+
 async def owned_item_ids(client) -> set[int]:
-    """Ids of everything in the backpack and equipped."""
+    """Ids of wearable gear in the backpack and equipped. Quest items, emotes and
+    the like don't count, so collecting quest items doesn't trigger a gear check."""
+    from wizwalker.memory.memory_objects.game_object_template import WizGameObjectTemplate
+
     ids: set[int] = set()
     co = client.client_object
     for behavior in (await co.try_get_inventory_behavior(), await co.try_get_equipment_behavior()):
@@ -89,7 +100,11 @@ async def owned_item_ids(client) -> set[int]:
             continue
         for item in await behavior.item_list():
             try:
-                ids.add(await item.global_id_full())
+                core = await item.object_template()
+                template = WizGameObjectTemplate(client.hook_handler, await core.read_base_address())
+                name = await template.object_name()
+                if is_wearable(name):
+                    ids.add(await item.global_id_full())
             except Exception:
                 pass
     return ids

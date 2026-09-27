@@ -76,3 +76,22 @@ def test_plan_adds_cards_only_when_it_wants_more_than_the_deck_has():
     deck = ["Pixie"] * 3 + ["Bloodbat"] * 3 + ["Minion Myth 000"] * 3
     assert not plan_adds_cards({"Bloodbat": 3, "Pixie": 3}, deck)
     assert plan_adds_cards({"Bloodbat": 3, "Pixie": 3, "Troll": 2}, deck)
+
+
+def test_plan_keeps_a_minion():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    hit = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 90)]
+    summon = [Effect(EffectKind.SUMMON, Target.SELF, 0)]
+    bat = SpellInfo(Card(0, "Bloodbat", school="Myth", pip_cost=1, effects=hit), 3)
+    golem = SpellInfo(Card(0, "Minion Myth 000", school="Myth", pip_cost=1, effects=summon), 3)
+    plan = plan_deck([bat, golem], "Myth", DeckPolicy())
+    assert plan.totals.get("Minion Myth 000") == 2
+
+
+def test_cards_to_add_only_adds_what_is_missing():
+    from wiz101_auto.deck_plan import cards_to_add
+
+    deck = ["Pixie"] * 3 + ["Bloodbat"] * 3 + ["Minion Myth 000"] * 3
+    plan = {"Bloodbat": 3, "Troll": 2, "Pixie": 3, "Minion Myth 000": 2}
+    assert cards_to_add(plan, deck) == [("Troll", 2)]
