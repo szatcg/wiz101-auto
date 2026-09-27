@@ -61,6 +61,7 @@ class Card:
     castable: bool = True
     enchanted: bool = False
     treasure: bool = False
+    item: bool = False  # granted by gear (e.g. a wand's off-school spells)
     template_name: str = ""  # e.g. 'Minion Myth 001' (display names lack the number)
 
     @property

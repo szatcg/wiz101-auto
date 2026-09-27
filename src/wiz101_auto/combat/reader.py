@@ -147,6 +147,13 @@ async def read_effects(effect, depth: int = 0) -> list[Effect]:
     return [map_effect(effect_type.name, target.name, param, rounds)]
 
 
+async def _is_item(card) -> bool:
+    try:
+        return bool(await card.is_item_card())
+    except Exception:
+        return False
+
+
 async def read_card(index: int, card: CombatCard) -> Card | None:
     try:
         gspell = await card.wait_for_graphical_spell()
@@ -181,6 +188,7 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
             castable=await card.is_castable(),
             enchanted=await card.is_enchanted(),
             treasure=await card.is_treasure_card(),
+            item=await _is_item(card),
             template_name=template_name,
         )
     except Exception as exc:

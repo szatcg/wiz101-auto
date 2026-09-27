@@ -265,3 +265,32 @@ def test_traps_a_mob_that_would_survive_the_hit():
     assert decide(b).card.name == "Fire Trap"
     b2 = battle([dmg_card(0, "Troll", 190, pips=2), trap_card(1)], [enemy("Imp", 150)])
     assert decide(b2).card.name == "Troll"  # kills outright: no trap needed
+
+
+def _myth_me(**kw):
+    return me(school="myth", **kw)
+
+
+def test_discards_off_school_gear_cards():
+    hit = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 65)]
+    wand = Card(0, "Frost Beetle", school="Ice", item=True, effects=hit)
+    heal = [Effect(EffectKind.HEAL, Target.SELF, 100)]
+    heartbeat = Card(1, "Heartbeat", school="Life", item=True, effects=heal)
+    troll = dmg_card(2, "Troll", 190, pips=2)
+    troll.school = "Myth"
+    b = battle([wand, heartbeat, troll], [enemy("Alicane", 480, boss=True)], my=_myth_me())
+    action = decide(b)
+    assert action.kind is ActionKind.DISCARD and action.card.name == "Frost Beetle"
+    assert decide(b, discards_left=0).kind is not ActionKind.DISCARD
+
+
+def test_holds_troll_until_the_target_is_trapped():
+    troll = dmg_card(0, "Troll", 190, pips=2)
+    b = battle([troll], [enemy("Alicane", 480, boss=True)], my=_myth_me())
+    b.pips = 2
+    assert decide(b).kind is ActionKind.PASS
+    b.enemies[0].trap_count, b.enemies[0].incoming_boost = 1, 0.4  # trapped (by us or the minion)
+    assert decide(b).card.name == "Troll"
+    b.enemies[0].trap_count, b.enemies[0].incoming_boost = 0, 0.0
+    b.pips = 4  # don't wait forever
+    assert decide(b).card.name == "Troll"

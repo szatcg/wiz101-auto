@@ -8,10 +8,12 @@ The strategy is a greedy heuristic tuned for PvE questing:
   1. If a spell can finish the last enemy, cast it (the fight ends).
   2. Heal if we (or an ally) are in danger; if the heal needs one more pip,
      pass to save for it.
-  3. Finish off any enemy we can (one fewer attacker), then summon a minion.
+  3. Finish off any enemy we can (one fewer attacker), discard off-school gear
+     cards (room for deck spells), then summon a minion.
   4. If an attack is available, enchant it if possible, then pick the target
      and spell that removes the most enemy health, weakest target first.
-  5. Against bosses/high-health targets, stack a blade or trap first.
+  5. Against bosses/targets that survive our best hit, trap first; hold a 2+
+     pip hit (Troll) until the target is trapped, unless pips pile up.
   6. While waiting for pips, set up blades/traps/shields.
   7. Otherwise discard dead cards (only when the hand is full) and pass.
 Damage counts blades, traps, shields, weaknesses and school resistances.
@@ -51,6 +53,8 @@ class Strategy:
     # Pass a round for an attack one pip away when the best castable one does
     # less than this share of its damage (two 1-pip hits < one 2-pip Troll).
     save_for_stronger: float = 0.6
+    discard_junk: bool = True  # bin off-school gear attack cards to draw deck spells
+    hold_big_hit_until_pips: int = 4  # wait for a trap before a 2+ pip hit, up to this many pips
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -203,6 +207,25 @@ def _stronger_next_round(battle: Battle, focus: Combatant, dmg_now: float, strat
     return None
 
 
+def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
+    """Off-school attack cards from gear (a starter wand's Fire Cat, Dark Sprite...)
+    only take hand slots our own spells and traps could fill."""
+    if not strat.discard_junk or not battle.me.school:
+        return None
+    junk = [
+        c for c in battle.cards
+        if c.item and c.is_damage and not c.treasure and c.school.lower() != battle.me.school.lower()
+    ]
+    if not junk:
+        return None
+    card = min(junk, key=lambda c: c.base_damage())
+    return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+
+
+def _is_trapped(target: Combatant) -> bool:
+    return target.trap_count > 0 or target.incoming_boost > 0
+
+
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
     best: tuple[Card, Combatant | None, float] | None = None
     for card in _castable(battle.cards):
@@ -315,6 +338,11 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     if kill:
         return kill
 
+    if discards_left > 0:
+        junk = _junk_discard(battle, strat)
+        if junk:
+            return junk
+
     summon = _summon_action(battle, strat)
     if summon:
         return summon
@@ -334,6 +362,16 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
             setup = _setup_action(battle, strat, focus)
             if setup:
                 return setup
+
+        # A 2+ pip hit is worth most on a trapped target: wait for a trap (ours or
+        # the minion's) unless pips are piling up.
+        if (
+            card.pip_cost >= 2
+            and dmg < focus.health
+            and not _is_trapped(focus)
+            and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips
+        ):
+            return Action(ActionKind.PASS, reason=f"holding {card.name} until {focus.name} is trapped")
 
         stronger = _stronger_next_round(battle, focus, dmg, strat)
         if stronger:
