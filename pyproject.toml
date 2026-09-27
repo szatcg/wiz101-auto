@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wiz101-auto"
+version = "0.1.0"
+description = "Autonomous Wizard101 bot: questing, combat and upkeep via WizWalker memory hooks"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.13"
+dependencies = [
+    "loguru>=0.7.2",
+    "pyyaml>=6.0.1",
+    # Game-facing libraries are Windows-only. We use the actively maintained
+    # copies vendored by the Deimos project, which track game patches much
+    # faster than the PyPI releases.
+    "wizwalker @ git+https://github.com/Deimos-Wizard101/Deimos-Wizard101.git#subdirectory=libs/wizwalker ; sys_platform == 'win32'",
+    "wizsprinter @ git+https://github.com/Deimos-Wizard101/Deimos-Wizard101.git#subdirectory=libs/wizsprinter ; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+wiz101-auto = "wiz101_auto.cli:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wiz101_auto"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

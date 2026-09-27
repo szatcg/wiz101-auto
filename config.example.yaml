@@ -1,0 +1,43 @@
+# Copy to config.yaml and adjust. Every key is optional; defaults are shown.
+
+# quest = follow the quest arrow and fight whatever comes up
+# fight = only play battles (you walk; handy for testing combat)
+# farm  = stay in the area and fight the nearest mob repeatedly
+mode: quest
+farm_seconds_between_fights: 2.0
+log_file: wiz101-auto.log
+
+quest:
+  teleport: true            # false = walk to objectives (slower, looks more human)
+  accept_side_quests: false
+  photomancy: true
+  stuck_minutes: 12         # stop if the objective doesn't change for this long
+
+upkeep:
+  use_potions: true
+  potion_health_ratio: 0.5
+  potion_mana_ratio: 0.2
+  collect_wisps: true
+  wisp_health_ratio: 0.8
+
+safety:
+  stop_key: F9
+  pause_key: F10
+  max_hours: 4.0            # 0 = no limit
+  max_deaths: 5
+  mouseless: true           # clicks via a memory hook; your real mouse stays free
+
+combat:
+  max_discards: 2
+  flee_below: 0.0           # e.g. 0.15 to flee under 15% health; 0 = never
+  strategy:
+    heal_threshold: 0.45
+    ally_heal_threshold: 0.35
+    shield_threshold: 0.6
+    max_blades: 2
+    max_traps: 2
+    kill_bonus: 400.0
+    boss_setup: true
+    setup_health_multiplier: 2.0
+    max_hand_size: 7
+    allow_discard: true
