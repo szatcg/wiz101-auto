@@ -36,6 +36,9 @@ MODAL_CENTER_BUTTON = [
     "Layout",
     "centerButton",
 ]
+# Second button of the same message box: "No"/cancel (e.g. on "Are you sure you want to flee?").
+MODAL_RIGHT_BUTTON = [*MODAL_CENTER_BUTTON[:-1], "rightButton"]
+MODAL_TEXT = [*MODAL_CENTER_BUTTON[:-3], "TextArea", "CaptionText"]
 MISSING_AREA = ["MessageBoxModalWindow", "messageBoxBG", "messageBoxLayout", "AdjustmentWindow"]
 MISSING_AREA_RETRY = [*MISSING_AREA, "RetryBtn"]
 CANCEL_CHEST_REROLL = ["WorldView", "Container", "background", "", "CancelButton"]

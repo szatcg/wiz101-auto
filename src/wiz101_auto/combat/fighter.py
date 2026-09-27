@@ -7,6 +7,7 @@ import asyncio
 from loguru import logger
 from wizwalker.combat import CombatHandler
 
+from .. import ui
 from .brain import Strategy, decide
 from .model import ActionKind
 from .reader import read_battle
@@ -98,10 +99,16 @@ class Fighter(CombatHandler):
                 await self.flee_button()
                 return
 
-            # Out of mana every card is grayed out: passing until defeat helps nobody.
+            # Never flee by accident: fleeing costs all of the wizard's mana.
+            if "flee" in (await ui.text_at(self.client, ui.MODAL_TEXT)).lower():
+                logger.info("cancelling a flee confirmation")
+                await ui.click(self.client, ui.MODAL_RIGHT_BUTTON)
+                await asyncio.sleep(0.5)
+                continue
+
             if out_of_mana(battle):
-                logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: fleeing")
-                await self.flee_button()
+                logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: passing")
+                await self.pass_button()
                 return
 
             # Decide once, on the first round, whether this fight is worth having.
