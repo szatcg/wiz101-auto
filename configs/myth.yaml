@@ -24,6 +24,7 @@ upkeep:
 safety:
   stop_key: ctrl+shift+q     # any ctrl/shift/alt combo + one key, e.g. "ctrl+]"
   pause_key: ctrl+shift+p
+  stall_seconds: 15          # nothing happens this long -> close menus, restart step, switch quest...
   max_hours: 3.0
   max_deaths: 4
 

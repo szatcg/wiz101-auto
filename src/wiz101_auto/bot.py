@@ -16,6 +16,7 @@ from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
 from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, recover, scan_wisps
+from .watchdog import Watchdog
 
 HOOK_TIMEOUT = 90
 DEATH_HEALTH_RATIO = 0.1
@@ -89,7 +90,7 @@ async def quest_loop(quester: Quester, controller: Controller):
     while not controller.stopped.is_set():
         await controller.checkpoint()
         try:
-            await quester.step()
+            await quester.run_step()
         except BotStopped:
             raise
         except Exception as exc:
@@ -145,7 +146,16 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
-        elif cfg.mode == "farm":
+        if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):
+            watchdog = Watchdog(
+                client,
+                controller,
+                quester,
+                stall_seconds=s.stall_seconds,
+                battle_stall_seconds=s.battle_stall_seconds,
+            )
+            tasks.append(asyncio.create_task(watchdog.run(), name="watchdog"))
+        if cfg.mode == "farm":
             tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
 
         stop_waiter = asyncio.create_task(controller.stopped.wait())

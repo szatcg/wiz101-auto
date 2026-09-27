@@ -93,6 +93,14 @@ class Controller:
         self._resume = asyncio.Event()
         self._resume.set()
         self.stop_reason = ""
+        self.idle_until = 0.0  # the stall watchdog ignores quiet periods before this
+
+    def allow_idle(self, seconds: float):
+        """Declare an intentional quiet period (resting, waiting for respawns...)."""
+        self.idle_until = max(self.idle_until, time.monotonic() + seconds)
+
+    def end_idle(self):
+        self.idle_until = 0.0
 
     def stop(self, reason: str):
         if not self.stopped.is_set():

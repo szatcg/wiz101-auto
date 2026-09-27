@@ -50,6 +50,8 @@ class Quester:
         self._last_wisp_scan = 0.0
         self.progression = progression
         self.services = ServicesMenu(client)
+        self.lock = asyncio.Lock()  # one step (or watchdog action) at a time
+        self._step_task: asyncio.Task | None = None
         self.collector = Collector(client)
         self.cfg = cfg
         self.controller = controller
@@ -215,6 +217,33 @@ class Quester:
             logger.debug(f"closed {closed} menu(s)")
         return True
 
+    def cancel_step(self):
+        """Abort the step in progress (used by the stall watchdog)."""
+        if self._step_task and not self._step_task.done():
+            self._step_task.cancel()
+
+    def reset_objective_memory(self):
+        """Forget per-objective assumptions so the next step starts fresh."""
+        self.services._tried.clear()
+        self._swept_for = None
+        self._attempts = 0
+        self.collector._taken.clear()
+        self.collector._cache = None
+
+    async def run_step(self):
+        """Run one step as a cancellable task so the watchdog can abort a hung step."""
+        async with self.lock:
+            self._step_task = asyncio.create_task(self.step())
+            try:
+                await self._step_task
+            except asyncio.CancelledError:
+                task = asyncio.current_task()
+                if task is not None and task.cancelling():
+                    raise  # we're being shut down, not just the step
+                logger.debug("quest step cancelled by the watchdog")
+            finally:
+                self._step_task = None
+
     async def _count_attempt(self):
         """Several tries on the same objective with no change: the tracked quest
         is probably blocked on another active quest, so switch to that one."""
@@ -295,6 +324,7 @@ class Quester:
         # Already searched: let the quest marker (if any) guide us, else wait for respawns.
         if distance(await self.client.quest_position.position(), XYZ(0, 0, 0)) < 1:
             logger.debug(f"no {item!r} found; waiting for respawns")
+            self.controller.allow_idle(15)
             await asyncio.sleep(10)
             self._swept_for = None
             return True
@@ -324,7 +354,11 @@ class Quester:
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller):
             return
         if self.progression:
-            await self.progression.tick()
+            self.controller.allow_idle(90)  # spellbook work looks like "nothing happening"
+            try:
+                await self.progression.tick()
+            finally:
+                self.controller.end_idle()
             if not await is_free(self.client):
                 return
 

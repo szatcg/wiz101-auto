@@ -251,6 +251,7 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
         if loop.time() - last_report > 60:
             logger.info(f"resting: health {hp:.0%}, waiting for regeneration or wisps to respawn")
             last_report = loop.time()
+        controller.allow_idle(10)
         await asyncio.sleep(5)
 
 

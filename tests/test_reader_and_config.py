@@ -109,3 +109,27 @@ def test_needs_recovery_threshold():
     assert not cfg.needs_recovery(0.9)
     myth = load_config(Path(__file__).parent.parent / "configs" / "myth.yaml")
     assert myth.upkeep.min_health_to_fight == 0.85
+
+
+def test_controller_idle_window():
+    import asyncio
+
+    from wiz101_auto.safety import Controller
+
+    async def main():
+        c = Controller("ctrl+shift+q", "ctrl+shift+p", 0, 0)
+        assert c.idle_until == 0
+        c.allow_idle(30)
+        assert c.idle_until > 0
+        c.allow_idle(1)  # never shortens an existing window
+        assert c.idle_until > __import__("time").monotonic() + 20
+        c.end_idle()
+        assert c.idle_until == 0
+
+    asyncio.run(main())
+
+
+def test_stall_defaults():
+    from wiz101_auto.config import SafetyConfig
+
+    assert SafetyConfig().stall_seconds == 15.0
