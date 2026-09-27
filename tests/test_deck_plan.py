@@ -1,5 +1,5 @@
 from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
-from wiz101_auto.deck_plan import DeckPolicy, SpellInfo, plan_deck, unknown_deck_spells
+from wiz101_auto.deck_plan import DeckPolicy, SpellInfo, plan_adds_cards, plan_deck, unknown_deck_spells
 
 
 def spell(name, kind, value, pips=1, target=Target.ENEMY_SINGLE, school="Myth", max_copies=4, acc=80):
@@ -70,3 +70,9 @@ def test_unknown_deck_spells_flags_an_incomplete_spellbook_read():
     deck = ["Pixie", "Pixie", "Bloodbat", "Minion Myth 000"]
     assert unknown_deck_spells(deck, ["Scarab - Starter Wand"]) == ["Pixie", "Bloodbat", "Minion Myth 000"]
     assert unknown_deck_spells(deck, ["Pixie", "Bloodbat", "Minion Myth 000", "Troll"]) == []
+
+
+def test_plan_adds_cards_only_when_it_wants_more_than_the_deck_has():
+    deck = ["Pixie"] * 3 + ["Bloodbat"] * 3 + ["Minion Myth 000"] * 3
+    assert not plan_adds_cards({"Bloodbat": 3, "Pixie": 3}, deck)
+    assert plan_adds_cards({"Bloodbat": 3, "Pixie": 3, "Troll": 2}, deck)

@@ -107,11 +107,14 @@ read their source there when you need the memory API.
 
 ## Known gaps / open work
 
-- Deck building: the known-spell read is unreliable (0 or 1 spells per tab,
-  sometimes only the wand's item card; the detected entry size varies between
-  runs). Rebuilds are skipped unless every card already in the deck was read
-  as known. Card clicks (`clear_deck`, `add_by_name`) did not register on the
-  current client. `CardsInDeck` reads correctly (layout auto-detected).
+- UI hit areas sit left of the rects WizWalker computes; center clicks miss
+  some windows (leftmost hand card, spellbook All tab and close button).
+  `bot._click_left_of_center` routes every `click_window` to 25% of the width.
+- Spell lists: `SpellListControl` entries are 0x78 bytes, `DeckListControl`
+  0x28 (layout picked by most spells found). Hands also hold gear item cards
+  ("X - Starter Wand", Heartbeat). Rebuilds are skipped when the read looks
+  incomplete or the plan adds nothing; `add_by_name` clicks are still
+  unverified. The planner drops minions, and the brain never casts them.
 - Prospector Zeke's "Go To <place> Smith in <place>" quests have no quest
   marker; `travel_data.py` routes through gates and to the known Zeke spot.
   Quest-text place names missing from `displayZones.txt` go in

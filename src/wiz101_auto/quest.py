@@ -23,7 +23,7 @@ from .collect import Collector, collect_item_name
 from .config import QuestConfig
 from .deck import close_spellbook
 from .npc import ServicesMenu
-from .travel_data import find_zone_gate, objective_zone, quest_spots
+from .travel_data import find_zone_gate, gate_toward, objective_zone, quest_spots
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
 from .wisps import sweep_points
 
@@ -124,6 +124,26 @@ class Quester:
             if await self.walk_through(target, zone):
                 return True
         return False
+
+    async def go_to_zone(self, dest: str, max_hops: int = 6) -> bool:
+        """Walk the known gates to `dest`. True once there."""
+        for _ in range(max_hops):
+            zone = await self.client.zone_name()
+            if zone == dest:
+                return True
+            if not await is_free(self.client):
+                return False  # a fight started on the way
+            gate = gate_toward(zone, dest, self._bad_gates)
+            if not gate:
+                return False
+            pos, next_zone = gate
+            logger.info(f"heading to {dest}: gate to {next_zone}")
+            await self.travel(pos)
+            if await self.client.zone_name() == zone and not await self.approach_and_walk(pos, zone):
+                logger.warning(f"gate {zone} -> {next_zone} did not work; avoiding it")
+                self._bad_gates.add((zone, next_zone))
+            await wait_for_loading(self.client)
+        return await self.client.zone_name() == dest
 
     async def _sigil_at(self, target: XYZ) -> XYZ | None:
         """Position of a dungeon sigil ("Teleport Semi Circle") at the marker, if any."""
@@ -465,7 +485,7 @@ class Quester:
         if time.monotonic() - self._last_wisp_scan > WISP_SCAN_SECONDS:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
-        if self.upkeep and not await recover(self.client, self.upkeep, self.controller):
+        if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return
         if self.progression:
             self.controller.allow_idle(90)  # spellbook work looks like "nothing happening"

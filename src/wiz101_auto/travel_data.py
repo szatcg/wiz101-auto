@@ -82,7 +82,16 @@ def find_gate(
     `objective` names, avoiding `blocked` (from_zone, to_zone) gates. None if it
     names no known place, the current zone, or a place no gate path reaches."""
     dest = named_zone(objective, display_zones)
-    if dest is None or dest == current_zone:
+    if dest is None:
+        return None
+    return first_hop_toward(current_zone, dest, gates, blocked)
+
+
+def first_hop_toward(
+    current_zone: str, dest: str, gates: Gates, blocked: set[tuple[str, str]] = frozenset()
+) -> tuple[XYZ, str] | None:
+    """First gate on the shortest gate path from `current_zone` to `dest`."""
+    if dest == current_zone:
         return None
     first_hop: dict[str, tuple[XYZ, str]] = {}
     frontier = [current_zone]
@@ -124,6 +133,10 @@ def find_zone_gate(
 ) -> tuple[XYZ, str] | None:
     gates, display_zones, _ = _data()
     return find_gate(objective, current_zone, gates, display_zones, blocked)
+
+
+def gate_toward(current_zone: str, dest: str, blocked: set[tuple[str, str]] = frozenset()):
+    return first_hop_toward(current_zone, dest, _data()[0], blocked)
 
 
 def objective_zone(objective: str) -> str | None:

@@ -11,7 +11,7 @@ from wizwalker.extensions.scripting.deck_builder import DeckBuilder
 from . import ui
 from .combat.model import Card
 from .combat.reader import read_effects
-from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_deck, unknown_deck_spells
+from .deck_plan import DeckPlan, DeckPolicy, SpellInfo, plan_adds_cards, plan_deck, unknown_deck_spells
 
 
 async def _spell_info(entry) -> SpellInfo | None:
@@ -384,7 +384,7 @@ class _Builder(DeckBuilder):
 # (fixed size) or as pointers, the GraphicalSpell pointer may sit at a small
 # offset inside the entry, and lists can start with empty spacer slots.
 
-ENTRY_SIZES = (0xA8, 0xB0, 0xA0, 0xB8, 0x98, 0xC0, 0x90, 0xC8, 0x88, 0xD0, 0x28, 0x30, 0x20)
+ENTRY_SIZES = (0x78, 0xA8, 0xB0, 0xA0, 0xB8, 0x98, 0xC0, 0x90, 0xC8, 0x88, 0xD0, 0x28, 0x30, 0x20)
 SPELL_PTR_OFFSETS = (0x0, 0x8, 0x10)
 PROBE = 16
 _layouts: dict[str, tuple] = {}  # control type name -> (offset, gap, size, ptr_off, indirect)
@@ -508,6 +508,9 @@ async def find_spell_entries(client, list_window) -> list[SpellEntry]:
         if found is not None:
             return found
 
+    # Several layouts can "fit" one vector (a 0x78 stride over 0x28-byte deck
+    # entries reads every third card), so keep the one yielding the most spells.
+    best: tuple[list[SpellEntry], tuple] | None = None
     for offset in range(0x200, 0x480, 8):
         for gap in (16, 8):
             p = await pair(offset, gap)
@@ -518,17 +521,22 @@ async def find_spell_entries(client, list_window) -> list[SpellEntry]:
             candidates = [(*c, False) for c in base] + [(*c, True) for c in base]
             for size, ptr_off, indirect, template_ptr in candidates:
                 found = await _check_layout(hook, *p, size, ptr_off, indirect, template_ptr)
-                if found:
-                    layout = (offset, gap, size, ptr_off, indirect, template_ptr)
-                    if _layouts.get(kind) != layout:
-                        logger.info(
-                            f"{kind} layout found: vector at {offset:#x}, entry size {size:#x}, "
-                            f"spell pointer at +{ptr_off:#x}{', indirect' if indirect else ''}"
-                            f"{', template pointer' if template_ptr else ''}"
-                        )
-                    _layouts[kind] = layout
-                    return found
-    return []
+                if found and (best is None or len(found) > len(best[0])):
+                    best = (found, (offset, gap, size, ptr_off, indirect, template_ptr))
+        if best:
+            break  # the first offset holding a spell vector is the list
+    if best is None:
+        return []
+    found, layout = best
+    if _layouts.get(kind) != layout:
+        offset, _gap, size, ptr_off, indirect, template_ptr = layout
+        logger.info(
+            f"{kind} layout found: vector at {offset:#x}, entry size {size:#x}, "
+            f"spell pointer at +{ptr_off:#x}{', indirect' if indirect else ''}"
+            f"{', template pointer' if template_ptr else ''}"
+        )
+    _layouts[kind] = layout
+    return found
 
 
 async def dump_list_memory(client, list_window) -> str:
@@ -607,6 +615,9 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
             f"spellbook read looks incomplete (deck has {', '.join(missing)} but they weren't read "
             "as known spells); leaving the deck alone"
         )
+        return known, plan
+    if not plan_adds_cards(plan.totals, deck_names):
+        logger.info("deck plan adds nothing the deck doesn't already have; leaving it alone")
         return known, plan
 
     await builder.clear_deck()

@@ -67,7 +67,27 @@ async def connect(handler: ClientHandler):
             "as Administrator."
         ) from None
     logger.success("connected to the game")
+    _click_left_of_center(client)
     return client
+
+
+CLICK_X = 0.25  # fraction of a window's width to click at
+
+
+def _click_left_of_center(client):
+    """On this client, UI hit areas sit left of the rects WizWalker computes: a
+    center click misses the leftmost hand card and the spellbook's All tab and
+    close button, while a click at 25% of the width lands. Route every
+    click_window (ours and WizWalker's) through that point."""
+    mouse = client.mouse_handler
+
+    async def click_window(window, **kwargs):
+        r = await window.scale_to_client()
+        x = int(r.x1 + (r.x2 - r.x1) * CLICK_X)
+        y = int((r.y1 + r.y2) / 2)
+        await mouse.click(x, y, **kwargs)
+
+    mouse.click_window = click_window
 
 
 async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Controller):

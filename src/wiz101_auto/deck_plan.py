@@ -155,3 +155,10 @@ def unknown_deck_spells(deck_names: list[str], known_names: list[str]) -> list[s
     spell, so any here means the spellbook read is incomplete and unsafe to plan from."""
     known = set(known_names)
     return [n for n in dict.fromkeys(deck_names) if n not in known]
+
+
+def plan_adds_cards(plan_totals: dict[str, int], deck_names: list[str]) -> bool:
+    """True if the plan wants more copies of some spell than the deck holds. A plan
+    that only removes cards (e.g. drops minions the planner skips) isn't worth a
+    clear-and-rebuild."""
+    return any(copies > deck_names.count(name) for name, copies in plan_totals.items())

@@ -189,7 +189,22 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         return False
 
 
-async def recover(client, cfg: UpkeepConfig, controller) -> bool:
+def best_wisp_zone(current_zone: str, spots: dict | None = None) -> str | None:
+    """The same-world zone with the most remembered wisp spots (Unicorn Way as a
+    Wizard City fallback before any are learned)."""
+    spots = wisp_memory().spots if spots is None else spots
+    world = current_zone.split("/", 1)[0]
+    same_world = [(len(pts), z) for z, pts in spots.items() if z.split("/", 1)[0] == world]
+    zones = sorted(((n, z) for n, z in same_world if n >= 3), reverse=True)
+    for _, z in zones:
+        if z != current_zone:
+            return z
+    if world == "WizardCity" and current_zone != "WizardCity/WC_Streets/WC_Unicorn":
+        return "WizardCity/WC_Streets/WC_Unicorn"
+    return None
+
+
+async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> bool:
     """Make sure the wizard is healthy before engaging anything.
 
     Returns True when it's fine to carry on questing, False if something
@@ -204,6 +219,7 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
     started = loop.time()
     last_report = started
     rested = False
+    travelled = False
     swept: set[str] = set()
     while True:
         await controller.checkpoint()
@@ -234,6 +250,15 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
                 swept.add(zone)
                 if await sweep_for_wisps(client, cfg):
                     continue
+            if go_to_zone and not travelled and len(wisp_memory().spots.get(zone, [])) < 3:
+                # No wisps worth waiting for here (e.g. the hub after a defeat):
+                # go heal where they're known to spawn instead of resting.
+                travelled = True
+                dest = best_wisp_zone(zone)
+                if dest:
+                    logger.info(f"no wisps in {zone}; going to {dest} to heal")
+                    if await go_to_zone(dest):
+                        continue
 
         if not rested:
             await move_to_safety(client)

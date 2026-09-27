@@ -24,3 +24,18 @@ def test_next_spot_skips_mobs_and_recent_visits(tmp_path):
 def test_sweep_points_avoid_mobs():
     pts = sweep_points((0, 0, 0), [(1500, 0, 0)], safe_distance=900)
     assert len(pts) == 15 and all(abs(p[0] - 1500) > 1 or abs(p[1]) > 1 for p in pts)
+
+
+def test_best_wisp_zone_prefers_most_spots_in_the_same_world():
+    from wiz101_auto.upkeep import best_wisp_zone
+
+    spots = {
+        "WizardCity/WC_Streets/WC_Cyclops": [(0, 0, 0)] * 46,
+        "WizardCity/WC_Streets/WC_Triton": [(0, 0, 0)] * 3,
+        "WizardCity/WC_Golem_Tower": [(0, 0, 0)],
+        "Krokotopia/KT_Hub": [(0, 0, 0)] * 99,
+    }
+    assert best_wisp_zone("WizardCity/WC_Hub", spots) == "WizardCity/WC_Streets/WC_Cyclops"
+    assert best_wisp_zone("WizardCity/WC_Streets/WC_Cyclops", spots) == "WizardCity/WC_Streets/WC_Triton"
+    assert best_wisp_zone("WizardCity/WC_Hub", {}) == "WizardCity/WC_Streets/WC_Unicorn"
+    assert best_wisp_zone("MooShu/MS_Hub", {}) is None
