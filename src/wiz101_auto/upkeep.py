@@ -528,16 +528,34 @@ class DialoguePolicy:
 async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePolicy | None = None):
     """Advance NPC dialogue as it appears. Runs for the whole session."""
     policy = policy or DialoguePolicy()
+    last_offer, tries = "", 0
     while not controller.stopped.is_set():
         try:
             if not controller.paused and await ui.is_visible(client, ui.ADVANCE_DIALOG):
                 offer = await ui.is_visible(client, ui.DECLINE_QUEST)
                 if offer and (cfg.accept_side_quests or policy.accepting):
                     text = await ui.text_at(client, ui.DIALOG_TEXT)
-                    logger.info(f"accepting quest: {text[:80]}")
-                    if not await ui.click(client, ui.ADVANCE_DIALOG):
+                    tries = tries + 1 if text == last_offer else 0
+                    last_offer = text
+                    if tries == 0:
+                        logger.info(f"accepting quest: {text[:80]}")
+                    # The offer's accept button doesn't always take the usual
+                    # (left-shifted) click: cycle through other ways of pressing it.
+                    how = tries % 4
+                    if how == 0:
+                        if not await ui.click(client, ui.ADVANCE_DIALOG):
+                            await client.send_key(Keycode.SPACEBAR)
+                    elif how == 1:
+                        w = await ui.window_at(client, ui.ADVANCE_DIALOG)
+                        if w is not None:
+                            await ui.click_center(client, w)
+                    elif how == 2:
                         await client.send_key(Keycode.SPACEBAR)
-                    await asyncio.sleep(0.4)
+                    else:
+                        await client.send_key(Keycode.ENTER)
+                    if tries in (1, 2, 3):
+                        logger.debug(f"quest offer still open; accepting another way ({how})")
+                    await asyncio.sleep(0.6)
                 elif offer:
                     text = await ui.text_at(client, ui.DIALOG_TEXT)
                     logger.info(f"declining side quest: {text[:80]}")
