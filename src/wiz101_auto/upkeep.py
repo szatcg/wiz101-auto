@@ -252,6 +252,7 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
 
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
+WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 
 
@@ -318,7 +319,10 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
             if await visit_known_spot(client, cfg, zone):
                 rested = False
                 now_hp, now_mana = await health_mana(client)
-                fruitless = 0 if (now_hp > hp or now_mana > mana) else fruitless + 1
+                # Passive regeneration ticks up a little on every visit; only a real
+                # wisp (a few % at once) counts as finding something.
+                gained = now_hp - hp >= WISP_GAIN or now_mana - mana >= WISP_GAIN
+                fruitless = 0 if gained else fruitless + 1
                 if travelled or fruitless < FRUITLESS_VISITS:
                     continue
             if zone not in swept:
