@@ -22,36 +22,27 @@ card-evaluation logic.
 Modes: `quest` (default), `fight` (you walk, it fights) and `farm` (fights
 the nearest mob over and over).
 
-## Setup (Windows)
+## Setup and running (Windows)
 
 1. Install **Python 3.13+** from python.org and tick "Add python.exe to PATH".
-   Also install **Git for Windows**.
-2. Clone and install:
-   ```bat
-   git clone https://github.com/szatcg/wiz101-auto.git
-   cd wiz101-auto
-   py -3.13 -m venv .venv
-   .venv\Scripts\activate
-   pip install -e .
-   copy configs\myth.yaml config.yaml
-   ```
-   Or just run `setup.bat`, which does the same thing.
-3. Start Wizard101, log in, and load into the world with your wizard.
-4. Check that the bot can read the game:
-   ```bat
-   wiz101-auto inspect
-   ```
-   You should see your zone, health, quest objective and marker position.
-   Start a fight and run it again to see the cards it reads and the move
-   it would make.
-5. Run it:
-   ```bat
-   wiz101-auto run -c config.yaml
-   ```
-   (or `run.bat`). Press **Ctrl+Shift+Q** to stop.
+   Also install **Git for Windows**. (The launcher can install Python 3.13
+   itself if you have the Python Install Manager.)
+2. Extract the bot's zip to its own folder.
+3. Log into Wizard101 and stand in the world with your wizard.
+4. Double-click **`wiz101.bat`**. It will:
+   - stop any other copy of the bot that's still running (older versions too),
+   - check Python and Git,
+   - install the bot the first time, and again only when its dependencies change
+     (log in `state\setup.txt`),
+   - create `config.yaml` from the Myth preset if you don't have one,
+   - show a menu and start the bot after 8 seconds unless you pick something else.
 
-If hooks fail to activate, run the terminal **as Administrator** and move
-your wizard one step (some hooks only fire on movement).
+To update: extract the new zip to a new folder and double-click `wiz101.bat`
+there. Copy your old `config.yaml` and `state` folder across if you want to keep
+your settings and what the bot has learned.
+
+If hooks fail to activate, fully restart Wizard101 and try again. Moving your
+wizard one step while it starts can also help.
 
 ## Controlling the bot
 
@@ -59,17 +50,17 @@ your wizard one step (some hooks only fire on movement).
 
 | Command | What it does |
 |---|---|
-| `wiz101-auto run -c config.yaml` | Start the bot (`run.bat` does the same). Add `-m fight` or `-m farm` to change mode, and `-v` for detailed output. |
+| `wiz101-auto run -c config.yaml` | Start the bot (menu option 1 in `wiz101.bat`). Add `-m fight` or `-m farm` to change mode, and `-v` for detailed output. |
 | `wiz101-auto inspect` | Print what the bot sees right now: zone, health, quest, and in battle your cards and the move it would make. |
 | `wiz101-auto inspect --windows` | Also print the game's UI window tree. |
 | `wiz101-auto deck` | Show the known spells and the deck the bot would build. Changes nothing. |
 | `wiz101-auto deck --apply` | Rebuild the in-game deck from that plan. |
 | `wiz101-auto explore` | Save every nearby NPC, door and mob with its position to `state/explore_*.txt`. |
 
-**Double-click shortcuts:** `doctor.bat` checks the whole setup (Python,
-install, config, game, what the bot sees) and saves `state\doctor.txt`.
-`inspect.bat`, `deck.bat` and `explore.bat` run those commands and save the
-output to the `state` folder, ready to send.
+**Launcher menu:** besides running the bot, `wiz101.bat` offers a health
+check (`state\doctor.txt`), the deck plan (`state\deck.txt`), a deck rebuild,
+what the bot sees (`state\inspect.txt`) and a zone recording, all saved to the
+`state` folder ready to send.
 
 **Keys while running:** **Ctrl+Shift+Q** stops and **Ctrl+Shift+P** pauses or resumes (Ctrl+C in the bot window also stops it). The keys
 can be changed under `safety`.
