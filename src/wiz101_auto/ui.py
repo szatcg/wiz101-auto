@@ -97,6 +97,18 @@ async def modal_text(box) -> str:
     return ""
 
 
+async def click_named(client, name: str) -> bool:
+    """Click the first visible window called `name`, wherever it is in the tree."""
+    try:
+        for w in await client.root_window.get_windows_with_name(name):
+            if await w.is_visible():
+                await client.mouse_handler.click_window(w)
+                return True
+    except Exception as exc:
+        logger.trace(f"click_named {name} failed: {exc}")
+    return False
+
+
 async def modal_click(client, box, button: str) -> bool:
     """Click `button` ("centerButton" = yes/ok, "rightButton" = no/cancel) in `box`."""
     for b in await box.get_windows_with_name(button):

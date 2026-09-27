@@ -153,6 +153,7 @@ class Quester:
         self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
+        self._mark: tuple[str | None, str] | None = None  # (dungeon zone, objective) we marked
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -296,6 +297,7 @@ class Quester:
                     logger.success("entered the dungeon")
                     self._sigil_failed_at = None
                     await self._remember_dungeon(zone, sigil)
+                    await self._mark_here()
                     return True
                 if await self.client.in_battle():
                     waited = time.monotonic() - started
@@ -314,6 +316,50 @@ class Quester:
             self.controller.end_idle()
         logger.warning("stood on the sigil but the dungeon did not start; will re-arm it")
         self._sigil_failed_at = sigil
+        return False
+
+    async def _mark_here(self):
+        """Mark the spot just inside a dungeon: after a defeat, Recall brings us
+        straight back instead of walking to the sigil again."""
+        try:
+            objective = await self.objective()
+            zone = await self.client.zone_name()
+            if not await ui.click_named(self.client, "MarkButton"):
+                logger.debug("no Mark button to click")
+                return
+            await asyncio.sleep(1.0)
+            await ui.confirm_modal(self.client)
+            self._mark = (zone, objective)
+            logger.info(f"marked this spot in {zone} (for a quick return after a defeat)")
+        except Exception as exc:
+            logger.debug(f"marking failed: {exc!r}")
+
+    async def _recall_to_mark(self) -> bool:
+        """Back at full strength after a defeat, still on the same objective: use
+        Recall to jump back to the marked dungeon spot. True if we recalled."""
+        if not self._mark:
+            return False
+        marked_zone, marked_objective = self._mark
+        zone = await self.client.zone_name()
+        if zone == marked_zone:
+            return False
+        if await self.objective() != marked_objective:
+            self._mark = None  # moved on; the mark is stale
+            return False
+        if not await is_free(self.client):
+            return False
+        logger.info(f"recalling to the mark in {marked_zone} instead of walking back")
+        self._mark = None  # one try per mark: never loop on a failing recall
+        if not await ui.click_named(self.client, "RecallButton"):
+            logger.warning("no Recall button to click")
+            return False
+        await asyncio.sleep(1.0)
+        await ui.confirm_modal(self.client)
+        await wait_for_loading(self.client, appear_timeout=5.0)
+        if await self.client.zone_name() == marked_zone:
+            logger.success("back at the dungeon mark")
+            return True
+        logger.warning("recall didn't take us back to the dungeon")
         return False
 
     async def _remember_dungeon(self, outside: str | None, sigil: XYZ):
@@ -405,6 +451,13 @@ class Quester:
             return False
         prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
         logger.info(f"interacting: {prompt or '(no text)'}")
+
+        if "to enter" in prompt:
+            # A dungeon sigil: X starts a countdown that any later movement
+            # cancels, so let the sigil routine press it and stand still.
+            sigil = await self._sigil_at(await self._position())
+            if sigil is not None:
+                return await self._enter_by_sigil(sigil, await self.client.zone_name())
 
         if self.dialogue and "talk" in objective.lower():
             # This is the NPC the quest helper sent us to: accept what they offer.
@@ -753,6 +806,8 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
+            return
+        if await self._recall_to_mark():
             return
         if self.gear:
             self.controller.allow_idle(180)  # trying gear on looks like "nothing happening"
