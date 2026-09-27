@@ -15,7 +15,7 @@ from .config import Config
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
-from .upkeep import dialogue_loop, is_free, maintain, recover
+from .upkeep import dialogue_loop, is_free, maintain, recover, scan_wisps
 
 HOOK_TIMEOUT = 90
 DEATH_HEALTH_RATIO = 0.1
@@ -80,6 +80,7 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
                 # Losing a fight sends you back with a sliver of health.
                 controller.record_death()
             elif await is_free(client):
+                await scan_wisps(client)
                 await maintain(client, cfg.upkeep)
         await asyncio.sleep(0.3)
 

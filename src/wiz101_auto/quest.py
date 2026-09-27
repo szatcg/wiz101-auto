@@ -21,10 +21,11 @@ from wizwalker import XYZ, Keycode
 from . import ui
 from .config import QuestConfig
 from .npc import ServicesMenu
-from .upkeep import clear_popups, is_free, recover, wait_for_loading, wait_until_free
+from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
 
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
+WISP_SCAN_SECONDS = 30.0
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
@@ -38,6 +39,7 @@ class Quester:
     def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None):
         self.client = client
         self.upkeep = upkeep
+        self._last_wisp_scan = 0.0
         self.progression = progression
         self.services = ServicesMenu(client)
         self.cfg = cfg
@@ -216,6 +218,9 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if time.monotonic() - self._last_wisp_scan > WISP_SCAN_SECONDS:
+            await scan_wisps(self.client)  # learn wisp spawn points while questing
+            self._last_wisp_scan = time.monotonic()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller):
             return
         if self.progression:

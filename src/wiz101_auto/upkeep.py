@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 
 from loguru import logger
-from wizwalker import Keycode
+from wizwalker import XYZ, Keycode
 
 from . import ui
 from .config import QuestConfig, UpkeepConfig
+from .wisps import WispMemory, sweep_points
 
 
 async def is_free(client) -> bool:
@@ -74,10 +75,47 @@ async def maintain(client, cfg: UpkeepConfig):
             logger.warning("low health and no potions; the next fight may be lost")
 
 
+_memory: WispMemory | None = None
+
+
+def wisp_memory() -> WispMemory:
+    global _memory
+    if _memory is None:
+        _memory = WispMemory.load()
+    return _memory
+
+
+def _pt(xyz) -> tuple[float, float, float]:
+    return (xyz.x, xyz.y, xyz.z)
+
+
+async def scan_wisps(client) -> list:
+    """Visible health wisps; their positions are remembered for later."""
+    try:
+        wisps = await client.get_health_wisps()
+        if wisps:
+            zone = await client.zone_name() or "?"
+            added = wisp_memory().record(zone, [_pt(await w.location()) for w in wisps])
+            if added:
+                logger.debug(f"remembered {added} new wisp spot(s) in {zone}")
+                wisp_memory().save()
+        return wisps
+    except Exception as exc:
+        logger.debug(f"wisp scan failed: {exc}")
+        return []
+
+
+async def mob_positions(client) -> list[tuple[float, float, float]]:
+    try:
+        return [_pt(await m.location()) for m in await client.get_mobs()]
+    except Exception:
+        return []
+
+
 async def collect_wisps(client, cfg: UpkeepConfig, *, mana_too: bool = False, limit: int = 6) -> int:
     """Teleport onto nearby wisps that aren't close to mobs. Returns how many were taken."""
     try:
-        wisps = await client.get_health_wisps()
+        wisps = await scan_wisps(client)
         if mana_too:
             wisps += await client.get_mana_wisps()
         safe = await client.find_safe_entities_from(wisps, safe_distance=cfg.wisp_safe_distance)
@@ -92,6 +130,40 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, mana_too: bool = False, li
     except Exception as exc:
         logger.debug(f"wisp collection failed: {exc}")
         return 0
+
+
+async def visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
+    """Teleport to a remembered wisp spawn point (away from mobs) and grab what's there."""
+    me = _pt(await client.body.position())
+    spot = wisp_memory().next_spot(
+        zone, me, await mob_positions(client), safe_distance=cfg.wisp_safe_distance
+    )
+    if spot is None:
+        return False
+    wisp_memory().mark_visited(zone, spot)
+    logger.info("checking a known wisp spawn point")
+    await client.teleport(XYZ(*spot))
+    await asyncio.sleep(1.0)
+    await collect_wisps(client, cfg)
+    return True
+
+
+async def sweep_for_wisps(client, cfg: UpkeepConfig) -> int:
+    """Hop around the area (away from mobs) to discover this zone's wisp spawns."""
+    start = await client.body.position()
+    points = sweep_points(_pt(start), await mob_positions(client), cfg.wisp_safe_distance)
+    zone = await client.zone_name() or "?"
+    before = len(wisp_memory().spots.get(zone, []))
+    logger.info(f"searching {zone} for wisp spawn points ({len(points)} spots)")
+    for p in points:
+        if not await is_free(client):
+            break
+        await client.teleport(XYZ(*p))
+        await asyncio.sleep(0.8)
+        await scan_wisps(client)
+    found = len(wisp_memory().spots.get(zone, [])) - before
+    logger.info(f"found {found} new wisp spawn point(s)")
+    return found
 
 
 async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
@@ -131,6 +203,7 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
     started = loop.time()
     last_report = started
     rested = False
+    swept: set[str] = set()
     while True:
         await controller.checkpoint()
         if not await is_free(client):
@@ -146,8 +219,20 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
             await asyncio.sleep(1.5)
             continue
 
-        if cfg.collect_wisps and await collect_wisps(client, cfg, mana_too=mana < 0.5):
-            continue
+        if cfg.collect_wisps:
+            # 1. wisps in view  2. remembered spawn points  3. search the zone once
+            if await collect_wisps(client, cfg, mana_too=mana < 0.5):
+                await asyncio.sleep(0.5)
+                if (await health_mana(client))[0] > hp:
+                    continue
+            zone = await client.zone_name() or "?"
+            if await visit_known_spot(client, cfg, zone):
+                rested = False
+                continue
+            if zone not in swept:
+                swept.add(zone)
+                if await sweep_for_wisps(client, cfg):
+                    continue
 
         if not rested:
             await move_to_safety(client)
