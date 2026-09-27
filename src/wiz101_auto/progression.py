@@ -152,17 +152,13 @@ class Progression:
                 await asyncio.sleep(0.4)
                 await self.client.mouse_handler.click_window(buttons[0])
                 await asyncio.sleep(0.8)
-                for path in (_MODAL_LEFT, ui.MODAL_CENTER_BUTTON):
-                    if await ui.click(self.client, path):
-                        trained += 1
-                        await asyncio.sleep(0.8)
-                        break
+                if await ui.confirm_modal(self.client, ("leftButton", "centerButton")):
+                    trained += 1
+                    await asyncio.sleep(0.8)
             except Exception as exc:
                 logger.debug(f"auto-train click failed: {exc}")
         return trained
 
-
-_MODAL_LEFT = [*ui.MODAL_CENTER_BUTTON[:-1], "leftButton"]
 
 
 async def _descendants(window, depth: int = 0, max_depth: int = 10) -> list:

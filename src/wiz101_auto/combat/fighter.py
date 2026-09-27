@@ -90,6 +90,26 @@ class Fighter(CombatHandler):
             return False
         return True
 
+    async def cancel_flee_box(self) -> bool:
+        box = await ui.modal_box(self.client)
+        if box is None or "flee" not in (await ui.modal_text(box)).lower():
+            return False
+        logger.info("cancelling a flee confirmation")
+        await ui.modal_click(self.client, box, "rightButton")
+        await asyncio.sleep(0.5)
+        return True
+
+    async def pass_button(self):
+        """Pass by clicking the Focus button at its center: WizWalker's click goes
+        through the global 25%-of-width click, which can hit Flee next to it."""
+        await self.cancel_flee_box()
+        for done in await self.client.root_window.get_windows_with_name("DoneWindow"):
+            if await done.is_visible():
+                for b in await done.get_windows_with_name("DefeatedPassButton"):
+                    return await ui.click_center(self.client, b)
+        for b in await self.client.root_window.get_windows_with_name("Focus"):
+            return await ui.click_center(self.client, b)
+
     async def handle_round(self):
         # One bad round (UI changing under us, a window gone) mustn't end the fight loop.
         try:
@@ -115,10 +135,7 @@ class Fighter(CombatHandler):
                 return
 
             # Never flee by accident: fleeing costs all of the wizard's mana.
-            if "flee" in (await ui.text_at(self.client, ui.MODAL_TEXT)).lower():
-                logger.info("cancelling a flee confirmation")
-                await ui.click(self.client, ui.MODAL_RIGHT_BUTTON)
-                await asyncio.sleep(0.5)
+            if await self.cancel_flee_box():
                 continue
 
             if out_of_mana(battle):

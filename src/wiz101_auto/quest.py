@@ -262,8 +262,7 @@ class Quester:
                     await wait_for_loading(self.client)
                     logger.success("entered the dungeon")
                     return True
-                if await ui.is_visible(self.client, ui.MODAL_CENTER_BUTTON):
-                    await ui.click(self.client, ui.MODAL_CENTER_BUTTON)  # "enter alone?" confirmation
+                await ui.confirm_modal(self.client)  # "enter alone?" confirmation
                 await asyncio.sleep(0.5)
         finally:
             self.controller.end_idle()
@@ -342,7 +341,7 @@ class Quester:
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")
             for _ in range(10):
-                if await ui.click(self.client, ui.MODAL_CENTER_BUTTON):
+                if await ui.confirm_modal(self.client):
                     break
                 if await self.client.is_loading():
                     break

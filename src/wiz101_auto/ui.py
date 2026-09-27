@@ -28,17 +28,6 @@ SPIRAL_DOOR_TELEPORT = ["WorldView", "", "messageBoxBG", "ControlSprite", "telep
 SPIRAL_DOOR_EXIT = ["WorldView", "", "messageBoxBG", "ControlSprite", "cancelButton"]
 
 # Modal popups
-MODAL_CENTER_BUTTON = [
-    "MessageBoxModalWindow",
-    "messageBoxBG",
-    "messageBoxLayout",
-    "AdjustmentWindow",
-    "Layout",
-    "centerButton",
-]
-# Second button of the same message box: "No"/cancel (e.g. on "Are you sure you want to flee?").
-MODAL_RIGHT_BUTTON = [*MODAL_CENTER_BUTTON[:-1], "rightButton"]
-MODAL_TEXT = [*MODAL_CENTER_BUTTON[:-3], "TextArea", "CaptionText"]
 MISSING_AREA = ["MessageBoxModalWindow", "messageBoxBG", "messageBoxLayout", "AdjustmentWindow"]
 MISSING_AREA_RETRY = [*MISSING_AREA, "RetryBtn"]
 CANCEL_CHEST_REROLL = ["WorldView", "Container", "background", "", "CancelButton"]
@@ -86,6 +75,52 @@ async def window_at(client, path: list[str]):
     except Exception as exc:  # memory can shift mid-read during zone changes
         logger.trace(f"window_at {path} failed: {exc}")
         return None
+
+
+async def modal_box(client):
+    """The visible message box ("Are you sure...?"), wherever it sits in the tree."""
+    try:
+        for w in await client.root_window.get_windows_with_name("MessageBoxModalWindow"):
+            if await w.is_visible():
+                return w
+    except Exception as exc:
+        logger.trace(f"modal lookup failed: {exc}")
+    return None
+
+
+async def modal_text(box) -> str:
+    for t in await box.get_windows_with_name("CaptionText"):
+        try:
+            return _TAGS.sub("", await t.maybe_text() or "")
+        except Exception:
+            pass
+    return ""
+
+
+async def modal_click(client, box, button: str) -> bool:
+    """Click `button` ("centerButton" = yes/ok, "rightButton" = no/cancel) in `box`."""
+    for b in await box.get_windows_with_name(button):
+        await client.mouse_handler.click_window(b)
+        return True
+    return False
+
+
+async def confirm_modal(client, buttons: tuple[str, ...] = ("centerButton",)) -> bool:
+    """Accept an open message box (never a flee prompt). True if clicked."""
+    box = await modal_box(client)
+    if box is None or "flee" in (await modal_text(box)).lower():
+        return False
+    for b in buttons:
+        if await modal_click(client, box, b):
+            return True
+    return False
+
+
+async def click_center(client, window) -> None:
+    """Click the exact center (the global 25%-of-width click can land on a
+    neighbouring button, e.g. Pass -> Flee)."""
+    r = await window.scale_to_client()
+    await client.mouse_handler.click(int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2))
 
 
 async def is_visible(client, path: list[str]) -> bool:
