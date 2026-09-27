@@ -16,6 +16,22 @@ from pathlib import Path
 Point = tuple[float, float, float]
 
 MERGE_DISTANCE = 150.0  # two sightings closer than this are the same spawn point
+HEALTH, MANA, ANY = "health", "mana", "any"  # "any": a spot whose wisp kind we haven't seen
+BOTH = frozenset({HEALTH, MANA})
+
+
+def wisp_kind(name: str) -> str:
+    """health/mana from an entity name (WC_WispHealth, a red/blue stand-in...)."""
+    name = name.lower()
+    if "health" in name or "red" in name:
+        return HEALTH
+    if "mana" in name or "blue" in name:
+        return MANA
+    return ANY
+
+
+def usable(kind: str, need) -> bool:
+    return kind == ANY or kind in need
 
 
 def _dist(a: Point, b: Point) -> float:
@@ -26,6 +42,7 @@ def _dist(a: Point, b: Point) -> float:
 class WispMemory:
     path: Path = Path("state") / "wisps.json"
     spots: dict[str, list[Point]] = field(default_factory=dict)
+    kinds: dict[str, dict[Point, str]] = field(default_factory=dict)  # zone -> spot -> kind
     _visited: dict[tuple[str, Point], float] = field(default_factory=dict)
 
     @classmethod
@@ -33,25 +50,43 @@ class WispMemory:
         mem = cls(path or cls.path)
         try:
             raw = json.loads(mem.path.read_text(encoding="utf-8"))
-            mem.spots = {z: [tuple(p) for p in pts] for z, pts in raw.items()}
+            for z, pts in raw.items():
+                # [x, y, z] (older files) or [x, y, z, kind]
+                mem.spots[z] = [tuple(p[:3]) for p in pts]
+                mem.kinds[z] = {tuple(p[:3]): (p[3] if len(p) > 3 else ANY) for p in pts}
         except Exception:
             pass
         return mem
 
     def save(self):
         self.path.parent.mkdir(exist_ok=True)
-        self.path.write_text(json.dumps(self.spots, indent=1), encoding="utf-8")
+        data = {z: [[*p, self.kind_of(z, p)] for p in pts] for z, pts in self.spots.items()}
+        self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
 
-    def record(self, zone: str, points: list[Point]) -> int:
-        """Add newly seen spawn points. Returns how many were new."""
+    def kind_of(self, zone: str, spot: Point) -> str:
+        return self.kinds.get(zone, {}).get(tuple(spot), ANY)
+
+    def record(self, zone: str, points: list[Point], kind: str = ANY) -> int:
+        """Add newly seen spawn points (a sighting of a known "any" spot tells us
+        its kind). Returns how many changed."""
         known = self.spots.setdefault(zone, [])
+        kinds = self.kinds.setdefault(zone, {})
         added = 0
         for p in points:
             p = (round(p[0], 1), round(p[1], 1), round(p[2], 1))
-            if all(_dist(p, k) > MERGE_DISTANCE for k in known):
+            same = [k for k in known if _dist(p, k) <= MERGE_DISTANCE]
+            if not same:
                 known.append(p)
+                kinds[p] = kind
+                added += 1
+            elif kind != ANY and kinds.get(same[0], ANY) == ANY:
+                kinds[same[0]] = kind
                 added += 1
         return added
+
+    def count(self, zone: str, need=BOTH) -> int:
+        """Remembered spots in `zone` that can give what we need."""
+        return sum(usable(self.kind_of(zone, s), need) for s in self.spots.get(zone, []))
 
     def forget(self, zone: str, spot: Point) -> bool:
         """Drop a remembered spot (e.g. a wisp that can't be reached). True if one was removed."""
@@ -72,13 +107,16 @@ class WispMemory:
         safe_distance: float,
         cooldown: float = 90.0,
         now: float | None = None,
+        need=BOTH,
     ) -> Point | None:
-        """Closest known spawn point that's away from mobs and not checked recently."""
+        """Closest known spawn point of a kind we need, away from mobs and not
+        checked recently."""
         now = time.monotonic() if now is None else now
         options = [
             s
             for s in self.spots.get(zone, [])
-            if all(_dist(s, m) > safe_distance for m in mobs)
+            if usable(self.kind_of(zone, s), need)
+            and all(_dist(s, m) > safe_distance for m in mobs)
             and now - self._visited.get((zone, s), -1e9) > cooldown
         ]
         return min(options, key=lambda s: _dist(s, me)) if options else None

@@ -12,7 +12,7 @@ from wizwalker import XYZ, Keycode
 from . import ui
 from .collect import away_from, landmarks, spread_points
 from .config import QuestConfig, UpkeepConfig
-from .wisps import WispMemory
+from .wisps import ANY, BOTH, HEALTH, MANA, WispMemory, usable, wisp_kind
 
 
 async def is_free(client) -> bool:
@@ -96,15 +96,19 @@ async def scan_wisps(client) -> list:
     """Visible health and mana wisps; their positions are remembered for later,
     along with wisp stand-ins (fixed markers where a taken wisp respawns)."""
     try:
-        wisps = await client.get_health_wisps() + await client.get_mana_wisps()
-        stand_ins = [
-            e for e in await client.get_base_entities_with_vague_name("StandIn")
-            if "wisp" in ((await (await e.object_template()).object_name()) or "").lower()
-        ]
-        seen = wisps + stand_ins
+        health = await client.get_health_wisps()
+        mana = await client.get_mana_wisps()
+        wisps = health + mana
+        seen = [(w, HEALTH) for w in health] + [(w, MANA) for w in mana]
+        for e in await client.get_base_entities_with_vague_name("StandIn"):
+            name = (await (await e.object_template()).object_name()) or ""
+            if "wisp" in name.lower():
+                seen.append((e, wisp_kind(name)))
         if seen:
             zone = await client.zone_name() or "?"
-            added = wisp_memory().record(zone, [_pt(await w.location()) for w in seen])
+            added = 0
+            for w, kind in seen:
+                added += wisp_memory().record(zone, [_pt(await w.location())], kind)
             if added:
                 logger.debug(f"remembered {added} new wisp spot(s) in {zone}")
                 wisp_memory().save()
@@ -190,24 +194,25 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
         return 0
 
 
-async def visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
-    """Teleport to a remembered wisp spawn point (away from mobs) and grab what's there."""
+async def visit_known_spot(client, cfg: UpkeepConfig, zone: str, need=BOTH) -> bool:
+    """Teleport to a remembered spawn point of a wisp kind we need (away from
+    mobs) and grab what's there."""
     try:
-        return await _visit_known_spot(client, cfg, zone)
+        return await _visit_known_spot(client, cfg, zone, need)
     except Exception as exc:  # e.g. WizWalker's ExceptionalTimeout while a popup blocks the game
         logger.debug(f"wisp spot visit failed: {exc!r}")
         return False
 
 
-async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
+async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str, need) -> bool:
     me = _pt(await client.body.position())
     spot = wisp_memory().next_spot(
-        zone, me, await mob_positions(client), safe_distance=cfg.wisp_safe_distance
+        zone, me, await mob_positions(client), safe_distance=cfg.wisp_safe_distance, need=need
     )
     if spot is None:
         return False
     wisp_memory().mark_visited(zone, spot)
-    logger.info("checking a known wisp spawn point")
+    logger.info(f"checking a known {wisp_memory().kind_of(zone, spot)} wisp spawn point")
     await client.teleport(XYZ(*spot))
     await asyncio.sleep(1.0)
     await collect_wisps(client, cfg)
@@ -302,22 +307,47 @@ FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 _leaving_interior: set[str] = set()
 
 
-def best_wisp_zone(current_zone: str, spots: dict | None = None, preferred: list[str] = ()) -> str | None:
-    """Where to go heal: a preferred heal zone in the same world, else the zone
-    with the most remembered wisp spots (Unicorn Way as a Wizard City fallback)."""
-    spots = wisp_memory().spots if spots is None else spots
+def best_wisp_zone(
+    current_zone: str,
+    spots: dict | None = None,
+    preferred: list[str] = (),
+    need=BOTH,
+    kinds: dict | None = None,
+) -> str | None:
+    """Where to recover: a preferred heal zone in the same world when health is
+    needed, else the zone with the most remembered spots of the needed wisp
+    kind (Unicorn Way as a Wizard City fallback)."""
+    if spots is None:
+        spots, kinds = wisp_memory().spots, wisp_memory().kinds
+    kinds = kinds or {}
     world = current_zone.split("/", 1)[0]
-    for z in preferred:
-        if z.split("/", 1)[0] == world and z != current_zone:
-            return z
-    same_world = [(len(pts), z) for z, pts in spots.items() if z.split("/", 1)[0] == world]
+    in_world = [z for z in preferred if z.split("/", 1)[0] == world and z != current_zone]
+    if HEALTH in need and in_world:
+        return in_world[0]
+    same_world = [
+        (sum(usable(kinds.get(z, {}).get(tuple(p), ANY), need) for p in pts), z)
+        for z, pts in spots.items()
+        if z.split("/", 1)[0] == world
+    ]
     zones = sorted(((n, z) for n, z in same_world if n >= 3), reverse=True)
     for _, z in zones:
         if z != current_zone:
             return z
+    if in_world:
+        return in_world[0]
     if world == "WizardCity" and current_zone != "WizardCity/WC_Streets/WC_Unicorn":
         return "WizardCity/WC_Streets/WC_Unicorn"
     return None
+
+
+def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
+    """Which wisp kinds recovery still needs."""
+    need = set()
+    if hp < cfg.rest_until_health:
+        need.add(HEALTH)
+    if mana < cfg.rest_until_mana:
+        need.add(MANA)
+    return frozenset(need or BOTH)
 
 
 async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> bool:
@@ -366,7 +396,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                 if now_hp > hp or now_mana > mana:
                     continue
             zone = await client.zone_name() or "?"
-            if await visit_known_spot(client, cfg, zone):
+            need = needed_wisps(cfg, hp, mana)
+            if await visit_known_spot(client, cfg, zone, need):
                 rested = False
                 now_hp, now_mana = await health_mana(client)
                 # Passive regeneration ticks up a little on every visit; only a real
@@ -379,15 +410,16 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                 swept.add(zone)
                 if await sweep_for_wisps(client, cfg):
                     continue
-            poor_zone = len(wisp_memory().spots.get(zone, [])) < 3 or fruitless >= FRUITLESS_VISITS
+            poor_zone = wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
             if go_to_zone and not travelled and poor_zone:
                 # No wisps to be had here right now (e.g. the hub after a defeat):
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
                 fruitless = 0
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones)
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need)
                 if dest:
-                    logger.info(f"no wisps in {zone}; going to {dest} to heal")
+                    what = " and ".join(sorted(need))
+                    logger.info(f"no {what} wisps in {zone}; going to {dest} for them")
                     if await go_to_zone(dest):
                         continue
                 if "interiors" in zone.lower():

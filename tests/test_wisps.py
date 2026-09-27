@@ -57,3 +57,27 @@ def test_preferred_heal_zone_wins():
     assert best_wisp_zone("WizardCity/WC_Hub", spots, unicorn) == "WizardCity/WC_Streets/WC_Unicorn"
     here = "WizardCity/WC_Streets/WC_Unicorn"
     assert best_wisp_zone(here, spots, unicorn) == "WizardCity/WC_Streets/WC_Cyclops"
+
+
+def test_spots_remember_their_wisp_kind(tmp_path):
+    mem = WispMemory(tmp_path / "w.json")
+    mem.record("Z", [(0, 0, 0)], "health")
+    mem.record("Z", [(1000, 0, 0)], "mana")
+    mem.record("Z", [(3000, 0, 0)])  # a stand-in of unknown kind
+    assert mem.next_spot("Z", (0, 0, 0), [], safe_distance=900, need={"mana"}) == (1000, 0, 0)
+    assert mem.count("Z", {"mana"}) == 2 and mem.count("Z", {"health"}) == 2
+    assert mem.record("Z", [(3010, 0, 0)], "mana") == 1  # a sighting names the unknown one
+    mem.save()
+    loaded = WispMemory.load(tmp_path / "w.json")
+    assert loaded.count("Z", {"health"}) == 1 and loaded.kind_of("Z", (1000, 0, 0)) == "mana"
+
+
+def test_mana_only_recovery_goes_where_mana_wisps_are():
+    from wiz101_auto.upkeep import best_wisp_zone
+
+    unicorn = ["WizardCity/WC_Streets/WC_Unicorn"]
+    spots = {"WizardCity/WC_Streets/WC_Triton": [(i * 500, 0, 0) for i in range(4)]}
+    kinds = {"WizardCity/WC_Streets/WC_Triton": {(i * 500, 0, 0): "mana" for i in range(4)}}
+    here = "WizardCity/WC_Hub"
+    assert best_wisp_zone(here, spots, unicorn, need={"mana"}, kinds=kinds) == next(iter(spots))
+    assert best_wisp_zone(here, spots, unicorn, need={"health"}, kinds=kinds) == unicorn[0]
