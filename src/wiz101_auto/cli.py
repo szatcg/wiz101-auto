@@ -19,6 +19,19 @@ def _setup_logging(log_file: str | None, verbose: bool):
         logger.add(log_file, level="DEBUG", rotation="10 MB", retention=5)
 
 
+def _lower_priority():
+    """Run below normal priority so the bot can never starve the game or the PC."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetPriorityClass(kernel32.GetCurrentProcess(), 0x4000)  # BELOW_NORMAL
+    except Exception:
+        pass
+
+
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(prog="wiz101-auto", description="Autonomous Wizard101 bot")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -41,6 +54,7 @@ def main(argv: list[str] | None = None):
 
     if sys.platform != "win32":
         raise SystemExit("wiz101-auto talks to the Windows game client and must run on Windows.")
+    _lower_priority()
 
     if args.command == "inspect":
         _setup_logging(None, True)

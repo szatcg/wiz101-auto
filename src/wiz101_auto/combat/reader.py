@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from ..names import lang_name
 from .model import Battle, Card, Combatant, Effect, EffectKind, Target
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -150,7 +151,7 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
         template = await gspell.spell_template()
         name = await template.name()
         try:
-            name = await card.display_name() or name
+            name = await lang_name(card.combat_handler.client, await card.display_name_code()) or name
         except Exception:
             pass
         effects: list[Effect] = []

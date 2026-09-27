@@ -254,7 +254,52 @@ async def recover(client, cfg: UpkeepConfig, controller) -> bool:
         await asyncio.sleep(5)
 
 
+_CLOSE_NAMES = (
+    "Exit",
+    "exit",
+    "Close",
+    "close",
+    "btnClose",
+    "CloseButton",
+    "Close_Button",
+    "btnExit",
+    "Cancel",
+)
+
+
+async def close_crowns_shop(client) -> bool:
+    """Close any open Crowns shop / offer window. Only top-level windows are
+    checked, so this is cheap enough to run every step."""
+    for parent in (client.root_window, await client.get_world_view_window()):
+        try:
+            children = await parent.children()
+        except Exception:
+            continue
+        for w in children:
+            try:
+                name = await w.name() or ""
+                if "crown" not in name.lower() or not await w.is_visible():
+                    continue
+            except Exception:
+                continue
+            logger.warning(f"crowns window {name!r} is open; closing it")
+            for close_name in _CLOSE_NAMES:
+                for btn in await w.get_windows_with_name(close_name):
+                    try:
+                        if await btn.is_visible():
+                            await client.mouse_handler.click_window(btn)
+                            await asyncio.sleep(0.5)
+                            return True
+                    except Exception:
+                        pass
+            await client.send_key(Keycode.ESC, 0.1)
+            await asyncio.sleep(0.5)
+            return True
+    return False
+
+
 async def clear_popups(client):
+    await close_crowns_shop(client)
     await ui.click(client, ui.CANCEL_CHEST_REROLL)
     if await ui.is_visible(client, ui.MISSING_AREA_RETRY):
         await ui.click(client, ui.MISSING_AREA_RETRY)
@@ -301,4 +346,4 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                     await client.send_key(Keycode.SPACEBAR)
         except Exception as exc:
             logger.trace(f"dialogue loop: {exc}")
-        await asyncio.sleep(0.15)
+        await asyncio.sleep(0.3)

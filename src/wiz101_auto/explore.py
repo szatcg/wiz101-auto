@@ -12,6 +12,7 @@ from loguru import logger
 
 from . import ui
 from .bot import close_handler, connect, new_handler
+from .names import lang_name
 
 
 async def explore(out_dir: str = "state") -> Path | None:
@@ -28,7 +29,7 @@ async def explore(out_dir: str = "state") -> Path | None:
                 display = ""
                 try:
                     code = await template.display_name()
-                    display = await client.cache_handler.get_langcode_name(code) if code else ""
+                    display = await lang_name(client, code) if code else ""
                 except Exception:
                     pass
                 pos = await entity.location()

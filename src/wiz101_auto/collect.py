@@ -14,6 +14,10 @@ import time
 
 from loguru import logger
 
+from .names import lang_name
+
+CANDIDATE_CACHE_SECONDS = 5.0
+
 _VERBS = r"(?:collect|find|gather|get|retrieve|recover|pick up)"
 _OBJECTIVE = re.compile(rf"^\s*{_VERBS}\s+(.+?)(?:\s+(?:in|at|from|on)\s+.*)?\s*$", re.I)
 _SKIP = ("wisp", "duelcircle", "player object", "basic positional", "basic ambient", "teleportpad", "sigil")
@@ -50,25 +54,28 @@ class Collector:
         self.client = client
         self.safe_distance = safe_distance
         self._taken: dict[int, float] = {}  # entity id -> when we grabbed it
+        self._cache: tuple[str, float, list] | None = None
 
     async def _candidates(self, item: str) -> list:
+        # Entity scans are expensive; reuse the result for a few seconds.
+        now = time.monotonic()
+        if self._cache and self._cache[0] == item and now - self._cache[1] < CANDIDATE_CACHE_SECONDS:
+            return self._cache[2]
         found = []
         for e in await self.client.get_base_entity_list():
             try:
                 template = await e.object_template()
                 if not template:
                     continue
-                names = [await template.object_name()]
-                try:
-                    code = await template.display_name()
-                    if code:
-                        names.append(await self.client.cache_handler.get_langcode_name(code))
-                except Exception:
-                    pass
-                if matches_item(item, *names):
+                if matches_item(item, await template.object_name()):
+                    found.append(e)
+                    continue
+                code = await template.display_name()
+                if code and matches_item(item, await lang_name(self.client, code)):
                     found.append(e)
             except Exception:
                 continue
+        self._cache = (item, now, found)
         return found
 
     async def collect_once(self, item: str, press_interact) -> bool:
