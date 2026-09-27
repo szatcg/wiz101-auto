@@ -40,6 +40,7 @@ class Strategy:
     setup_health_multiplier: float = 2.0  # also buff first if target hp > best hit * this
     max_hand_size: int = 7
     allow_discard: bool = True
+    summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage
 
 
 def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
@@ -86,6 +87,20 @@ def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
         target = ally if card.target is Target.ALLY_SINGLE else None
         return Action(ActionKind.CAST, card, target, reason=f"ally {ally.name} low")
     return None
+
+
+def _has_minion(battle: Battle) -> bool:
+    return any(a.is_minion and not a.is_dead and a.health > 0 for a in battle.allies)
+
+
+def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
+    if not strat.summon_minions or _has_minion(battle):
+        return None
+    summons = [c for c in _castable(battle.cards) if EffectKind.SUMMON in c.kinds]
+    if not summons:
+        return None
+    card = max(summons, key=lambda c: c.pip_cost)  # the costlier minion is the stronger one
+    return Action(ActionKind.CAST, card, None, reason="summon minion")
 
 
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
@@ -159,6 +174,8 @@ def _discard_action(battle: Battle, strat: Strategy) -> Action | None:
         score = 0.0
         if EffectKind.OTHER in c.kinds and len(c.kinds) == 1:
             score += 50
+        if EffectKind.SUMMON in c.kinds:
+            score += 40 if _has_minion(battle) else -100
         if c.is_heal and me.health_ratio > 0.9:
             score += 20
         if EffectKind.BLADE in c.kinds and me.blade_count >= strat.max_blades:
@@ -185,6 +202,10 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     heal = _best_heal(battle, strat)
     if heal:
         return heal
+
+    summon = _summon_action(battle, strat)
+    if summon:
+        return summon
 
     attack = _best_attack(battle, strat)
     if attack:

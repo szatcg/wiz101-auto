@@ -83,6 +83,8 @@ def map_effect(effect_name: str, target_name: str, param: float, rounds: int = 0
         kind = EffectKind.PIPS
     elif effect_name == "stun":
         kind = EffectKind.STUN
+    elif effect_name == "summon_creature":
+        kind = EffectKind.SUMMON
 
     return Effect(kind=kind, target=target, value=value, rounds=rounds)
 
@@ -197,6 +199,10 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
         is_boss=await member.is_boss(),
         is_dead=await member.is_dead(),
     )
+    try:
+        c.is_minion = await member.is_minion()
+    except Exception:
+        pass
     try:
         for eff in await participant.hanging_effects():
             et = (await eff.effect_type()).name

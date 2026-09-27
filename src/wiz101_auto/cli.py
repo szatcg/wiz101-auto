@@ -49,6 +49,8 @@ def main(argv: list[str] | None = None):
     deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
 
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
+    shot_p = sub.add_parser("screenshot", help="save the game window as a PNG (works while the bot runs)")
+    shot_p.add_argument("-o", "--output", default="state/screenshot.png")
 
     start_p = sub.add_parser("start", help="start the bot in the background")
     start_p.add_argument("-c", "--config", default="config.yaml")
@@ -91,6 +93,12 @@ def main(argv: list[str] | None = None):
         from .inspect_state import inspect
 
         asyncio.run(inspect(show_windows=args.windows))
+        return
+
+    if args.command == "screenshot":
+        from .screenshot import save_screenshot
+
+        print(save_screenshot(args.output))
         return
 
     if args.command == "explore":

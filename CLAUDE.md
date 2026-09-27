@@ -27,6 +27,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
 | `deck -c config.yaml` | known spells, current deck, planned deck (read-only) |
 | `explore` | entities around the wizard with positions → `state/explore_*.txt` |
+| `screenshot [-o path]` | game window → `state/screenshot.png` (Read it to see the screen; works while the bot runs) |
 
 Only one process can hook the game at a time: run `inspect`/`deck`/`explore`
 while the bot is stopped.
@@ -114,7 +115,10 @@ read their source there when you need the memory API.
   0x28 (layout picked by most spells found). Hands also hold gear item cards
   ("X - Starter Wand", Heartbeat). Rebuilds are skipped when the read looks
   incomplete or the plan adds nothing; `add_by_name` clicks are still
-  unverified. The planner drops minions, and the brain never casts them.
+  unverified. The planner drops minions; the brain summons one (after urgent
+  heals, before attacks) whenever none of ours is alive.
+- The game isn't DPI-aware: on a 125%-scaled monitor Windows stretches its
+  1760x990 render, which is likely why click hit areas are offset.
 - Prospector Zeke's "Go To <place> Smith in <place>" quests have no quest
   marker; `travel_data.py` routes through gates and to the known Zeke spot.
   Quest-text place names missing from `displayZones.txt` go in

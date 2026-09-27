@@ -141,3 +141,21 @@ def test_custom_strategy_threshold():
     b = battle(cards, [enemy("A", 300)], my=me(hp=300))
     assert decide(b, Strategy(heal_threshold=0.7)).card.name == "Fairy"
     assert decide(b, Strategy(heal_threshold=0.5)).card.name == "Fire Cat"
+
+
+def summon_card(i, pips=1):
+    return Card(i, "Golem Minion", pip_cost=pips, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+
+
+def test_summons_a_minion_before_attacking():
+    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Troll", 500)])
+    action = decide(b)
+    assert action.kind is ActionKind.CAST and action.card.name == "Golem Minion" and action.target is None
+
+
+def test_does_not_summon_while_a_minion_is_out_or_when_healing_is_urgent():
+    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Troll", 500)])
+    b.allies = [Combatant("Golem", 300, 300, is_minion=True)]
+    assert decide(b).card.name == "Blood Bat"
+    hurt = battle([heal_card(0, "Pixie", 400), summon_card(1)], [enemy("Troll", 500)], my=me(hp=100))
+    assert decide(hurt).card.name == "Pixie"

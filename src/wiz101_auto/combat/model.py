@@ -24,6 +24,7 @@ class EffectKind(Enum):
     ENCHANT_ACCURACY = auto()
     PIPS = auto()
     STUN = auto()
+    SUMMON = auto()  # minion
     OTHER = auto()
 
 
@@ -106,6 +107,7 @@ class Combatant:
     is_enemy: bool = False
     is_boss: bool = False
     is_dead: bool = False
+    is_minion: bool = False
     school: str = ""
     # Summed percentages of hanging effects, e.g. two +25% blades -> 0.5
     outgoing_boost: float = 0.0  # blades (positive) / weaknesses (negative)
