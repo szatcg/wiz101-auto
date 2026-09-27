@@ -28,6 +28,11 @@ from .wisps import sweep_points
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
 WISP_SCAN_SECONDS = 30.0
+SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
+MAX_QUEST_SLOTS = 6
+# Quest book window paths (mapped by Deimos).
+QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
+QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
@@ -64,6 +69,7 @@ class Quester:
                 logger.success(f"objective done -> now: {objective!r}")
             self._last_progress = key
             self._last_progress_time = time.monotonic()
+            self._attempts = 0
         elif time.monotonic() - self._last_progress_time > self.cfg.stuck_minutes * 60:
             self.controller.stop(f"no quest progress for {self.cfg.stuck_minutes} min on {objective!r}")
 
@@ -209,6 +215,53 @@ class Quester:
             logger.debug(f"closed {closed} menu(s)")
         return True
 
+    async def _count_attempt(self):
+        """Several tries on the same objective with no change: the tracked quest
+        is probably blocked on another active quest, so switch to that one."""
+        self._attempts = getattr(self, "_attempts", 0) + 1
+        if self._attempts >= SWITCH_QUEST_AFTER:
+            self._attempts = 0
+            await asyncio.sleep(2.0)  # let a late objective update land first
+            await self.switch_quest()
+
+    async def switch_quest(self) -> bool:
+        """Track the next quest in the quest book. True if the objective changed."""
+        before = await self.objective()
+        for _ in range(4):
+            if await ui.is_visible(self.client, QUEST_BOOK_ALL):
+                break
+            await self.client.send_key(Keycode.Q, 0.1)
+            await asyncio.sleep(0.8)
+        else:
+            logger.warning("could not open the quest book to switch quests")
+            return False
+        await ui.click(self.client, QUEST_BOOK_ALL)
+        await asyncio.sleep(0.5)
+
+        self._quest_index = getattr(self, "_quest_index", 0)
+        clicked = False
+        for _ in range(MAX_QUEST_SLOTS):
+            self._quest_index = (self._quest_index + 1) % MAX_QUEST_SLOTS
+            entry = f"wndQuestInfo{self._quest_index}"
+            slot = [*QUEST_LIST, entry, "questInfoWindow", "wndQuestInfo", "txtGoal"]
+            if await ui.click(self.client, slot):
+                clicked = True
+                await asyncio.sleep(0.6)
+                break
+
+        for _ in range(4):
+            if not await ui.is_visible(self.client, QUEST_BOOK_ALL):
+                break
+            await self.client.send_key(Keycode.Q, 0.1)
+            await asyncio.sleep(0.8)
+
+        after = await self.objective()
+        if clicked and after != before:
+            logger.info(f"switched tracked quest: {before!r} -> {after!r}")
+            return True
+        logger.warning(f"tried to switch quests but the objective is still {after!r}")
+        return False
+
     async def _press_collect(self):
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
             return
@@ -317,6 +370,7 @@ class Quester:
 
         dist = distance(await self.client.body.position(), target)
         if dist < INTERACT_RANGE and await self.interact(objective):
+            await self._count_attempt()
             return
 
         if "defeat" in objective.lower():
