@@ -36,8 +36,9 @@ def distance(a: XYZ, b: XYZ) -> float:
 
 
 class Quester:
-    def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None):
+    def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None, dialogue=None):
         self.client = client
+        self.dialogue = dialogue  # DialoguePolicy shared with the dialogue loop
         self.upkeep = upkeep
         self._last_wisp_scan = 0.0
         self.progression = progression
@@ -154,6 +155,9 @@ class Quester:
         prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
         logger.info(f"interacting: {prompt or '(no text)'}")
 
+        if self.dialogue and "talk" in objective.lower():
+            # This is the NPC the quest helper sent us to: accept what they offer.
+            self.dialogue.accept_offers_for(30)
         await self.client.send_key(Keycode.X, 0.1)
         await asyncio.sleep(1.0)
 
@@ -174,6 +178,8 @@ class Quester:
             while time.monotonic() - quiet_since < 3.0:
                 await self.controller.checkpoint()
                 if picks < 3 and await self.services.is_open():
+                    if self.dialogue:
+                        self.dialogue.accept_offers_for(30)
                     if await self.services.choose(objective):
                         picks += 1
                         quiet_since = time.monotonic()
@@ -234,6 +240,8 @@ class Quester:
 
         if await self.services.is_open():
             # A services menu left open (e.g. after an error) blocks the X prompt.
+            if self.dialogue:
+                self.dialogue.accept_offers_for(30)
             if not await self.services.choose(objective):
                 await self.services.close()
             await asyncio.sleep(2.0)

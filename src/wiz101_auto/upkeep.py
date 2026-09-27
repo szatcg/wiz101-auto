@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
@@ -259,12 +260,38 @@ async def clear_popups(client):
         await ui.click(client, ui.MISSING_AREA_RETRY)
 
 
-async def dialogue_loop(client, cfg: QuestConfig, controller):
+class DialoguePolicy:
+    """Whether quest offers should be accepted right now.
+
+    Offers from the NPC the quest helper sent us to are the story line and
+    must be accepted; offers from anyone else are side quests.
+    """
+
+    def __init__(self):
+        self._accept_until = 0.0
+
+    def accept_offers_for(self, seconds: float = 30.0):
+        self._accept_until = time.monotonic() + seconds
+
+    @property
+    def accepting(self) -> bool:
+        return time.monotonic() < self._accept_until
+
+
+async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePolicy | None = None):
     """Advance NPC dialogue as it appears. Runs for the whole session."""
+    policy = policy or DialoguePolicy()
     while not controller.stopped.is_set():
         try:
             if not controller.paused and await ui.is_visible(client, ui.ADVANCE_DIALOG):
-                if not cfg.accept_side_quests and await ui.is_visible(client, ui.DECLINE_QUEST):
+                offer = await ui.is_visible(client, ui.DECLINE_QUEST)
+                if offer and (cfg.accept_side_quests or policy.accepting):
+                    text = await ui.text_at(client, ui.DIALOG_TEXT)
+                    logger.info(f"accepting quest: {text[:80]}")
+                    if not await ui.click(client, ui.ADVANCE_DIALOG):
+                        await client.send_key(Keycode.SPACEBAR)
+                    await asyncio.sleep(0.4)
+                elif offer:
                     text = await ui.text_at(client, ui.DIALOG_TEXT)
                     logger.info(f"declining side quest: {text[:80]}")
                     await client.send_key(Keycode.ESC)

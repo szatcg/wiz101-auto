@@ -15,7 +15,7 @@ from .config import Config
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
-from .upkeep import dialogue_loop, is_free, maintain, recover, scan_wisps
+from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, recover, scan_wisps
 
 HOOK_TIMEOUT = 90
 DEATH_HEALTH_RATIO = 0.1
@@ -133,16 +133,17 @@ async def run(cfg: Config):
 
         c = cfg.combat
         fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below)
+        dialogue = DialoguePolicy()
         tasks = [
             asyncio.create_task(controller.watch(), name="safety"),
             asyncio.create_task(combat_loop(client, fighter, cfg, controller), name="combat"),
-            asyncio.create_task(dialogue_loop(client, cfg.quest, controller), name="dialogue"),
+            asyncio.create_task(dialogue_loop(client, cfg.quest, controller, dialogue), name="dialogue"),
         ]
         progression = Progression(client, cfg.progression)
         await progression.start()
         quester = None
         if cfg.mode == "quest":
-            quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep)
+            quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         elif cfg.mode == "farm":
             tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
