@@ -957,8 +957,14 @@ class Quester:
                 return
 
         objective = await self.objective()
+        # The game may auto-track a quest we set aside (e.g. after handing one in):
+        # re-rank at once rather than walking back to the fight we keep losing.
+        set_aside_objectives = {d.get("objective") for d in self.setbacks.deferred.values()}
+        on_set_aside = objective in set_aside_objectives and bool(
+            self.setbacks.set_aside(await self.client.stats.reference_level())
+        )
         if objective != getattr(self, "_ranked_for", None) and (
-            time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
+            on_set_aside or time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
         ):
             self._last_rank = time.monotonic()
             self.controller.allow_idle(30)
