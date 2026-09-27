@@ -15,7 +15,7 @@ from loguru import logger
 
 from . import ui
 from .config import ProgressionConfig
-from .deck import current_school, rebuild_deck
+from .deck import DeckPageNotFound, current_school, rebuild_deck
 
 TRAINER = ["WorldView", "NPCTrainingGUI"]
 STATE_DIR = Path("state")
@@ -77,6 +77,11 @@ class Progression:
         logger.info(f"checking spellbook ({reason})")
         try:
             known, plan = await rebuild_deck(self.client, self.school, self.cfg.deck, dry_run=True)
+        except DeckPageNotFound as exc:
+            # Known, reported problem: say it once, then stop retrying this session.
+            logger.warning(f"{exc} Automatic deck updates are off until the bot restarts.")
+            self.cfg.enabled = False
+            return
         except Exception as exc:
             logger.opt(exception=exc).warning("could not read the spellbook")
             return

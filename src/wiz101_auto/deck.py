@@ -184,11 +184,16 @@ async def _attach_builder(client) -> DeckBuilder:
         end = loop.time() + 4
         while loop.time() < end and not spell_list:
             await asyncio.sleep(0.3)
-            spell_list = await _first_visible(window, "SpellList")
+            # Switching pages can rebuild the spellbook window, so search the
+            # whole UI rather than the window we started with.
+            spell_list = await _first_visible(client.root_window, "SpellList")
+            if spell_list:
+                window = await _visible_spellbook(client) or window
 
     if not spell_list:
+        window = await _visible_spellbook(client) or window
         path = await _dump_spellbook(window)
-        raise RuntimeError(
+        raise DeckPageNotFound(
             f"Opened the spellbook but could not find its deck page. Its layout was saved to {path}; "
             "send that file to Claude."
         )
@@ -202,6 +207,10 @@ async def _attach_builder(client) -> DeckBuilder:
     builder._deck_config_window = window
     builder._deck_open = True
     return builder
+
+
+class DeckPageNotFound(RuntimeError):
+    pass
 
 
 class _Builder(DeckBuilder):
