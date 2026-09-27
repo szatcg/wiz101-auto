@@ -21,7 +21,7 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
-from .collect import Collector, collect_item_name, landmarks, spread_points
+from .collect import Collector, away_from, collect_item_name, landmarks, spread_points
 from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
@@ -30,6 +30,7 @@ from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_z
 from .upkeep import (
     clear_popups,
     is_free,
+    mob_positions,
     recover,
     scan_wisps,
     unstick,
@@ -56,6 +57,7 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
+SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
@@ -276,12 +278,18 @@ class Quester:
             await self.client.teleport(sigil)
             await asyncio.sleep(0.8)
         await wait_for_loading(self.client)
+        if not await is_free(self.client):
+            logger.info("pulled into a fight near the sigil; will try again after it")
+            self._sigil_failed_at = sigil
+            return False
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
             await asyncio.sleep(0.5)
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
-            deadline = time.monotonic() + SIGIL_WAIT
+            started = time.monotonic()
+            deadline = started + SIGIL_WAIT
+            seen_box = ""
             while time.monotonic() < deadline:
                 if await self.client.is_loading() or await self.client.zone_name() != zone:
                     await wait_for_loading(self.client)
@@ -289,7 +297,18 @@ class Quester:
                     self._sigil_failed_at = None
                     await self._remember_dungeon(zone, sigil)
                     return True
-                await ui.confirm_modal(self.client)  # "enter alone?" confirmation
+                if await self.client.in_battle():
+                    waited = time.monotonic() - started
+                    logger.warning(f"a fight started {waited:.0f}s into the sigil countdown")
+                    break
+                # Don't click anything during the countdown (a blind click on a
+                # message box could cancel it); just record what shows up.
+                box = await ui.modal_box(self.client)
+                text = (await ui.modal_text(box)) if box else ""
+                if text and text != seen_box:
+                    seen_box = text
+                    waited = time.monotonic() - started
+                    logger.warning(f"message box {waited:.0f}s into the sigil countdown: {text[:120]!r}")
                 await asyncio.sleep(0.5)
         finally:
             self.controller.end_idle()
@@ -316,6 +335,8 @@ class Quester:
         a landmark at least SIGIL_LEAVE away (nearest such), else straight back."""
         zone = await self.client.zone_name() or ""
         candidates = list(wisp_memory().spots.get(zone, [])) + await landmarks(self.client)
+        # Landing next to a mob starts a fight (and cancels the whole attempt).
+        candidates = away_from(candidates, await mob_positions(self.client), SIGIL_LEAVE_MOB_DISTANCE)
         far = [p for p in candidates if math.dist((p[0], p[1]), (sigil.x, sigil.y)) >= SIGIL_LEAVE]
         if far:
             p = min(far, key=lambda p: math.dist((p[0], p[1]), (sigil.x, sigil.y)))
