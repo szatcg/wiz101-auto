@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+from dataclasses import dataclass
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
@@ -33,6 +34,7 @@ WISP_SCAN_SECONDS = 30.0
 STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
+RANK_QUESTS_EVERY = 300.0  # seconds between quest-book rankings
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
@@ -43,6 +45,22 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 SIGIL_WAIT = 20.0  # the countdown after pressing X is ~10s
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+
+
+@dataclass
+class QuestEntry:
+    slot: int
+    name: str
+    activity: bool = False  # spell/activity quest (new spells, training)
+    mainline: bool = False
+    active: bool = False
+    reward: int = 0  # first reward amount shown in the quest book
+
+
+def quest_rank(q: QuestEntry) -> tuple:
+    """Higher is better: activity quests make the wizard stronger, the main story
+    unlocks content, side quests only give their reward."""
+    return (q.activity, q.mainline, q.reward)
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -351,19 +369,98 @@ class Quester:
             await asyncio.sleep(2.0)  # let a late objective update land first
             await self.switch_quest()
 
-    async def switch_quest(self) -> bool:
-        """Track the next quest in the quest book. True if the objective changed."""
-        before = await self.objective()
+    async def _open_quest_book(self) -> bool:
         for _ in range(4):
             if await ui.is_visible(self.client, QUEST_BOOK_ALL):
                 break
             await self.client.send_key(Keycode.Q, 0.1)
             await asyncio.sleep(0.8)
         else:
-            logger.warning("could not open the quest book to switch quests")
             return False
         await ui.click(self.client, QUEST_BOOK_ALL)
         await asyncio.sleep(0.5)
+        return True
+
+    async def _close_quest_book(self):
+        for _ in range(4):
+            if not await ui.is_visible(self.client, QUEST_BOOK_ALL):
+                return
+            await self.client.send_key(Keycode.Q, 0.1)
+            await asyncio.sleep(0.8)
+
+    async def _read_quest_page(self) -> list[QuestEntry]:
+        out = []
+        for i in range(MAX_QUEST_SLOTS):
+            base = [*QUEST_LIST, f"wndQuestInfo{i}", "questInfoWindow", "wndQuestInfo"]
+            name = (await ui.text_at(self.client, [*base, "txtName"])).strip()
+            if not name:
+                continue
+            reward_path = [*base, "wndReward1", "imgReward1Scroll", "txtReward1Amount"]
+            reward = await ui.text_at(self.client, reward_path)
+            out.append(
+                QuestEntry(
+                    slot=i,
+                    name=name,
+                    activity=await ui.is_visible(self.client, [*base, "imgActivityQuestType"]),
+                    mainline=await ui.is_visible(self.client, [*base, "LeftMainline"]),
+                    active=await ui.is_visible(self.client, [*base, "imgActiveQuest"]),
+                    reward=int(reward) if reward.strip().isdigit() else 0,
+                )
+            )
+        return out
+
+    async def prioritize_quests(self) -> bool:
+        """Track the most valuable quest in the book (spell/activity quests first,
+        then the main story, then side quests by reward). True if it switched."""
+        if not await self._open_quest_book():
+            logger.warning("could not open the quest book to rank quests")
+            return False
+        page_button = [*QUEST_LIST, "btnNextPage"]
+        back_button = [*QUEST_LIST, "btnPrevPage"]
+        best: tuple[int, QuestEntry] | None = None
+        seen: set[str] = set()
+        pages = 0
+        try:
+            for page in range(5):
+                entries = [e for e in await self._read_quest_page() if e.name not in seen]
+                if not entries:
+                    break
+                pages = page + 1
+                for e in entries:
+                    seen.add(e.name)
+                    if best is None or quest_rank(e) > quest_rank(best[1]):
+                        best = (page, e)
+                if not await ui.click(self.client, page_button):
+                    break
+                await asyncio.sleep(0.6)
+            if best is None:
+                return False
+            page, entry = best
+            if entry.active:
+                logger.info(f"quest priority: already tracking {entry.name!r}")
+                return False
+            for _ in range(pages):
+                await ui.click(self.client, back_button)
+                await asyncio.sleep(0.4)
+            for _ in range(page):
+                await ui.click(self.client, page_button)
+                await asyncio.sleep(0.6)
+            info = [*QUEST_LIST, f"wndQuestInfo{entry.slot}", "questInfoWindow", "wndQuestInfo"]
+            slot = [*info, "btnActivate"]
+            await ui.click(self.client, slot)
+            await asyncio.sleep(0.6)
+            kind = "spell/activity" if entry.activity else "main story" if entry.mainline else "side"
+            logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest, reward {entry.reward})")
+            return True
+        finally:
+            await self._close_quest_book()
+
+    async def switch_quest(self) -> bool:
+        """Track the next quest in the quest book. True if the objective changed."""
+        before = await self.objective()
+        if not await self._open_quest_book():
+            logger.warning("could not open the quest book to switch quests")
+            return False
 
         self._quest_index = getattr(self, "_quest_index", 0)
         clicked = False
@@ -376,11 +473,7 @@ class Quester:
                 await asyncio.sleep(0.6)
                 break
 
-        for _ in range(4):
-            if not await ui.is_visible(self.client, QUEST_BOOK_ALL):
-                break
-            await self.client.send_key(Keycode.Q, 0.1)
-            await asyncio.sleep(0.8)
+        await self._close_quest_book()
 
         after = await self.objective()
         if clicked and after != before:
@@ -543,6 +636,18 @@ class Quester:
                 return
 
         objective = await self.objective()
+        if objective != getattr(self, "_ranked_for", None) and (
+            time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
+        ):
+            self._last_rank = time.monotonic()
+            self.controller.allow_idle(30)
+            try:
+                if await self.prioritize_quests():
+                    await asyncio.sleep(1.0)
+                    objective = await self.objective()
+            finally:
+                self.controller.end_idle()
+            self._ranked_for = objective
         zone = await self.client.zone_name()
         await self._note_progress(objective, zone)
         if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
