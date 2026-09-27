@@ -43,7 +43,7 @@ class Strategy:
     max_traps: int = 2
     kill_bonus: float = 400.0  # value of removing an enemy from the fight
     boss_setup: bool = True  # stack a blade/trap before hitting a boss
-    setup_health_multiplier: float = 2.0  # also buff first if target hp > best hit * this
+    setup_health_multiplier: float = 1.0  # also trap/blade first when the target survives our best hit
     max_hand_size: int = 7
     allow_discard: bool = True
     summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage

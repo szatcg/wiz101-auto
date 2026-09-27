@@ -37,7 +37,7 @@ combat:
     max_blades: 2
     max_traps: 2
     boss_setup: true
-    setup_health_multiplier: 2.0
+    setup_health_multiplier: 1.0
 
 progression:
   enabled: true

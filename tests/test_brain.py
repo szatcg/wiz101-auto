@@ -258,3 +258,10 @@ def test_saves_a_pip_for_a_much_stronger_attack():
     b2 = battle([dmg_card(0, "Blood Bat", 90), troll], [enemy("Imp", 80)])
     b2.pips = 1
     assert decide(b2).card.name == "Blood Bat"  # a kill now beats waiting
+
+
+def test_traps_a_mob_that_would_survive_the_hit():
+    b = battle([dmg_card(0, "Troll", 190, pips=2), trap_card(1)], [enemy("Skeletal Warrior", 235)])
+    assert decide(b).card.name == "Fire Trap"
+    b2 = battle([dmg_card(0, "Troll", 190, pips=2), trap_card(1)], [enemy("Imp", 150)])
+    assert decide(b2).card.name == "Troll"  # kills outright: no trap needed
