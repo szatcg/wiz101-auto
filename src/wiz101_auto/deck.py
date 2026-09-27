@@ -306,22 +306,35 @@ class _Builder(DeckBuilder):
             except Exception as exc:
                 lines.append(f"{await w.name()}: {exc!r}")
         logger.warning("could not find any spells; list windows seen: " + " | ".join(lines))
+        try:
+            path = await dump_list_memory(self.client, self._spell_list_window)
+            logger.warning(f"raw spell list memory saved to {path}; send it to Claude")
+        except Exception as exc:
+            logger.debug(f"memory dump failed: {exc!r}")
 
 
 # --- spell list memory layout detection --------------------------------------
+#
+# A list control holds a vector (begin/end pointers) of entries. WizWalker's
+# offsets for it are stale, so we search for it. Entries may be stored inline
+# (fixed size) or as pointers, the GraphicalSpell pointer may sit at a small
+# offset inside the entry, and lists can start with empty spacer slots.
 
-ENTRY_SIZES = (0xA8, 0xB0, 0xA0, 0xB8, 0x98, 0xC0, 0x90, 0xC8, 0x88, 0xD0)
-_layout: tuple[int, int, int] | None = None  # (vector offset, end-pointer gap, entry size)
+ENTRY_SIZES = (0xA8, 0xB0, 0xA0, 0xB8, 0x98, 0xC0, 0x90, 0xC8, 0x88, 0xD0, 0x28, 0x30, 0x20)
+SPELL_PTR_OFFSETS = (0x0, 0x8, 0x10)
+PROBE = 16
+_layouts: dict[str, tuple] = {}  # control type name -> (offset, gap, size, ptr_off, indirect)
 
 
 class SpellEntry:
-    """A spell list entry: a GraphicalSpell pointer followed by copy counts."""
+    """A spell list entry: a GraphicalSpell pointer plus copy counts."""
 
-    def __init__(self, hook_handler, address: int):
+    def __init__(self, hook_handler, address: int, spell_ptr_offset: int = 0):
         from wizwalker.memory.memory_object import DynamicMemoryObject
 
         self._mem = DynamicMemoryObject(hook_handler, address)
         self._hook = hook_handler
+        self._ptr_off = spell_ptr_offset
         self.base_address = address
 
     async def _u(self, offset: int, size: str) -> int:
@@ -333,71 +346,139 @@ class SpellEntry:
     async def graphical_spell(self):
         from wizwalker.memory.memory_objects.spell import DynamicGraphicalSpell
 
-        addr = await self._u(0, "q")
+        addr = await self._u(self._ptr_off, "q")
         return DynamicGraphicalSpell(self._hook, addr) if addr else None
 
     async def max_copies(self) -> int:
-        v = await self._u(0x10, "d")
+        v = await self._u(self._ptr_off + 0x10, "d")
         return v if 1 <= v <= 12 else 4  # sane fallback if the field moved
 
     async def current_copies(self) -> int:
-        v = await self._u(0x14, "d")
+        v = await self._u(self._ptr_off + 0x14, "d")
         return v if 0 <= v <= 12 else 0
 
 
-async def _spell_name_at(entry: SpellEntry) -> str:
-    g = await entry.graphical_spell()
-    if not g:
+async def _spell_name_at(entry: SpellEntry) -> str | None:
+    """Spell name, '' for an empty slot, None if this isn't a spell entry at all."""
+    try:
+        addr = await entry._u(entry._ptr_off, "q")
+    except Exception:
+        return None
+    if addr == 0:
         return ""
-    t = await g.spell_template()
-    if not t:
-        return ""
-    name = await t.name()
-    return name if name and name.isprintable() and len(name) < 80 else ""
+    try:
+        g = await entry.graphical_spell()
+        t = await g.spell_template()
+        name = await t.name() if t else ""
+    except Exception:
+        return None
+    return name if name and name.isprintable() and len(name) < 80 else None
+
+
+async def _make_entries(hook, start, count, size, ptr_off, indirect) -> list[SpellEntry]:
+    from wizwalker.memory.memory_object import DynamicMemoryObject, Primitive
+
+    out = []
+    for i in range(count):
+        addr = start + i * size
+        if indirect:
+            addr = await DynamicMemoryObject(hook, addr).read_value_from_offset(0, Primitive.uint64)
+            if not addr:
+                continue
+        out.append(SpellEntry(hook, addr, ptr_off))
+    return out
+
+
+async def _check_layout(hook, start, end, size, ptr_off, indirect) -> list[SpellEntry] | None:
+    if (end - start) % size:
+        return None
+    count = (end - start) // size
+    if count == 0 or count > 500:
+        return None
+    probe = await _make_entries(hook, start, min(count, PROBE), size, ptr_off, indirect)
+    names = [await _spell_name_at(e) for e in probe]
+    if not names or any(n is None for n in names) or not any(names):
+        return None  # something unreadable, or nothing but empty slots
+    entries = await _make_entries(hook, start, count, size, ptr_off, indirect)
+    return [e for e in entries if await _spell_name_at(e)]
 
 
 async def find_spell_entries(client, list_window) -> list[SpellEntry]:
-    """Locate the entry vector inside a spell list window and return its entries."""
-    global _layout
+    """Locate the entry vector inside a list window and return its spell entries."""
     from wizwalker.memory.memory_object import DynamicMemoryObject, Primitive
 
     hook = client.hook_handler
     ctrl = DynamicMemoryObject(hook, await list_window.read_base_address())
+    kind = await list_window.maybe_read_type_name() or "?"
 
-    async def entries_for(offset: int, gap: int, sizes) -> list[SpellEntry] | None:
-        global _layout
+    async def pair(offset, gap):
         try:
             start = await ctrl.read_value_from_offset(offset, Primitive.uint64)
             end = await ctrl.read_value_from_offset(offset + gap, Primitive.uint64)
         except Exception:
             return None
-        if not (0x10000 < start < end) or end - start > 0xD0 * 500:
-            return None
-        for size in sizes:
-            if (end - start) % size:
-                continue
-            count = (end - start) // size
-            probe = [SpellEntry(hook, start + i * size) for i in range(min(count, 3))]
-            try:
-                if all([await _spell_name_at(e) for e in probe]):
-                    if _layout != (offset, gap, size):
-                        logger.info(f"spell list layout found: vector at {offset:#x}, entry size {size:#x}")
-                    _layout = (offset, gap, size)
-                    return [SpellEntry(hook, start + i * size) for i in range(count)]
-            except Exception:
-                continue
+        if 0x10000 < start < end and end - start <= 0xD0 * 500:
+            return start, end
         return None
 
-    if _layout:
-        found = await entries_for(_layout[0], _layout[1], (_layout[2],))
+    known = _layouts.get(kind)
+    if known:
+        offset, gap, size, ptr_off, indirect = known
+        p = await pair(offset, gap)
+        if p is None:
+            return []  # layout known, list currently empty
+        found = await _check_layout(hook, *p, size, ptr_off, indirect)
         if found is not None:
             return found
+
     for offset in range(0x200, 0x480, 8):
         for gap in (16, 8):
-            found = await entries_for(offset, gap, ENTRY_SIZES)
-            if found is not None:
-                return found
+            p = await pair(offset, gap)
+            if p is None:
+                continue
+            candidates = [(8, o, True) for o in SPELL_PTR_OFFSETS]  # vector of pointers
+            candidates += [(size, o, False) for size in ENTRY_SIZES for o in SPELL_PTR_OFFSETS]
+            for size, ptr_off, indirect in candidates:
+                found = await _check_layout(hook, *p, size, ptr_off, indirect)
+                if found:
+                    layout = (offset, gap, size, ptr_off, indirect)
+                    if _layouts.get(kind) != layout:
+                        logger.info(
+                            f"{kind} layout found: vector at {offset:#x}, entry size {size:#x}, "
+                            f"spell pointer at +{ptr_off:#x}{', indirect' if indirect else ''}"
+                        )
+                    _layouts[kind] = layout
+                    return found
     return []
+
+
+async def dump_list_memory(client, list_window) -> str:
+    """Hex dump of a list control's fields and whatever its pointer pairs point at."""
+    from pathlib import Path
+
+    from wizwalker.memory.memory_object import DynamicMemoryObject, Primitive
+
+    hook = client.hook_handler
+    base = await list_window.read_base_address()
+    ctrl = DynamicMemoryObject(hook, base)
+    lines = [f"{await list_window.name()} [{await list_window.maybe_read_type_name()}] base={base:#x}"]
+    for off in range(0x200, 0x480, 8):
+        try:
+            v = await ctrl.read_value_from_offset(off, Primitive.uint64)
+        except Exception:
+            continue
+        line = f"+{off:#05x}: {v:#018x}"
+        if 0x10000 < v < 0x7FFFFFFFFFFF:
+            try:
+                raw = await ctrl.read_bytes(v, 0x40)
+                line += "  -> " + raw.hex(" ", 8)
+            except Exception:
+                pass
+        lines.append(line)
+    Path("state").mkdir(exist_ok=True)
+    path = Path("state") / "spell_list_memory.txt"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return str(path)
 
 
 async def _is_list_control(window) -> bool:
