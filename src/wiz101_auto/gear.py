@@ -4,12 +4,15 @@ Item stats aren't readable from WizWalker, so gear is judged the way a player
 would: put an item on and look at the wizard's real stats (health, damage and
 accuracy for its school, resistance, power pips...). For each slot the bot
 tries every item on the backpack tab and keeps the one that scores best.
-Runs only after a level-up, when new level requirements are met.
+Runs after a level-up (every slot: new level requirements are met), and when
+a new item lands in the backpack (only that item's slot).
 """
 
 from __future__ import annotations
 
 import asyncio
+import re
+import time
 from dataclasses import dataclass
 
 from loguru import logger
@@ -26,6 +29,34 @@ NEXT_PAGE = [*PAGE, "rightscroll"]
 SLOT_TABS = ("Tab_Hat", "Tab_Robe", "Tab_Shoes", "Tab_Athame", "Tab_Amulet", "Tab_Ring")
 ITEMS_PER_PAGE = 8
 MAX_PAGES = 4
+BACKPACK_CHECK_SECONDS = 20.0  # how often to look for new items (a memory read, no UI)
+
+# Words in an item's template (adjectives, object name, icon, display name)
+# that tell its slot. The first matching slot wins, so the check order matters
+# (e.g. "Ring" before a name that merely contains "ring").
+SLOT_WORDS = {
+    "Tab_Hat": ("hat", "helm", "helmet", "hood", "cowl", "cap", "mask", "crown", "circlet", "headgear"),
+    "Tab_Robe": ("robe", "cloak", "tunic", "vest", "garb", "jacket", "coat", "gown",
+                 "armor", "mantle", "cape"),
+    "Tab_Shoes": ("shoes", "shoe", "boots", "boot", "slippers", "sandals", "footwear", "treads", "greaves"),
+    "Tab_Athame": ("athame", "dagger", "knife", "dirk", "blade", "sword"),
+    "Tab_Amulet": ("amulet", "necklace", "pendant", "talisman", "locket"),
+    "Tab_Ring": ("ring", "band"),
+}
+
+
+def item_slot(texts: list[str]) -> str | None:
+    """The backpack tab for an item, from the strings its template carries, or
+    None when it isn't wearable gear we manage (a deck, wand, housing item...)."""
+    words = set()
+    for t in texts:
+        # "WC_Hat_Adventurer", "IconHatMyth", "Graven Boots" -> words
+        spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", t or "")
+        words.update(w for w in re.split(r"[^a-z]+", spaced.lower()) if w)
+    for tab, keys in SLOT_WORDS.items():
+        if words & set(keys):
+            return tab
+    return None
 
 
 @dataclass
@@ -85,6 +116,8 @@ class GearManager:
         self.client = client
         self.school = school
         self._level: int | None = None
+        self._items: set[int] | None = None  # backpack item ids seen so far
+        self._last_backpack_check = 0.0
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -187,15 +220,15 @@ class GearManager:
             await self._equip_by_name(tab, best_name)
         return best_name if best_name != current else None
 
-    async def optimise(self, reason: str) -> list[str]:
-        """Equip the best item in every slot. Returns what changed."""
+    async def optimise(self, reason: str, tabs=SLOT_TABS) -> list[str]:
+        """Equip the best item in each of `tabs` (every slot by default). Returns what changed."""
         logger.info(f"checking gear ({reason})")
         if not await self._open():
             logger.warning("could not open the backpack to check gear")
             return []
         changed = []
         try:
-            for tab in SLOT_TABS:
+            for tab in tabs:
                 try:
                     new = await self._optimise_slot(tab)
                 except Exception as exc:
@@ -211,10 +244,68 @@ class GearManager:
             logger.info("gear: already wearing the best items")
         return changed
 
+    async def _backpack(self) -> dict[int, list[str]]:
+        """Backpack items: id -> strings from its template (for item_slot)."""
+        from wizwalker.memory.memory_objects.game_object_template import WizGameObjectTemplate
+
+        from .names import lang_name
+
+        behavior = await self.client.client_object.try_get_inventory_behavior()
+        if behavior is None:
+            return {}
+        items = {}
+        for obj in await behavior.item_list():
+            try:
+                gid = await obj.global_id_full()
+                core = await obj.object_template()
+                t = WizGameObjectTemplate(self.client.hook_handler, await core.read_base_address())
+                texts = [await t.object_name() or "", await t.adjective_list() or "", await t.icon() or ""]
+                code = await t.display_name()
+                if code:
+                    texts.append(await lang_name(self.client, code) or "")
+                items[gid] = texts
+            except Exception:
+                continue
+        return items
+
+    async def _new_items_tabs(self) -> tuple[set[str], list[str]]:
+        """Slots of items that appeared in the backpack since the last look (and
+        their names). The first look only takes a snapshot."""
+        items = await self._backpack()
+        if not items:
+            return set(), []
+        new = [] if self._items is None else [texts for gid, texts in items.items() if gid not in self._items]
+        self._items = set(items)
+        tabs, names = set(), []
+        for texts in new:
+            tab = item_slot(texts)
+            name = texts[-1] if len(texts) > 3 else texts[0]
+            logger.info(f"new item: {name!r} -> {tab[4:] if tab else 'not gear'} ({' | '.join(texts[:3])})")
+            if tab:
+                tabs.add(tab)
+                names.append(name)
+        return tabs, names
+
     async def tick(self):
-        """Call while the wizard is free: re-check gear only after a level-up (new
-        level requirements are met then). Startups don't re-check."""
+        """Call while the wizard is free. After a level-up (new level requirements
+        are met) every slot is re-checked; when a new item shows up in the backpack
+        only its slot is. Startups don't re-check."""
         level = await self.client.stats.reference_level()
         if self._level is not None and level > self._level:
+            self._level = level
             await self.optimise(f"level {level}")
+            self._items = None  # re-snapshot: swapped-out items land in the backpack
+            return
         self._level = level
+        if time.monotonic() - self._last_backpack_check < BACKPACK_CHECK_SECONDS:
+            return
+        self._last_backpack_check = time.monotonic()
+        try:
+            tabs, names = await self._new_items_tabs()
+        except Exception as exc:
+            logger.debug(f"backpack read failed: {exc!r}")
+            return
+        if tabs:
+            order = [t for t in SLOT_TABS if t in tabs]
+            await self.optimise(f"new {', '.join(names)}", order)
+            self._items = None  # re-snapshot: swapped-out items land in the backpack
