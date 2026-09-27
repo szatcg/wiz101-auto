@@ -80,16 +80,26 @@ async def read_stats(client, school: str) -> StatSnapshot:
     )
 
 
-async def backpack_count(client) -> int:
-    inv = await client.client_object.try_get_inventory_behavior()
-    return len(await inv.item_list()) if inv else 0
+async def owned_item_ids(client) -> set[int]:
+    """Ids of everything in the backpack and equipped."""
+    ids: set[int] = set()
+    co = client.client_object
+    for behavior in (await co.try_get_inventory_behavior(), await co.try_get_equipment_behavior()):
+        if behavior is None:
+            continue
+        for item in await behavior.item_list():
+            try:
+                ids.add(await item.global_id_full())
+            except Exception:
+                pass
+    return ids
 
 
 class GearManager:
     def __init__(self, client, school: str):
         self.client = client
         self.school = school
-        self._last_count: int | None = None
+        self._known_ids: set[int] | None = None
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -129,55 +139,68 @@ class GearManager:
         await asyncio.sleep(0.4)
         await ui.click(self.client, EQUIP)
 
-    async def _optimise_slot(self, tab: str) -> str | None:
-        if not await ui.click(self.client, [*PAGE, "ButtonLayout", tab]):
-            return None
+    async def _scan_tab(self, tab: str) -> list[tuple[str, bool]]:
+        """(item name, equipped) for every item on the tab, from page 1."""
+        await ui.click(self.client, [*PAGE, "ButtonLayout", tab])  # also resets to page 1
         await asyncio.sleep(0.8)
-        # Gather every item on the tab (a few pages at most).
-        candidates: list[tuple[int, str, str, bool]] = []
-        seen: set[str] = set()
-        for page in range(MAX_PAGES):
-            items = [it for it in await self._items_on_page() if it[1] not in seen]
-            if not items:
+        found: list[tuple[str, bool]] = []
+        for _ in range(MAX_PAGES):
+            new = [(n, e) for _, n, e in await self._items_on_page() if n not in {f[0] for f in found}]
+            if not new:
                 break
-            for window, name, equipped in items:
-                seen.add(name)
-                candidates.append((page, window, name, equipped))
+            found += new
             if not await ui.click(self.client, NEXT_PAGE):
                 break
             await asyncio.sleep(0.6)
-        if not candidates:
+        return found
+
+    async def _equip_by_name(self, tab: str, name: str) -> bool:
+        """Equip `name` (found by name: equipping reorders the list, and pressing
+        Equip on an item that's already on takes it off). True if it's on after."""
+        for attempt in range(2):
+            await ui.click(self.client, [*PAGE, "ButtonLayout", tab])
+            await asyncio.sleep(0.8)
+            for _ in range(MAX_PAGES):
+                for window, n, equipped in await self._items_on_page():
+                    if n != name:
+                        continue
+                    if equipped:
+                        return True
+                    if attempt:
+                        return False  # clicked Equip and it still isn't on: can't wear it
+                    await self._equip(window)
+                    await asyncio.sleep(0.8)
+                    break
+                else:
+                    if not await ui.click(self.client, NEXT_PAGE):
+                        break
+                    await asyncio.sleep(0.6)
+                    continue
+                break
+        return False
+
+    async def _optimise_slot(self, tab: str) -> str | None:
+        if not await ui.is_visible(self.client, [*PAGE, "ButtonLayout", tab]):
             return None
-
-        async def goto_page(page: int):
-            await ui.click(self.client, [*PAGE, "ButtonLayout", tab])  # back to page 1
-            await asyncio.sleep(0.6)
-            for _ in range(page):
-                await ui.click(self.client, NEXT_PAGE)
-                await asyncio.sleep(0.6)
-
-        current = next((c for c in candidates if c[3]), None)
-        best_name = current[2] if current else None
-        best_score = await self._score()
-        for page, window, name, equipped in candidates:
+        items = await self._scan_tab(tab)
+        if not items:
+            return None
+        current = next((n for n, e in items if e), None)
+        # An empty slot loses to any item that can actually be worn.
+        best_name, best_score = current, (await self._score() if current else float("-inf"))
+        for name, equipped in items:
             if equipped:
                 continue
-            await goto_page(page)
-            await self._equip(window)
+            if not await self._equip_by_name(tab, name):
+                logger.debug(f"gear: {tab[4:]} {name!r} can't be worn (level or school)")
+                continue
             score = await self._score()
             logger.debug(f"gear: {tab[4:]} {name!r} scores {score:.0f} (best {best_score:.0f})")
             if score > best_score + 0.5:
                 best_name, best_score = name, score
-        # Leave the best item on.
-        for page, window, name, _ in candidates:
-            if name == best_name:
-                await goto_page(page)
-                await self._equip(window)
-                await asyncio.sleep(0.5)
-                break
-        if best_name and (current is None or best_name != current[2]):
-            return best_name
-        return None
+        if best_name:
+            await self._equip_by_name(tab, best_name)
+        return best_name if best_name != current else None
 
     async def optimise(self, reason: str) -> list[str]:
         """Equip the best item in every slot. Returns what changed."""
@@ -204,13 +227,12 @@ class GearManager:
         return changed
 
     async def tick(self):
-        """Call while the wizard is free: re-check when the backpack gains items."""
-        count = await backpack_count(self.client)
-        if self._last_count is None:
-            self._last_count = count
+        """Call while the wizard is free: re-check when a genuinely new item shows up.
+        Items move between the backpack and equipped lists when (un)equipped, so
+        track ids across both rather than counting the backpack."""
+        ids = await owned_item_ids(self.client)
+        if self._known_ids is None:
             await self.optimise("startup")
-        elif count > self._last_count:
-            self._last_count = count
+        elif ids - self._known_ids:
             await self.optimise("new item")
-        else:
-            self._last_count = count
+        self._known_ids = await owned_item_ids(self.client)
