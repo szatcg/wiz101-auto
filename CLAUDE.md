@@ -73,6 +73,8 @@ while the bot is stopped.
 | File | What |
 |---|---|
 | `wiz101-auto.log` | full DEBUG log (rotates at 10 MB) |
+| `activity.log` | INFO+ only, short format: what the bot decides/does (read this first) |
+| `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
 | `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |
 | `state/bot.pid`, `state/stop.request` | service bookkeeping |
@@ -98,6 +100,7 @@ while the bot is stopped.
 | `combat/brain.py`, `combat/model.py` | pure turn logic (unit tested) |
 | `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
 | `gear.py` | on level-up, tries each backpack item per slot and keeps the best by the wizard's real stats |
+| `bossfarm.py`, `dungeons.py` | `mode: boss` (`boss_farm.boss`, `until_item`, `max_runs`): repeat a learned dungeon boss |
 | `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |
 | `ui.py` | UI window paths and helpers |
 | `names.py` | cached display-name lookups (WizWalker's are very slow) |
