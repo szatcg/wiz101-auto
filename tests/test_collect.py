@@ -31,3 +31,9 @@ def test_spread_points_keeps_spacing_nearest_first():
 
     pts = [(0, 0, 0), (100, 0, 0), (5000, 0, 0), (5100, 0, 0), (-9000, 0, 0)]
     assert spread_points(pts, (4000, 0, 0), 3000) == [(5000, 0, 0), (100, 0, 0), (-9000, 0, 0)]
+
+
+def test_away_from_drops_points_near_mobs():
+    from wiz101_auto.collect import away_from
+
+    assert away_from([(0, 0, 0), (2000, 0, 0)], [(100, 0, 0)], 900) == [(2000, 0, 0)]

@@ -10,8 +10,9 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
+from .collect import away_from, landmarks, spread_points
 from .config import QuestConfig, UpkeepConfig
-from .wisps import WispMemory, sweep_points
+from .wisps import WispMemory
 
 
 async def is_free(client) -> bool:
@@ -208,9 +209,11 @@ async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
 
 
 async def sweep_for_wisps(client, cfg: UpkeepConfig) -> int:
-    """Hop around the area (away from mobs) to discover this zone's wisp spawns."""
+    """Hop across the zone's landmarks (on the map, away from mobs) to discover
+    its wisp spawns; wisps only load near the wizard."""
     start = await client.body.position()
-    points = sweep_points(_pt(start), await mob_positions(client), cfg.wisp_safe_distance)
+    spots = away_from(await landmarks(client), await mob_positions(client), cfg.wisp_safe_distance)
+    points = spread_points(spots, _pt(start), WISP_SWEEP_SPACING)[:WISP_SWEEP_MAX]
     zone = await client.zone_name() or "?"
     before = len(wisp_memory().spots.get(zone, []))
     logger.info(f"searching {zone} for wisp spawn points ({len(points)} spots)")
@@ -232,14 +235,14 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         mobs = [await m.location() for m in await client.get_mobs()]
         if all(p.distance(me) > safe_distance for p in mobs):
             return False
-        candidates = await client.find_safe_entities_from(
-            await client.get_base_entity_list(), safe_distance=safe_distance
-        )
+        # Only landmarks: any-entity spots include cameras and path markers
+        # floating off the walkable map.
+        candidates = away_from(await landmarks(client), [_pt(p) for p in mobs], safe_distance)
         if not candidates:
             return False
-        spot = min([await c.location() for c in candidates], key=lambda p: p.distance(me))
+        spot = min(candidates, key=lambda p: math.dist(p, _pt(me)))
         logger.info("moving away from mobs to rest")
-        await client.teleport(spot)
+        await client.teleport(XYZ(*spot))
         await asyncio.sleep(1.0)
         return True
     except Exception as exc:
@@ -247,6 +250,8 @@ async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
         return False
 
 
+WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
+WISP_SWEEP_MAX = 16
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 
 

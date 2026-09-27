@@ -21,7 +21,7 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
-from .collect import LANDMARK_NAMES, Collector, collect_item_name, spread_points
+from .collect import Collector, collect_item_name, landmarks, spread_points
 from .config import QuestConfig
 from .deck import close_spellbook
 from .npc import ServicesMenu
@@ -607,25 +607,7 @@ class Quester:
         return False
 
     async def _landmarks(self) -> list[tuple[float, float, float]]:
-        """Positions of ground-level things in the zone (named NPCs/objects, stand-in
-        spots, duel circles) to use as teleport stops for a zone-wide search."""
-        out = []
-        for e in await self.client.get_base_entity_list():
-            try:
-                template = await e.object_template()
-                if not template:
-                    continue
-                name = (await template.object_name() or "").lower()
-                named = bool(await template.display_name())
-                if not named and not any(n in name for n in LANDMARK_NAMES):
-                    continue
-                if "wisp" in name:
-                    continue
-                pos = await e.location()
-                out.append((pos.x, pos.y, pos.z))
-            except Exception:
-                continue
-        return out
+        return await landmarks(self.client)
 
     async def unneeded_fight(self, battle) -> bool:
         """True if the fight that just started isn't needed for the tracked quest."""

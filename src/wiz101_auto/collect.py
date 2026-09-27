@@ -63,6 +63,37 @@ def spread_points(points: list[tuple[float, float, float]], start, spacing: floa
 LANDMARK_NAMES = ("player stand in", "duel circle")  # unnamed but always on walkable ground
 
 
+async def landmarks(client) -> list[tuple[float, float, float]]:
+    """Positions of ground-level things in the zone (named NPCs/objects, stand-in
+    spots, duel circles). Safe teleport stops: unlike cameras and path markers,
+    they're on the walkable map."""
+    out = []
+    for e in await client.get_base_entity_list():
+        try:
+            template = await e.object_template()
+            if not template:
+                continue
+            name = (await template.object_name() or "").lower()
+            named = bool(await template.display_name())
+            if not named and not any(n in name for n in LANDMARK_NAMES):
+                continue
+            if "wisp" in name:
+                continue
+            pos = await e.location()
+            out.append((pos.x, pos.y, pos.z))
+        except Exception:
+            continue
+    return out
+
+
+def away_from(points: list, mobs: list, safe_distance: float) -> list:
+    """Points with no mob within `safe_distance` (mobs are landmarks too)."""
+    def clear(p) -> bool:
+        return all((p[0] - m[0]) ** 2 + (p[1] - m[1]) ** 2 > safe_distance**2 for m in mobs)
+
+    return [p for p in points if clear(p)]
+
+
 class Collector:
     def __init__(self, client, safe_distance: float = 700.0):
         self.client = client
