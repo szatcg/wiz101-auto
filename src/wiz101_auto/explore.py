@@ -11,7 +11,7 @@ from pathlib import Path
 from loguru import logger
 
 from . import ui
-from .bot import connect, new_handler
+from .bot import close_handler, connect, new_handler
 
 
 async def explore(out_dir: str = "state") -> Path | None:
@@ -62,4 +62,4 @@ async def explore(out_dir: str = "state") -> Path | None:
         logger.opt(exception=exc).error("explore failed")
         return None
     finally:
-        await handler.close()
+        await close_handler(handler)

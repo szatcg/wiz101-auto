@@ -6,7 +6,7 @@ from loguru import logger
 from wizwalker.combat import CombatHandler
 
 from . import ui
-from .bot import connect, new_handler
+from .bot import close_handler, connect, new_handler
 from .combat.brain import Strategy, decide
 from .combat.reader import read_battle
 
@@ -57,4 +57,4 @@ async def inspect(show_windows: bool = False, show_battle: bool = True):
     except Exception as exc:
         logger.opt(exception=exc).error("inspect failed")
     finally:
-        await handler.close()
+        await close_handler(handler)

@@ -7,6 +7,7 @@ import contextlib
 
 from loguru import logger
 from wizwalker import ClientHandler
+from wizwalker.errors import PatternFailed
 from wizwalker.extensions.wizsprinter import SprintyClient
 
 from .combat.fighter import Fighter
@@ -25,6 +26,18 @@ def new_handler() -> ClientHandler:
     return ClientHandler(client_cls=SprintyClient)
 
 
+async def close_handler(handler: ClientHandler):
+    """Unhook from the game. Each client is closed separately and failures are
+    logged, so one bad unhook doesn't leave the rest of the game patched."""
+    for client in list(handler.clients):
+        try:
+            await client.close()
+        except Exception as exc:
+            logger.opt(exception=exc).error(
+                "unhooking failed; restart Wizard101 before running the bot again"
+            )
+
+
 async def connect(handler: ClientHandler):
     clients = handler.get_new_clients()
     if not clients:
@@ -36,6 +49,14 @@ async def connect(handler: ClientHandler):
     logger.info("activating hooks (can take a few seconds; move your wizard a step if it stalls)")
     try:
         await asyncio.wait_for(client.activate_hooks(), timeout=HOOK_TIMEOUT)
+    except PatternFailed:
+        await close_handler(handler)
+        raise SystemExit(
+            "\nCould not hook into the game: its memory still holds changes from an earlier bot "
+            "session that did not shut down cleanly.\n"
+            "FIX: fully close Wizard101 (exit to desktop), start it again, log in, then rerun.\n"
+            "To avoid this, stop the bot with Ctrl+Shift+Q (or Ctrl+C) instead of closing its window."
+        ) from None
     except TimeoutError:
         raise SystemExit(
             f"Hooks did not activate within {HOOK_TIMEOUT}s. Make sure your wizard is loaded into the "
@@ -140,4 +161,4 @@ async def run(cfg: Config):
             await stack.aclose()
         except Exception:
             pass
-        await handler.close()
+        await close_handler(handler)

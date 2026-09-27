@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None):
 
 
 async def _deck(cfg, apply: bool):
-    from .bot import connect, new_handler
+    from .bot import close_handler, connect, new_handler
     from .deck import current_school, rebuild_deck
 
     handler = new_handler()
@@ -93,7 +93,7 @@ async def _deck(cfg, apply: bool):
         if not apply:
             print("(dry run; add --apply to rebuild the in-game deck)")
     finally:
-        await handler.close()
+        await close_handler(handler)
 
 
 if __name__ == "__main__":
