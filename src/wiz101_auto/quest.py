@@ -26,7 +26,7 @@ from .config import QuestConfig
 from .deck import close_spellbook
 from .npc import ServicesMenu
 from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
-from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
+from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free, wisp_memory
 from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
@@ -44,8 +44,7 @@ DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
-SIGIL_BACKOFF = 400.0  # how far to step off a sigil to re-arm it
-SIGIL_PAD_RADII = (60.0, 120.0, 180.0)  # where a sigil's pads sit around its center
+SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
 
@@ -247,23 +246,21 @@ class Quester:
         await close_spellbook(self.client)
         await ui.close_menus(self.client)
         if self._sigil_failed_at is not None and distance(self._sigil_failed_at, sigil) < SIGIL_RANGE:
-            # Re-arm the sigil: walk away a distance and back onto it.
-            logger.info("re-arming the dungeon sigil: stepping away and walking back on")
-            await self.client.teleport(XYZ(sigil.x + SIGIL_BACKOFF, sigil.y, sigil.z))
-            await asyncio.sleep(1.0)
-            await self.client.goto(sigil.x, sigil.y)
-            await asyncio.sleep(1.0)
+            # The prompt only comes back after leaving the sigil's (large) area
+            # entirely: go somewhere far on the map, then come back.
+            away = await self._far_spot(sigil)
+            logger.info(f"re-arming the dungeon sigil: leaving to ({away.x:.0f}, {away.y:.0f}), then back")
+            await self.client.teleport(away)
+            await asyncio.sleep(1.5)
+            await self.client.teleport(sigil)
+            await asyncio.sleep(1.5)
         elif distance(await self._position(), sigil) > SIGIL_RANGE:
             await self.client.teleport(sigil)
             await asyncio.sleep(0.8)
         await wait_for_loading(self.client)
-        self.controller.allow_idle(SIGIL_WAIT + 40)
+        self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
             await asyncio.sleep(0.5)
-            if not await self._find_sigil_pad(sigil):
-                logger.warning("no 'press X' prompt anywhere around the sigil")
-                self._sigil_failed_at = sigil
-                return False
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
             deadline = time.monotonic() + SIGIL_WAIT
@@ -281,20 +278,16 @@ class Quester:
         self._sigil_failed_at = sigil
         return False
 
-    async def _find_sigil_pad(self, sigil: XYZ) -> bool:
-        """A sigil is several pads around its center: the prompt only shows on a
-        pad. Walk to spots around the center until it appears."""
-        if await ui.is_visible(self.client, ui.NPC_RANGE):
-            return True
-        for radius in SIGIL_PAD_RADII:
-            for i in range(8):
-                ang = i * math.pi / 4
-                await self.client.goto(sigil.x + radius * math.cos(ang), sigil.y + radius * math.sin(ang))
-                await asyncio.sleep(0.6)
-                if await ui.is_visible(self.client, ui.NPC_RANGE):
-                    logger.info(f"found the sigil pad {radius:.0f} units from its center")
-                    return True
-        return False
+    async def _far_spot(self, sigil: XYZ) -> XYZ:
+        """An on-map spot well outside the sigil's area: a remembered wisp spot or
+        a landmark at least SIGIL_LEAVE away (nearest such), else straight back."""
+        zone = await self.client.zone_name() or ""
+        candidates = list(wisp_memory().spots.get(zone, [])) + await landmarks(self.client)
+        far = [p for p in candidates if math.dist((p[0], p[1]), (sigil.x, sigil.y)) >= SIGIL_LEAVE]
+        if far:
+            p = min(far, key=lambda p: math.dist((p[0], p[1]), (sigil.x, sigil.y)))
+            return XYZ(*p)
+        return XYZ(sigil.x + SIGIL_LEAVE, sigil.y, sigil.z)
 
     async def _walk_in_from_around(self, target: XYZ, zone: str | None) -> bool:
         """Standing on a door marker gives walk_through no direction; back off
