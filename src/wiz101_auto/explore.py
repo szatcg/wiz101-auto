@@ -9,14 +9,13 @@ import time
 from pathlib import Path
 
 from loguru import logger
-from wizwalker import ClientHandler
 
 from . import ui
-from .bot import connect
+from .bot import connect, new_handler
 
 
 async def explore(out_dir: str = "state") -> Path | None:
-    handler = ClientHandler()
+    handler = new_handler()
     try:
         client = await connect(handler)
         zone = await client.zone_name() or "unknown"

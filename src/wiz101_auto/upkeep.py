@@ -6,7 +6,6 @@ import asyncio
 
 from loguru import logger
 from wizwalker import Keycode
-from wizwalker.extensions.wizsprinter import SprintyClient
 
 from . import ui
 from .config import QuestConfig, UpkeepConfig
@@ -54,7 +53,7 @@ async def maintain(client, cfg: UpkeepConfig):
     hp, mana = await health_mana(client)
 
     if cfg.collect_wisps and hp < cfg.wisp_health_ratio:
-        sprinter = SprintyClient(client)
+        sprinter = client  # SprintyClient (bot.new_handler)
         try:
             wisps = await sprinter.get_health_wisps()
             if mana < 0.5:

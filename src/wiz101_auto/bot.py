@@ -19,6 +19,12 @@ from .upkeep import dialogue_loop, is_free, maintain
 HOOK_TIMEOUT = 90
 
 
+def new_handler() -> ClientHandler:
+    # Clients are created as SprintyClients so they also have WizSprinter's
+    # entity helpers (closest mob, wisps, safe spots).
+    return ClientHandler(client_cls=SprintyClient)
+
+
 async def connect(handler: ClientHandler):
     clients = handler.get_new_clients()
     if not clients:
@@ -69,7 +75,7 @@ async def quest_loop(quester: Quester, controller: Controller):
 
 async def farm_loop(client, cfg: Config, controller: Controller, progression: Progression):
     """Stay in the current area and fight the nearest mob, repeatedly."""
-    sprinter = SprintyClient(client)
+    sprinter = client  # a SprintyClient, see new_handler()
     while not controller.stopped.is_set():
         await controller.checkpoint()
         if await is_free(client):
@@ -87,7 +93,7 @@ async def run(cfg: Config):
     controller = Controller(s.stop_key, s.pause_key, s.max_hours, s.max_deaths)
     logger.info(f"mode={cfg.mode}; {s.stop_key}=stop, {s.pause_key}=pause/resume")
 
-    handler = ClientHandler()
+    handler = new_handler()
     client = None
     tasks: list[asyncio.Task] = []
     stack = contextlib.AsyncExitStack()

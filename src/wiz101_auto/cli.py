@@ -76,12 +76,10 @@ def main(argv: list[str] | None = None):
 
 
 async def _deck(cfg, apply: bool):
-    from wizwalker import ClientHandler
-
-    from .bot import connect
+    from .bot import connect, new_handler
     from .deck import current_school, rebuild_deck
 
-    handler = ClientHandler()
+    handler = new_handler()
     try:
         client = await connect(handler)
         school = cfg.progression.school or await current_school(client)

@@ -17,7 +17,6 @@ import time
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
-from wizwalker.extensions.wizsprinter import SprintyClient
 
 from . import ui
 from .config import QuestConfig
@@ -37,7 +36,7 @@ class Quester:
         self.progression = progression
         self.cfg = cfg
         self.controller = controller
-        self.sprinter = SprintyClient(client)
+        self.sprinter = client  # SprintyClient (bot.new_handler)
         self._last_progress = (None, None)
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0

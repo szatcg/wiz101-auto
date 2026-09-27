@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 from loguru import logger
-from wizwalker import ClientHandler
 from wizwalker.combat import CombatHandler
 
 from . import ui
-from .bot import connect
+from .bot import connect, new_handler
 from .combat.brain import Strategy, decide
 from .combat.reader import read_battle
 
 
 async def inspect(show_windows: bool = False, show_battle: bool = True):
-    handler = ClientHandler()
+    handler = new_handler()
     try:
         client = await connect(handler)
         stats = client.stats
