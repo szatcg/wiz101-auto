@@ -17,6 +17,7 @@ from loguru import logger
 from .names import lang_name
 
 CANDIDATE_CACHE_SECONDS = 5.0
+WALK_IN = 150.0  # distance to land from an item before walking onto it
 
 _VERBS = r"(?:collect|find|gather|get|retrieve|recover|pick up)"
 _OBJECTIVE = re.compile(rf"^\s*{_VERBS}\s+(.+?)(?:\s+(?:in|at|from|on)\s+.*)?\s*$", re.I)
@@ -47,6 +48,19 @@ def matches_item(item: str, *names: str) -> bool:
         if target in n:
             return True
     return False
+
+
+def spread_points(points: list[tuple[float, float, float]], start, spacing: float) -> list:
+    """Points at least `spacing` apart, nearest to `start` first. Pickups only load
+    near the wizard, so a zone-wide search teleports between these."""
+    chosen: list = []
+    for p in sorted(points, key=lambda p: (p[0] - start[0]) ** 2 + (p[1] - start[1]) ** 2):
+        if all((p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 >= spacing**2 for c in chosen):
+            chosen.append(p)
+    return chosen
+
+
+LANDMARK_NAMES = ("player stand in", "duel circle")  # unnamed but always on walkable ground
 
 
 class Collector:
@@ -100,7 +114,13 @@ class Collector:
         spot, gid = min(options, key=lambda o: o[0].distance(me))
         self._taken[gid] = now
         logger.info(f"collecting {item!r} at ({spot.x:.0f}, {spot.y:.0f})")
-        await self.client.teleport(spot)
+        # Pickup prompts trigger on walking into range, not on teleporting onto
+        # the item: land a short way off, then walk onto it.
+        from wizwalker import XYZ
+
+        await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
         await asyncio.sleep(0.8)
+        await self.client.goto(spot.x, spot.y)
+        await asyncio.sleep(0.3)
         await press_interact()
         return True

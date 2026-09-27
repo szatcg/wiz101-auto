@@ -43,8 +43,33 @@ class Strategy:
     summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage
 
 
+# Without readable stats, assume the usual pattern: a monster resists its own
+# school and is weak to the opposite one.
+OPPOSITE = {"fire": "ice", "ice": "fire", "storm": "myth", "myth": "storm", "life": "death", "death": "life"}
+DEFAULT_SAME_SCHOOL_RESIST = 0.3
+DEFAULT_OPPOSITE_BOOST = 0.3
+
+
+def school_multiplier(card: Card, attacker: Combatant, target: Combatant) -> float:
+    """Damage multiplier from the target's resistance/weakness to the card's school
+    and the attacker's damage bonus for it."""
+    school = card.school.lower()
+    if not school:
+        return 1.0
+    if target.resist is not None:
+        resist = target.resist.get(school, 0.0)
+    elif target.school and school == target.school:
+        resist = DEFAULT_SAME_SCHOOL_RESIST
+    elif target.school and OPPOSITE.get(target.school) == school:
+        resist = -DEFAULT_OPPOSITE_BOOST
+    else:
+        resist = 0.0
+    return max(0.0, 1 - resist) * (1 + attacker.damage_bonus.get(school, 0.0))
+
+
 def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     mult = (1 + attacker.outgoing_boost) * (1 + target.incoming_boost)
+    mult *= school_multiplier(card, attacker, target)
     return max(0.0, card.base_damage() * mult * (card.accuracy / 100.0))
 
 

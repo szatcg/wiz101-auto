@@ -159,3 +159,23 @@ def test_does_not_summon_while_a_minion_is_out_or_when_healing_is_urgent():
     assert decide(b).card.name == "Blood Bat"
     hurt = battle([heal_card(0, "Pixie", 400), summon_card(1)], [enemy("Troll", 500)], my=me(hp=100))
     assert decide(hurt).card.name == "Pixie"
+
+
+def school_card(i, name, school, dmg):
+    effects = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, dmg)]
+    return Card(i, name, school=school, pip_cost=1, effects=effects)
+
+
+def test_prefers_a_spell_the_target_does_not_resist():
+    myth_bat = school_card(0, "Blood Bat", "Myth", 90)
+    fire_cat = school_card(1, "Fire Cat", "Fire", 80)
+    boss = enemy("General Akilles", 1000, boss=True, school="myth", resist={"myth": 0.4})
+    action = decide(battle([myth_bat, fire_cat], [boss]), Strategy(boss_setup=False))
+    assert action.card.name == "Fire Cat"
+
+
+def test_falls_back_to_school_opposites_without_stats():
+    storm = school_card(0, "Thunder Snake", "Storm", 100)
+    myth = school_card(1, "Blood Bat", "Myth", 100)
+    target = enemy("Troll", 1000, school="myth")
+    assert expected_damage(storm, me(), target) > expected_damage(myth, me(), target)

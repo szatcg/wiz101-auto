@@ -133,3 +133,10 @@ def test_stall_defaults():
     from wiz101_auto.config import SafetyConfig
 
     assert SafetyConfig().stall_seconds == 15.0
+
+
+def test_per_school_maps_the_stat_vector_and_normalises_percents():
+    from wiz101_auto.combat.reader import per_school
+
+    assert per_school([0.0, 0.0, 0.0, 0.4], 0.05)["myth"] == 0.45
+    assert per_school([10.0, -20.0])["ice"] == -0.2

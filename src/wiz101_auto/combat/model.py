@@ -108,7 +108,11 @@ class Combatant:
     is_boss: bool = False
     is_dead: bool = False
     is_minion: bool = False
-    school: str = ""
+    school: str = ""  # lower case, e.g. "myth"
+    # Per-school incoming damage reduction as a fraction (0.3 = resists 30%,
+    # negative = takes extra). None when the stats couldn't be read.
+    resist: dict[str, float] | None = None
+    damage_bonus: dict[str, float] = field(default_factory=dict)  # outgoing, per school
     # Summed percentages of hanging effects, e.g. two +25% blades -> 0.5
     outgoing_boost: float = 0.0  # blades (positive) / weaknesses (negative)
     incoming_boost: float = 0.0  # traps (positive) / shields (negative)

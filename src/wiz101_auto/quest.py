@@ -19,7 +19,7 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
-from .collect import Collector, collect_item_name
+from .collect import LANDMARK_NAMES, Collector, collect_item_name, spread_points
 from .config import QuestConfig
 from .deck import close_spellbook
 from .npc import ServicesMenu
@@ -41,6 +41,8 @@ DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 SIGIL_WAIT = 20.0  # the countdown after pressing X is ~10s
+FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
+FAR_SWEEP_MAX = 25
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -389,6 +391,12 @@ class Quester:
 
     async def _press_collect(self):
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
+            # Like NPCs and sigils, the prompt appears on walking into range, not teleporting.
+            await self.client.send_key(Keycode.S, 0.3)
+            await self.client.send_key(Keycode.W, 0.3)
+            await asyncio.sleep(0.5)
+        if not await ui.is_visible(self.client, ui.NPC_RANGE):
+            logger.debug("no collect prompt at the item")
             return
         for _ in range(3):
             await self.client.send_key(Keycode.X, 0.1)
@@ -417,6 +425,23 @@ class Quester:
                     return True
             await self.client.teleport(start)
             return True
+        # Nothing nearby: pickups only load close to the wizard, so hop across the
+        # zone's landmarks (e.g. Triton's cogs are ~20k units from the entrance).
+        if getattr(self, "_far_swept_for", None) != objective:
+            self._far_swept_for = objective
+            start = await self.client.body.position()
+            spots = spread_points(await self._landmarks(), (start.x, start.y, start.z), FAR_SWEEP_SPACING)
+            logger.info(f"nothing near here; searching {len(spots)} landmarks across the zone for {item!r}")
+            for p in spots[:FAR_SWEEP_MAX]:
+                if not await is_free(self.client):
+                    return True
+                self.controller.allow_idle(10)
+                await self.client.teleport(XYZ(*p))
+                await asyncio.sleep(1.5)  # let nearby objects stream in
+                if await self.collector.collect_once(item, self._press_collect):
+                    logger.info(f"found {item!r} near ({p[0]:.0f}, {p[1]:.0f})")
+                    return True
+            return True
         # Already searched: let the quest marker (if any) guide us, else wait for respawns.
         if distance(await self.client.quest_position.position(), XYZ(0, 0, 0)) < 1:
             logger.debug(f"no {item!r} found; waiting for respawns")
@@ -425,6 +450,27 @@ class Quester:
             self._swept_for = None
             return True
         return False
+
+    async def _landmarks(self) -> list[tuple[float, float, float]]:
+        """Positions of ground-level things in the zone (named NPCs/objects, stand-in
+        spots, duel circles) to use as teleport stops for a zone-wide search."""
+        out = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                template = await e.object_template()
+                if not template:
+                    continue
+                name = (await template.object_name() or "").lower()
+                named = bool(await template.display_name())
+                if not named and not any(n in name for n in LANDMARK_NAMES):
+                    continue
+                if "wisp" in name:
+                    continue
+                pos = await e.location()
+                out.append((pos.x, pos.y, pos.z))
+            except Exception:
+                continue
+        return out
 
     async def pull_mob(self):
         """For defeat objectives: teleport onto the closest mob to start a fight."""
@@ -514,8 +560,15 @@ class Quester:
             return
 
         item = collect_item_name(objective)
-        if item and await self.collect(item, objective):
-            return
+        if item:
+            # "Collect Cog in Triton Avenue": searching any other zone is pointless.
+            where = objective_zone(objective)
+            if where and where != zone and gate_toward(zone, where, self._bad_gates):
+                logger.info(f"{objective!r} is in {where}; going there first")
+                await self.go_to_zone(where)
+                return
+            if await self.collect(item, objective):
+                return
 
         target = await self.client.quest_position.position()
         if distance(target, XYZ(0, 0, 0)) < 1:

@@ -187,6 +187,45 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
         return None
 
 
+# Order of the per-school stat vectors (dmg_reduce_percent etc.), as used by Deimos.
+SCHOOL_ORDER = (
+    "fire", "ice", "storm", "myth", "life", "death", "balance", "star", "sun", "moon", "gardening", "shadow",
+)
+_logged_stats: set[str] = set()
+
+
+def per_school(values: list[float], all_schools: float = 0.0) -> dict[str, float]:
+    """Map a stat vector onto school names. Stats may be fractions or percents."""
+    if any(abs(v) > 1.5 for v in [*values, all_schools]):
+        values, all_schools = [v / 100 for v in values], all_schools / 100
+    return {s: v + all_schools for s, v in zip(SCHOOL_ORDER, values, strict=False)}
+
+
+async def _read_school_stats(c: Combatant, participant) -> None:
+    from wizwalker.memory.memory_objects.enums import MagicSchool
+
+    try:
+        c.school = MagicSchool(await participant.primary_magic_school_id()).name
+    except Exception:
+        pass
+    try:
+        stats = await participant.game_stats()
+        if stats is None:
+            return
+        reduce = await stats.dmg_reduce_percent()
+        c.resist = per_school(reduce, await stats.dmg_reduce_percent_all())
+        c.damage_bonus = per_school(await stats.dmg_bonus_percent(), await stats.dmg_bonus_percent_all())
+    except Exception as exc:
+        logger.debug(f"school stats unreadable for {c.name}: {exc}")
+        c.resist = None
+        return
+    if c.name not in _logged_stats:
+        _logged_stats.add(c.name)
+        shown = {s: round(v, 2) for s, v in c.resist.items() if v}
+        raw = [round(v, 3) for v in reduce]
+        logger.info(f"{c.name} ({c.school or '?'}): resists {shown or 'nothing'}; raw {raw}")
+
+
 async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
     participant = await member.get_participant()
     team = await participant.team_id()
@@ -203,6 +242,7 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
         c.is_minion = await member.is_minion()
     except Exception:
         pass
+    await _read_school_stats(c, participant)
     try:
         for eff in await participant.hanging_effects():
             et = (await eff.effect_type()).name
