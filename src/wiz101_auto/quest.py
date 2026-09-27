@@ -252,8 +252,13 @@ class Quester:
             logger.info(f"re-arming the dungeon sigil: leaving to ({away.x:.0f}, {away.y:.0f}), then back")
             await self.client.teleport(away)
             await asyncio.sleep(1.5)
-            await self.client.teleport(sigil)
-            await asyncio.sleep(1.5)
+            # Come back like a player would: land short and walk onto it.
+            dx, dy = away.x - sigil.x, away.y - sigil.y
+            length = math.hypot(dx, dy) or 1.0
+            await self.client.teleport(XYZ(sigil.x + dx / length * 300, sigil.y + dy / length * 300, sigil.z))
+            await asyncio.sleep(1.0)
+            await self.client.goto(sigil.x, sigil.y)
+            await asyncio.sleep(1.0)
         elif distance(await self._position(), sigil) > SIGIL_RANGE:
             await self.client.teleport(sigil)
             await asyncio.sleep(0.8)

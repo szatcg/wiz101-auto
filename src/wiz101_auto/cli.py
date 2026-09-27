@@ -10,6 +10,8 @@ from loguru import logger
 
 from .config import load_config
 
+ACTIVITY_LOG = "activity.log"
+
 
 def _setup_logging(log_file: str | None, verbose: bool):
     logger.remove()
@@ -17,6 +19,15 @@ def _setup_logging(log_file: str | None, verbose: bool):
     logger.add(sys.stderr, level="DEBUG" if verbose else "INFO", format=fmt)
     if log_file:
         logger.add(log_file, level="DEBUG", rotation="10 MB", retention=5)
+        # A short, readable log of what the bot decides and does (no debug noise).
+        logger.add(
+            ACTIVITY_LOG,
+            level="INFO",
+            format="{time:HH:mm:ss} | {level: <7} | {message}",
+            rotation="5 MB",
+            retention=3,
+            encoding="utf-8",
+        )
 
 
 def _lower_priority():
