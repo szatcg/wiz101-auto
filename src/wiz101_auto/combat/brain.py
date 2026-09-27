@@ -412,7 +412,9 @@ def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
         total += n
         parts.append(f"{e.name} {e.health}hp: {how} = {n} round{'s' if n != 1 else ''}")
     boss = any(e.is_boss for e in enemies)
-    skip = not boss and total <= strat.quick_fight_rounds
+    # A quick fight, or a boss fight that's nearly over: a minion (X-pip, all
+    # our pips) would arrive too late to matter.
+    skip = total <= (2 if boss else strat.quick_fight_rounds)
     note = "; skipping the minion (quick fight)" if skip else ""
     return FightPlan(total, f"plan (~{total} rounds): " + " | ".join(parts) + note, skip)
 

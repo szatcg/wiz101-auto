@@ -154,6 +154,7 @@ class Quester:
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
         self._mark: tuple[str | None, str] | None = None  # (dungeon zone, objective) we marked
+        self._mark_tried: set[str] = set()  # interiors already marked (once per visit)
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -330,9 +331,24 @@ class Quester:
             await asyncio.sleep(1.0)
             await ui.confirm_modal(self.client)
             self._mark = (zone, objective)
+            self._mark_tried.add(zone)
             logger.info(f"marked this spot in {zone} (for a quick return after a defeat)")
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
+
+    async def _mark_dungeon(self):
+        """Inside a building/dungeon to defeat something (entered by sigil or a
+        plain door): mark the spot once, so a defeat can Recall back here."""
+        zone = await self.client.zone_name() or ""
+        if "interiors" not in zone.lower():
+            self._mark_tried.clear()  # left: mark again on the next visit
+            return
+        if zone in self._mark_tried:
+            return
+        if not is_combat_objective(await self.objective()):
+            return
+        self._mark_tried.add(zone)
+        await self._mark_here()
 
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
@@ -809,6 +825,7 @@ class Quester:
             return
         if await self._recall_to_mark():
             return
+        await self._mark_dungeon()
         if self.gear:
             self.controller.allow_idle(180)  # trying gear on looks like "nothing happening"
             try:

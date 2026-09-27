@@ -347,3 +347,14 @@ def test_hits_a_trapped_target_instead_of_summoning():
     assert decide(b).card.name == "Troll"
     untrapped = battle([troll, summon], [enemy("Harvest Lord", 900, boss=True)])
     assert decide(untrapped).card.name == "Troll Minion"
+
+
+def test_no_summon_when_the_boss_is_nearly_dead():
+    summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    bat = dmg_card(0, "Blood Bat", 100)
+    b = battle([bat, summon], [enemy("Foulgaze", 550, boss=True)])
+    b.enemies[0].health = 180  # two Blood Bats
+    b.pips = 1
+    assert decide(b).card.name == "Blood Bat"
+    b.enemies[0].health = 550
+    assert decide(b).card.name == "Troll Minion"
