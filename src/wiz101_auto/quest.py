@@ -180,7 +180,6 @@ class Quester:
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
         self._mark: tuple[str | None, str] | None = _load_mark()  # (dungeon zone, objective) we marked
-        self._mark_tried: set[str] = set()  # interiors already marked (once per visit)
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -312,6 +311,9 @@ class Quester:
             return False
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
+            # Mark the entrance: a solo dungeon resets the moment we're defeated,
+            # so a mark inside is useless, but Recall to the sigil saves the walk.
+            await self._mark_here()
             await asyncio.sleep(0.5)
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
@@ -324,7 +326,6 @@ class Quester:
                     logger.success("entered the dungeon")
                     self._sigil_failed_at = None
                     await self._remember_dungeon(zone, sigil)
-                    await self._mark_here()
                     return True
                 if await self.client.in_battle():
                     waited = time.monotonic() - started
@@ -346,8 +347,8 @@ class Quester:
         return False
 
     async def _mark_here(self):
-        """Mark the spot just inside a dungeon: after a defeat, Recall brings us
-        straight back instead of walking to the sigil again."""
+        """Mark this spot (a dungeon's sigil): after a defeat and healing, Recall
+        brings us straight back instead of walking across the world again."""
         try:
             objective = await self.objective()
             zone = await self.client.zone_name()
@@ -358,28 +359,13 @@ class Quester:
             await ui.confirm_modal(self.client)
             self._mark = (zone, objective)
             _save_mark(self._mark)
-            self._mark_tried.add(zone)
-            logger.info(f"marked this spot in {zone} (for a quick return after a defeat)")
+            logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
 
-    async def _mark_dungeon(self):
-        """Inside a building/dungeon to defeat something (entered by sigil or a
-        plain door): mark the spot once, so a defeat can Recall back here."""
-        zone = await self.client.zone_name() or ""
-        if "interiors" not in zone.lower():
-            self._mark_tried.clear()  # left: mark again on the next visit
-            return
-        if zone in self._mark_tried:
-            return
-        if not is_combat_objective(await self.objective()):
-            return
-        self._mark_tried.add(zone)
-        await self._mark_here()
-
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
-        Recall to jump back to the marked dungeon spot. True if we recalled."""
+        Recall to jump back to the marked dungeon entrance. True if we recalled."""
         if not self._mark:
             return False
         marked_zone, marked_objective = self._mark
@@ -392,7 +378,7 @@ class Quester:
             return False
         if not await is_free(self.client):
             return False
-        logger.info(f"recalling to the mark in {marked_zone} instead of walking back")
+        logger.info(f"recalling to the dungeon entrance in {marked_zone} instead of walking back")
         self._mark = None  # one try per mark: never loop on a failing recall
         _save_mark(None)
         self.controller.allow_idle(40)
@@ -419,12 +405,12 @@ class Quester:
                     if await self.client.is_loading():
                         await wait_for_loading(self.client)
                     if await self.client.zone_name() == marked_zone:
-                        logger.success("back at the dungeon mark")
+                        logger.success("recalled to the dungeon entrance")
                         return True
                     if not await is_free(self.client):
                         return False
             timer = await ui.named_text(self.client, "txtRecallTimer")
-            logger.warning(f"recall didn't take us back to the dungeon (recall timer text {timer!r})")
+            logger.warning(f"recall didn't take us to the dungeon entrance (recall timer text {timer!r})")
             return False
         finally:
             self.controller.end_idle()
@@ -876,7 +862,6 @@ class Quester:
             return
         if await self._recall_to_mark():
             return
-        await self._mark_dungeon()
         if self.gear:
             self.controller.allow_idle(180)  # trying gear on looks like "nothing happening"
             try:
