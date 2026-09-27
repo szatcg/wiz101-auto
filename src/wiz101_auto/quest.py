@@ -29,7 +29,15 @@ from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
 from .setbacks import Setbacks
-from .travel_data import find_zone_gate, gate_toward, hops_to_place, objective_zone, quest_spots
+from .travel_data import (
+    find_zone_gate,
+    gate_behind,
+    gate_toward,
+    hops_to_place,
+    learn_gate,
+    objective_zone,
+    quest_spots,
+)
 from .upkeep import (
     clear_popups,
     is_free,
@@ -185,6 +193,9 @@ class Quester:
         self.setbacks = Setbacks.load()
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
+        self._zone_before = ""  # for learning gates on arrival
+        self._deaths_before = 0
+        self._teleported = False  # a recall moved us: not a gate
         self._mark: tuple[str | None, str] | None = _load_mark()  # (dungeon zone, objective) we marked
         self._bad_gates: set[tuple[str, str]] = set()
 
@@ -369,6 +380,23 @@ class Quester:
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
 
+    async def _learn_arrival_gate(self):
+        """Walking from one outdoor zone into another leaves the wizard just in
+        front of the gate back: remember it (the data files miss some gates)."""
+        zone = await self.client.zone_name() or ""
+        prev, deaths = self._zone_before, self.controller.deaths
+        self._zone_before = zone
+        if not prev or prev == zone or deaths != self._deaths_before or self._teleported:
+            self._deaths_before, self._teleported = deaths, False
+            return  # first look, same zone, or a defeat/recall moved us
+        self._deaths_before = deaths
+        if "interiors" in (prev + zone).lower() or prev.split("/")[0] != zone.split("/")[0]:
+            return
+        pos = await self._position()
+        gate = gate_behind(pos, await self.client.body.yaw())
+        if learn_gate(zone, prev, gate):
+            logger.info(f"learned a gate {zone} -> {prev} at ({gate.x:.0f}, {gate.y:.0f})")
+
     async def _note_defeats(self):
         """After a defeat, count it against the objective; the second one sets the
         quest aside for another questline (until a level-up or an hour passes)."""
@@ -437,6 +465,7 @@ class Quester:
                     if await self.client.is_loading():
                         await wait_for_loading(self.client)
                     if await self.client.zone_name() == marked_zone:
+                        self._teleported = True
                         logger.success("recalled to the dungeon entrance")
                         return True
                     if not await is_free(self.client):
@@ -867,7 +896,15 @@ class Quester:
             logger.warning(f"gate {zone} -> {dest_zone} did not work; avoiding it")
             self._bad_gates.add((zone, dest_zone))
         target_zone = objective_zone(objective)
+        if target_zone not in (None, zone) and gate_toward(zone, target_zone, self._bad_gates):
+            # Not next door: go there through the known gates, several hops if needed.
+            logger.info(f"no quest marker for {objective!r}; heading to {target_zone}")
+            if await self.go_to_zone(target_zone) or await self.client.zone_name() != zone:
+                return True
         if target_zone not in (None, zone):
+            if not gate_toward(zone, target_zone, self._bad_gates) and "interiors" not in zone.lower():
+                logger.warning(f"no route from {zone} to {target_zone}; switching quests")
+                return await self.switch_quest()
             if any(to == target_zone for _frm, to in self._bad_gates) and not find_zone_gate(
                 objective, zone, self._bad_gates
             ):
@@ -895,6 +932,7 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
+        await self._learn_arrival_gate()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return
         if await self._recall_to_mark():

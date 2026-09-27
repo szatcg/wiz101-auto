@@ -74,6 +74,7 @@ while the bot is stopped.
 |---|---|
 | `wiz101-auto.log` | full DEBUG log (rotates at 10 MB) |
 | `activity.log` | INFO+ only, short format: what the bot decides/does (read this first) |
+| `state/learned_gates.json` | zone gates learned while playing (missing from the data files, e.g. Haunted Cave) |
 | `state/setbacks.json` | defeats per objective and quests set aside after 2 losses (until a level-up or 1 hour) |
 | `state/mark.json` | the dungeon the wizard marked and for which objective (Recall target after a defeat) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |

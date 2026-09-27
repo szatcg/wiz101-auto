@@ -90,3 +90,27 @@ def test_find_gate_routes_around_blocked_gates():
     objective = "Go To Colossus Boulevard Smith in Colossus Boulevard"
     assert find_gate(objective, "Cyclops", gates, zones)[1] == "Colossus"
     assert find_gate(objective, "Cyclops", gates, zones, {("Cyclops", "Colossus")})[1] == "OldeTown"
+
+
+def test_gate_behind_is_opposite_the_facing_direction():
+    from wizwalker import XYZ
+    from wizwalker.utils import calculate_perfect_yaw
+
+    from wiz101_auto.travel_data import gate_behind
+
+    me = XYZ(1000.0, 1000.0, 0.0)
+    ahead = XYZ(1000.0, 2000.0, 0.0)  # facing +y
+    g = gate_behind(me, calculate_perfect_yaw(me, ahead), 250)
+    assert abs(g.x - 1000) < 20 and abs(g.y - 750) < 20
+
+
+def test_add_gate_keeps_known_gates():
+    from wizwalker import XYZ
+
+    from wiz101_auto.travel_data import add_gate, first_hop_toward
+
+    gates = {"A": [(XYZ(0, 0, 0), "B")]}
+    assert not add_gate(gates, "A", "B", XYZ(5, 5, 0))
+    assert add_gate(gates, "C", "A", XYZ(1, 2, 0))
+    pos, via = first_hop_toward("C", "B", gates)
+    assert via == "A" and (pos.x, pos.y) == (1, 2)

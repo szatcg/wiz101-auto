@@ -9,6 +9,8 @@ names, and the spots of Zeke's/Eloise's hidden quest targets in each zone.
 
 from __future__ import annotations
 
+import json
+import math
 from pathlib import Path
 
 import wizwalker
@@ -19,6 +21,56 @@ _TRAVERSAL_DIR = Path(wizwalker.__file__).parent / "extensions" / "wizsprinter" 
 Gates = dict[str, list[tuple[XYZ, str]]]
 DisplayZones = list[tuple[str, str]]
 Spots = dict[str, list[XYZ]]
+
+# Gates the data files lack (e.g. Triton Avenue <-> Haunted Cave), learned while
+# playing: arriving in a zone puts the wizard just in front of the way back.
+LEARNED_GATES = Path("state") / "learned_gates.json"
+GATE_BEHIND = 250.0  # the gate trigger sits about this far behind the arrival point
+
+
+def gate_behind(pos: XYZ, yaw: float, dist: float = GATE_BEHIND) -> XYZ:
+    """A point `dist` behind a wizard standing at `pos` facing `yaw`. The facing
+    direction is found with WizWalker's own yaw function (the one `goto` uses),
+    so no assumption about the game's angle convention is needed."""
+    from wizwalker.utils import calculate_perfect_yaw
+
+    def off(a: float) -> float:
+        target = XYZ(pos.x + math.cos(a) * 1000, pos.y + math.sin(a) * 1000, pos.z)
+        d = (calculate_perfect_yaw(pos, target) - yaw) % (2 * math.pi)
+        return min(d, 2 * math.pi - d)
+
+    facing = min((math.radians(deg) for deg in range(0, 360, 2)), key=off)
+    return XYZ(pos.x - math.cos(facing) * dist, pos.y - math.sin(facing) * dist, pos.z)
+
+
+def add_gate(gates: Gates, from_zone: str, to_zone: str, pos: XYZ) -> bool:
+    """Add a gate unless one from `from_zone` to `to_zone` is known. True if added."""
+    if any(to == to_zone for _p, to in gates.get(from_zone, [])):
+        return False
+    gates.setdefault(from_zone, []).append((pos, to_zone))
+    return True
+
+
+def _load_learned(gates: Gates):
+    try:
+        for frm, to, x, y, z in json.loads(LEARNED_GATES.read_text(encoding="utf-8")):
+            add_gate(gates, frm, to, XYZ(x, y, z))
+    except Exception:
+        pass
+
+
+def learn_gate(from_zone: str, to_zone: str, pos: XYZ) -> bool:
+    """Remember a gate found while playing (kept in state/learned_gates.json)."""
+    if not add_gate(_data()[0], from_zone, to_zone, pos):
+        return False
+    try:
+        known = json.loads(LEARNED_GATES.read_text(encoding="utf-8")) if LEARNED_GATES.exists() else []
+        known.append([from_zone, to_zone, pos.x, pos.y, pos.z])
+        LEARNED_GATES.parent.mkdir(exist_ok=True)
+        LEARNED_GATES.write_text(json.dumps(known, indent=1), encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+    return True
 
 
 def parse_gates(text: str) -> Gates:
@@ -144,6 +196,7 @@ def _data() -> tuple[Gates, DisplayZones, Spots]:
             display_zones,
             parse_spots((_TRAVERSAL_DIR / "objectLocations.txt").read_text()),
         )
+        _load_learned(_cache[0])
     return _cache
 
 
