@@ -76,15 +76,30 @@ class Fighter(CombatHandler):
 
     async def _cast_at(self, live_card, target, fx: float):
         """Like CombatCard.cast, but clicks the card at `fx` of its width."""
-        r = await live_card._spell_window.scale_to_client()
-        x = int(r.x1 + (r.x2 - r.x1) * fx)
-        y = int((r.y1 + r.y2) / 2)
-        await self.client.mouse_handler.click(x, y)
-        if target is not None:
-            await asyncio.sleep(1.0)
-            await self.client.mouse_handler.click_window(await target.get_health_text_window())
+        try:
+            r = await live_card._spell_window.scale_to_client()
+            x = int(r.x1 + (r.x2 - r.x1) * fx)
+            y = int((r.y1 + r.y2) / 2)
+            await self.client.mouse_handler.click(x, y)
+            if target is not None:
+                await asyncio.sleep(1.0)
+                await self.client.mouse_handler.click_window(await target.get_health_text_window())
+        except (ValueError, AttributeError) as exc:
+            # The round ended (or the target died) while we were clicking.
+            logger.debug(f"cast click failed: {exc!r}")
+            return False
+        return True
 
     async def handle_round(self):
+        # One bad round (UI changing under us, a window gone) mustn't end the fight loop.
+        try:
+            await self._handle_round()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.opt(exception=exc).warning("combat round failed; carrying on")
+
+    async def _handle_round(self):
         self._unusable.clear()  # a card that failed last round may sit in a working slot now
         discards_left = self.max_discards
         for _ in range(MAX_STEPS_PER_ROUND):
@@ -151,7 +166,8 @@ class Fighter(CombatHandler):
 
             target = snap.members.get(id(action.target)) if action.target else None
             before = await self._hand_size()
-            await self._cast_at(live_card, target, self._card_click_x)
+            if not await self._cast_at(live_card, target, self._card_click_x):
+                return  # the round is over
             if await self._committed(before):
                 return
             await self._log_failed_cast(snap, action, target)
@@ -160,7 +176,8 @@ class Fighter(CombatHandler):
             for fx in CLICK_PROBES:
                 if fx == self._card_click_x:
                     continue
-                await self._cast_at(live_card, target, fx)
+                if not await self._cast_at(live_card, target, fx):
+                    return
                 if await self._committed(before):
                     logger.warning(f"cast registered clicking at {fx:.0%} of the card width; using that now")
                     self._card_click_x = fx

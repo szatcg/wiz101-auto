@@ -33,6 +33,13 @@ def _lower_priority():
 
 
 def main(argv: list[str] | None = None):
+    # Game text (window titles, names) can hold characters the Windows console
+    # encoding lacks; print a placeholder instead of crashing `status`/`inspect`.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser(prog="wiz101-auto", description="Autonomous Wizard101 bot")
     sub = parser.add_subparsers(dest="command", required=True)
 
