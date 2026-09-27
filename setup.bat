@@ -3,7 +3,7 @@ REM One-time setup: creates a virtual environment and installs wiz101-auto.
 REM Everything is logged to state\setup.txt.
 cd /d "%~dp0"
 if not exist state mkdir state
-echo Installing wiz101-auto (setup v8). This takes a few minutes, please wait...
+echo Installing wiz101-auto (setup v9). This takes a few minutes, please wait...
 call :main > state\setup.txt 2>&1
 type state\setup.txt
 echo.

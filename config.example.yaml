@@ -18,6 +18,9 @@ upkeep:
   potion_health_ratio: 0.5
   potion_mana_ratio: 0.2
   collect_wisps: true
+  min_health_to_fight: 0.8  # below this, heal up (potion, wisps, rest) before questing
+  rest_until_health: 0.95
+  rest_max_minutes: 8       # stop the bot if health can't be recovered in this time
   wisp_health_ratio: 0.8
 
 safety:

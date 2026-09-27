@@ -74,6 +74,100 @@ async def maintain(client, cfg: UpkeepConfig):
             logger.warning("low health and no potions; the next fight may be lost")
 
 
+async def collect_wisps(client, cfg: UpkeepConfig, *, mana_too: bool = False, limit: int = 6) -> int:
+    """Teleport onto nearby wisps that aren't close to mobs. Returns how many were taken."""
+    try:
+        wisps = await client.get_health_wisps()
+        if mana_too:
+            wisps += await client.get_mana_wisps()
+        safe = await client.find_safe_entities_from(wisps, safe_distance=cfg.wisp_safe_distance)
+        if not safe:
+            return 0
+        me = await client.body.position()
+        spots = sorted([await w.location() for w in safe], key=lambda p: p.distance(me))[:limit]
+        for spot in spots:
+            await client.teleport(spot)
+            await asyncio.sleep(0.6)
+        return len(spots)
+    except Exception as exc:
+        logger.debug(f"wisp collection failed: {exc}")
+        return 0
+
+
+async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
+    """If a mob is close, teleport to the nearest spot with no mob around."""
+    try:
+        me = await client.body.position()
+        mobs = [await m.location() for m in await client.get_mobs()]
+        if all(p.distance(me) > safe_distance for p in mobs):
+            return False
+        candidates = await client.find_safe_entities_from(
+            await client.get_base_entity_list(), safe_distance=safe_distance
+        )
+        if not candidates:
+            return False
+        spot = min([await c.location() for c in candidates], key=lambda p: p.distance(me))
+        logger.info("moving away from mobs to rest")
+        await client.teleport(spot)
+        await asyncio.sleep(1.0)
+        return True
+    except Exception as exc:
+        logger.debug(f"could not find a safe spot: {exc}")
+        return False
+
+
+async def recover(client, cfg: UpkeepConfig, controller) -> bool:
+    """Make sure the wizard is healthy before engaging anything.
+
+    Returns True when it's fine to carry on questing, False if something
+    (a fight, dialogue, loading) interrupted the recovery.
+    """
+    hp, mana = await health_mana(client)
+    if not cfg.needs_recovery(hp):
+        return True
+    logger.info(f"health {hp:.0%} is below {cfg.min_health_to_fight:.0%}; recovering before going on")
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    last_report = started
+    rested = False
+    while True:
+        await controller.checkpoint()
+        if not await is_free(client):
+            return False
+        hp, mana = await health_mana(client)
+        if hp >= cfg.rest_until_health:
+            logger.success(f"recovered to {hp:.0%} health")
+            return True
+
+        if cfg.use_potions and hp < cfg.potion_health_ratio and await client.stats.potion_charge() >= 1.0:
+            logger.info(f"drinking potion (hp {hp:.0%})")
+            await ui.click(client, ui.POTION_BUTTON)
+            await asyncio.sleep(1.5)
+            continue
+
+        if cfg.collect_wisps and await collect_wisps(client, cfg, mana_too=mana < 0.5):
+            continue
+
+        if not rested:
+            await move_to_safety(client)
+            rested = True
+
+        elapsed = loop.time() - started
+        if elapsed > cfg.rest_max_minutes * 60:
+            if hp >= cfg.min_health_to_fight:
+                return True
+            controller.stop(
+                f"could not recover health ({hp:.0%}) within {cfg.rest_max_minutes:g} min: "
+                "no potions and no safe wisps nearby"
+            )
+            return False
+        if loop.time() - last_report > 60:
+            logger.info(f"resting: health {hp:.0%}, waiting for regeneration or wisps to respawn")
+            last_report = loop.time()
+        await asyncio.sleep(5)
+
+
 async def clear_popups(client):
     await ui.click(client, ui.CANCEL_CHEST_REROLL)
     if await ui.is_visible(client, ui.MISSING_AREA_RETRY):

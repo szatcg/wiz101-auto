@@ -99,3 +99,13 @@ def test_npc_menu_ranking_prefers_objective_words():
     labels = ["Unicorn Way Bounty", "Sergeant Muldoon: Olde Town", "Shop"]
     assert rank_options(labels, "Talk to Sergeant Muldoon in Olde Town")[0] == 1
     assert rank_options(["A", "B"], "whatever") == [0, 1]  # stable when nothing matches
+
+
+def test_needs_recovery_threshold():
+    from wiz101_auto.config import UpkeepConfig
+
+    cfg = UpkeepConfig(min_health_to_fight=0.8)
+    assert cfg.needs_recovery(33 / 425)
+    assert not cfg.needs_recovery(0.9)
+    myth = load_config(Path(__file__).parent.parent / "configs" / "myth.yaml")
+    assert myth.upkeep.min_health_to_fight == 0.85

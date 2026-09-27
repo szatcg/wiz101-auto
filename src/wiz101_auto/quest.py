@@ -21,7 +21,7 @@ from wizwalker import XYZ, Keycode
 from . import ui
 from .config import QuestConfig
 from .npc import ServicesMenu
-from .upkeep import clear_popups, is_free, wait_for_loading, wait_until_free
+from .upkeep import clear_popups, is_free, recover, wait_for_loading, wait_until_free
 
 INTERACT_RANGE = 750.0
 BOUNCE_DISTANCE = 20.0
@@ -35,8 +35,9 @@ def distance(a: XYZ, b: XYZ) -> float:
 
 
 class Quester:
-    def __init__(self, client, cfg: QuestConfig, controller, progression=None):
+    def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None):
         self.client = client
+        self.upkeep = upkeep
         self.progression = progression
         self.services = ServicesMenu(client)
         self.cfg = cfg
@@ -215,6 +216,8 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if self.upkeep and not await recover(self.client, self.upkeep, self.controller):
+            return
         if self.progression:
             await self.progression.tick()
             if not await is_free(self.client):

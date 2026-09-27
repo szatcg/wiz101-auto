@@ -29,6 +29,15 @@ class UpkeepConfig:
     potion_mana_ratio: float = 0.2
     collect_wisps: bool = True
     wisp_health_ratio: float = 0.8  # grab nearby wisps below this after a fight
+    # Before questing on: recover (potion, wisps, resting away from mobs)
+    # whenever health is below min_health_to_fight, until rest_until_health.
+    min_health_to_fight: float = 0.8
+    rest_until_health: float = 0.95
+    rest_max_minutes: float = 8.0  # give up and stop the bot if still too low after this
+    wisp_safe_distance: float = 900.0  # skip wisps closer than this to a mob
+
+    def needs_recovery(self, health_ratio: float) -> bool:
+        return health_ratio < self.min_health_to_fight
 
 
 @dataclass

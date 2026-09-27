@@ -15,9 +15,10 @@ from .config import Config
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
-from .upkeep import dialogue_loop, is_free, maintain
+from .upkeep import dialogue_loop, is_free, maintain, recover
 
 HOOK_TIMEOUT = 90
+DEATH_HEALTH_RATIO = 0.1
 
 
 def new_handler() -> ClientHandler:
@@ -74,7 +75,9 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
             await fighter.handle_combat()
             await asyncio.sleep(1.5)
             hp = await client.stats.current_hitpoints()
-            if hp <= 1:
+            max_hp = await client.stats.max_hitpoints()
+            if hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO):
+                # Losing a fight sends you back with a sliver of health.
                 controller.record_death()
             elif await is_free(client):
                 await maintain(client, cfg.upkeep)
@@ -101,6 +104,8 @@ async def farm_loop(client, cfg: Config, controller: Controller, progression: Pr
         await controller.checkpoint()
         if await is_free(client):
             await maintain(client, cfg.upkeep)
+            if not await recover(client, cfg.upkeep, controller):
+                continue
             await progression.tick()
             try:
                 await sprinter.tp_to_closest_mob()
@@ -136,7 +141,7 @@ async def run(cfg: Config):
         await progression.start()
         quester = None
         if cfg.mode == "quest":
-            quester = Quester(client, cfg.quest, controller, progression)
+            quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep)
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         elif cfg.mode == "farm":
             tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
