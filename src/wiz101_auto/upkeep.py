@@ -134,7 +134,17 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
     wizard goes back to where it was."""
     try:
         zone = await client.zone_name() or "?"
-        wisps = await scan_wisps(client)
+        await scan_wisps(client)  # remember every spawn spot seen
+        # The game won't let a full-health wizard take a health wisp (or a
+        # full-mana one a mana wisp), so only go for the kinds we can use.
+        hp, mana = await health_mana(client)
+        wisps = []
+        if hp < 0.99:
+            wisps += await client.get_health_wisps()
+        if mana < 0.99:
+            wisps += await client.get_mana_wisps()
+        if not wisps:
+            return 0
         safe = await client.find_safe_entities_from(wisps, safe_distance=cfg.wisp_safe_distance)
         if not safe:
             return 0
@@ -145,10 +155,18 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
         taken = 0
         stranded = False
         for spot in spots:
+            before = await health_mana(client)
             await client.teleport(XYZ(*spot))
             await asyncio.sleep(0.8)
             remaining = [_pt(await w.location()) for w in await scan_wisps(client)]
-            if any(math.dist(spot, r) < 60 for r in remaining):
+            after = await health_mana(client)
+            if after[0] >= 0.99 and after[1] >= 0.99:
+                break  # topped up; whatever is left isn't unreachable, just unneeded
+            # Only judge a wisp unreachable if both kinds were still needed (a
+            # full-health wizard can't take a health wisp even when it's reachable).
+            needed_both = before[0] < 0.99 and before[1] < 0.99
+            gained = after[0] > before[0] or after[1] > before[1]
+            if needed_both and not gained and any(math.dist(spot, r) < 60 for r in remaining):
                 logger.info(f"wisp at ({spot[0]:.0f}, {spot[1]:.0f}) can't be collected; skipping it")
                 _unreachable[(zone, spot)] = time.monotonic()
                 if wisp_memory().forget(zone, spot):
@@ -281,7 +299,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
             # 1. wisps in view  2. remembered spawn points  3. search the zone once
             if await collect_wisps(client, cfg):
                 await asyncio.sleep(0.5)
-                if await health_mana(client) > (hp, mana):
+                now_hp, now_mana = await health_mana(client)
+                if now_hp > hp or now_mana > mana:
                     continue
             zone = await client.zone_name() or "?"
             if await visit_known_spot(client, cfg, zone):
