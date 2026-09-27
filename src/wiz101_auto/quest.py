@@ -177,6 +177,13 @@ class Quester:
         zone = await self.client.zone_name()
         await self._note_progress(objective, zone)
 
+        if await self.services.is_open():
+            # A services menu left open (e.g. after an error) blocks the X prompt.
+            if not await self.services.choose(objective):
+                await self.services.close()
+            await asyncio.sleep(2.0)
+            return
+
         target = await self.client.quest_position.position()
         if distance(target, XYZ(0, 0, 0)) < 1:
             # No marker. Usually a zone change is in progress, or the objective

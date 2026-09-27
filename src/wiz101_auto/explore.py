@@ -54,7 +54,7 @@ async def explore(out_dir: str = "state") -> Path | None:
         Path(out_dir).mkdir(exist_ok=True)
         safe_zone = zone.replace("/", "_")
         path = Path(out_dir) / f"explore_{safe_zone}_{int(time.time())}.txt"
-        path.write_text("\n".join(lines))
+        path.write_text("\n".join(lines), encoding="utf-8", errors="replace")
         print("\n".join(lines[:40]))
         print(f"\n... {len(rows)} entities saved to {path}")
         return path

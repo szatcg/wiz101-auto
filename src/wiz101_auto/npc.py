@@ -82,6 +82,26 @@ async def _clickable(window, out: list, depth: int = 0):
         await _clickable(c, out, depth + 1)
 
 
+async def _option_windows(win) -> list:
+    """The menu's entries are windows named NPCServicesOption*, inside optionsLayout."""
+    found = []
+    for w in await win.get_windows_with_predicate(_is_option):
+        try:
+            if await w.is_visible():
+                found.append(w)
+        except Exception:
+            pass
+    return found
+
+
+async def _is_option(window) -> bool:
+    try:
+        name = (await window.name() or "").lower()
+    except Exception:
+        return False
+    return name.startswith("npcservicesoption")
+
+
 class ServicesMenu:
     def __init__(self, client):
         self.client = client
@@ -90,6 +110,9 @@ class ServicesMenu:
 
     async def is_open(self) -> bool:
         return await ui.is_visible(self.client, NPC_SERVICES)
+
+    async def close(self):
+        await ui.click(self.client, ["WorldView", "NPCServicesWin", "wndDialogMain", "Exit"])
 
     async def choose(self, objective: str) -> bool:
         """Click the most promising untried entry. Returns False if nothing left to try."""
@@ -100,12 +123,13 @@ class ServicesMenu:
             Path("state").mkdir(exist_ok=True)
             path = Path("state") / f"npc_services_window_{int(time.time())}.txt"
             lines = await ui.dump_tree(win, max_depth=10, only_visible=False, with_types=True)
-            path.write_text("\n".join(lines))
+            path.write_text("\n".join(lines), encoding="utf-8", errors="replace")
             logger.info(f"NPC menu layout saved to {path} (send this file for tuning)")
             self._dumped = True
 
-        options: list = []
-        await _clickable(win, options)
+        options = await _option_windows(win)
+        if not options:
+            await _clickable(win, options)
         labels = []
         for i, o in enumerate(options):
             text = await _text_of(o)

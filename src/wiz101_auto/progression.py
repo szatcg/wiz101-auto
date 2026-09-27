@@ -35,13 +35,13 @@ class Progression:
 
     def _load(self) -> dict:
         try:
-            return json.loads(self.state_file.read_text())
+            return json.loads(self.state_file.read_text(encoding="utf-8"))
         except Exception:
             return {}
 
     def _save(self):
         STATE_DIR.mkdir(exist_ok=True)
-        self.state_file.write_text(json.dumps(self.state, indent=2))
+        self.state_file.write_text(json.dumps(self.state, indent=2), encoding="utf-8", errors="replace")
 
     async def start(self):
         self.level = await self.client.stats.reference_level()
@@ -104,7 +104,7 @@ class Progression:
             STATE_DIR.mkdir(exist_ok=True)
             path = STATE_DIR / f"trainer_window_{int(time.time())}.txt"
             lines = await ui.dump_tree(gui, max_depth=10, only_visible=False, with_types=True)
-            path.write_text("\n".join(lines))
+            path.write_text("\n".join(lines), encoding="utf-8", errors="replace")
             logger.info(f"trainer window layout saved to {path} (send this file for tuning)")
             self._trainer_dumped = True
         if self.cfg.auto_train:

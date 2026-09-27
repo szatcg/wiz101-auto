@@ -151,7 +151,7 @@ async def _dump_spellbook(window) -> str:
     Path("state").mkdir(exist_ok=True)
     path = Path("state") / "spellbook_window.txt"
     lines = await ui.dump_tree(window, max_depth=9, only_visible=False, with_types=True)
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8", errors="replace")
     return str(path)
 
 

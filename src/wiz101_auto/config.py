@@ -94,7 +94,7 @@ def load_config(path: str | Path | None) -> Config:
     if path:
         p = Path(path)
         if p.exists():
-            _merge(cfg, yaml.safe_load(p.read_text()) or {})
+            _merge(cfg, yaml.safe_load(p.read_text(encoding="utf-8")) or {})
         else:
             raise FileNotFoundError(p)
     from .safety import parse_hotkey
