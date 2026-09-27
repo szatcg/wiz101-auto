@@ -152,6 +152,8 @@ class Fighter(CombatHandler):
             # Never flee by accident: fleeing costs all of the wizard's mana.
             if await self.cancel_flee_box():
                 continue
+            if await ui.dismiss_notice(self.client):
+                continue
 
             if out_of_mana(battle):
                 logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: passing")

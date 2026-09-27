@@ -138,6 +138,27 @@ async def confirm_modal(client, buttons: tuple[str, ...] = ("centerButton",)) ->
     return False
 
 
+NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable")
+
+
+async def dismiss_notice(client) -> bool:
+    """Close an information message ("Quest Helper is not allowed for this
+    quest", "You cannot ...") that would otherwise sit on the screen and block
+    clicks, even mid-fight. Questions (flee, dungeon warnings) are left alone."""
+    box = await modal_box(client)
+    if box is None:
+        return False
+    text = await modal_text(box)
+    low = text.lower()
+    if "flee" in low or not any(w in low for w in NOTICE_WORDS):
+        return False
+    logger.info(f"closing message: {text[:100]!r}")
+    for b in ("centerButton", "rightButton", "leftButton"):
+        if await modal_click(client, box, b):
+            return True
+    return False
+
+
 async def click_center(client, window) -> None:
     """Click the exact center (the global 25%-of-width click can land on a
     neighbouring button, e.g. Pass -> Flee)."""

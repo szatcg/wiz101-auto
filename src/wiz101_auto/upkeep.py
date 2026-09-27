@@ -495,6 +495,7 @@ async def close_crowns_shop(client) -> bool:
 
 async def clear_popups(client):
     await close_crowns_shop(client)
+    await ui.dismiss_notice(client)
     if await ui.is_visible(client, ui.ENDORSEMENT):
         logger.info("endorsing the wizard we fought with (Friendly) to close the window")
         if not await ui.click(client, ui.ENDORSE_FRIENDLY):
