@@ -39,7 +39,7 @@ echo --- Game ---
 tasklist /FI "IMAGENAME eq WizardGraphicalClient.exe"
 echo.
 echo --- Bot view (inspect) ---
-wiz101-auto inspect
+".venv\Scripts\python.exe" -m wiz101_auto inspect
 echo.
 echo --- Last log lines ---
 if exist wiz101-auto.log (powershell -NoProfile -Command "Get-Content wiz101-auto.log -Tail 60") else (echo no wiz101-auto.log yet)

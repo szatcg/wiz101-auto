@@ -3,7 +3,7 @@ REM One-time setup: creates a virtual environment and installs wiz101-auto.
 REM Everything is logged to state\setup.txt.
 cd /d "%~dp0"
 if not exist state mkdir state
-echo Installing wiz101-auto. This takes a few minutes, please wait...
+echo Installing wiz101-auto (setup v2). This takes a few minutes, please wait...
 call :main > state\setup.txt 2>&1
 type state\setup.txt
 echo.
@@ -20,6 +20,13 @@ for %%v in (3.14 3.13 3.15 3.16) do (
 )
 if not defined PY (
   python -c "import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)" >nul 2>&1 && set "PY=python"
+)
+if not defined PY (
+  where py >nul 2>&1 && (
+    echo No Python 3.13+ found. Installing Python 3.13 with the Python Install Manager...
+    py install 3.13
+    py -3.13 -c "import sys" >nul 2>&1 && set "PY=py -3.13"
+  )
 )
 if not defined PY (
   echo ERROR: Python 3.13 or newer was not found.
