@@ -12,10 +12,12 @@ Combat itself is handled concurrently by the Fighter task.
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
@@ -132,6 +134,29 @@ def distance(a: XYZ, b: XYZ) -> float:
     return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
 
 
+MARK_FILE = Path("state") / "mark.json"
+
+
+def _load_mark() -> tuple[str | None, str] | None:
+    """The dungeon mark from an earlier run (the game keeps the mark itself)."""
+    try:
+        zone, objective = json.loads(MARK_FILE.read_text(encoding="utf-8"))
+        return zone, objective
+    except Exception:
+        return None
+
+
+def _save_mark(mark: tuple[str | None, str] | None):
+    try:
+        if mark is None:
+            MARK_FILE.unlink(missing_ok=True)
+        else:
+            MARK_FILE.parent.mkdir(exist_ok=True)
+            MARK_FILE.write_text(json.dumps(list(mark)), encoding="utf-8")
+    except OSError as exc:
+        logger.debug(f"could not save the dungeon mark: {exc}")
+
+
 class Quester:
     def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None, dialogue=None):
         self.client = client
@@ -153,7 +178,7 @@ class Quester:
         self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
-        self._mark: tuple[str | None, str] | None = None  # (dungeon zone, objective) we marked
+        self._mark: tuple[str | None, str] | None = _load_mark()  # (dungeon zone, objective) we marked
         self._mark_tried: set[str] = set()  # interiors already marked (once per visit)
         self._bad_gates: set[tuple[str, str]] = set()
 
@@ -331,6 +356,7 @@ class Quester:
             await asyncio.sleep(1.0)
             await ui.confirm_modal(self.client)
             self._mark = (zone, objective)
+            _save_mark(self._mark)
             self._mark_tried.add(zone)
             logger.info(f"marked this spot in {zone} (for a quick return after a defeat)")
         except Exception as exc:
@@ -361,11 +387,13 @@ class Quester:
             return False
         if await self.objective() != marked_objective:
             self._mark = None  # moved on; the mark is stale
+            _save_mark(None)
             return False
         if not await is_free(self.client):
             return False
         logger.info(f"recalling to the mark in {marked_zone} instead of walking back")
         self._mark = None  # one try per mark: never loop on a failing recall
+        _save_mark(None)
         if not await ui.click_named(self.client, "RecallButton"):
             logger.warning("no Recall button to click")
             return False

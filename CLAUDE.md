@@ -74,6 +74,7 @@ while the bot is stopped.
 |---|---|
 | `wiz101-auto.log` | full DEBUG log (rotates at 10 MB) |
 | `activity.log` | INFO+ only, short format: what the bot decides/does (read this first) |
+| `state/mark.json` | the dungeon the wizard marked and for which objective (Recall target after a defeat) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
 | `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |
