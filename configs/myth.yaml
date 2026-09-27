@@ -19,6 +19,8 @@ upkeep:
   wisp_health_ratio: 0.85
 
 safety:
+  stop_key: ctrl+shift+q     # any ctrl/shift/alt combo + one key, e.g. "ctrl+]"
+  pause_key: ctrl+shift+p
   max_hours: 3.0
   max_deaths: 4
 

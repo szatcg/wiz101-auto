@@ -1,7 +1,9 @@
 """Kill switch, pause key and run limits.
 
 Keys are polled with GetAsyncKeyState, so they work while the game window
-has focus without installing a global keyboard hook.
+has focus without installing a global keyboard hook. Hotkeys are written like
+"ctrl+shift+q"; any combination of ctrl/shift/alt plus one key works, which
+matters on compact keyboards without an F-row.
 """
 
 from __future__ import annotations
@@ -18,7 +20,56 @@ class BotStopped(Exception):
     pass
 
 
-VK = {f"F{i}": 0x6F + i for i in range(1, 13)} | {"PAUSE": 0x13, "END": 0x23, "INSERT": 0x2D}
+MODIFIERS = {"ctrl": 0x11, "control": 0x11, "shift": 0x10, "alt": 0x12}
+NAMED_KEYS = {
+    **{f"f{i}": 0x6F + i for i in range(1, 25)},
+    "space": 0x20,
+    "backspace": 0x08,
+    "tab": 0x09,
+    "enter": 0x0D,
+    "capslock": 0x14,
+    "pause": 0x13,
+    "end": 0x23,
+    "home": 0x24,
+    "insert": 0x2D,
+    "delete": 0x2E,
+    "pageup": 0x21,
+    "pagedown": 0x22,
+    "`": 0xC0,
+    "backtick": 0xC0,
+    "-": 0xBD,
+    "=": 0xBB,
+    "[": 0xDB,
+    "]": 0xDD,
+    "\\": 0xDC,
+    ";": 0xBA,
+    "'": 0xDE,
+    ",": 0xBC,
+    ".": 0xBE,
+    "/": 0xBF,
+}
+
+
+def parse_hotkey(text: str) -> tuple[int, ...]:
+    """'ctrl+shift+q' -> virtual-key codes that must all be held."""
+    parts = [p.strip().lower() for p in text.replace(" ", "").split("+") if p.strip()]
+    if not parts:
+        raise ValueError("empty hotkey")
+    *mods, key = parts
+    codes = []
+    for m in mods:
+        if m not in MODIFIERS:
+            raise ValueError(f"unknown modifier {m!r} in hotkey {text!r} (use ctrl, shift, alt)")
+        codes.append(MODIFIERS[m])
+    if len(key) == 1 and key.isalnum():
+        codes.append(ord(key.upper()))
+    elif key in NAMED_KEYS:
+        codes.append(NAMED_KEYS[key])
+    elif key in MODIFIERS:
+        raise ValueError(f"hotkey {text!r} needs a non-modifier key at the end")
+    else:
+        raise ValueError(f"unknown key {key!r} in hotkey {text!r}")
+    return tuple(codes)
 
 
 def _key_down(vk: int) -> bool:
@@ -27,10 +78,14 @@ def _key_down(vk: int) -> bool:
     return bool(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000)
 
 
+def _combo_down(codes: tuple[int, ...]) -> bool:
+    return all(_key_down(c) for c in codes)
+
+
 class Controller:
     def __init__(self, stop_key: str, pause_key: str, max_hours: float, max_deaths: int):
-        self.stop_vk = VK[stop_key.upper()]
-        self.pause_vk = VK[pause_key.upper()]
+        self.stop_keys = parse_hotkey(stop_key)
+        self.pause_keys = parse_hotkey(pause_key)
         self.deadline = time.monotonic() + max_hours * 3600 if max_hours > 0 else None
         self.max_deaths = max_deaths
         self.deaths = 0
@@ -65,10 +120,10 @@ class Controller:
     async def watch(self):
         was_pause_down = False
         while not self.stopped.is_set():
-            if _key_down(self.stop_vk):
+            if _combo_down(self.stop_keys):
                 self.stop("stop key pressed")
                 break
-            pause_down = _key_down(self.pause_vk)
+            pause_down = _combo_down(self.pause_keys)
             if pause_down and not was_pause_down:
                 if self.paused:
                     logger.info("resumed")

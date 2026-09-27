@@ -21,8 +21,8 @@ upkeep:
   wisp_health_ratio: 0.8
 
 safety:
-  stop_key: F9
-  pause_key: F10
+  stop_key: ctrl+shift+q     # any ctrl/shift/alt combo + one key, e.g. "ctrl+]"
+  pause_key: ctrl+shift+p
   max_hours: 4.0            # 0 = no limit
   max_deaths: 5
   mouseless: true           # clicks via a memory hook; your real mouse stays free

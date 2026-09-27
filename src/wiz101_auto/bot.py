@@ -16,6 +16,8 @@ from .quest import Quester
 from .safety import BotStopped, Controller
 from .upkeep import dialogue_loop, is_free, maintain
 
+HOOK_TIMEOUT = 90
+
 
 async def connect(handler: ClientHandler):
     clients = handler.get_new_clients()
@@ -26,7 +28,15 @@ async def connect(handler: ClientHandler):
     if len(clients) > 1:
         logger.info(f"{len(clients)} game windows found; using the {'focused' if focused else 'first'} one")
     logger.info("activating hooks (can take a few seconds; move your wizard a step if it stalls)")
-    await client.activate_hooks()
+    try:
+        await asyncio.wait_for(client.activate_hooks(), timeout=HOOK_TIMEOUT)
+    except TimeoutError:
+        raise SystemExit(
+            f"Hooks did not activate within {HOOK_TIMEOUT}s. Make sure your wizard is loaded into the "
+            "world (not the login or character screen), walk a step while it starts, and try running "
+            "as Administrator."
+        ) from None
+    logger.success("connected to the game")
     return client
 
 

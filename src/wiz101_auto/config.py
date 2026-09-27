@@ -33,8 +33,8 @@ class UpkeepConfig:
 
 @dataclass
 class SafetyConfig:
-    stop_key: str = "F9"
-    pause_key: str = "F10"
+    stop_key: str = "ctrl+shift+q"
+    pause_key: str = "ctrl+shift+p"
     max_hours: float = 4.0
     max_deaths: int = 5
     mouseless: bool = True  # clicks through a memory hook so your real mouse stays free
@@ -97,6 +97,10 @@ def load_config(path: str | Path | None) -> Config:
             _merge(cfg, yaml.safe_load(p.read_text()) or {})
         else:
             raise FileNotFoundError(p)
+    from .safety import parse_hotkey
+
+    parse_hotkey(cfg.safety.stop_key)  # fail early on a typo, not mid-session
+    parse_hotkey(cfg.safety.pause_key)
     if cfg.mode not in ("quest", "fight", "farm"):
         raise ValueError(f"mode must be quest, fight or farm, not {cfg.mode!r}")
     return cfg

@@ -17,7 +17,7 @@ card-evaluation logic.
 | **Combat** | Reads every card in hand (damage, target, pips, accuracy, enchants), every combatant (health, blades, traps, shields, boss flag) and your pips. Each step it heals when low, enchants its attack, stacks blades or traps against bosses, picks the spell and target that removes the most enemy health (kills weighted heavily), sets up while waiting for pips, and discards dead cards. |
 | **Progression** | Notices level-ups and new spells and rebuilds your deck from your spellbook: the best attacks (always keeping a cheap one for round one), a heal, a blade, a trap and a shield, all within copy limits. When a spell trainer window is open, it tries to train (experimental). |
 | **Upkeep** | Advances dialogue, declines side quests (configurable), drinks potions, picks up health and mana wisps after fights, and retries areas that haven't downloaded. |
-| **Safety** | **F9** stops the bot and **F10** pauses or resumes it. It also stops after a maximum run time, too many deaths, or no quest progress for N minutes. |
+| **Safety** | **Ctrl+Shift+Q** stops the bot and **Ctrl+Shift+P** pauses or resumes it. It also stops after a maximum run time, too many deaths, or no quest progress for N minutes. |
 
 Modes: `quest` (default), `fight` (you walk, it fights) and `farm` (fights
 the nearest mob over and over).
@@ -48,7 +48,7 @@ the nearest mob over and over).
    ```bat
    wiz101-auto run -c config.yaml
    ```
-   (or `run.bat`). Press **F9** to stop.
+   (or `run.bat`). Press **Ctrl+Shift+Q** to stop.
 
 If hooks fail to activate, run the terminal **as Administrator** and move
 your wizard one step (some hooks only fire on movement).
@@ -66,10 +66,12 @@ your wizard one step (some hooks only fire on movement).
 | `wiz101-auto deck --apply` | Rebuild the in-game deck from that plan. |
 | `wiz101-auto explore` | Save every nearby NPC, door and mob with its position to `state/explore_*.txt`. |
 
-**Double-click shortcuts:** `inspect.bat`, `deck.bat` and `explore.bat`
-run those commands and save the output to the `state` folder, ready to send.
+**Double-click shortcuts:** `doctor.bat` checks the whole setup (Python,
+install, config, game, what the bot sees) and saves `state\doctor.txt`.
+`inspect.bat`, `deck.bat` and `explore.bat` run those commands and save the
+output to the `state` folder, ready to send.
 
-**Keys while running:** **F9** stops and **F10** pauses or resumes. The keys
+**Keys while running:** **Ctrl+Shift+Q** stops and **Ctrl+Shift+P** pauses or resumes (Ctrl+C in the bot window also stops it). The keys
 can be changed under `safety`.
 
 **Settings:** everything is in `config.yaml`, which starts as a copy of
@@ -144,7 +146,7 @@ src/wiz101_auto/
   bot.py            connects to the client and runs the concurrent loops
   quest.py          quest-arrow following, travel, interaction
   upkeep.py         dialogue, potions, wisps, popups
-  safety.py         F9/F10 keys, run limits, death counter
+  safety.py         stop/pause hotkeys, run limits, death counter
   ui.py             UI window paths and helpers
   progression.py    level-up / new-spell detection, trainer handling
   deck.py           spellbook reading and deck rebuilding (DeckBuilder)

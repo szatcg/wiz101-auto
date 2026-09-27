@@ -60,3 +60,34 @@ def test_wrong_type_rejected(tmp_path):
 def test_myth_preset_loads():
     cfg = load_config(Path(__file__).parent.parent / "configs" / "myth.yaml")
     assert cfg.progression.school == "Myth"
+
+
+@pytest.mark.parametrize(
+    "text,codes",
+    [
+        ("ctrl+shift+q", (0x11, 0x10, ord("Q"))),
+        ("Ctrl + ]", (0x11, 0xDD)),
+        ("F9", (0x78,)),
+        ("alt+1", (0x12, ord("1"))),
+        ("ctrl+backtick", (0x11, 0xC0)),
+    ],
+)
+def test_parse_hotkey(text, codes):
+    from wiz101_auto.safety import parse_hotkey
+
+    assert parse_hotkey(text) == codes
+
+
+@pytest.mark.parametrize("bad", ["", "ctrl+", "ctrl+shift", "hyper+q", "ctrl+nope"])
+def test_parse_hotkey_rejects(bad):
+    from wiz101_auto.safety import parse_hotkey
+
+    with pytest.raises(ValueError):
+        parse_hotkey(bad)
+
+
+def test_bad_hotkey_in_config(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("safety:\n  stop_key: ctrl+nope\n")
+    with pytest.raises(ValueError, match="nope"):
+        load_config(p)
