@@ -122,6 +122,10 @@ class Combatant:
     blade_count: int = 0
     trap_count: int = 0
     shield_count: int = 0
+    # Individual hanging effects: (key, school, fraction). key tells copies of the
+    # same spell apart from different spells; school "" means every school.
+    incoming_effects: list[tuple[str, str, float]] = field(default_factory=list)  # traps/shields
+    outgoing_effects: list[tuple[str, str, float]] = field(default_factory=list)  # blades/weaknesses
 
     @property
     def health_ratio(self) -> float:

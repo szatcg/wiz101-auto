@@ -309,3 +309,18 @@ def test_quick_fight_skips_the_minion_and_plans_trap_then_troll():
     assert decide(b).card.name == "Myth Trap"
     boss = battle([troll, summon, myth_trap], [enemy("Alicane", 480, boss=True)])
     assert not plan_fight(boss).skip_summon
+
+
+def test_identical_traps_trigger_once_and_only_for_their_school():
+    from wiz101_auto.combat.brain import hit_damage
+
+    troll = dmg_card(0, "Troll", 100)
+    troll.school = "Myth"
+    storm = dmg_card(1, "Thunder Snake", 100)
+    storm.school = "Storm"
+    target = enemy("Alicane", 480)
+    target.incoming_effects = [("spell:1", "myth", 0.4), ("spell:1", "myth", 0.4)]  # two Myth Traps
+    assert round(hit_damage(troll, me(), target)) == 140  # not 180 or 196
+    assert round(hit_damage(storm, me(), target)) == 100  # a Myth Trap doesn't boost Storm
+    target.incoming_effects.append(("spell:2", "", 0.3))  # a different, all-school trap
+    assert round(hit_damage(troll, me(), target)) == 182  # 1.4 * 1.3

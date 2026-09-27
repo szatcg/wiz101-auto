@@ -82,20 +82,37 @@ def school_multiplier(card: Card, attacker: Combatant, target: Combatant) -> flo
     return max(0.0, 1 - resist) * (1 + attacker.damage_bonus.get(school, 0.0))
 
 
+def effect_multiplier(effects: list[tuple[str, str, float]], fallback: float, school: str) -> float:
+    """A hit uses one of each distinct trap/blade (copies of the same spell
+    don't stack) whose school matches the spell's; different ones multiply."""
+    if not effects:
+        return 1 + fallback
+    school = school.lower()
+    mult, seen = 1.0, set()
+    for key, eff_school, value in effects:
+        if key in seen or (eff_school and eff_school != school):
+            continue
+        seen.add(key)
+        mult *= 1 + value
+    return mult
+
+
 def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     """Damage if the spell lands: base damage with blades/weaknesses on the
     attacker, traps/shields on the target, and school resist/bonus."""
-    mult = (1 + attacker.outgoing_boost) * (1 + target.incoming_boost)
+    blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
+    trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
+    mult = blade * trap
     mult *= school_multiplier(card, attacker, target)
     return max(0.0, card.base_damage() * mult)
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:
     """The multipliers behind a damage estimate, for the log."""
-    return (
-        f"x{1 + target.incoming_boost:.2f} trap/shield, x{1 + attacker.outgoing_boost:.2f} blade, "
-        f"x{school_multiplier(card, attacker, target):.2f} school"
-    )
+    trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
+    blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
+    school = school_multiplier(card, attacker, target)
+    return f"x{trap:.2f} trap/shield, x{blade:.2f} blade, x{school:.2f} school"
 
 
 def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
@@ -348,7 +365,11 @@ def _rounds_to_kill(battle: Battle, target: Combatant) -> tuple[int, str]:
     if traps and not _is_trapped(target):
         trap = max(traps, key=lambda c: sum(e.value for e in c.effects))
         boost = sum(e.value for e in trap.effects if e.kind is EffectKind.TRAP) / 100
-        trapped = Combatant(**{**target.__dict__, "incoming_boost": target.incoming_boost + boost})
+        planned = (f"planned:{trap.name}", trap.school.lower(), boost)
+        effects = target.incoming_effects
+        if not effects and target.incoming_boost:
+            effects = [("existing", "", target.incoming_boost)]
+        trapped = Combatant(**{**target.__dict__, "incoming_effects": [*effects, planned]})
         for c in sorted(attacks, key=lambda c: c.pip_cost):
             if c.pip_cost <= pips + 1 and hit_damage(c, me, trapped) >= target.health:
                 return 2, f"{trap.name}, then {c.name} (~{hit_damage(c, me, trapped):.0f})"
@@ -432,7 +453,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
         if (
             card.pip_cost >= 2
             and dmg < focus.health
-            and not _is_trapped(focus)
+            and effect_multiplier(focus.incoming_effects, focus.incoming_boost, card.school) <= 1.0
             and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips
         ):
             return Action(ActionKind.PASS, reason=f"holding {card.name} until {focus.name} is trapped")

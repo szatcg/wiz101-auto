@@ -235,6 +235,25 @@ async def _read_school_stats(c: Combatant, participant) -> None:
         logger.info(f"{c.name} ({c.school or '?'}): resists {shown or 'nothing'}; raw {raw}")
 
 
+_ALL_SCHOOLS = {"", "all", "universal", "none"}
+
+
+async def _effect_identity(eff, param) -> tuple[str, str]:
+    """(key, school) of a hanging effect: copies of one spell share a key; the
+    school is lower case, "" when it applies to every school."""
+    try:
+        school = (await eff.string_damage_type() or "").strip().lower()
+    except Exception:
+        school = ""
+    if school in _ALL_SCHOOLS:
+        school = ""
+    try:
+        tid = await eff.spell_template_id()
+    except Exception:
+        tid = 0
+    return (f"spell:{tid}" if tid else f"{param}:{school}"), school
+
+
 async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
     participant = await member.get_participant()
     team = await participant.team_id()
@@ -256,12 +275,15 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
         for eff in await participant.hanging_effects():
             et = (await eff.effect_type()).name
             param = await eff.effect_param()
+            key, school = await _effect_identity(eff, param)
             if et == "modify_outgoing_damage":
                 c.outgoing_boost += param / 100
+                c.outgoing_effects.append((key, school, param / 100))
                 if param > 0:
                     c.blade_count += 1
             elif et == "modify_incoming_damage":
                 c.incoming_boost += param / 100
+                c.incoming_effects.append((key, school, param / 100))
                 if param > 0:
                     c.trap_count += 1
                 else:
