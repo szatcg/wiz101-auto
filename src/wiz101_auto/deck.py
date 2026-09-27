@@ -158,6 +158,17 @@ async def _dump_spellbook(window) -> str:
 # Tabs/buttons that lead to the deck-editing page; the name has differed
 # between game versions, so try a few.
 DECK_PAGE_BUTTONS = ("Deck", "DeckTab", "btnDeck", "Decks", "DeckButton")
+# The known-spells list. WizWalker expects "SpellList"; the current client
+# calls it "AllPageSpellList" (with a hidden "SchoolPageSpellList" beside it).
+SPELL_LIST_NAMES = ("AllPageSpellList", "SpellList", "SchoolPageSpellList")
+
+
+async def _find_spell_list(parent):
+    for name in SPELL_LIST_NAMES:
+        found = await _first_visible(parent, name)
+        if found:
+            return found
+    return None
 
 
 async def _attach_builder(client) -> DeckBuilder:
@@ -171,7 +182,7 @@ async def _attach_builder(client) -> DeckBuilder:
         raise RuntimeError("spellbook closed unexpectedly")
 
     loop = asyncio.get_running_loop()
-    spell_list = await _first_visible(window, "SpellList")
+    spell_list = await _find_spell_list(window)
     for attempt in range(3):
         if spell_list:
             break
@@ -186,7 +197,7 @@ async def _attach_builder(client) -> DeckBuilder:
             await asyncio.sleep(0.3)
             # Switching pages can rebuild the spellbook window, so search the
             # whole UI rather than the window we started with.
-            spell_list = await _first_visible(client.root_window, "SpellList")
+            spell_list = await _find_spell_list(client.root_window)
             if spell_list:
                 window = await _visible_spellbook(client) or window
 
@@ -220,6 +231,48 @@ class _Builder(DeckBuilder):
     def __init__(self, client, spell_list_window):
         super().__init__(client)
         self._spell_list_window = spell_list_window
+
+    # WizWalker looks these windows up by name from the root, which breaks on
+    # the renamed spell list and on hidden duplicates; use the visible ones.
+    async def _visible(self, name: str):
+        w = await _first_visible(self._deck_config_window, name)
+        if w is None:
+            raise ValueError(f"spellbook window {name!r} not visible")
+        return w
+
+    async def get_spell_list_rectangle(self):
+        return await self._spell_list_window.scale_to_client()
+
+    async def get_deck_list_rectangle(self):
+        return await (await self._visible("CardsInDeck")).scale_to_client()
+
+    async def get_item_spells_rectangle(self):
+        return await (await self._visible("ItemSpells")).scale_to_client()
+
+    async def set_page(self, page_number: int):
+        from wizwalker.memory.memory_objects.window import DynamicSpellListControl
+
+        control = DynamicSpellListControl(
+            self.client.hook_handler, await self._spell_list_window.read_base_address()
+        )
+        await control.write_start_index(page_number * 6)
+
+    async def clear_deck(self):
+        """Remove every card by clicking the first deck slot.
+
+        The Clear Deck button is hidden on small decks, and WizWalker's fallback
+        retries by recursing forever if clicks don't register.
+        """
+        for _ in range(2):
+            count = await self.get_deck_count()
+            if count == 0:
+                return
+            x, y = await self.calculate_deck_card_position(1)
+            for _ in range(count):
+                await self.client.mouse_handler.click(x, y)
+                await asyncio.sleep(0.25)
+            await asyncio.sleep(0.5)
+        logger.warning("deck may not be fully cleared")
 
     async def get_spell_list(self):
         from wizwalker.memory.memory_objects.window import DynamicSpellListControl
@@ -259,5 +312,12 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         except Exception as exc:  # max copies, deck full, or UI hiccup
             logger.debug(f"add {name} x{copies} stopped: {exc}")
         await asyncio.sleep(0.3)
-    logger.success("deck rebuilt")
+    await asyncio.sleep(0.5)
+    count = await builder.get_deck_count()
+    if count == 0:
+        raise DeckPageNotFound(
+            "Deck rebuild left the deck EMPTY (card clicks did not register). "
+            "Re-add your spells by hand in the spellbook (P) and send wiz101-auto.log to Claude."
+        )
+    logger.success(f"deck rebuilt ({count} cards)")
     return known, plan
