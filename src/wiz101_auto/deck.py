@@ -135,6 +135,31 @@ async def rebuild_deck(
         await close_spellbook(client)
 
 
+async def _first_visible(parent, name: str):
+    for w in await parent.get_windows_with_name(name):
+        try:
+            if await w.is_visible():
+                return w
+        except Exception:
+            pass
+    return None
+
+
+async def _dump_spellbook(window) -> str:
+    from pathlib import Path
+
+    Path("state").mkdir(exist_ok=True)
+    path = Path("state") / "spellbook_window.txt"
+    lines = await ui.dump_tree(window, max_depth=9, only_visible=False, with_types=True)
+    path.write_text("\n".join(lines))
+    return str(path)
+
+
+# Tabs/buttons that lead to the deck-editing page; the name has differed
+# between game versions, so try a few.
+DECK_PAGE_BUTTONS = ("Deck", "DeckTab", "btnDeck", "Decks", "DeckButton")
+
+
 async def _attach_builder(client) -> DeckBuilder:
     """Point DeckBuilder at the already-open spellbook and switch to the deck page.
 
@@ -144,15 +169,65 @@ async def _attach_builder(client) -> DeckBuilder:
     window = await _visible_spellbook(client)
     if window is None:
         raise RuntimeError("spellbook closed unexpectedly")
-    builder = DeckBuilder(client)
+
+    loop = asyncio.get_running_loop()
+    spell_list = await _first_visible(window, "SpellList")
+    for attempt in range(3):
+        if spell_list:
+            break
+        for name in DECK_PAGE_BUTTONS:
+            button = await _first_visible(window, name)
+            if button:
+                logger.debug(f"clicking spellbook button {name!r} (attempt {attempt + 1})")
+                await client.mouse_handler.click_window(button)
+                break
+        end = loop.time() + 4
+        while loop.time() < end and not spell_list:
+            await asyncio.sleep(0.3)
+            spell_list = await _first_visible(window, "SpellList")
+
+    if not spell_list:
+        path = await _dump_spellbook(window)
+        raise RuntimeError(
+            f"Opened the spellbook but could not find its deck page. Its layout was saved to {path}; "
+            "send that file to Claude."
+        )
+
+    cards_all = await _first_visible(window, "Cards_All")
+    if cards_all:
+        await client.mouse_handler.click_window(cards_all)
+        await asyncio.sleep(0.4)
+
+    builder = _Builder(client, spell_list)
     builder._deck_config_window = window
-    for name in ("Deck", "Cards_All"):
-        found = await window.get_windows_with_name(name)
-        if found and await found[0].is_visible():
-            await client.mouse_handler.click_window(found[0])
-            await asyncio.sleep(0.4)
     builder._deck_open = True
     return builder
+
+
+class _Builder(DeckBuilder):
+    """DeckBuilder that reads the spell list window we already located, instead
+    of a by-name search that fails when the game keeps a hidden duplicate."""
+
+    def __init__(self, client, spell_list_window):
+        super().__init__(client)
+        self._spell_list_window = spell_list_window
+
+    async def get_spell_list(self):
+        from wizwalker.memory.memory_objects.window import DynamicSpellListControl
+
+        control = DynamicSpellListControl(
+            self.client.hook_handler, await self._spell_list_window.read_base_address()
+        )
+        valid = []
+        for entry in await control.spell_entries():
+            try:
+                graphical = await entry.graphical_spell()
+                if graphical and (template := await graphical.spell_template()):
+                    await template.name()
+                    valid.append(entry)
+            except Exception:
+                pass
+        return valid
 
 
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
