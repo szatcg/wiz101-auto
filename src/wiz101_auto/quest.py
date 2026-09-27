@@ -21,6 +21,7 @@ from wizwalker import XYZ, Keycode
 from . import ui
 from .collect import Collector, collect_item_name
 from .config import QuestConfig
+from .deck import close_spellbook
 from .npc import ServicesMenu
 from .travel_data import find_zone_gate, objective_zone, quest_spots
 from .upkeep import clear_popups, is_free, recover, scan_wisps, wait_for_loading, wait_until_free
@@ -38,6 +39,8 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
+SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
+SIGIL_WAIT = 20.0  # the countdown after pressing X is ~10s
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -118,6 +121,75 @@ class Quester:
                 return True
             if distance(await self._position(), before) <= BOUNCE_DISTANCE and distance(before, spot) > 50:
                 continue  # this spot was rejected too; try further back
+            if await self.walk_through(target, zone):
+                return True
+        return False
+
+    async def _sigil_at(self, target: XYZ) -> XYZ | None:
+        """Position of a dungeon sigil ("Teleport Semi Circle") at the marker, if any."""
+        try:
+            entities = await self.client.get_base_entity_list()
+        except Exception:
+            return None
+        for e in entities:
+            try:
+                template = await e.object_template()
+                name = (await template.object_name()).lower() if template else ""
+                if "semi circle" not in name and "sigil" not in name:
+                    continue
+                pos = await e.location()
+                if distance(pos, target) < SIGIL_RANGE:
+                    return pos
+            except Exception:
+                continue
+        return None
+
+    async def _enter_by_sigil(self, sigil: XYZ, zone: str | None) -> bool:
+        """Dungeons start with X on the sigil, then a ~10s countdown; any
+        movement (including watchdog nudges) cancels it."""
+        # An open menu (e.g. the spellbook) hides the "press X" prompt.
+        await close_spellbook(self.client)
+        await ui.close_menus(self.client)
+        if distance(await self._position(), sigil) > SIGIL_RANGE:
+            await self.client.teleport(sigil)
+            await asyncio.sleep(0.8)
+        await wait_for_loading(self.client)
+        self.controller.allow_idle(SIGIL_WAIT + 10)
+        try:
+            await asyncio.sleep(0.5)
+            logger.info("on the dungeon sigil; pressing X and holding still for the countdown")
+            await self.client.send_key(Keycode.X, 0.1)
+            pressed_again = False
+            deadline = time.monotonic() + SIGIL_WAIT
+            while time.monotonic() < deadline:
+                if not pressed_again and time.monotonic() > deadline - SIGIL_WAIT + 3:
+                    if await ui.is_visible(self.client, ui.NPC_RANGE):
+                        await self.client.send_key(Keycode.X, 0.1)  # first press didn't take
+                    pressed_again = True
+                if await self.client.is_loading() or await self.client.zone_name() != zone:
+                    await wait_for_loading(self.client)
+                    logger.success("entered the dungeon")
+                    return True
+                if await ui.is_visible(self.client, ui.MODAL_CENTER_BUTTON):
+                    await ui.click(self.client, ui.MODAL_CENTER_BUTTON)  # "enter alone?" confirmation
+                await asyncio.sleep(0.5)
+        finally:
+            self.controller.end_idle()
+        logger.warning("stood on the sigil but the dungeon did not start")
+        return False
+
+    async def _walk_in_from_around(self, target: XYZ, zone: str | None) -> bool:
+        """Standing on a door marker gives walk_through no direction; back off
+        to each side in turn and walk through the marker from there."""
+        for i in range(4):
+            ang = i * math.pi / 2
+            spot = XYZ(target.x + 300 * math.cos(ang), target.y + 300 * math.sin(ang), target.z)
+            await self.client.teleport(spot)
+            await asyncio.sleep(0.8)
+            if await self._zone_changed(zone):
+                return True
+            if distance(await self._position(), target) < 50:
+                continue  # teleport rejected; still on the marker
             if await self.walk_through(target, zone):
                 return True
         return False
@@ -448,6 +520,11 @@ class Quester:
 
         logger.info(f"[{zone}] {objective}")
         await self.controller.checkpoint()
+        near = distance(await self._position(), target) < 3000
+        sigil = await self._sigil_at(target) if near else None
+        if sigil is not None:
+            await self._enter_by_sigil(sigil, zone)
+            return
         await self.travel(target)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
@@ -456,6 +533,14 @@ class Quester:
         if dist < INTERACT_RANGE and await self.interact(objective):
             await self._count_attempt()
             return
+        if dist < INTERACT_RANGE and "talk" in objective.lower():
+            # NPC prompts appear on walking into range, not on teleporting there.
+            await self.client.send_key(Keycode.S, 0.3)
+            await self.client.send_key(Keycode.W, 0.3)
+            await asyncio.sleep(0.5)
+            if await self.interact(objective):
+                await self._count_attempt()
+                return
 
         if "defeat" in objective.lower():
             if not await self.client.in_battle():
@@ -465,5 +550,5 @@ class Quester:
         if dist < DOOR_RANGE and await self.client.zone_name() == zone:
             # Standing on the marker with nothing to interact with: it's most
             # likely a door or zone exit, which needs walking into.
-            if await self.walk_through(target, zone):
+            if await self.walk_through(target, zone) or await self._walk_in_from_around(target, zone):
                 logger.info("walked through a door")

@@ -125,13 +125,29 @@ async def open_spellbook(client, timeout: float = 6.0):
     )
 
 
-async def close_spellbook(client):
-    for _ in range(3):
+async def close_spellbook(client) -> bool:
+    """Close the spellbook. The close button's click doesn't always register,
+    so fall back to the P toggle and then Esc."""
+    attempts = (
+        lambda: ui.click(client, SPELLBOOK_CLOSE),
+        lambda: client.send_key(Keycode.P, 0.1),
+        lambda: client.send_key(Keycode.ESC, 0.1),
+    )
+    for attempt in attempts:
         if not await _spellbook_open(client):
-            return
-        if not await ui.click(client, SPELLBOOK_CLOSE):
-            await client.send_key(Keycode.P, 0.1)
+            return True
+        await attempt()
         await asyncio.sleep(0.8)
+    if not await _spellbook_open(client):
+        return True
+    where = "?"
+    try:
+        buttons = await client.root_window.get_windows_with_name("Close_Button")
+        where = str(await buttons[0].scale_to_client()) if buttons else "not found"
+    except Exception as exc:
+        where = repr(exc)
+    logger.warning(f"could not close the spellbook (close button at {where})")
+    return False
 
 
 async def rebuild_deck(

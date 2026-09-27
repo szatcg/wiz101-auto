@@ -12,6 +12,7 @@ from .model import ActionKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
+CLICK_PROBES = (0.25, 0.1)  # left of center; never right, which could hit the next card
 
 
 class Fighter(CombatHandler):
@@ -21,7 +22,8 @@ class Fighter(CombatHandler):
         self.max_discards = max_discards
         self.flee_below = flee_below
         self.fights = 0
-        self._unusable: set[str] = set()  # cards whose cast didn't register this fight
+        self._unusable: set[str] = set()  # cards whose cast didn't register this round
+        self._card_click_x = 0.5  # where across a card's width to click it
 
     async def _hand_size(self) -> int:
         try:
@@ -51,9 +53,27 @@ class Fighter(CombatHandler):
                 where = f"target health window visible={await w.is_visible()} rect={rect}"
             except Exception as exc:
                 where = f"target health window unreadable: {exc!r}"
+        rects = []
+        for i, lc in sorted(snap.cards.items()):
+            try:
+                rects.append(f"#{i} {await lc._spell_window.scale_to_client()}")
+            except Exception as exc:
+                rects.append(f"#{i} {exc!r}")
         logger.warning(f"cast of {action.card.name} did not register; hand: {cards}; {where}")
+        logger.warning(f"card windows: {' | '.join(rects)}")
+
+    async def _cast_at(self, live_card, target, fx: float):
+        """Like CombatCard.cast, but clicks the card at `fx` of its width."""
+        r = await live_card._spell_window.scale_to_client()
+        x = int(r.x1 + (r.x2 - r.x1) * fx)
+        y = int((r.y1 + r.y2) / 2)
+        await self.client.mouse_handler.click(x, y)
+        if target is not None:
+            await asyncio.sleep(1.0)
+            await self.client.mouse_handler.click_window(await target.get_health_text_window())
 
     async def handle_round(self):
+        self._unusable.clear()  # a card that failed last round may sit in a working slot now
         discards_left = self.max_discards
         for _ in range(MAX_STEPS_PER_ROUND):
             snap = await read_battle(self)
@@ -85,26 +105,30 @@ class Fighter(CombatHandler):
                 continue
 
             if action.kind is ActionKind.DISCARD:
-                await live_card.discard()
+                r = await live_card._spell_window.scale_to_client()
+                x = int(r.x1 + (r.x2 - r.x1) * self._card_click_x)
+                await self.client.mouse_handler.click(x, int((r.y1 + r.y2) / 2), right_click=True)
+                await asyncio.sleep(1.0)
                 discards_left -= 1
                 continue
 
             target = snap.members.get(id(action.target)) if action.target else None
             before = await self._hand_size()
-            await live_card.cast(target)
+            await self._cast_at(live_card, target, self._card_click_x)
             if await self._committed(before):
                 return
             await self._log_failed_cast(snap, action, target)
-            if target is not None:
-                # The card is probably still selected; click the target again.
-                try:
-                    await self.client.mouse_handler.click_window(await target.get_health_text_window())
-                except Exception as exc:
-                    logger.debug(f"retargeting failed: {exc!r}")
+            # Clicks on the leftmost card don't register at its center; probe
+            # further left inside the card and keep whatever works.
+            for fx in CLICK_PROBES:
+                if fx == self._card_click_x:
+                    continue
+                await self._cast_at(live_card, target, fx)
                 if await self._committed(before):
-                    logger.info("cast registered after clicking the target again")
+                    logger.warning(f"cast registered clicking at {fx:.0%} of the card width; using that now")
+                    self._card_click_x = fx
                     return
-            logger.warning(f"giving up on {action.card.name} for this fight")
+            logger.warning(f"giving up on {action.card.name} this round")
             self._unusable.add(action.card.name)
 
         logger.warning("too many steps this round, passing")
