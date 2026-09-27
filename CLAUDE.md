@@ -1,0 +1,115 @@
+# wiz101-auto: operating and developing the bot
+
+A Wizard101 bot (Python, Windows only) that hooks the game's memory through
+WizWalker. This file tells a Claude Code session on the user's Windows PC how
+to **run, watch, fix and restart** the bot without the user relaying anything.
+
+## Environment
+
+- Windows. Wizard101 must be running and **logged in with the wizard standing
+  in the world** before the bot starts. You cannot log in for the user.
+- Python venv at `.venv` (made by `wiz101.bat` or
+  `py -3.14 -m venv .venv` then `.venv\Scripts\python -m pip install -e ".[dev]"`).
+- Bot entry point: `.venv\Scripts\python -m wiz101_auto <command>`
+  (`.\wiz101.bat <command>` does the same after checking the install).
+- User settings: `config.yaml` (git-ignored; created from `configs/myth.yaml`).
+
+## Commands
+
+| Command | Use |
+|---|---|
+| `start [--supervise]` | start in the background; `--supervise` auto-restarts after crashes |
+| `stop` | clean stop (unhooks the game); force-kills only after 30s |
+| `restart [--supervise]` | stop + start |
+| `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |
+| `logs -n 200` | recent log; `logs -f` follows (blocks, so avoid in automation) |
+| `inspect` | one-shot: what the bot reads from the game (needs the bot STOPPED) |
+| `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
+| `deck -c config.yaml` | known spells, current deck, planned deck (read-only) |
+| `explore` | entities around the wizard with positions → `state/explore_*.txt` |
+
+Only one process can hook the game at a time: run `inspect`/`deck`/`explore`
+while the bot is stopped.
+
+## The operating loop
+
+1. `status`. If not running: `start --supervise`.
+2. Every 30–60s: `status`. Healthy = heartbeat < 30s old and the objective or
+   zone changes over time. Also watch `wiz101-auto.log` (DEBUG level) for
+   WARNING/ERROR lines, `recovery step N/4` (the stall watchdog), deaths.
+3. When it is stuck (same objective for minutes, watchdog cycling, repeated
+   errors) or has crashed:
+   1. `stop` (always clean; see rules).
+   2. Diagnose from `wiz101-auto.log`, `state/status.json` and the saved UI or
+      memory dumps in `state/` (list below). Use `inspect`/`inspect --windows`
+      /`explore` for live facts about the current screen.
+   3. Patch the code. Keep changes small and in the module that owns the
+      behaviour (map below).
+   4. Verify: `.venv\Scripts\python -m ruff check .` and
+      `.venv\Scripts\python -m pytest -q` must pass. Add a unit test when the
+      logic is pure (brain, deck_plan, collect matching, config…).
+   5. `start --supervise` again and confirm the problem is gone in the log.
+   6. Commit with a message that says what was stuck and why, then
+      `git push origin main`.
+4. Repeat. Summarise for the user what broke and what you changed.
+
+## Rules
+
+- **Always stop with `stop`.** Killing the Python process leaves hooks in the
+  game; the next run then fails with "Could not hook into the game" (a WizWalker
+  `PatternFailed`) until Wizard101 is fully restarted. If that happens, ask the
+  user to restart the game and log back in; don't try to work around it.
+- Don't send keystrokes or clicks to the game yourself (outside the bot), and
+  don't close Wizard101.
+- If the user presses Ctrl+Shift+Q or asks you to stop, stop and don't restart.
+- The bot stops itself on safety limits (`safety.max_hours`, `max_deaths`,
+  12 min without quest progress). Treat those as signals to investigate, not
+  to blindly restart.
+- Never commit `config.yaml`, `state/`, logs or `.venv` (they're git-ignored).
+
+## Files the bot writes
+
+| File | What |
+|---|---|
+| `wiz101-auto.log` | full DEBUG log (rotates at 10 MB) |
+| `state/status.json` | heartbeat every 5s |
+| `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |
+| `state/bot.pid`, `state/stop.request` | service bookkeeping |
+| `state/progress.json` | level, known spells, last deck plan |
+| `state/wisps.json` | learned health-wisp spawn points per zone |
+| `state/npc_services_window_*.txt` | layout of an NPC's multi-quest menu |
+| `state/spellbook_window.txt`, `state/spell_list_memory.txt` | spellbook UI / memory dumps |
+| `state/trainer_window_*.txt` | spell trainer UI layout |
+
+## Code map (`src/wiz101_auto/`)
+
+| Module | Owns |
+|---|---|
+| `cli.py`, `service.py` | commands; background start/stop/status/supervise |
+| `bot.py` | connects, runs the concurrent loops (combat, dialogue, quest, watchdog, status) |
+| `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
+| `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |
+| `collect.py` | "Collect X" objectives (entity name matching) |
+| `upkeep.py` | dialogue loop, quest-offer policy, potions, wisps, recovery, popups, Crowns window |
+| `wisps.py` | remembered wisp spawn points |
+| `watchdog.py` | 15 s stall detection and escalating recovery |
+| `combat/brain.py`, `combat/model.py` | pure turn logic (unit tested) |
+| `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
+| `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |
+| `ui.py` | UI window paths and helpers |
+| `names.py` | cached display-name lookups (WizWalker's are very slow) |
+| `safety.py`, `config.py` | hotkeys, stop requests, limits; YAML config |
+
+WizWalker/WizSprinter come from the Deimos project (`libs/` in
+github.com/Deimos-Wizard101/Deimos-Wizard101) and are installed into `.venv`;
+read their source there when you need the memory API.
+
+## Known gaps / open work
+
+- Deck building: known spells are read by walking spellbook tabs; adding cards
+  (`add_by_name` click positions, `set_page` offset) is unverified on the
+  current client. `CardsInDeck` reads correctly (layout auto-detected).
+- Prospector Pete / Golem Court: stalls reported without logs yet.
+- Spell trainer automation is heuristic until `state/trainer_window_*.txt`
+  has been captured and mapped.
+- Minion spells are excluded from decks (the brain can't use them yet).

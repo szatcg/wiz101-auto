@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -m wiz101_auto:*)",
+      "Bash(.venv/Scripts/python -m wiz101_auto:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest:*)",
+      "Bash(.venv/Scripts/python.exe -m ruff:*)",
+      "Bash(./wiz101.bat:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Read(wiz101-auto.log)",
+      "Read(state/**)"
+    ]
+  }
+}

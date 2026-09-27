@@ -50,7 +50,37 @@ def main(argv: list[str] | None = None):
 
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
 
+    start_p = sub.add_parser("start", help="start the bot in the background")
+    start_p.add_argument("-c", "--config", default="config.yaml")
+    start_p.add_argument("--supervise", action="store_true", help="restart automatically after crashes")
+    restart_p = sub.add_parser("restart", help="stop, then start again in the background")
+    restart_p.add_argument("-c", "--config", default="config.yaml")
+    restart_p.add_argument("--supervise", action="store_true")
+    sub.add_parser("stop", help="stop the background bot cleanly")
+    sub.add_parser("status", help="is it running, what is it doing, recent log lines")
+    logs_p = sub.add_parser("logs", help="show the log")
+    logs_p.add_argument("-n", type=int, default=80)
+    logs_p.add_argument("-f", "--follow", action="store_true")
+    sup_p = sub.add_parser("supervise", help="run in the foreground, restarting after crashes")
+    sup_p.add_argument("-c", "--config", default="config.yaml")
+
     args = parser.parse_args(argv)
+
+    from . import service
+
+    if args.command == "start":
+        sys.exit(service.start(args.config, args.supervise))
+    if args.command == "stop":
+        sys.exit(service.stop())
+    if args.command == "restart":
+        service.stop()
+        sys.exit(service.start(args.config, args.supervise))
+    if args.command == "status":
+        sys.exit(service.status())
+    if args.command == "logs":
+        sys.exit(service.logs(args.n, args.follow))
+    if args.command == "supervise":
+        sys.exit(service.supervise(args.config))
 
     if sys.platform != "win32":
         raise SystemExit("wiz101-auto talks to the Windows game client and must run on Windows.")
@@ -84,9 +114,12 @@ def main(argv: list[str] | None = None):
     from .bot import run
 
     try:
-        asyncio.run(run(cfg))
+        reason = asyncio.run(run(cfg)) or ""
     except KeyboardInterrupt:
         logger.info("interrupted")
+        return
+    if "crashed" in reason:
+        sys.exit(3)  # lets `supervise` restart it
 
 
 async def _deck(cfg, apply: bool):

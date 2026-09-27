@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 
 from loguru import logger
 from wizwalker import ClientHandler
@@ -86,6 +87,35 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
         await asyncio.sleep(0.3)
 
 
+async def status_loop(client, controller: Controller, fighter: Fighter, quester, watchdog):
+    """Publish a heartbeat to state/status.json for `wiz101-auto status`."""
+    from .service import write_status
+
+    started = time.time()
+    while not controller.stopped.is_set():
+        info = {"state": "paused" if controller.paused else "running", "uptime_s": int(time.time() - started)}
+        try:
+            info.update(
+                zone=await client.zone_name(),
+                level=await client.stats.reference_level(),
+                health=f"{await client.stats.current_hitpoints()}/{await client.stats.max_hitpoints()}",
+                in_battle=await client.in_battle(),
+            )
+        except Exception as exc:
+            info["read_error"] = repr(exc)
+        info.update(fights=fighter.fights, deaths=controller.deaths)
+        if quester:
+            info.update(
+                objective=quester._last_progress[0],
+                objective_age_s=int(time.monotonic() - quester._last_progress_time),
+                objectives_completed=quester.objectives_completed,
+            )
+        if watchdog:
+            info["watchdog_nudges"] = watchdog.nudges
+        write_status(**info)
+        await asyncio.sleep(5)
+
+
 async def quest_loop(quester: Quester, controller: Controller):
     while not controller.stopped.is_set():
         await controller.checkpoint()
@@ -146,6 +176,7 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
+        watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):
             watchdog = Watchdog(
                 client,
@@ -158,6 +189,9 @@ async def run(cfg: Config):
         if cfg.mode == "farm":
             tasks.append(asyncio.create_task(farm_loop(client, cfg, controller, progression), name="farm"))
 
+        tasks.append(
+            asyncio.create_task(status_loop(client, controller, fighter, quester, watchdog), name="status")
+        )
         stop_waiter = asyncio.create_task(controller.stopped.wait())
         done, _ = await asyncio.wait([*tasks, stop_waiter], return_when=asyncio.FIRST_COMPLETED)
         for t in done:
@@ -170,6 +204,10 @@ async def run(cfg: Config):
         if quester:
             summary += f", objectives completed: {quester.objectives_completed}"
         logger.info(f"session over ({controller.stop_reason}). {summary}")
+        from .service import write_status
+
+        write_status(state="stopped", reason=controller.stop_reason, summary=summary)
+        return controller.stop_reason
     finally:
         for t in tasks:
             t.cancel()

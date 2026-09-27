@@ -47,6 +47,27 @@ already has.
 If hooks fail to activate, fully restart Wizard101 and try again. Moving your
 wizard one step while it starts can also help.
 
+## Running from a terminal (VS Code)
+
+From the repo folder:
+
+```powershell
+.\wiz101.bat start --supervise   # background; restarts itself after crashes
+.\wiz101.bat status              # what it's doing right now
+.\wiz101.bat logs -n 100         # recent log (add -f to follow)
+.\wiz101.bat stop                # clean stop (unhooks the game)
+.\wiz101.bat restart --supervise
+```
+
+With arguments the launcher skips the menu and the automatic git update, so
+local changes are safe.
+
+**Let Claude Code run it for you.** Open this folder in VS Code with the
+Claude Code extension (or run `claude` in its terminal). `CLAUDE.md` tells it
+how to start the bot, watch `status` and the logs, stop it cleanly, patch
+problems, run the tests, restart and push fixes. Ask it something like
+*"run the bot and keep it going; fix anything that gets stuck"*.
+
 ## Controlling the bot
 
 **Commands** (run them in the activated `.venv`):

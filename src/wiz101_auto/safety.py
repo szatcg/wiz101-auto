@@ -126,8 +126,15 @@ class Controller:
             raise BotStopped(self.stop_reason)
 
     async def watch(self):
+        from .service import STOP_FILE
+
         was_pause_down = False
+        ticks = 0
         while not self.stopped.is_set():
+            ticks += 1
+            if ticks % 10 == 0 and STOP_FILE.exists():
+                self.stop("stop requested from the terminal")
+                break
             if _combo_down(self.stop_keys):
                 self.stop("stop key pressed")
                 break
