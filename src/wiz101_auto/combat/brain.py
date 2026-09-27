@@ -90,6 +90,14 @@ def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     return max(0.0, card.base_damage() * mult)
 
 
+def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:
+    """The multipliers behind a damage estimate, for the log."""
+    return (
+        f"x{1 + target.incoming_boost:.2f} trap/shield, x{1 + attacker.outgoing_boost:.2f} blade, "
+        f"x{school_multiplier(card, attacker, target):.2f} school"
+    )
+
+
 def expected_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     """hit_damage weighted by the chance to land (for comparing spells)."""
     return hit_damage(card, attacker, target) * (card.accuracy / 100.0)
@@ -334,7 +342,8 @@ def _rounds_to_kill(battle: Battle, target: Combatant) -> tuple[int, str]:
     now = [c for c in attacks if c.castable]
     for c in sorted(now, key=lambda c: c.pip_cost):
         if hit_damage(c, me, target) >= target.health:
-            return 1, f"{c.name} now (~{hit_damage(c, me, target):.0f})"
+            why = damage_breakdown(me, target, c)
+            return 1, f"{c.name} now (~{hit_damage(c, me, target):.0f}: {why})"
     traps = [c for c in battle.cards if c.castable and EffectKind.TRAP in c.kinds and not c.is_enchant]
     if traps and not _is_trapped(target):
         trap = max(traps, key=lambda c: sum(e.value for e in c.effects))
