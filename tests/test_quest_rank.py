@@ -42,3 +42,17 @@ def test_nearer_quest_wins_when_nothing_is_tracked():
     far = QuestEntry(0, "Far", mainline=True, hops=4, reward=50)
     near = QuestEntry(1, "Near", mainline=True, hops=1, reward=10)
     assert choose_quest([far, near]) is near
+
+
+def test_fight_needed():
+    from wiz101_auto.quest import fight_needed
+
+    street = "WizardCity/WC_Streets/WC_Triton"
+    screamer = "Defeat Scarlet Screamer and Collect Primary Coil in Triton Avenue (1 of 3)"
+    assert fight_needed(screamer, ["Scarlet Screamer", "Living Puppet"], street, False)
+    assert not fight_needed(screamer, ["Rotting Fodder"], street, False)
+    assert not fight_needed("Collect Cog in Triton Avenue (0 of 3)", ["Rotting Fodder"], street, False)
+    assert fight_needed("Defeat Haunted Minions in Triton Avenue (0 of 4)", ["Haunted Minion"], street, False)
+    assert fight_needed("Summon Myth Minion in Unicorn Way", ["Lost Soul"], street, False)
+    assert fight_needed("Talk To Harold", ["Rotting Fodder"], street, True)  # bosses always count
+    assert fight_needed("Talk To Harold", ["Rotting Fodder"], "WizardCity/Interiors/WC_Cyclops_T2", False)

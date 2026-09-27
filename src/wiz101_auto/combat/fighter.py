@@ -24,6 +24,9 @@ class Fighter(CombatHandler):
         self.fights = 0
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._card_click_x = 0.25  # the hit area sits left of the reported card rect
+        # async (battle) -> bool, set by the bot in quest mode; True means flee.
+        self.unneeded_fight = None
+        self._judged_fight = False
 
     async def _hand_size(self) -> int:
         try:
@@ -87,6 +90,15 @@ class Fighter(CombatHandler):
                 await self.flee_button()
                 return
 
+            # Decide once, on the first round, whether this fight is worth having.
+            if self.unneeded_fight and not self._judged_fight:
+                self._judged_fight = True
+                if await self.unneeded_fight(battle):
+                    names = ", ".join(e.name for e in battle.enemies)
+                    logger.info(f"fight with {names} isn't needed for the quest: fleeing")
+                    await self.flee_button()
+                    return
+
             action = decide(battle, self.strategy, discards_left=discards_left)
             logger.info(
                 f"[round {battle.round}] pips={battle.pips}+{battle.power_pips}P "
@@ -136,6 +148,7 @@ class Fighter(CombatHandler):
 
     async def handle_combat(self):
         self._unusable.clear()
+        self._judged_fight = False
         await super().handle_combat()
         self.fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")

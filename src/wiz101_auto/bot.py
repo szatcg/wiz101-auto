@@ -197,6 +197,8 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             quester.gear = GearManager(client, progression.school or "")
+            if cfg.quest.flee_unneeded_fights:
+                fighter.unneeded_fight = quester.unneeded_fight
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):

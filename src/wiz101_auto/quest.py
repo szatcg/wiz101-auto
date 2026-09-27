@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 import time
 from dataclasses import dataclass
 
@@ -89,6 +90,27 @@ def is_combat_objective(objective: str) -> bool:
     """Objectives met by fighting: 'Defeat X', 'Summon Myth Minion', 'Cast ...'."""
     first = objective.strip().lower().split(" ", 1)[0]
     return first in ("defeat", "summon", "cast")
+
+
+def _norm_name(s: str) -> str:
+    return "".join(ch for ch in s.lower() if ch.isalpha())
+
+
+def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bool) -> bool:
+    """Is this fight part of the quest? Conservative: bosses, fights inside
+    buildings/dungeons and unclear cases count as needed."""
+    if has_boss or "interiors" in zone.lower() or not objective.strip():
+        return True
+    if not is_combat_objective(objective):
+        return False
+    text = objective.strip()
+    if not text.lower().startswith("defeat "):
+        return True  # "Summon/Cast ...": any fight does
+    wanted = re.split(r"\s+(?:and|in)\s+|\s*\(", text[len("defeat ") :], maxsplit=1)[0]
+    target = _norm_name(wanted).removesuffix("s")
+    if len(target) < 3:
+        return True
+    return any(target in _norm_name(n) or _norm_name(n) in target for n in enemy_names)
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -604,6 +626,17 @@ class Quester:
             except Exception:
                 continue
         return out
+
+    async def unneeded_fight(self, battle) -> bool:
+        """True if the fight that just started isn't needed for the tracked quest."""
+        try:
+            objective = await self.objective()
+            zone = await self.client.zone_name() or ""
+        except Exception:
+            return False
+        names = [e.name for e in battle.enemies]
+        has_boss = any(e.is_boss for e in battle.enemies)
+        return not fight_needed(objective, names, zone, has_boss)
 
     async def pull_mob(self):
         """For defeat objectives: teleport onto the closest mob to start a fight."""
