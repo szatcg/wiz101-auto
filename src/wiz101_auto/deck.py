@@ -59,7 +59,11 @@ async def _spell_info(entry) -> SpellInfo | None:
 
 async def read_known_spells(builder: DeckBuilder) -> list[SpellInfo]:
     spells = []
-    for entry in await builder.get_spell_list():
+    if hasattr(builder, "read_all_known"):
+        entries = await builder.read_all_known()
+    else:
+        entries = await builder.get_spell_list()
+    for entry in entries:
         info = await _spell_info(entry)
         if info:
             spells.append(info)
@@ -164,6 +168,17 @@ async def _dump_spellbook(window) -> str:
 # Tabs/buttons that lead to the deck-editing page; the name has differed
 # between game versions, so try a few.
 DECK_PAGE_BUTTONS = ("Deck", "DeckTab", "btnDeck", "Decks", "DeckButton")
+SPELL_TABS = (
+    "Cards_All",
+    "Cards_Myth",
+    "Cards_Fire",
+    "Cards_Ice",
+    "Cards_Storm",
+    "Cards_Life",
+    "Cards_Death",
+    "Cards_Balance",
+    "Cards_Astral",
+)
 # The known-spells list. WizWalker expects "SpellList"; the current client
 # calls it "AllPageSpellList" (with a hidden "SchoolPageSpellList" beside it).
 SPELL_LIST_NAMES = ("AllPageSpellList", "SpellList", "SchoolPageSpellList")
@@ -280,14 +295,14 @@ class _Builder(DeckBuilder):
             await asyncio.sleep(0.5)
         logger.warning("deck may not be fully cleared")
 
-    async def get_spell_list(self):
-        """Known-spell entries, read with an auto-detected memory layout.
+    async def get_spell_list(self, attempts: int = 6, diagnostics: bool = True):
+        """Entries of the spell list currently shown, found by scanning memory.
 
-        WizWalker's fixed offsets for this list are stale in the current game
-        (every list reads as empty), so we scan for the entry vector instead.
+        The list only holds the spells of the selected tab (e.g. All, Myth),
+        so read_all_known() walks the tabs.
         """
         valid: list = []
-        for attempt in range(6):
+        for attempt in range(attempts):
             current = await _find_spell_list(self._deck_config_window) or self._spell_list_window
             self._spell_list_window = current
             try:
@@ -299,9 +314,36 @@ class _Builder(DeckBuilder):
             if valid:
                 break
             await asyncio.sleep(0.5)
-        if not valid:
+        if not valid and diagnostics:
             await self._log_list_diagnostics()
         return valid
+
+    async def show_tab(self, name: str) -> bool:
+        tab = await _first_visible(self._deck_config_window, name)
+        if not tab:
+            return False
+        await self.client.mouse_handler.click_window(tab)
+        await asyncio.sleep(0.8)  # let the list repopulate
+        return True
+
+    async def read_all_known(self) -> list:
+        """Every known spell: the All tab if it fills, otherwise each school tab."""
+        seen: dict[str, object] = {}
+        for tab in SPELL_TABS:
+            if not await self.show_tab(tab):
+                continue
+            entries = await self.get_spell_list(attempts=3, diagnostics=False)
+            logger.debug(f"spellbook tab {tab}: {len(entries)} spells")
+            for e in entries:
+                t = await e.template()
+                if t:
+                    seen.setdefault(await t.name(), e)
+            if tab == "Cards_All" and entries:
+                break
+        await self.show_tab("Cards_All")
+        if not seen:
+            await self._log_list_diagnostics()
+        return list(seen.values())
 
     async def _log_list_diagnostics(self):
         lines = []
