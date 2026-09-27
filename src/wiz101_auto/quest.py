@@ -409,8 +409,13 @@ class Quester:
                     await asyncio.sleep(0.5)
                     box = await ui.modal_box(self.client)
                     if box:
-                        logger.info(f"recall message: {(await ui.modal_text(box))[:120]!r}")
+                        text = await ui.modal_text(box)
+                        logger.info(f"recall message: {text[:120]!r}")
                         await ui.confirm_modal(self.client)
+                        if "cannot teleport" in text.lower():
+                            # e.g. the dungeon reset while we were away healing
+                            logger.warning("the game refused the recall; walking back instead")
+                            return False
                     if await self.client.is_loading():
                         await wait_for_loading(self.client)
                     if await self.client.zone_name() == marked_zone:
