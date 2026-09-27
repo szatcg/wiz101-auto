@@ -97,7 +97,7 @@ while the bot is stopped.
 | `watchdog.py` | 15 s stall detection and escalating recovery |
 | `combat/brain.py`, `combat/model.py` | pure turn logic (unit tested) |
 | `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
-| `gear.py` | keeps the best gear on: tries each backpack item per slot, scores the wizard's real stats |
+| `gear.py` | on level-up, tries each backpack item per slot and keeps the best by the wizard's real stats |
 | `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |
 | `ui.py` | UI window paths and helpers |
 | `names.py` | cached display-name lookups (WizWalker's are very slow) |

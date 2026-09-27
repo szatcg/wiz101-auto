@@ -4,7 +4,7 @@ Item stats aren't readable from WizWalker, so gear is judged the way a player
 would: put an item on and look at the wizard's real stats (health, damage and
 accuracy for its school, resistance, power pips...). For each slot the bot
 tries every item on the backpack tab and keeps the one that scores best.
-Runs at startup and whenever the backpack gains an item.
+Runs only after a level-up, when new level requirements are met.
 """
 
 from __future__ import annotations
@@ -80,41 +80,11 @@ async def read_stats(client, school: str) -> StatSnapshot:
     )
 
 
-# Template name prefixes of wearable gear ("Hat-T1-018", "Shoe-T1-011"...).
-WEARABLE_PREFIXES = ("hat-", "robe-", "shoe-", "athame-", "amulet-", "ring-")
-
-
-def is_wearable(template_name: str) -> bool:
-    return template_name.lower().startswith(WEARABLE_PREFIXES)
-
-
-async def owned_item_ids(client) -> set[int]:
-    """Ids of wearable gear in the backpack and equipped. Quest items, emotes and
-    the like don't count, so collecting quest items doesn't trigger a gear check."""
-    from wizwalker.memory.memory_objects.game_object_template import WizGameObjectTemplate
-
-    ids: set[int] = set()
-    co = client.client_object
-    for behavior in (await co.try_get_inventory_behavior(), await co.try_get_equipment_behavior()):
-        if behavior is None:
-            continue
-        for item in await behavior.item_list():
-            try:
-                core = await item.object_template()
-                template = WizGameObjectTemplate(client.hook_handler, await core.read_base_address())
-                name = await template.object_name()
-                if is_wearable(name):
-                    ids.add(await item.global_id_full())
-            except Exception:
-                pass
-    return ids
-
-
 class GearManager:
     def __init__(self, client, school: str):
         self.client = client
         self.school = school
-        self._known_ids: set[int] | None = None
+        self._level: int | None = None
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -242,12 +212,9 @@ class GearManager:
         return changed
 
     async def tick(self):
-        """Call while the wizard is free: re-check when a genuinely new item shows up.
-        Items move between the backpack and equipped lists when (un)equipped, so
-        track ids across both rather than counting the backpack."""
-        ids = await owned_item_ids(self.client)
-        if self._known_ids is None:
-            await self.optimise("startup")
-        elif ids - self._known_ids:
-            await self.optimise("new item")
-        self._known_ids = await owned_item_ids(self.client)
+        """Call while the wizard is free: re-check gear only after a level-up (new
+        level requirements are met then). Startups don't re-check."""
+        level = await self.client.stats.reference_level()
+        if self._level is not None and level > self._level:
+            await self.optimise(f"level {level}")
+        self._level = level
