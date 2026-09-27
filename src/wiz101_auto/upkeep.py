@@ -262,7 +262,8 @@ SWEEP_MOB_DISTANCE = 500.0
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
-FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
+FRUITLESS_VISITS = 3
+_leaving_interior: set[str] = set()  # interiors recovery gave up on (walk out instead)  # empty wisp spots in a row before going elsewhere to heal
 
 
 def best_wisp_zone(current_zone: str, spots: dict | None = None, preferred: list[str] = ()) -> str | None:
@@ -292,6 +293,10 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
     hp, mana = await health_mana(client)
     if not cfg.needs_recovery(hp, mana):
         return True
+    zone_now = await client.zone_name() or ""
+    if zone_now in _leaving_interior:
+        return True  # already found nothing here; the quest is walking us out
+    _leaving_interior.clear()
     logger.info(f"health {hp:.0%}, mana {mana:.0%}: recovering before going on")
 
     loop = asyncio.get_running_loop()
@@ -349,6 +354,12 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                     logger.info(f"no wisps in {zone}; going to {dest} to heal")
                     if await go_to_zone(dest):
                         continue
+                if "interiors" in zone.lower():
+                    # A dungeon/building with no wisps and no known way out: resting
+                    # here takes minutes. Let the quest path walk out, heal outside.
+                    logger.info(f"no wisps or route out of {zone}; following the quest out to heal")
+                    _leaving_interior.add(zone)
+                    return True
 
         if not rested:
             await move_to_safety(client)
