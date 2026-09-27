@@ -262,8 +262,9 @@ SWEEP_MOB_DISTANCE = 500.0
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
-FRUITLESS_VISITS = 3
-_leaving_interior: set[str] = set()  # interiors recovery gave up on (walk out instead)  # empty wisp spots in a row before going elsewhere to heal
+FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
+# Interiors recovery gave up on (walk out on the quest path instead).
+_leaving_interior: set[str] = set()
 
 
 def best_wisp_zone(current_zone: str, spots: dict | None = None, preferred: list[str] = ()) -> str | None:
