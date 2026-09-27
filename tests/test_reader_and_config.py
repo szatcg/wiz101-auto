@@ -91,3 +91,11 @@ def test_bad_hotkey_in_config(tmp_path):
     p.write_text("safety:\n  stop_key: ctrl+nope\n")
     with pytest.raises(ValueError, match="nope"):
         load_config(p)
+
+
+def test_npc_menu_ranking_prefers_objective_words():
+    from wiz101_auto.npc import rank_options
+
+    labels = ["Unicorn Way Bounty", "Sergeant Muldoon: Olde Town", "Shop"]
+    assert rank_options(labels, "Talk to Sergeant Muldoon in Olde Town")[0] == 1
+    assert rank_options(["A", "B"], "whatever") == [0, 1]  # stable when nothing matches

@@ -20,6 +20,7 @@ from wizwalker import XYZ, Keycode
 
 from . import ui
 from .config import QuestConfig
+from .npc import ServicesMenu
 from .upkeep import clear_popups, is_free, wait_for_loading, wait_until_free
 
 INTERACT_RANGE = 750.0
@@ -34,6 +35,7 @@ class Quester:
     def __init__(self, client, cfg: QuestConfig, controller, progression=None):
         self.client = client
         self.progression = progression
+        self.services = ServicesMenu(client)
         self.cfg = cfg
         self.controller = controller
         self.sprinter = client  # SprintyClient (bot.new_handler)
@@ -95,7 +97,7 @@ class Quester:
 
     # --- interaction ---------------------------------------------------------
 
-    async def interact(self) -> bool:
+    async def interact(self, objective: str = "") -> bool:
         """Press X on whatever prompt is showing. Returns True if something happened."""
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
             return False
@@ -113,12 +115,21 @@ class Quester:
                 if await self.client.is_loading():
                     break
                 await asyncio.sleep(0.3)
-        elif "to talk" in prompt:
+        elif "to talk" in prompt or await self.services.is_open():
             # The dialogue loop advances the conversation; wait for it to end,
-            # including follow-up dialogues that open straight after.
+            # including follow-up dialogues that open straight after. NPCs with
+            # several quests first show a services menu to pick from.
             quiet_since = time.monotonic()
+            picks = 0
             while time.monotonic() - quiet_since < 3.0:
                 await self.controller.checkpoint()
+                if picks < 3 and await self.services.is_open():
+                    if await self.services.choose(objective):
+                        picks += 1
+                        quiet_since = time.monotonic()
+                        await asyncio.sleep(1.5)
+                        continue
+                    break  # nothing left to try; close_menus below shuts it
                 if not await is_free(self.client):
                     quiet_since = time.monotonic()
                 await asyncio.sleep(0.2)
@@ -190,7 +201,7 @@ class Quester:
             return  # a fight or dialogue started on arrival
 
         near = distance(await self.client.body.position(), target) < INTERACT_RANGE
-        if near and await self.interact():
+        if near and await self.interact(objective):
             return
 
         if "defeat" in objective.lower() and not await self.client.in_battle():
