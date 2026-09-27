@@ -39,6 +39,10 @@ MODAL_CENTER_BUTTON = [
 MISSING_AREA = ["MessageBoxModalWindow", "messageBoxBG", "messageBoxLayout", "AdjustmentWindow"]
 MISSING_AREA_RETRY = [*MISSING_AREA, "RetryBtn"]
 CANCEL_CHEST_REROLL = ["WorldView", "Container", "background", "", "CancelButton"]
+# "Endorse a Wizard" after fighting alongside another player.
+ENDORSEMENT = ["WorldView", "EndorsementWindow"]
+ENDORSE_FRIENDLY = [*ENDORSEMENT, "MainLayout", "FriendlyWindow", "FriendlyButton"]
+ENDORSE_CLOSE = [*ENDORSEMENT, "CloseEndorsementWindowButton"]
 
 TRAINER_EXIT = ["WorldView", "NPCTrainingGUI", "TrainingSelection", "Exit"]
 

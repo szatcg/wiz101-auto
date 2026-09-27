@@ -133,6 +133,14 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
 
 async def visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
     """Teleport to a remembered wisp spawn point (away from mobs) and grab what's there."""
+    try:
+        return await _visit_known_spot(client, cfg, zone)
+    except Exception as exc:  # e.g. WizWalker's ExceptionalTimeout while a popup blocks the game
+        logger.debug(f"wisp spot visit failed: {exc!r}")
+        return False
+
+
+async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str) -> bool:
     me = _pt(await client.body.position())
     spot = wisp_memory().next_spot(
         zone, me, await mob_positions(client), safe_distance=cfg.wisp_safe_distance
@@ -325,6 +333,13 @@ async def close_crowns_shop(client) -> bool:
 
 async def clear_popups(client):
     await close_crowns_shop(client)
+    if await ui.is_visible(client, ui.ENDORSEMENT):
+        logger.info("endorsing the wizard we fought with (Friendly) to close the window")
+        if not await ui.click(client, ui.ENDORSE_FRIENDLY):
+            await ui.click(client, ui.ENDORSE_CLOSE)
+        await asyncio.sleep(0.5)
+        if await ui.is_visible(client, ui.ENDORSEMENT):
+            await ui.click(client, ui.ENDORSE_CLOSE)
     await ui.click(client, ui.CANCEL_CHEST_REROLL)
     if await ui.is_visible(client, ui.MISSING_AREA_RETRY):
         await ui.click(client, ui.MISSING_AREA_RETRY)
