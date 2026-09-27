@@ -679,11 +679,13 @@ class Quester:
         if item:
             # "Collect Cog in Triton Avenue": searching any other zone is pointless.
             where = objective_zone(objective)
-            if where and where != zone and gate_toward(zone, where, self._bad_gates):
-                logger.info(f"{objective!r} is in {where}; going there first")
-                await self.go_to_zone(where)
-                return
-            if await self.collect(item, objective):
+            if where and where != zone:
+                if gate_toward(zone, where, self._bad_gates):
+                    logger.info(f"{objective!r} is in {where}; going there first")
+                    await self.go_to_zone(where)
+                    return
+                # No known route (e.g. inside a building): let the quest marker lead out.
+            elif await self.collect(item, objective):
                 return
 
         target = await self.client.quest_position.position()
