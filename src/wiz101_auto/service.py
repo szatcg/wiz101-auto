@@ -31,6 +31,7 @@ PID_FILE = STATE / "bot.pid"
 STOP_FILE = STATE / "stop.request"
 STATUS_FILE = STATE / "status.json"
 OUT_FILE = STATE / "bot.out"
+WATCH_PID_FILE = STATE / "watch.pid"
 LOG_FILE = Path("wiz101-auto.log")
 
 STILL_ACTIVE = 259
@@ -104,7 +105,30 @@ def start(config: str, supervise: bool) -> int:
     print(
         f"started (PID {proc.pid}{', supervised' if supervise else ''}). Use 'status', 'logs -f' or 'stop'."
     )
+    open_watch_window()
     return 0
+
+
+def open_watch_window() -> None:
+    """Show the live activity log (`watch`) in its own console window, unless
+    one is already open. It keeps following across bot restarts."""
+    if sys.platform != "win32":
+        return
+    try:
+        if pid_alive(int(WATCH_PID_FILE.read_text().strip())):
+            return
+    except Exception:
+        pass
+    try:
+        proc = subprocess.Popen(
+            [_python(), "-m", "wiz101_auto", "watch"],
+            creationflags=0x00000010,  # CREATE_NEW_CONSOLE
+            cwd=os.getcwd(),
+        )
+        WATCH_PID_FILE.write_text(str(proc.pid))
+        print(f"live log window opened (PID {proc.pid}); close it any time, `watch` reopens it.")
+    except OSError as exc:
+        print(f"could not open the live log window: {exc}")
 
 
 def stop(timeout: float = 30.0) -> int:

@@ -18,7 +18,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 
 | Command | Use |
 |---|---|
-| `start [--supervise]` | start in the background; `--supervise` auto-restarts after crashes |
+| `start [--supervise]` | start in the background (also opens the live log window if none is open); `--supervise` auto-restarts after crashes |
 | `stop` | clean stop (unhooks the game); force-kills only after 30s |
 | `restart [--supervise]` | stop + start |
 | `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |

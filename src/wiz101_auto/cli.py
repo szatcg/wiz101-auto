@@ -47,7 +47,7 @@ def _watch(path: str, backlog: int = 30):
     import time
 
     if sys.platform == "win32":
-        os.system("")  # enable ANSI colours in the Windows console
+        os.system("title wiz101-auto live log")  # also enables ANSI colours in the console
     print(f"following {path} (Ctrl+C to stop)")
     print()
     pos = 0
