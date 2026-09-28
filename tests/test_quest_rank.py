@@ -77,4 +77,5 @@ def test_defeat_target():
     assert defeat_target("Defeat Lost Soul in Unicorn Way") == "Lost Soul"
     two_part = "Defeat Scarlet Screamer and Collect Primary Coil in Triton Avenue (0 of 3)"
     assert defeat_target(two_part) == "Scarlet Screamer"
+    assert defeat_target("Defeat Any Nirini and Collect Key in Royal Hall") == "Nirini"
     assert defeat_target("Talk To Merle Ambrose in Commons") is None

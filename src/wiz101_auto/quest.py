@@ -161,7 +161,9 @@ def defeat_target(objective: str) -> str | None:
     m = re.match(r"^\s*defeat\s+(.+?)(?:\s+in\s+[^()]+)?(?:\s*\(\d+ of \d+\))?\s*$", objective, re.I)
     if not m:
         return None
-    return re.split(r"\s+and\s+", m.group(1), maxsplit=1)[0].strip() or None
+    target = re.split(r"\s+and\s+", m.group(1), maxsplit=1)[0].strip()
+    target = re.sub(r"^(any|a|an|the)\s+", "", target, flags=re.I)  # "Defeat Any Nirini"
+    return target or None
 
 
 def is_combat_objective(objective: str) -> bool:
