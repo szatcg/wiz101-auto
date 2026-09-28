@@ -69,6 +69,7 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
+WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
@@ -278,6 +279,7 @@ class Quester:
         self._fights_seen = 0
         self._deaths_at_fight = 0
         self._stall_switched_for = ""  # objective whose quest was set aside for stalling
+        self._wins_since_progress = 0
         self._unreached: dict[tuple[str, str], int] = {}  # (objective, zone) -> failed approaches
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
@@ -297,6 +299,7 @@ class Quester:
             self._last_progress = key
             self._last_progress_time = time.monotonic()
             self._attempts = 0
+            self._wins_since_progress = 0
             return
         # A won fight counts as progress (drop hunts take many fights per item).
         fights = self.fighter.fights if self.fighter else 0
@@ -304,8 +307,13 @@ class Quester:
             won = self.controller.deaths == self._deaths_at_fight
             self._fights_seen, self._deaths_at_fight = fights, self.controller.deaths
             if won:
-                self._last_progress_time = time.monotonic()
-                return
+                self._wins_since_progress += 1
+                # Up to a few won fights count as progress (a drop hunt needs
+                # several); more without the objective moving means these
+                # enemies aren't the ones that drop it.
+                if self._wins_since_progress <= WINS_COUNT_AS_PROGRESS:
+                    self._last_progress_time = time.monotonic()
+                    return
         waited = time.monotonic() - self._last_progress_time
         if waited > STALL_SWITCH_SECONDS and self._stall_switched_for != objective:
             # Stuck without a way forward: follow the next best quest instead of
