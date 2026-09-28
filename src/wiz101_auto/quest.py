@@ -930,6 +930,9 @@ class Quester:
             self._active_quest = active.name if active else self._active_quest
             level = await self.client.stats.reference_level()
             set_aside = self.setbacks.set_aside(level)
+            logger.debug(
+                f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
+            )
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
