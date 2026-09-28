@@ -43,3 +43,9 @@ def test_mark_file_round_trip_and_old_format(tmp_path):
     assert load_mark(f) == Mark("C", "Defeat X", "travel")
     f.write_text('["Krokotopia/KT_Pyramid/KT_PalaceOfFire", "Defeat Shai"]', encoding="utf-8")
     assert load_mark(f) == Mark("Krokotopia/KT_Pyramid/KT_PalaceOfFire", "Defeat Shai", "dungeon")
+
+
+def test_fight_marks_are_kept_like_dungeon_marks():
+    fight = Mark("C", "Defeat Sand Stalkers in Grand Arena", "fight")
+    assert not should_travel_mark("B", "Hub", hops, fight, True, set())
+    assert should_travel_mark("B", "Hub", hops, fight, False, set())

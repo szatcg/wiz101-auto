@@ -261,9 +261,11 @@ def test_saves_a_pip_for_a_much_stronger_attack():
     trap = trap_card(2)
     b = battle([wand, troll], [enemy("Alicane", 480, boss=True)])
     b.pips = 1
-    assert decide(b, Strategy(boss_setup=False)).kind is ActionKind.PASS
+    a = decide(b, Strategy(boss_setup=False))
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Fire Cat"  # a chip hit: bin it, draw
+    assert decide(b, Strategy(boss_setup=False), discards_left=0).kind is ActionKind.PASS
     b.cards.append(trap)  # a free trap is played while waiting
-    assert decide(b, Strategy(boss_setup=False)).card.name == "Fire Trap"
+    assert decide(b, Strategy(boss_setup=False), discards_left=0).card.name == "Fire Trap"
     b2 = battle([dmg_card(0, "Blood Bat", 90), troll], [enemy("Imp", 80)])
     b2.pips = 1
     assert decide(b2).card.name == "Blood Bat"  # a kill now beats waiting
@@ -592,3 +594,12 @@ def test_weak_hit_still_finishes_an_enemy():
     bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
     b = battle([bat], [enemy("Sand Stalker", 100)], my=bladed)
     assert decide(b).card.name == "Blood Bat"
+
+
+def test_chip_hit_discarded_to_draw_a_bigger_one():
+    bat = dmg_card(0, "Blood Bat", 90, pips=1)
+    bat.school = "myth"
+    b = battle([bat, myth_hit(1, pips=3, castable=False)], [enemy("Sand Stalker", 435)], my=_myth_me())
+    b.pips = 2
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Blood Bat"

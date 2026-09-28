@@ -28,7 +28,7 @@ safety:
   max_hours: 3.0
 
 combat:
-  max_discards: 2
+  max_discards: 4
   flee_below: 0.0
   strategy:
     heal_threshold: 0.5       # only matters once you have a heal (e.g. a Life secondary)

@@ -629,6 +629,7 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
 
 
 WEAK_HIT_SHARE = 0.5  # a hit under this share of the target's health doesn't deserve our blade/trap
+CHIP_HIT_SHARE = 1 / 3  # without buffs: a hit under this share is only worth it to finish
 
 
 def _buffed_for(battle: Battle, card: Card, target: Combatant) -> bool:
@@ -796,22 +797,27 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         # Blades and traps are spent by the next hit of their school. A weak hit
         # (Blood Bat: ~136 into a 435 hp Sand Stalker) wastes them: bin weak
         # cards to draw a Troll or Cyclops, or wait, until pips pile up.
+        # Even unbuffed, a chip hit (under a third of the target's health) is
+        # worth less than the Troll/Cyclops a few discards may bring.
+        buffed = _buffed_for(battle, card, focus)
         if (
             card.pip_cost > 0
-            and dmg < focus.health * WEAK_HIT_SHARE
-            and _buffed_for(battle, card, focus)
+            and dmg < focus.health * (WEAK_HIT_SHARE if buffed else CHIP_HIT_SHARE)
             and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips + 1
         ):
+            share = WEAK_HIT_SHARE if buffed else CHIP_HIT_SHARE
             weak = [
                 c for c in battle.cards
                 if c.is_damage and not c.treasure and c.pip_cost > 0
-                and expected_damage(c, battle.me, focus) < focus.health * WEAK_HIT_SHARE
+                and expected_damage(c, battle.me, focus) < focus.health * share
             ]
             if discards_left > 0 and weak:
                 junk = min(weak, key=lambda c: c.base_damage())
-                why = f"too weak to spend the blade/trap on {focus.name}; drawing for a bigger hit"
+                why = (f"too weak to spend the blade/trap on {focus.name}" if buffed
+                       else f"only chips {focus.name}") + "; drawing for a bigger hit"
                 return Action(ActionKind.DISCARD, junk, reason=why)
-            return Action(ActionKind.PASS, reason=f"keeping the blade/trap for a bigger hit than {card.name}")
+            what = "keeping the blade/trap" if buffed else "waiting"
+            return Action(ActionKind.PASS, reason=f"{what} for a bigger hit than {card.name}")
 
         stronger = _stronger_next_round(battle, focus, dmg, strat)
         if stronger:

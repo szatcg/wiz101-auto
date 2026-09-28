@@ -64,7 +64,7 @@ class SafetyConfig:
 @dataclass
 class CombatConfig:
     strategy: Strategy = field(default_factory=Strategy)
-    max_discards: int = 2
+    max_discards: int = 4  # per round; the hand refills at the next round, so discards draw new cards
     flee_below: float = 0.0  # 0 disables fleeing
 
 

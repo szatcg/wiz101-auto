@@ -20,6 +20,9 @@ from pathlib import Path
 from loguru import logger
 
 MARK_FILE = Path("state") / "mark.json"
+# Marks to Recall to after a defeat: a dungeon's sigil, or where a fight
+# objective's zone was reached ("Defeat Sand Stalkers in Grand Arena").
+RETURN_KINDS = ("dungeon", "fight")
 MARK_MIN_HOPS = 2  # mark before a trip at least this many zones long
 RECALL_HOPS = 1  # a Recall (animation + loading) costs about one zone change
 
@@ -65,7 +68,7 @@ def should_travel_mark(
         return False
     if current and current.zone == here:
         return False
-    if current and current.kind == "dungeon" and keep_dungeon:
+    if current and current.kind in RETURN_KINDS and keep_dungeon:
         return False
     n = hops(here, dest)
     return n is None or n >= MARK_MIN_HOPS

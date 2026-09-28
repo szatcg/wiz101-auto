@@ -35,7 +35,7 @@ from .collect import (
 from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
-from .marks import Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
+from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage
@@ -69,6 +69,7 @@ from .upkeep import (
 from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
+DEFEAT_NO_MARK_SECONDS = 120.0  # right after a defeat the wizard stands in the hub: no heal marks
 EXPOSED_RADIUS = 1200.0  # standing still (menus, marking) this close to an enemy invites a fight
 BOUNCE_DISTANCE = 20.0
 WISP_SCAN_SECONDS = 30.0
@@ -363,7 +364,8 @@ class Quester:
         self.completions = CompletionTracker()  # -> docs/CompletedQuests.txt
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
-        self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
+        self._last_defeat = -1e9
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
         self._grinding = False  # every quest set aside: fight for experience until a level-up
         self._main_world: str | None = None  # the world the main quest is in (side quests stay there)
@@ -687,6 +689,8 @@ class Quester:
             save_mark(self._mark)
             if kind == "dungeon":
                 logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
+            elif kind == "fight":
+                logger.info(f"marked this spot in {zone} before the fight (Recall back here after a defeat)")
             elif kind == "room":
                 logger.info(f"marked this spot in {zone} (Recall back here after healing)")
             else:
@@ -696,12 +700,35 @@ class Quester:
             logger.debug(f"marking failed: {exc!r}")
             return False
 
+    async def _mark_for_fight(self, objective: str, zone: str):
+        """Reaching a fight objective's zone: mark the spot once, so a defeat
+        is followed by a Recall here instead of the long walk back."""
+        m = self._mark
+        if m and m.kind in RETURN_KINDS and m.objective == objective and m.zone == zone:
+            return
+        if m and m.kind == "dungeon" and self._keep_dungeon_mark(objective):
+            return  # a dungeon's sigil mark still matters more
+        if self._recall_pending or await self._in_dungeon(zone):
+            return  # inside a dungeon a defeat resets it: its sigil is marked instead
+        await self._mark_here("fight", objective=objective)
+
     async def _heal_mark(self) -> bool:
         """Before healing: mark the spot, to Recall back after healing from
         the hub. Not while a dungeon mark waits for its Recall (a defeat)."""
         if not self.healer or self._recall_pending:
             return False
+        if time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS:
+            return False  # just respawned in the hub: a mark here is useless
+        if await self._fight_mark_here():
+            return True  # the fight mark does the job: healing Recalls back to it
         return await self._mark_here("room")
+
+    async def _fight_mark_here(self) -> bool:
+        """Is the mark a fight mark for the current objective in this zone?"""
+        m = self._mark
+        if not m or m.kind != "fight":
+            return False
+        return m.objective == await self.objective() and m.zone == await self.client.zone_name()
 
     async def _heal_trip(self, force: bool = False, marked: bool = False) -> bool:
         """This zone lacks what recovery needs: heal from the hub and Recall
@@ -716,7 +743,9 @@ class Quester:
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
         if not zone or not (marked or coming_back or force):
             return False
-        return await self.healer.trip(zone, f"not enough wisps here for {objective!r}", mark=not marked)
+        keep = await self._fight_mark_here()  # never over the fight mark: Recall to it instead
+        why = f"not enough wisps here for {objective!r}"
+        return await self.healer.trip(zone, why, mark=not (marked or keep))
 
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
@@ -736,12 +765,12 @@ class Quester:
         """The dungeon mark is still wanted: a defeat awaits a Recall, or we're
         still on the objective it was set for."""
         m = self._mark
-        return bool(m and m.kind == "dungeon" and (self._recall_pending or m.objective == objective))
+        return bool(m and m.kind in RETURN_KINDS and (self._recall_pending or m.objective == objective))
 
     def _retire_dungeon_mark(self):
         """The dungeon mark has served (or can't any more); the game still holds
         it, so it stays on as a travel mark in the sigil's zone."""
-        if self._mark and self._mark.kind == "dungeon":
+        if self._mark and self._mark.kind in RETURN_KINDS:
             self._mark = Mark(self._mark.zone, self._mark.objective, "travel")
             save_mark(self._mark)
 
@@ -888,7 +917,8 @@ class Quester:
         if deaths <= self._seen_deaths:
             return
         self._seen_deaths = deaths
-        self._recall_pending = bool(self._mark and self._mark.kind == "dungeon")
+        self._recall_pending = bool(self._mark and self._mark.kind in RETURN_KINDS)
+        self._last_defeat = time.monotonic()
         objective = await self.objective()
         if not is_combat_objective(objective):
             return
@@ -914,7 +944,7 @@ class Quester:
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
         Recall to jump back to the marked dungeon entrance. True if we recalled."""
-        if not self._mark or self._mark.kind != "dungeon" or not self._recall_pending:
+        if not self._mark or self._mark.kind not in RETURN_KINDS or not self._recall_pending:
             return False  # only after a defeat: otherwise we left on purpose (or are inside)
         marked_zone = self._mark.zone
         zone = await self.client.zone_name()
@@ -926,10 +956,12 @@ class Quester:
             return False
         if not await is_free(self.client):
             return False
-        logger.info(f"recalling to the dungeon entrance in {marked_zone} instead of walking back")
-        self._recall_pending = False
-        self._retire_dungeon_mark()  # one try per defeat: never loop on a failing recall
-        return await self._recall(marked_zone, "the dungeon entrance")
+        what = "the dungeon entrance" if self._mark.kind == "dungeon" else "the spot marked before the fight"
+        logger.info(f"recalling to {what} in {marked_zone} instead of walking back")
+        self._recall_pending = False  # one try per defeat: never loop on a failing recall
+        if self._mark.kind == "dungeon":
+            self._retire_dungeon_mark()  # the dungeon resets: its sigil is a fresh start
+        return await self._recall(marked_zone, what)
 
     async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
         """Press Recall and wait to arrive in `marked_zone`. True if we did."""
@@ -1813,6 +1845,7 @@ class Quester:
         # sit beside other mobs (a Desert Golem by the Nirini Warriors), and
         # pull_mob goes after the named enemy on purpose afterwards.
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
+            await self._mark_for_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
         await self.travel(target)
         if not await wait_until_free(self.client, timeout=5):
