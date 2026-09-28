@@ -69,6 +69,7 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
+FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one objective, fight
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
@@ -279,6 +280,7 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
@@ -1106,7 +1108,17 @@ class Quester:
             return False
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
-        return not fight_needed(objective, names, zone, has_boss)
+        if fight_needed(objective, names, zone, has_boss):
+            return False
+        # Fleeing the same enemies again and again on one objective means they
+        # stand in the way (Desert Golems on the road to Akori's Chamber): fight.
+        key = (objective, frozenset(names))
+        self._fled[key] = self._fled.get(key, 0) + 1
+        if self._fled[key] > FLEES_BEFORE_FIGHTING:
+            who = ', '.join(sorted(set(names)))
+            logger.info(f"fled {who} {self._fled[key] - 1} times here; fighting through")
+            return False
+        return True
 
     async def pull_mob(self, objective: str = ""):
         """For defeat objectives: teleport onto the enemy the objective names
