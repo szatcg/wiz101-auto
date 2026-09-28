@@ -24,6 +24,7 @@ from pathlib import Path
 
 from loguru import logger
 
+from . import lifetime
 from .questlist import WORLDS, load_completed, load_world_lists, norm, quest_status
 
 PORT = 8101
@@ -131,6 +132,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
         "recent": completed[-12:][::-1],
         "worlds": worlds,
         "arcs": arcs,
+        "deaths": {"total": lifetime.load().get("deaths", 0), "session": status.get("deaths", 0)},
     }
 
 

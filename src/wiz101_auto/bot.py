@@ -11,6 +11,7 @@ from wizwalker import ClientHandler
 from wizwalker.errors import PatternFailed
 from wizwalker.extensions.wizsprinter import SprintyClient
 
+from . import lifetime
 from .bossfarm import BossFarmer
 from .combat.fighter import Fighter
 from .config import Config
@@ -171,6 +172,7 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
         except Exception as exc:
             info["read_error"] = repr(exc)
         info.update(fights=fighter.fights, deaths=controller.deaths)
+        info["deaths_total"] = lifetime.load().get("deaths", 0)
         if quester:
             info.update(
                 objective=quester._last_progress[0],

@@ -148,7 +148,7 @@
       <div class="where" id="where"></div>
     </div>
     <div class="vitals">
-      <div>Level <b id="level">–</b></div>
+      <div>Level <b id="level">–</b> · Deaths <b id="deaths">–</b> <span id="deathsSession"></span></div>
       <div id="hptext"></div>
       <div class="hp"><div id="hpbar" style="width:0%"></div></div>
     </div>
@@ -189,6 +189,9 @@ function renderRibbon() {
   const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
   document.getElementById("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
   document.getElementById("level").textContent = s.level ?? "–";
+  document.getElementById("deaths").textContent = data.deaths ? data.deaths.total : "–";
+  document.getElementById("deathsSession").textContent =
+    data.running && data.deaths ? `(${data.deaths.session} this session)` : "";
   const [hp, max] = String(s.health || "0/0").split("/").map(Number);
   document.getElementById("hptext").textContent = max ? `Health ${hp} / ${max}` : "";
   document.getElementById("hpbar").style.width = max ? `${Math.round((100 * hp) / max)}%` : "0%";

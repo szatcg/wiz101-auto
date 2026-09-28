@@ -83,6 +83,7 @@ while the bot is stopped.
 | `state/mark.json` | where the game's Mark is: a dungeon sigil (Recall after a defeat) or a travel mark (Recall when nearer the next objective than walking) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
+| `state/lifetime.json` | totals across sessions (deaths; seeded from the log's "wizard defeated" lines) |
 | `state/quest_book.json` | the quest book at the last ranking (for the dashboard) |
 | `docs/quests/<World>.txt` | quest lists for worlds after Wizard City (Spiral Tracker format), shown on the dashboard |
 | `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |

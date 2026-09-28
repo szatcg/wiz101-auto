@@ -113,10 +113,14 @@ class Controller:
         return not self._resume.is_set()
 
     def record_death(self):
+        from . import lifetime
+
+        lifetime.load()  # seed the total from the log before this death is logged
         self.deaths += 1
+        total = lifetime.add_death()
         # Deaths never stop the bot: losing fights is handled per objective
         # (setbacks puts a quest aside and the bot levels up elsewhere).
-        logger.warning(f"wizard defeated ({self.deaths} this session)")
+        logger.warning(f"wizard defeated ({self.deaths} this session, {total} in all)")
 
     async def checkpoint(self):
         """Await between actions: blocks while paused, raises when stopped."""
