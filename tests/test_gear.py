@@ -43,6 +43,24 @@ def test_gear_memory_skips_beaten_items_and_retries_locked_on_level_up(tmp_path)
     assert m.candidates("Tab_Hat", names, level_up=True) == ["Alicane's Cowl", "Brand New Helm"]
 
 
+def test_gear_memory_keeps_the_item_to_put_back(tmp_path):
+    from wiz101_auto.gear import GearMemory
+
+    m = GearMemory(tmp_path / "gear.json")
+    m.restore["Tab_Robe"] = "Senior Novice's Robe"
+    m.save()
+    assert GearMemory(tmp_path / "gear.json").restore == {"Tab_Robe": "Senior Novice's Robe"}
+
+
+def test_own_school_flat_damage_counts():
+    from wiz101_auto.gear import StatSnapshot, gear_score
+
+    plain = StatSnapshot(health=845)
+    assert gear_score(StatSnapshot(health=845, flat_damage=2)) > gear_score(plain)
+    # +60 health (Cloak of Tales) beats +2 damage (Trollskin Cloak)
+    assert gear_score(StatSnapshot(health=905)) > gear_score(StatSnapshot(health=845, flat_damage=2))
+
+
 def test_main_quests_get_five_tries(tmp_path):
     from wiz101_auto.setbacks import Setbacks
 

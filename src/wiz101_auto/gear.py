@@ -71,6 +71,7 @@ class StatSnapshot:
     health: float = 0
     mana: float = 0
     damage: float = 0  # own-school outgoing damage, fraction
+    flat_damage: float = 0  # own-school "+N damage" (early gear gives this, not %)
     accuracy: float = 0
     resist: float = 0  # average incoming reduction over the main schools
     power_pip: float = 0
@@ -80,12 +81,13 @@ class StatSnapshot:
 
 def gear_score(s: StatSnapshot) -> float:
     """One number for 'how strong is the wizard'. Weights favour survival and
-    damage for PvE questing: 1 point per health, 20 per 1% damage, 15 per 1%
-    resist, 10 per 1% power pip chance, 5 per 1% accuracy."""
+    damage for PvE questing: 1 point per health, 20 per 1% damage, 10 per +1
+    flat damage, 15 per 1% resist, 10 per 1% power pip chance, 5 per 1% accuracy."""
     return (
         s.health
         + s.mana * 0.2
         + s.damage * 2000
+        + s.flat_damage * 10
         + s.resist * 1500
         + s.power_pip * 1000
         + s.accuracy * 500
@@ -110,6 +112,7 @@ async def read_stats(client, school: str) -> StatSnapshot:
         health=await st.max_hitpoints(),
         mana=await st.max_mana(),
         damage=_pick(await st.dmg_bonus_percent(), school, await st.dmg_bonus_percent_all()),
+        flat_damage=_pick(await st.dmg_bonus_flat(), school, await st.dmg_bonus_flat_all()),
         accuracy=_pick(await st.acc_bonus_percent(), school, await st.acc_bonus_percent_all()),
         resist=(sum(main) / len(main) if main else 0) + await st.dmg_reduce_percent_all(),
         power_pip=await st.power_pip_base() + await st.power_pip_bonus_percent_all(),
@@ -119,6 +122,10 @@ async def read_stats(client, school: str) -> StatSnapshot:
 
 
 GEAR_MEMORY = Path("state") / "gear.json"
+
+
+class GearInterrupted(Exception):
+    """A fight started (or the backpack closed) in the middle of a gear check."""
 
 
 class GearMemory:
@@ -131,10 +138,15 @@ class GearMemory:
         self.path = path
         self.worse: dict[str, set[str]] = {}
         self.locked: dict[str, set[str]] = {}
+        # tab -> the item to wear there while a check is trying others on: if the
+        # check is cut short (a fight starts, the backpack closes, the bot stops)
+        # it is put back on at the next chance instead of leaving a worse item on.
+        self.restore: dict[str, str] = {}
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
             self.worse = {t: set(v) for t, v in raw.get("worse", {}).items()}
             self.locked = {t: set(v) for t, v in raw.get("locked", {}).items()}
+            self.restore = dict(raw.get("restore", {}))
         except Exception:
             pass
 
@@ -144,6 +156,7 @@ class GearMemory:
             data = {
                 "worse": {t: sorted(v) for t, v in self.worse.items()},
                 "locked": {t: sorted(v) for t, v in self.locked.items()},
+                "restore": self.restore,
             }
             self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
         except OSError:
@@ -283,7 +296,14 @@ class GearManager:
         logger.debug(f"gear: {tab[4:]}: trying {to_try} against {current!r}")
         # An empty slot loses to any item that can actually be worn.
         best_name, best_score = current, (await self._score() if current else float("-inf"))
+        if best_name:
+            self.memory.restore[tab] = best_name
+            self.memory.save()
         for name in to_try:
+            if await self.client.in_battle() or not await ui.is_visible(self.client, PAGE):
+                logger.warning(f"gear: {tab[4:]} check cut short; {best_name!r} goes back on when free")
+                self.memory.save()
+                raise GearInterrupted
             if not await self._equip_by_name(tab, name):
                 logger.debug(f"gear: {tab[4:]} {name!r} can't be worn (level or school)")
                 self.memory.mark(tab, name, "locked")
@@ -296,19 +316,51 @@ class GearManager:
                 best_name, best_score = name, score
             else:
                 self.memory.mark(tab, name, "worse")
-        self.memory.save()
+            if best_name:
+                self.memory.restore[tab] = best_name
+            self.memory.save()
         if best_name:
             # Never leave the slot worse than we found it: equipping sometimes
             # doesn't take, so check the score and try again.
-            for _ in range(3):
-                if not await ui.is_visible(self.client, PAGE):
-                    await self._open()
-                await self._equip_by_name(tab, best_name)
-                if await self._score() >= best_score - 0.5:
-                    break
-            else:
-                logger.warning(f"gear: could not put {best_name!r} back on ({tab[4:]}); check that slot")
+            await self._put_on(tab, best_name, best_score)
         return best_name if best_name != current else None
+
+    async def _put_on(self, tab: str, name: str, score: float | None = None) -> bool:
+        """Wear `name` in `tab` (verified by `score` when known, else by the
+        item's equipped mark) and clear its pending restore. False if it
+        couldn't be done now (a fight, the backpack closed); it stays pending."""
+        for _ in range(3):
+            if await self.client.in_battle():
+                raise GearInterrupted
+            if not await ui.is_visible(self.client, PAGE) and not await self._open():
+                continue
+            on = await self._equip_by_name(tab, name)
+            if (score is None and on) or (score is not None and await self._score() >= score - 0.5):
+                self.memory.restore.pop(tab, None)
+                self.memory.save()
+                return True
+        logger.warning(f"gear: could not put {name!r} back on ({tab[4:]}); will retry when free")
+        return False
+
+    async def restore_pending(self) -> bool:
+        """Put back items a cut-short check left off. True if there were any."""
+        if not self.memory.restore:
+            return False
+        logger.info(f"gear: putting back {', '.join(self.memory.restore.values())} (a check was cut short)")
+        if not await self._open():
+            return True
+        try:
+            for tab, name in list(self.memory.restore.items()):
+                await self._put_on(tab, name)
+                # One go outside a fight: an item that's gone (sold) isn't retried forever.
+                self.memory.restore.pop(tab, None)
+                self.memory.save()
+        except GearInterrupted:
+            return True
+        finally:
+            if not await self.client.in_battle():
+                await self._close()
+        return True
 
     async def optimise(
         self, reason: str, tabs=SLOT_TABS, only: dict | None = None, level_up: bool = False
@@ -326,13 +378,16 @@ class GearManager:
                 try:
                     names = only.get(tab) if only is not None else None
                     new = await self._optimise_slot(tab, names, level_up)
+                except GearInterrupted:
+                    break
                 except Exception as exc:
                     logger.debug(f"gear: {tab} failed: {exc!r}")
                     continue
                 if new:
                     changed.append(new)
         finally:
-            await self._close()
+            if not await self.client.in_battle():
+                await self._close()
         if changed:
             logger.success(f"equipped better gear: {', '.join(changed)}")
         else:
@@ -385,6 +440,8 @@ class GearManager:
         in its slot only. After a level-up, items that couldn't be worn before
         (and any never tried) are tried; ones already beaten are not. Startups
         don't check."""
+        if await self.restore_pending():
+            return
         level = await self.client.stats.reference_level()
         if self._level is not None and level > self._level:
             self._level = level
