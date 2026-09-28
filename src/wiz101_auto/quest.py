@@ -208,10 +208,9 @@ def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bo
         return True
     if not is_combat_objective(objective):
         return False
-    text = objective.strip()
-    if not text.lower().startswith("defeat "):
+    wanted = defeat_target(objective)
+    if wanted is None:
         return True  # "Summon/Cast ...": any fight does
-    wanted = re.split(r"\s+(?:and|in)\s+|\s*\(", text[len("defeat ") :], maxsplit=1)[0]
     target = _norm_name(wanted).removesuffix("s")
     if len(target) < 3:
         return True

@@ -21,8 +21,8 @@ class QuestConfig:
     # Abort questing if the objective hasn't changed for this long.
     stuck_minutes: float = 12.0
     # Flee fights the tracked quest doesn't need (never bosses or fights indoors).
-    # Off by default: fleeing costs all of the wizard's mana.
-    flee_unneeded_fights: bool = False
+    # Fleeing costs all mana, but teleporting to mana wisps gets it back quickly.
+    flee_unneeded_fights: bool = True
 
 
 @dataclass

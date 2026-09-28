@@ -37,6 +37,7 @@ class Fighter(CombatHandler):
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
         self._judged_fight = False
+        self._fleeing = False
         self._last_plan = ""
 
     async def _hand_size(self) -> int:
@@ -105,7 +106,30 @@ class Fighter(CombatHandler):
         except Exception as exc:
             logger.debug(f"could not remember bosses: {exc!r}")
 
+    async def flee(self) -> bool:
+        """Flee on purpose: click Flee at its center, then answer Yes to "Are you
+        sure you want to flee? You will lose all your Mana..." (mana comes back
+        quickly from wisps). True if the confirmation was answered."""
+        self._fleeing = True
+        for b in await self.client.root_window.get_windows_with_name("Flee"):
+            if await b.is_visible():
+                await ui.click_center(self.client, b)
+                break
+        else:
+            return False
+        for _ in range(10):
+            await asyncio.sleep(0.3)
+            box = await ui.modal_box(self.client)
+            if box is not None and "flee" in (await ui.modal_text(box)).lower():
+                if await ui.press_modal_button(self.client, box, "centerButton"):
+                    logger.info("confirmed fleeing")
+                    return True
+        logger.warning("flee confirmation didn't appear")
+        return False
+
     async def cancel_flee_box(self) -> bool:
+        if self._fleeing:
+            return False  # we asked to flee: leave the confirmation to flee()
         box = await ui.modal_box(self.client)
         if box is None or "flee" not in (await ui.modal_text(box)).lower():
             return False
@@ -146,7 +170,7 @@ class Fighter(CombatHandler):
 
             if self.flee_below and battle.me.health_ratio < self.flee_below:
                 logger.warning(f"health {battle.me.health}/{battle.me.max_health}: fleeing")
-                await self.flee_button()
+                await self.flee()
                 return
 
             # Never flee by accident: fleeing costs all of the wizard's mana.
@@ -169,7 +193,7 @@ class Fighter(CombatHandler):
                 if await self.unneeded_fight(battle):
                     names = ", ".join(e.name for e in battle.enemies)
                     logger.info(f"fight with {names} isn't needed for the quest: fleeing")
-                    await self.flee_button()
+                    await self.flee()
                     return
 
             plan = plan_fight(battle, self.strategy).text
@@ -232,6 +256,7 @@ class Fighter(CombatHandler):
     async def handle_combat(self):
         self._unusable.clear()
         self._judged_fight = False
+        self._fleeing = False
         self._last_plan = ""
         await super().handle_combat()
         self.fights += 1

@@ -93,3 +93,13 @@ def test_safe_landing_avoids_enemies_and_prefers_our_side():
     assert clear_of(spot, mobs, 700) and spot.x < 0  # on our side of the target
     assert safe_landing(target, start, [XYZ(0, 0, 0)] + [XYZ(x, y, 0) for x in range(-3000, 3001, 500)
                                                           for y in range(-3000, 3001, 500)], 700) is None
+
+
+def test_fight_needed_for_any_named_enemy():
+    from wiz101_auto.quest import fight_needed
+
+    obj = "Defeat Any Nirini and Collect Key in Royal Hall"
+    street = "Krokotopia/KT_Pyramid/KT_Hall"
+    assert fight_needed(obj, ["Nirini Warrior"], street, False)
+    warriors = "Defeat Nirini Warrior in Palace of Fire (2 of 3)"
+    assert not fight_needed(warriors, ["Desert Golem"], street, False)
