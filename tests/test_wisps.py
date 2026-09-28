@@ -81,3 +81,13 @@ def test_mana_only_recovery_goes_where_mana_wisps_are():
     here = "WizardCity/WC_Hub"
     assert best_wisp_zone(here, spots, unicorn, need={"mana"}, kinds=kinds) == next(iter(spots))
     assert best_wisp_zone(here, spots, unicorn, need={"health"}, kinds=kinds) == unicorn[0]
+
+
+def test_close_enough_to_fight_without_wisps():
+    from wiz101_auto.config import UpkeepConfig
+    from wiz101_auto.upkeep import close_enough
+
+    cfg = UpkeepConfig(min_health_to_fight=0.85, min_mana_to_fight=0.5)
+    assert close_enough(cfg, 0.83, 0.9)
+    assert not close_enough(cfg, 0.6, 0.9)
+    assert not close_enough(cfg, 0.9, 0.3)

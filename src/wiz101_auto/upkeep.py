@@ -340,6 +340,13 @@ def best_wisp_zone(
     return None
 
 
+CLOSE_ENOUGH = 0.10  # within this much of the fight thresholds counts when no wisps help
+
+
+def close_enough(cfg: UpkeepConfig, hp: float, mana: float) -> bool:
+    return hp >= cfg.min_health_to_fight - CLOSE_ENOUGH and mana >= cfg.min_mana_to_fight - CLOSE_ENOUGH
+
+
 def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
     """Which wisp kinds recovery still needs."""
     need = set()
@@ -404,7 +411,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                 # wisp (a few % at once) counts as finding something.
                 gained = now_hp - hp >= WISP_GAIN or now_mana - mana >= WISP_GAIN
                 fruitless = 0 if gained else fruitless + 1
-                if travelled or fruitless < FRUITLESS_VISITS:
+                if fruitless < FRUITLESS_VISITS:
                     continue
             if zone not in swept:
                 swept.add(zone)
@@ -428,6 +435,11 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                     logger.info(f"no wisps or route out of {zone}; following the quest out to heal")
                     _leaving_interior.add(zone)
                     return True
+            if fruitless >= FRUITLESS_VISITS and close_enough(cfg, hp, mana):
+                # Nothing to be had around here and we're nearly there: waiting for
+                # regeneration costs minutes that questing puts to better use.
+                logger.info(f"no wisps here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
+                return True
 
         if not rested:
             await move_to_safety(client)
