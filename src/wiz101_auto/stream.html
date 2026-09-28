@@ -126,6 +126,18 @@
   .k-loot { border-left-color: var(--gold); } .k-mark, .k-recall { border-left-color: var(--violet); } .k-hunt { border-left-color: var(--orange); }
   .k-quest, .k-success { border-left-color: var(--gold); } .k-warning, .k-flee { border-left-color: var(--orange); }
   .k-talk { border-left-color: #7fd6ff; } .k-train { border-left-color: var(--violet); }
+  .tag { display: inline-block; min-width: 72px; margin-right: 10px; padding: 2px 8px; border-radius: 6px; text-align: center;
+    font: 800 12px Inter; letter-spacing: 1.2px; color: #10121f; background: var(--muted); vertical-align: 2px; }
+  .t-FINISH, .t-KILL, .t-ATTACK, .t-FREE { background: var(--red); color: #fff; }
+  .t-SETUP, .t-BOOST, .t-PRISM, .t-BREAK { background: var(--violet); color: #fff; }
+  .t-WAIT, .t-PLAN { background: var(--teal); }
+  .t-TOSS { background: #8a8fb8; }
+  .t-HEAL, .t-SHIELD { background: var(--green); }
+  .t-SUMMON, .t-MARK, .t-RECALL { background: var(--violet); color: #fff; }
+  .t-HUNT, .t-FLEE, .t-HMM { background: var(--orange); }
+  .t-TRAVEL, .t-TALK, .t-COLLECT { background: var(--blue); }
+  .t-LOOT, .t-DONE, .t-QUEST, .t-YES { background: var(--gold); }
+  .move .what .tag { font-size: 13px; }
 </style>
 </head>
 <body>
@@ -221,12 +233,12 @@ function renderLower() {
     const foes = b.enemies.filter((e) => !e.dead).map((e) => `
       <div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span><span>${e.hp} / ${e.max}</span></div>
       <div class="bar"><div style="width:${e.max ? (100 * e.hp) / e.max : 0}%"></div></div></div>`).join("");
-    const what = b.kind === "pass" ? "Pass" : `${b.kind[0].toUpperCase()}${b.kind.slice(1)} ${esc(b.card)}${b.target ? " → " + esc(b.target) : ""}`;
+    const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     $("lower").className = "card grow battle";
     $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3><div class="pips">${pips}</div></div>
       ${foes}
-      <div class="move"><div class="what">${ICONS[b.kind] || "⚔️"} ${what}</div><div class="why">${esc(b.why)}</div></div>
-      ${b.plan ? `<div class="plan">🧮 ${esc(b.plan)}</div>` : ""}`;
+      <div class="move"><span class="label">Wizzbot's move</span><div class="what">${what}</div></div>
+      ${b.plan ? `<div class="plan">🧮 Plan: ${esc(b.plan.replaceAll(" > ", " → ").split(" | ").join(" · ").replace(/; skipping the minion.*/, ""))}</div>` : ""}`;
     return;
   }
   const book = (data && data.book) || [];
@@ -237,12 +249,9 @@ function renderLower() {
 }
 
 function describe(e) {
-  if (e.round != null) {
-    const head = e.kind === "pass" ? "Pass" : `${e.kind[0].toUpperCase()}${e.kind.slice(1)} <b>${esc(e.card)}</b>${e.target ? " → " + esc(e.target) : ""}`;
-    return `R${e.round} · ${head} <em>— ${esc(e.why)}</em>`;
-  }
-  if (e.kind === "plan") return `Plan: ${esc(e.text)}`;
-  return esc(e.text);
+  const tag = e.tag ? `<span class="tag t-${e.tag}">${e.tag}</span>` : "";
+  const round = e.round != null ? `<em>R${e.round} · </em>` : "";
+  return `${tag}${round}${esc(e.say || e.text)}`;
 }
 
 function renderFeed() {
