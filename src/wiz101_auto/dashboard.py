@@ -25,7 +25,7 @@ from pathlib import Path
 from loguru import logger
 
 from . import lifetime
-from .questlist import WORLDS, load_completed, load_world_lists, norm, quest_status
+from .questlist import WORLDS, load_completed, load_world_lists, norm, quest_status, world_of_zone
 
 PORT = 8101
 ARCS = (
@@ -38,16 +38,6 @@ PAGE = Path(__file__).with_name("dashboard.html")
 STATUS = Path("state") / "status.json"
 QUEST_BOOK = Path("state") / "quest_book.json"
 STALE_SECONDS = 30  # heartbeat older than this: the bot isn't running
-# Zone ids start with the world's internal name ("WizardCity/WC_Hub").
-_ZONE_WORLDS = {"wizardcity": "Wizard City", "dragonspire": "Dragonspyre"}
-
-
-def world_of_zone(zone: str) -> str:
-    """"Krokotopia/KT_Hub" -> "Krokotopia"."""
-    head = norm((zone or "").split("/", 1)[0])
-    if head in _ZONE_WORLDS:
-        return _ZONE_WORLDS[head]
-    return next((w for w in WORLDS if norm(w) == head), "")
 
 
 def _read_json(path: Path) -> dict:
@@ -73,6 +63,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
                 here = name
     here_index = WORLDS.index(here) if here in WORLDS else -1
 
+    deaths_by_world = lifetime.load().get("deaths_by_world", {})
     worlds = []
     for i, name in enumerate(WORLDS):
         listed = lists.get(name, [])
@@ -96,6 +87,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "done": done,
             "pct": round(100 * done / len(listed)) if listed else (100 if 0 <= i < here_index else 0),
             "current": name == here,
+            "deaths": int(deaths_by_world.get(name, 0)),
             "reached": 0 <= i <= here_index,
             "areas": areas,
         })
@@ -113,6 +105,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "done": done,
             "pct": round(100 * done / total) if total else 0,
             "lists": len(listed),
+            "deaths": sum(w["deaths"] for w in members),
             "current": any(w["current"] for w in members),
         })
 

@@ -113,6 +113,16 @@ WORLDS = (
     "Novus", "Wallaru", "Selenopolis",
 )
 WORLD_LISTS = Path("docs") / "quests"  # <World>.txt, same format as QuestList.txt
+# Zone ids start with the world's internal name ("WizardCity/WC_Hub").
+_ZONE_WORLDS = {"wizardcity": "Wizard City", "dragonspire": "Dragonspyre"}
+
+
+def world_of_zone(zone: str) -> str:
+    """"Krokotopia/KT_Hub" -> "Krokotopia" ("" if unknown)."""
+    head = norm((zone or "").split("/", 1)[0])
+    if head in _ZONE_WORLDS:
+        return _ZONE_WORLDS[head]
+    return next((w for w in WORLDS if norm(w) == head), "")
 
 
 def tidy_world_list(listed: list[ListedQuest]) -> list[ListedQuest]:

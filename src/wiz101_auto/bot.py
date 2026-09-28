@@ -142,13 +142,14 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
     while not controller.stopped.is_set():
         await controller.checkpoint()
         if await client.in_battle():
+            fight_zone = await client.zone_name() or ""  # a defeat moves us elsewhere
             await fighter.handle_combat()
             await asyncio.sleep(1.5)
             hp = await client.stats.current_hitpoints()
             max_hp = await client.stats.max_hitpoints()
             if hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO):
                 # Losing a fight sends you back with a sliver of health.
-                controller.record_death()
+                controller.record_death(fight_zone)
             elif await is_free(client):
                 await scan_wisps(client)
                 await maintain(client, cfg.upkeep)

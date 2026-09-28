@@ -112,12 +112,13 @@ class Controller:
     def paused(self) -> bool:
         return not self._resume.is_set()
 
-    def record_death(self):
+    def record_death(self, zone: str = ""):
         from . import lifetime
+        from .questlist import world_of_zone
 
-        lifetime.load()  # seed the total from the log before this death is logged
+        lifetime.load()  # seed the totals from the log before this death is logged
         self.deaths += 1
-        total = lifetime.add_death()
+        total = lifetime.add_death(world_of_zone(zone))
         # Deaths never stop the bot: losing fights is handled per objective
         # (setbacks puts a quest aside and the bot levels up elsewhere).
         logger.warning(f"wizard defeated ({self.deaths} this session, {total} in all)")
