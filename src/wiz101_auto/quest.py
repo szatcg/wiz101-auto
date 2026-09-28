@@ -12,12 +12,10 @@ Combat itself is handled concurrently by the Fighter task.
 from __future__ import annotations
 
 import asyncio
-import json
 import math
 import re
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
@@ -27,6 +25,7 @@ from .collect import Collector, away_from, collect_item_name, landmarks, spread_
 from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
+from .marks import Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
@@ -38,6 +37,7 @@ from .travel_data import (
     learn_gate,
     objective_zone,
     quest_spots,
+    zone_hops,
 )
 from .upkeep import (
     clear_popups,
@@ -76,6 +76,7 @@ WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
+RECALL_RETRY_SECONDS = 600.0  # after a travel recall fails (cooldown, refused), walk for a while
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
@@ -260,29 +261,6 @@ def distance(a: XYZ, b: XYZ) -> float:
     return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
 
 
-MARK_FILE = Path("state") / "mark.json"
-
-
-def _load_mark() -> tuple[str | None, str] | None:
-    """The dungeon mark from an earlier run (the game keeps the mark itself)."""
-    try:
-        zone, objective = json.loads(MARK_FILE.read_text(encoding="utf-8"))
-        return zone, objective
-    except Exception:
-        return None
-
-
-def _save_mark(mark: tuple[str | None, str] | None):
-    try:
-        if mark is None:
-            MARK_FILE.unlink(missing_ok=True)
-        else:
-            MARK_FILE.parent.mkdir(exist_ok=True)
-            MARK_FILE.write_text(json.dumps(list(mark)), encoding="utf-8")
-    except OSError as exc:
-        logger.debug(f"could not save the dungeon mark: {exc}")
-
-
 class Quester:
     def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None, dialogue=None):
         self.client = client
@@ -327,7 +305,9 @@ class Quester:
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
         self._teleported = False  # a recall moved us: not a gate
-        self._mark: tuple[str | None, str] | None = _load_mark()  # (dungeon zone, objective) we marked
+        self._mark: Mark | None = load_mark()  # where the game's Mark is (dungeon sigil or travel spot)
+        self._recall_blocked_until = 0.0  # after a refused/failed travel recall
+        self._recalled_for = ""  # objective a travel recall was used for (once each)
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
@@ -574,22 +554,76 @@ class Quester:
         self._sigil_failed_at = sigil
         return False
 
-    async def _mark_here(self):
-        """Mark this spot (a dungeon's sigil): after a defeat and healing, Recall
-        brings us straight back instead of walking across the world again."""
+    async def _mark_here(self, kind: str = "dungeon", objective: str | None = None) -> bool:
+        """Mark this spot. A dungeon's sigil: after a defeat and healing, Recall
+        brings us straight back instead of walking across the world again. A
+        travel mark: a later objective near it is reached by Recall."""
         try:
-            objective = await self.objective()
-            zone = await self.client.zone_name()
+            objective = await self.objective() if objective is None else objective
+            zone = await self.client.zone_name() or ""
             if not await ui.click_named(self.client, "MarkButton"):
                 logger.debug("no Mark button to click")
-                return
+                return False
             await asyncio.sleep(1.0)
             await ui.confirm_modal(self.client)
-            self._mark = (zone, objective)
-            _save_mark(self._mark)
-            logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
+            self._mark = Mark(zone, objective, kind)
+            save_mark(self._mark)
+            if kind == "dungeon":
+                logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
+            else:
+                logger.info(f"marked this spot in {zone} before a long trip (Recall when it's on the way)")
+            return True
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
+            return False
+
+    def _keep_dungeon_mark(self, objective: str) -> bool:
+        """The dungeon mark is still wanted: a defeat awaits a Recall, or we're
+        still on the objective it was set for."""
+        m = self._mark
+        return bool(m and m.kind == "dungeon" and (self._recall_pending or m.objective == objective))
+
+    def _retire_dungeon_mark(self):
+        """The dungeon mark has served (or can't any more); the game still holds
+        it, so it stays on as a travel mark in the sigil's zone."""
+        if self._mark and self._mark.kind == "dungeon":
+            self._mark = Mark(self._mark.zone, self._mark.objective, "travel")
+            save_mark(self._mark)
+
+    async def _travel_mark(self, objective: str, zone: str):
+        """A new objective several zones away: mark where we are first, so a
+        later objective back here is a Recall instead of the same long walk."""
+        dest = objective_zone(objective)
+        dungeons = set(DungeonMemory.load().dungeons)
+        keep = self._keep_dungeon_mark(objective)
+        if not should_travel_mark(zone, dest, zone_hops, self._mark, keep, dungeons):
+            return
+        if not await is_free(self.client):
+            return
+        await self._mark_here("travel", objective=self._last_progress[0] or "")
+
+    async def _recall_if_faster(self, objective: str, zone: str) -> bool:
+        """Recall to the mark when that plus the walk from it beats walking to
+        the objective's zone from here. True if we recalled."""
+        if not self._mark or self._mark.kind != "travel" or self._recalled_for == objective:
+            return False
+        if time.monotonic() < self._recall_blocked_until:
+            return False
+        dest = objective_zone(objective)
+        if not recall_is_faster(zone, dest, self._mark, zone_hops):
+            return False
+        if not await is_free(self.client):
+            return False
+        self._recalled_for = objective
+        walk, via = zone_hops(zone, dest), zone_hops(self._mark.zone, dest)
+        logger.info(
+            f"recalling to the mark in {self._mark.zone} for {dest}: "
+            f"{via} zone(s) from there vs {walk if walk is not None else 'no known route'} from here"
+        )
+        if await self._recall(self._mark.zone):
+            return True
+        self._recall_blocked_until = time.monotonic() + RECALL_RETRY_SECONDS
+        return False
 
     async def _learn_arrival_gate(self):
         """Walking from one outdoor zone into another leaves the wizard just in
@@ -685,7 +719,7 @@ class Quester:
         if deaths <= self._seen_deaths:
             return
         self._seen_deaths = deaths
-        self._recall_pending = self._mark is not None
+        self._recall_pending = bool(self._mark and self._mark.kind == "dungeon")
         objective = await self.objective()
         if not is_combat_objective(objective):
             return
@@ -699,8 +733,8 @@ class Quester:
                 f"lost {objective!r} {tries} times: setting {quest!r} aside until {until}; "
                 "doing other quests meanwhile"
             )
-            self._mark = None  # no point recalling to it now
-            _save_mark(None)
+            self._recall_pending = False  # no point recalling to it now
+            self._retire_dungeon_mark()
             self._ranked_for = None
             self._last_rank = -1e9  # re-rank quests on this step
         else:
@@ -711,22 +745,25 @@ class Quester:
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
         Recall to jump back to the marked dungeon entrance. True if we recalled."""
-        if not self._mark or not self._recall_pending:
+        if not self._mark or self._mark.kind != "dungeon" or not self._recall_pending:
             return False  # only after a defeat: otherwise we left on purpose (or are inside)
-        marked_zone, marked_objective = self._mark
+        marked_zone = self._mark.zone
         zone = await self.client.zone_name()
         if zone == marked_zone:
             return False
-        if await self.objective() != marked_objective:
-            self._mark = None  # moved on; the mark is stale
-            _save_mark(None)
+        if await self.objective() != self._mark.objective:
+            self._recall_pending = False  # moved on: the dungeon mark is done with
+            self._retire_dungeon_mark()
             return False
         if not await is_free(self.client):
             return False
         logger.info(f"recalling to the dungeon entrance in {marked_zone} instead of walking back")
         self._recall_pending = False
-        self._mark = None  # one try per mark: never loop on a failing recall
-        _save_mark(None)
+        self._retire_dungeon_mark()  # one try per defeat: never loop on a failing recall
+        return await self._recall(marked_zone, "the dungeon entrance")
+
+    async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
+        """Press Recall and wait to arrive in `marked_zone`. True if we did."""
         self.controller.allow_idle(40)
         try:
             for attempt in range(2):
@@ -752,12 +789,12 @@ class Quester:
                         await wait_for_loading(self.client)
                     if await self.client.zone_name() == marked_zone:
                         self._teleported = True
-                        logger.success("recalled to the dungeon entrance")
+                        logger.success(f"recalled to {what}")
                         return True
                     if not await is_free(self.client):
                         return False
             timer = await ui.named_text(self.client, "txtRecallTimer")
-            logger.warning(f"recall didn't take us to the dungeon entrance (recall timer text {timer!r})")
+            logger.warning(f"recall didn't take us to {what} (recall timer text {timer!r})")
             return False
         finally:
             self.controller.end_idle()
@@ -1446,7 +1483,11 @@ class Quester:
                 self.controller.end_idle()
             self._ranked_for = objective
         zone = await self.client.zone_name()
+        if objective and self._last_progress[0] and objective != self._last_progress[0]:
+            await self._travel_mark(objective, zone or "")
         await self._note_progress(objective, zone)
+        if objective and await self._recall_if_faster(objective, zone or ""):
+            return
         # Stalled on one objective: make sure we aren't wedged inside a building
         # or wall from a teleport (walking then does nothing).
         now = time.monotonic()

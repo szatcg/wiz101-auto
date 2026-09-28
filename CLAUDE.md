@@ -79,7 +79,7 @@ while the bot is stopped.
 | `docs/CompletedQuests.txt` | names of quests the bot completed, in order (a quest that leaves the quest book on two readings) |
 | `state/learned_gates.json` | zone gates learned while playing (missing from the data files, e.g. Haunted Cave) |
 | `state/setbacks.json` | defeats per objective and quests set aside after 2 losses (until a level-up or 1 hour) |
-| `state/mark.json` | the dungeon the wizard marked and for which objective (Recall target after a defeat) |
+| `state/mark.json` | where the game's Mark is: a dungeon sigil (Recall after a defeat) or a travel mark (Recall when nearer the next objective than walking) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
 | `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |
@@ -97,6 +97,7 @@ while the bot is stopped.
 | `cli.py`, `service.py` | commands; background start/stop/status/supervise |
 | `bot.py` | connects, runs the concurrent loops (combat, dialogue, quest, watchdog, status) |
 | `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
+| `marks.py` | Mark/Recall decisions: mark before trips of 2+ zones, recall when mark + walk beats walking |
 | `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |
 | `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |

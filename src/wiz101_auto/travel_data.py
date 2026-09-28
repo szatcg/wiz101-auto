@@ -221,6 +221,11 @@ def hops_to_place(current_zone: str, place: str) -> int | None:
     return hop_count(current_zone, dest, gates) if dest else None
 
 
+def zone_hops(current_zone: str, dest: str) -> int | None:
+    """Gate hops between two zone ids (0 if the same, None if no known route)."""
+    return hop_count(current_zone, dest, _data()[0])
+
+
 def objective_zone(objective: str) -> str | None:
     return named_zone(objective, _data()[1])
 
