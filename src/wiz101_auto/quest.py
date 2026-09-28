@@ -48,6 +48,7 @@ from .travel_data import (
     objective_zone,
     quest_spots,
     zone_hops,
+    zones_near,
 )
 from .upkeep import (
     clear_popups,
@@ -94,6 +95,7 @@ SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
 
@@ -364,6 +366,7 @@ class Quester:
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
         self._last_loot_scan = 0.0
+        self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
         self.fighter = None  # set by the bot: its fight count tells won fights apart
         self._fights_seen = 0
         self._deaths_at_fight = 0
@@ -1365,11 +1368,13 @@ class Quester:
             await self.client.teleport(start)
             return True
         # Nothing nearby: pickups only load close to the wizard, so hop across the
-        # zone's landmarks (e.g. Triton's cogs are ~20k units from the entrance).
+        # zone's landmarks and walkways (e.g. Triton's cogs are ~20k units from
+        # the entrance).
         if getattr(self, "_far_swept_for", None) != objective:
             self._far_swept_for = objective
             start = await self.client.body.position()
-            spots = spread_points(await self._landmarks(), (start.x, start.y, start.z), FAR_SWEEP_SPACING)
+            points = await self._landmarks() + floor_points(await path_points(self.client), start.z)
+            spots = spread_points(points, (start.x, start.y, start.z), FAR_SWEEP_SPACING)
             logger.info(f"nothing near here; searching {len(spots)} landmarks across the zone for {item!r}")
             for p in spots[:FAR_SWEEP_MAX]:
                 if not await is_free(self.client):
@@ -1383,17 +1388,24 @@ class Quester:
                     logger.info(f"found {item!r} near ({p[0]:.0f}, {p[1]:.0f})")
                     return True
             return True
-        # Searched the whole zone and nothing is lying around right now (they
-        # spawn over time, or sit in another zone): follow the next best quest,
-        # and pick these up whenever they come into view (see _pick_up_wanted).
+        # Searched the whole zone: the items may lie in a neighbouring zone (the
+        # Hall of Champions' gemstones are out on the Krokosphinx streets).
+        # Search the zones around the one the objective names (or this one)
+        # before giving up.
+        if await self._search_next_zone(item, objective):
+            return True
+        # Nothing lying around anywhere near right now (they spawn over time):
+        # follow the next best quest, and pick these up whenever they come into
+        # view (see _pick_up_wanted).
         quest = self._active_quest
         if quest and self._stall_switched_for != objective:
             self._stall_switched_for = objective
             level = await self.client.stats.reference_level()
             self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
             self.setbacks.save()
+            self._zones_searched.pop(objective, None)  # a fresh search next time
             logger.info(
-                f"no {item!r} anywhere in this zone right now: setting {quest!r} aside; "
+                f"no {item!r} in this zone or the ones around it right now: setting {quest!r} aside; "
                 "will pick them up if they show up"
             )
             self._ranked_for = None
@@ -1406,6 +1418,23 @@ class Quester:
             await asyncio.sleep(10)
             self._swept_for = None
             return True
+        return False
+
+    async def _search_next_zone(self, item: str, objective: str) -> bool:
+        """Go to the next zone around the objective's place not searched yet
+        for `objective`, to sweep it for `item`. True if it went."""
+        zone = await self.client.zone_name() or ""
+        searched = self._zones_searched.setdefault(objective, set())
+        searched.add(zone)
+        home = objective_zone(objective) or zone
+        for candidate in zones_near(home, COLLECT_SEARCH_DEPTH):
+            if candidate in searched:
+                continue
+            searched.add(candidate)  # one try each, even if the trip fails
+            logger.info(f"no {item!r} in {zone}; searching {candidate} next")
+            if await self.go_to_zone(candidate):
+                self._swept_for = self._far_swept_for = None  # sweep the new zone
+                return True
         return False
 
     async def _landmarks(self) -> list[tuple[float, float, float]]:
@@ -1682,7 +1711,9 @@ class Quester:
         if item:
             # "Collect Cog in Triton Avenue": searching any other zone is pointless.
             where = objective_zone(objective)
-            if where and where != zone:
+            # Not while searching the zones around it (see _search_next_zone).
+            searching_here = zone in self._zones_searched.get(objective, ())
+            if where and where != zone and not searching_here:
                 if gate_toward(zone, where, self._bad_gates):
                     logger.info(f"{objective!r} is in {where}; going there first")
                     await self.go_to_zone(where)

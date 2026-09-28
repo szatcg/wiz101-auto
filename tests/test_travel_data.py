@@ -132,3 +132,16 @@ def test_collectables():
     for name in ("WC_WispHealth", "Basic Positional", "WC_Myth_Desk", "Wooden Door", "Ghoul-Purple-L02",
                  "WC_Gardening_Dirt_Normal", "Stonehenge_Arch"):
         assert not is_collectable(name), name
+
+
+def test_zones_around_skips_interiors():
+    from wiz101_auto.travel_data import XYZ, zones_around
+
+    p = XYZ(0, 0, 0)
+    gates = {
+        "K/Hall": [(p, "K/Entrance")],
+        "K/Entrance": [(p, "K/Hall"), (p, "K/Streets"), (p, "K/Interiors/Shop")],
+        "K/Streets": [(p, "K/Entrance"), (p, "K/Far")],
+    }
+    assert zones_around("K/Hall", gates, 2) == ["K/Hall", "K/Entrance", "K/Streets"]
+    assert zones_around("K/Hall", gates, 3)[-1] == "K/Far"

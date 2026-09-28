@@ -119,6 +119,7 @@ EXTRA_DISPLAY_ZONES = [
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
     ("throne room of fire", "Krokotopia/KT_Pyramid/KT_ThroneRoom"),  # not MooShu's "throne room"
     ("altar of kings", "Krokotopia/KT_Pyramid/KT_AltarOfKings"),  # the data says "altar of the kings"
+    ("hall of champions", "Krokotopia/KT_Krokosphinx/KT_ChampHall"),  # the data says "hall of champion's"
 ]
 
 
@@ -226,6 +227,27 @@ def hops_to_place(current_zone: str, place: str) -> int | None:
 def zone_hops(current_zone: str, dest: str) -> int | None:
     """Gate hops between two zone ids (0 if the same, None if no known route)."""
     return hop_count(current_zone, dest, _data()[0])
+
+
+def zones_around(start: str, gates: Gates, depth: int = 2) -> list[str]:
+    """`start` and the zones up to `depth` gates away, nearest first; shops,
+    houses and other interiors are left out (nothing to collect there)."""
+    order, frontier, seen = [start], [start], {start}
+    for _ in range(depth):
+        nxt = []
+        for zone in frontier:
+            for _pos, to_zone in gates.get(zone, []):
+                if to_zone in seen or "/interiors/" in to_zone.lower():
+                    continue
+                seen.add(to_zone)
+                order.append(to_zone)
+                nxt.append(to_zone)
+        frontier = nxt
+    return order
+
+
+def zones_near(zone: str, depth: int = 2) -> list[str]:
+    return zones_around(zone, _data()[0], depth)
 
 
 def objective_zone(objective: str) -> str | None:
