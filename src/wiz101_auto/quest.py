@@ -164,6 +164,7 @@ def choose_quest(
     return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
+EVADE_DISTANCE = 600.0  # an enemy this close to where we landed: move before it engages
 MOB_CLEARANCE = 700.0  # landing closer than this to an enemy tends to start a fight
 LANDING_RADII = (350.0, 600.0, 900.0, 1300.0, 1800.0)
 
@@ -350,7 +351,33 @@ class Quester:
 
     async def _zone_changed(self, zone: str | None) -> bool:
         await wait_for_loading(self.client, appear_timeout=0.8)
-        return await self.client.zone_name() != zone
+        if await self.client.zone_name() != zone:
+            await self._clear_of_enemies()  # doors drop us wherever the game likes
+            return True
+        return False
+
+    async def _clear_of_enemies(self) -> bool:
+        """Check where we ended up (after a teleport or a door): if an enemy is
+        right there and no fight has started yet, hop to the nearest clear spot
+        before it engages (Desert Golems patrol the Palace of Fire's entrance).
+        True if it moved."""
+        try:
+            if await self.client.in_battle():
+                return False
+            me = await self._position()
+            mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+            if not mobs or clear_of(me, mobs, EVADE_DISTANCE):
+                return False
+            spot = safe_landing(me, me, mobs, MOB_CLEARANCE)
+            if spot is None:
+                return False
+            logger.info(f"enemies right where we landed; moving {distance(spot, me):.0f} away")
+            await self.client.teleport(spot)
+            await asyncio.sleep(0.5)
+            return True
+        except Exception as exc:
+            logger.debug(f"clear-of-enemies check failed: {exc!r}")
+            return False
 
     async def walk_through(self, target: XYZ, zone: str | None, overshoot: float = DOOR_OVERSHOOT) -> bool:
         """Walk straight at `target` and a little past it.
@@ -732,6 +759,7 @@ class Quester:
         if await self._zone_changed(zone):
             return True  # the teleport itself went through a zone transition
         if distance(await self._position(), start) > BOUNCE_DISTANCE:
+            await self._clear_of_enemies()
             return True
 
         # Rejected: usually a door/zone exit, or a spot inside collision.
@@ -748,12 +776,14 @@ class Quester:
                 # carried us through the door, and check enemies fresh each time
                 # (they patrol; a stale list put the wizard on Desert Golems).
                 if await self.client.zone_name() != zone:
+                    await self._clear_of_enemies()
                     return True
                 if avoid_mobs and not await self._clear_spot(p):
                     continue
                 await self.client.teleport(p)
                 await asyncio.sleep(0.5)
                 if distance(await self._position(), start) > BOUNCE_DISTANCE:
+                    await self._clear_of_enemies()
                     return True
         logger.debug("walking toward objective")
         await self.client.goto(target.x, target.y)
