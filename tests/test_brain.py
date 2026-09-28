@@ -491,3 +491,32 @@ def test_discards_spare_super_strikes_but_keeps_one():
     b.cards = [c for c in b.cards if c is not a.card]
     assert decide(b).card.name == "Super Strike"  # the last one is played, not binned
     assert decide(b).kind is ActionKind.CAST
+
+
+def mythblade(i):
+    blade = [Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)]
+    return Card(i, "Mythblade", school="myth", pip_cost=0, effects=blade)
+
+
+def myth_trap(i):
+    trap = [Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30)]
+    return Card(i, "Myth Trap", school="myth", pip_cost=0, effects=trap)
+
+
+def test_no_second_copy_of_a_blade_that_is_up():
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    boss = enemy("Krokenkahmen", 695, boss=True)
+    b = battle([mythblade(0), myth_trap(1), myth_hit(2, dmg=300)], [boss], my=bladed)
+    a = decide(b)
+    assert a.card.name == "Myth Trap"  # not the same Mythblade again
+
+
+def test_duplicate_blade_only_after_new_effects_when_passing():
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    cards = [mythblade(0), myth_trap(1), myth_hit(2, pips=3, castable=False)]
+    b = battle(cards, [enemy("Gobbler", 900)], my=bladed)
+    b.pips = 2
+    assert decide(b).card.name == "Myth Trap"
+    b.cards = [mythblade(0), myth_hit(2, pips=3, castable=False)]
+    a = decide(b)
+    assert a.card.name == "Mythblade" and "copy" in a.reason

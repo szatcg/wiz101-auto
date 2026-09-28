@@ -335,22 +335,48 @@ def _pick_enchant(battle: Battle, attack_card: Card) -> Card | None:
     return max(enchants, key=lambda c: sum(e.value for e in c.effects))
 
 
+def _is_duplicate(card: Card, kind: EffectKind, effects: list[tuple[str, str, float]]) -> bool:
+    """Is this blade/trap already hanging (same school and size)? Copies of one
+    spell don't stack: a second one adds nothing to the next hit."""
+    school = card.school.lower()
+    for e in card.effects:
+        if e.kind is not kind:
+            continue
+        if any(s == school and abs(v - e.value / 100) < 0.005 for _k, s, v in effects):
+            return True
+    return False
+
+
+def _power(card: Card) -> float:
+    return sum(e.value for e in card.effects)
+
+
 def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> Action | None:
-    """Blade self or trap an enemy, respecting stack limits."""
+    """Blade self or trap an enemy, respecting stack limits. Never a copy of a
+    blade/trap that is already up: before an attack it adds nothing, so a
+    different buff (or the attack itself) is better."""
     castable = _castable(battle.cards)
     me = battle.me
 
-    blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant]
+    blades = [
+        c for c in castable
+        if EffectKind.BLADE in c.kinds and not c.is_enchant
+        and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects)
+    ]
     if blades and me.blade_count < strat.max_blades:
-        card = max(blades, key=lambda c: sum(e.value for e in c.effects))
+        card = max(blades, key=_power)
         target = me if card.target in (Target.ALLY_SINGLE,) else None
         return Action(ActionKind.CAST, card, target, reason="blade up")
 
-    traps = [c for c in castable if EffectKind.TRAP in c.kinds and not c.is_enchant]
-    if traps and battle.live_enemies:
+    if battle.live_enemies:
         target = focus or max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
-        if target.trap_count < strat.max_traps:
-            card = max(traps, key=lambda c: sum(e.value for e in c.effects))
+        traps = [
+            c for c in castable
+            if EffectKind.TRAP in c.kinds and not c.is_enchant
+            and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects)
+        ]
+        if traps and target.trap_count < strat.max_traps:
+            card = max(traps, key=_power)
             t = None if card.target is Target.ENEMY_ALL else target
             return Action(ActionKind.CAST, card, t, reason=f"trap {target.name}")
     return None
@@ -465,22 +491,34 @@ FREE_TRAP_LIMIT = 4  # traps worth stacking for free while waiting (one is used 
 
 def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     """A 0-pip blade or trap: casting it spends no pips, so it never gets in the
-    way of what we're saving for, and the next hits land harder."""
+    way of what we're saving for, and the next hits land harder. A new effect
+    first; a copy of one already up only as a last resort (it waits for the hit
+    after)."""
     free = [c for c in _castable(battle.cards) if c.pip_cost == 0 and not c.is_enchant]
     me = battle.me
-    blades = [c for c in free if EffectKind.BLADE in c.kinds]
-    if blades and me.blade_count < max(strat.max_blades, FREE_TRAP_LIMIT):
-        card = max(blades, key=lambda c: sum(e.value for e in c.effects))
-        target = me if card.target in (Target.ALLY_SINGLE,) else None
-        return Action(ActionKind.CAST, card, target, reason="free blade while saving pips")
-    traps = [c for c in free if EffectKind.TRAP in c.kinds]
-    if traps and battle.live_enemies:
-        focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
-        if focus.trap_count < max(strat.max_traps, FREE_TRAP_LIMIT):
-            card = max(traps, key=lambda c: sum(e.value for e in c.effects))
-            t = None if card.target is Target.ENEMY_ALL else focus
-            return Action(ActionKind.CAST, card, t, reason=f"free trap on {focus.name} while saving pips")
-    return None
+    focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health)) if battle.live_enemies else None
+    options: list[tuple[bool, int, Action]] = []
+    if me.blade_count < max(strat.max_blades, FREE_TRAP_LIMIT):
+        for c in free:
+            if EffectKind.BLADE in c.kinds:
+                dup = _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects)
+                target = me if c.target in (Target.ALLY_SINGLE,) else None
+                action = Action(ActionKind.CAST, c, target, reason="free blade while saving pips")
+                options.append((dup, 0, action))
+    if focus and focus.trap_count < max(strat.max_traps, FREE_TRAP_LIMIT):
+        for c in free:
+            if EffectKind.TRAP in c.kinds:
+                dup = _is_duplicate(c, EffectKind.TRAP, focus.incoming_effects)
+                t = None if c.target is Target.ENEMY_ALL else focus
+                why = f"free trap on {focus.name} while saving pips"
+                options.append((dup, 1, Action(ActionKind.CAST, c, t, reason=why)))
+    if not options:
+        return None
+    # New effects before copies; blades before traps; the strongest card.
+    dup, _, action = min(options, key=lambda o: (o[0], o[1], -_power(o[2].card)))
+    if dup:
+        action.reason += " (a copy: kept for the hit after)"
+    return action
 
 
 FREE_HIT_SPARE_TRAPS = 3  # an enemy with this many traps can lose one to a 0-pip hit
