@@ -173,7 +173,7 @@ class Fighter(CombatHandler):
                 logger.debug(f"flee ({how}) click failed: {exc!r}")
                 continue
             seen = ""
-            for _ in range(5):
+            for _ in range(22):  # the confirmation can take ~5s to show up
                 await asyncio.sleep(0.3)
                 if not await self.client.in_battle():
                     logger.info(f"fled ({how})")

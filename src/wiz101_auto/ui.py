@@ -181,16 +181,16 @@ async def close_chat(client) -> bool:
     return True
 
 
-MODAL_SLOTS = ("leftButton", "centerButton", "rightButton")
+# Message-box buttons: where on/around the button a click lands. Tried in
+# order until the box closes; the spot that works is used first from then on.
+MODAL_SPOTS = [(fx, fy) for fy in (0.5, 0.2, -0.3, -0.7, 0.8, 1.2) for fx in (0.5, 0.25, 0.75)]
+_modal_spot: list = []  # [(fx, fy)] once learned
 
 
 async def press_modal_button(client, box, name: str) -> bool:
-    """Click a visible message-box button and check the box closed.
-
-    The game packs the visible buttons from the left of the button row
-    ("Layout"); WizWalker's rects keep a hidden button's slot. With
-    leftButton hidden, Yes/No really sit one slot left of their rects (seen
-    on the flee confirmation), so that spot is tried when the center misses."""
+    """Click a visible message-box button until the box closes. Clicks right on
+    the button's rect didn't register on the flee confirmation, so nearby spots
+    are probed and the one that works is remembered (and logged)."""
     btn = None
     for w in await box.get_windows_with_name(name):
         try:
@@ -202,32 +202,21 @@ async def press_modal_button(client, box, name: str) -> bool:
     if btn is None:
         return False
     r = await btn.scale_to_client()
-    spots = [((r.x1 + r.x2) // 2, (r.y1 + r.y2) // 2)]
-    # Where it would sit with only the visible buttons packed from the row's left.
-    try:
-        layouts = await box.get_windows_with_name("Layout")
-        visible = []
-        for slot in MODAL_SLOTS:
-            for w in await box.get_windows_with_name(slot):
-                if await w.is_visible():
-                    visible.append(slot)
-                break
-        if layouts and name in visible:
-            row = await layouts[0].scale_to_client()
-            width, gap = r.x2 - r.x1, 6
-            x = row.x1 + visible.index(name) * (width + gap) + width // 2
-            spots.append((x, (r.y1 + r.y2) // 2))
-    except Exception:
-        pass
-    for x, y in spots:
-        await button_click(client, int(x), int(y))
-        await asyncio.sleep(0.6)
-        try:
-            if not await box.is_visible():
-                return True
-        except Exception:
-            return True  # the box is gone
-    logger.debug(f"message box button {name!r} didn't close the box (tried {spots})")
+    w, h = r.x2 - r.x1, r.y2 - r.y1
+    spots = ([_modal_spot[0]] if _modal_spot else []) + [s for s in MODAL_SPOTS if s not in _modal_spot]
+    for fx, fy in spots:
+        await button_click(client, int(r.x1 + w * fx), int(r.y1 + h * fy))
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            try:
+                if not await box.is_visible():
+                    if not _modal_spot or _modal_spot[0] != (fx, fy):
+                        logger.info(f"message box button {name!r} works at ({fx:.2f}, {fy:.2f}) of its rect")
+                        _modal_spot[:] = [(fx, fy)]
+                    return True
+            except Exception:
+                return True  # the box is gone
+    logger.warning(f"message box button {name!r} didn't close the box at any spot")
     return False
 
 

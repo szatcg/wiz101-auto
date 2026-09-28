@@ -1088,7 +1088,8 @@ class Quester:
     async def unneeded_fight(self, battle) -> bool:
         """True if the fight that just started isn't needed for the tracked quest."""
         try:
-            objective = await self.objective()
+            # The quest goal text can read blank mid-battle: use the last one seen.
+            objective = (await self.objective()).strip() or self._last_progress[0] or ""
             zone = await self.client.zone_name() or ""
         except Exception:
             return False
