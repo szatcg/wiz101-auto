@@ -119,6 +119,8 @@ def main(argv: list[str] | None = None):
 
     gear_p = sub.add_parser("gear", help="try every backpack item per slot and keep the best (bot stopped)")
     gear_p.add_argument("-c", "--config", default=None)
+    rec_p = sub.add_parser("record", help="watch you walk a route: doors, NPCs, trainer (bot stopped)")
+    rec_p.add_argument("--minutes", type=float, default=15.0)
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
     sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
     shot_p = sub.add_parser("screenshot", help="save the game window as a PNG (works while the bot runs)")
@@ -177,6 +179,11 @@ def main(argv: list[str] | None = None):
         print(save_screenshot(args.output))
         return
 
+    if args.command == "record":
+        _setup_logging(None, False)
+        asyncio.run(_record(args.minutes))
+        return
+
     if args.command == "explore":
         _setup_logging(None, True)
         from .explore import explore
@@ -209,6 +216,19 @@ def main(argv: list[str] | None = None):
         return
     if "crashed" in reason:
         sys.exit(3)  # lets `supervise` restart it
+
+
+async def _record(minutes: float):
+    from .bot import close_handler, connect, new_handler
+    from .record import record
+
+    handler = new_handler()
+    try:
+        client = await connect(handler)
+        path = await record(client, minutes * 60)
+        print(f"route saved to {path}")
+    finally:
+        await close_handler(handler)
 
 
 async def _gear(cfg):

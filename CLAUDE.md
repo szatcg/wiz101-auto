@@ -27,6 +27,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
 | `gear` | try every backpack item per slot and keep the best (needs the bot stopped) |
 | `deck -c config.yaml` | known spells, current deck, planned deck (read-only) |
+| `record [--minutes N]` | watches you walk a route: zone doors, NPC positions, trainer window layout → `state/route_record_*.txt` |
 | `explore` | entities around the wizard with positions → `state/explore_*.txt` |
 | `screenshot [-o path]` | game window → `state/screenshot.png` (Read it to see the screen; works while the bot runs) |
 
