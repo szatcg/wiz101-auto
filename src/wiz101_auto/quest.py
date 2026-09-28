@@ -21,7 +21,15 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
-from .collect import Collector, away_from, collect_item_name, landmarks, spread_points
+from .collect import (
+    Collector,
+    away_from,
+    collect_item_name,
+    floor_points,
+    landmarks,
+    path_points,
+    spread_points,
+)
 from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
@@ -77,11 +85,14 @@ WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still
 STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 RECALL_RETRY_SECONDS = 600.0  # after a travel recall fails (cooldown, refused), walk for a while
+MARKER_WALK_RANGE = 800.0  # this close to the marker with the named enemy missing: walk onto it
+MARKER_WALK_BACK = 350.0  # how far to back off before walking onto the marker
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
 
 @dataclass
@@ -1341,6 +1352,10 @@ class Quester:
                 if await self.client.in_battle():
                     return
             else:
+                # A boss that isn't there yet usually appears when the wizard
+                # walks into its spot (the marker); a teleport doesn't set that off.
+                if await self._walk_onto_marker():
+                    return
                 # Fighting whatever is closest (Gobbler Scavengers instead of
                 # Munchers) costs time and risk for nothing: look around the zone
                 # for the named enemy; the stall rule moves on if none turns up.
@@ -1356,13 +1371,34 @@ class Quester:
                 return
             await asyncio.sleep(3.0)
 
+    async def _walk_onto_marker(self) -> bool:
+        """Near the quest marker: back off in each direction in turn and walk
+        onto it, which triggers boss spawns and cutscenes. True if a fight or
+        dialogue started."""
+        marker = await self.client.quest_position.position()
+        if distance(marker, XYZ(0, 0, 0)) < 1 or distance(await self._position(), marker) > MARKER_WALK_RANGE:
+            return False
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            start = XYZ(marker.x + dx * MARKER_WALK_BACK, marker.y + dy * MARKER_WALK_BACK, marker.z)
+            await self.client.teleport(start)
+            await asyncio.sleep(0.8)
+            await self.client.goto(marker.x, marker.y)
+            await asyncio.sleep(2.0)
+            if not await is_free(self.client):
+                logger.info("walking onto the quest marker started something")
+                return True
+        return False
+
     async def _look_for(self, target: str):
         """Hop across the zone's landmarks (clear of enemies) until an enemy
         named `target` is in view, then go after it."""
         from .bossfarm import find_entity_named
 
         start = await self._position()
-        spots = spread_points(await self._landmarks(), (start.x, start.y, start.z), FAR_SWEEP_SPACING)
+        # Wanderers patrol the walkways: search along the path markers as well
+        # as the named landmarks, so the whole zone gets covered.
+        points = await self._landmarks() + floor_points(await path_points(self.client), start.z)
+        spots = spread_points(points, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING)
         logger.info(f"no {target} in view; looking around the zone ({len(spots[:FAR_SWEEP_MAX])} spots)")
         for p in spots[:FAR_SWEEP_MAX]:
             if not await is_free(self.client):

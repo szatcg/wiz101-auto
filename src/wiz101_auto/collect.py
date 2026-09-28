@@ -86,6 +86,30 @@ async def landmarks(client) -> list[tuple[float, float, float]]:
     return out
 
 
+PATH_POINT_NAME = "basic positional"  # unnamed markers along a zone's walkways (and cameras)
+PATH_POINT_HEIGHT = 400.0  # keep those about as high as the wizard's floor (cameras hang higher)
+
+
+def floor_points(points: list, ground_z: float, tolerance: float = PATH_POINT_HEIGHT) -> list:
+    """Points near the wizard's floor height (drops camera markers up in the air)."""
+    return [p for p in points if abs(p[2] - ground_z) <= tolerance]
+
+
+async def path_points(client) -> list[tuple[float, float, float]]:
+    """Positions of the zone's unnamed path markers: wandering enemies patrol
+    along the walkways these line, well away from any named landmark."""
+    out = []
+    for e in await client.get_base_entity_list():
+        try:
+            template = await e.object_template()
+            if template and (await template.object_name() or "").lower() == PATH_POINT_NAME:
+                pos = await e.location()
+                out.append((pos.x, pos.y, pos.z))
+        except Exception:
+            continue
+    return out
+
+
 def away_from(points: list, mobs: list, safe_distance: float) -> list:
     """Points with no mob within `safe_distance` (mobs are landmarks too)."""
     def clear(p) -> bool:

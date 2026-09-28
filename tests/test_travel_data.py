@@ -114,3 +114,10 @@ def test_add_gate_keeps_known_gates():
     assert add_gate(gates, "C", "A", XYZ(1, 2, 0))
     pos, via = first_hop_toward("C", "B", gates)
     assert via == "A" and (pos.x, pos.y) == (1, 2)
+
+
+def test_floor_points_drop_cameras_in_the_air():
+    from wiz101_auto.collect import floor_points
+
+    pts = [(0, 0, 48), (100, 0, 330), (200, 0, 1133), (300, 0, -20)]
+    assert floor_points(pts, 48) == [(0, 0, 48), (100, 0, 330), (300, 0, -20)]
