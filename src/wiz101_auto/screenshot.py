@@ -43,6 +43,21 @@ def find_game_window() -> int:
 
 
 def capture(hwnd: int) -> tuple[int, int, bytes]:
+    """Client area of `hwnd`; falls back to copying it off the screen when
+    PrintWindow comes back blank (it does during battles)."""
+    w, h, data = _capture(hwnd, use_print=True)
+    if _blank(data):
+        w, h, data = _capture(hwnd, use_print=False)
+    return w, h, data
+
+
+def _blank(bgra: bytes) -> bool:
+    """One flat colour (sampled)? PrintWindow gives all white in battles."""
+    sample = bgra[:: 4 * 997][:2000]
+    return len(set(sample)) <= 2
+
+
+def _capture(hwnd: int, use_print: bool) -> tuple[int, int, bytes]:
     """Client area of `hwnd` as (width, height, top-down BGRA bytes)."""
     # Stay DPI-unaware like the game: then the client rect matches the game's own
     # render size (a DPI-aware capture of a scaled monitor is mostly black border).
@@ -54,8 +69,11 @@ def capture(hwnd: int) -> tuple[int, int, bytes]:
     mem = gdi32.CreateCompatibleDC(hdc)
     bmp = gdi32.CreateCompatibleBitmap(hdc, w, h)
     gdi32.SelectObject(mem, bmp)
-    # PW_CLIENTONLY (1) | PW_RENDERFULLCONTENT (2)
-    user32.PrintWindow(hwnd, mem, 1 | PW_RENDERFULLCONTENT)
+    if use_print:
+        # PW_CLIENTONLY (1) | PW_RENDERFULLCONTENT (2)
+        user32.PrintWindow(hwnd, mem, 1 | PW_RENDERFULLCONTENT)
+    else:
+        gdi32.BitBlt(mem, 0, 0, w, h, hdc, 0, 0, 0x00CC0020)  # SRCCOPY from the window as shown
     info = _BITMAPINFOHEADER(ctypes.sizeof(_BITMAPINFOHEADER), w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
     buf = ctypes.create_string_buffer(w * h * 4)
     gdi32.GetDIBits(mem, bmp, 0, h, buf, ctypes.byref(info), 0)
