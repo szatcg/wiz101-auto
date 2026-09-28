@@ -77,6 +77,8 @@ class ProgressionConfig:
     check_minutes: float = 30.0  # re-read the spellbook this often (0 = only on events)
     auto_train: bool = True  # experimental: train spells when the trainer window opens
     remind_to_train: bool = True
+    # Levels at which the school professor has new spells: the bot goes to train.
+    train_levels: list[int] = field(default_factory=lambda: [1, 5, 8, 10, 16, 20, 22, 26, 33, 38, 42, 50])
     deck: DeckPolicy = field(default_factory=DeckPolicy)
 
 

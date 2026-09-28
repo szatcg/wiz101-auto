@@ -18,6 +18,7 @@ from .gear import GearManager
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
+from .trainer import SpellTrainer
 from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, recover, scan_wisps
 from .watchdog import Watchdog
 
@@ -198,6 +199,8 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             quester.gear = GearManager(client, progression.school or "")
+            if cfg.progression.enabled:
+                quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))

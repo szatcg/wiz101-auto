@@ -64,11 +64,8 @@ class Progression:
             logger.success(f"LEVEL UP: {self.level} -> {level}")
             self.level = level
             self._pending_reason = f"level {level}"
-            if self.cfg.remind_to_train:
-                logger.warning(
-                    "new spells may be available: visit your school professor in Ravenwood "
-                    "(the bot trains automatically when the training window opens)"
-                )
+            if self.cfg.remind_to_train and level in self.cfg.train_levels:
+                logger.info(f"level {level} unlocks new school spells: a trip to the professor is due")
         if not self._pending_reason and self.cfg.check_minutes > 0:
             if time.monotonic() - self._last_check > self.cfg.check_minutes * 60:
                 self._pending_reason = "periodic check"

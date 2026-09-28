@@ -236,6 +236,7 @@ class Quester:
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0
         self.gear = None  # GearManager, set by the bot
+        self.trainer = None  # SpellTrainer, set by the bot
         self._activity_quests: set[str] = set()  # spell quests seen in the book
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
@@ -1060,6 +1061,17 @@ class Quester:
             finally:
                 self.controller.end_idle()
             if not await is_free(self.client):
+                return
+        if self.trainer:
+            self.controller.allow_idle(240)  # the trip crosses zones and a training window
+            try:
+                acted = await self.trainer.tick()
+            except Exception as exc:
+                logger.opt(exception=exc).warning("spell training trip failed")
+                acted = True
+            finally:
+                self.controller.end_idle()
+            if acted:
                 return
         if self.progression:
             self.controller.allow_idle(90)  # spellbook work looks like "nothing happening"
