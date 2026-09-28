@@ -43,6 +43,7 @@ ARCS = (
     ("Arc 4", ("Karamelle", "Lemuria", "Novus", "Wallaru", "Selenopolis")),
 )
 PAGE = Path(__file__).with_name("dashboard.html")
+OVERLAY = Path(__file__).with_name("overlay.html")
 STATUS = Path("state") / "status.json"
 QUEST_BOOK = Path("state") / "quest_book.json"
 STALE_SECONDS = 30  # heartbeat older than this: the bot isn't running
@@ -152,6 +153,9 @@ class _Handler(BaseHTTPRequestHandler):
             kind = "application/json"
         elif self.path.split("?")[0] in ("/", "/index.html"):
             body = PAGE.read_bytes()
+            kind = "text/html; charset=utf-8"
+        elif self.path.split("?")[0].rstrip("/") == "/overlay":
+            body = OVERLAY.read_bytes()  # for an OBS Browser Source
             kind = "text/html; charset=utf-8"
         else:
             self.send_error(404)

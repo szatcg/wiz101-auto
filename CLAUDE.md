@@ -20,6 +20,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 |---|---|
 | `start [--supervise]` | start in the background (also opens the live log window if none is open); `--supervise` auto-restarts after crashes |
 | `dashboard` | progress dashboard at http://127.0.0.1:8101/ (world completion %, current quest ribbon); `start` launches it |
+| (overlay) | http://127.0.0.1:8101/overlay: a transparent stream overlay for an OBS Browser Source (quest, objective, world/arc %, deaths, level, health) |
 | `publish-setup owner/repo` | one-time: publish the dashboard on GitHub Pages (public repo; the dashboard server then pushes data every 2 min). Live: https://szatcg.github.io/wizzbot-tracker/ |
 | `stop` | clean stop (unhooks the game); force-kills only after 30s |
 | `restart [--supervise]` | stop + start |
