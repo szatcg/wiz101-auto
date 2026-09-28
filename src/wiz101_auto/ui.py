@@ -139,6 +139,36 @@ async def confirm_modal(client, buttons: tuple[str, ...] = ("centerButton",)) ->
     return False
 
 
+async def _visible_named(root, name: str):
+    try:
+        for w in await root.get_windows_with_name(name):
+            if await w.is_visible():
+                return w
+    except Exception:
+        pass
+    return None
+
+
+async def close_chat(client) -> bool:
+    """If the chat box is open for typing, close it: while it is, every key the
+    bot sends (X, W, Q...) is typed into chat instead of reaching the game.
+    The typing box (WizardChatBox with chatEdit) is only visible then."""
+    box = await _visible_named(client.root_window, "WizardChatBox")
+    if box is None or await _visible_named(box, "chatEdit") is None:
+        return False
+    logger.warning("the chat box is open for typing (keys would go into chat); closing it")
+    close = await _visible_named(box, "closeButton")
+    if close is not None:
+        await click_center(client, close)
+        await asyncio.sleep(0.4)
+    if await _visible_named(client.root_window, "WizardChatBox") is not None:
+        from wizwalker import Keycode
+
+        await client.send_key(Keycode.ESC, 0.1)
+        await asyncio.sleep(0.4)
+    return True
+
+
 NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable")
 
 
