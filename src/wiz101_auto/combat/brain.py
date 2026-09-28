@@ -485,12 +485,16 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     if not battle.live_enemies:
         return Action(ActionKind.PASS, reason="no enemies")
 
-    # Finishing the last enemy ends the fight: nothing else matters then.
+    # Finishing the last enemy ends the fight, unless we're low enough to die
+    # before our spell lands (the enemy may act first, and spells can fizzle):
+    # then heal first and kill next round.
     kill = _kill_action(battle)
+    heal = _best_heal(battle, strat)
     if kill and len(battle.live_enemies) == 1:
+        if heal and battle.me.health_ratio < heal_threshold(battle, strat):
+            return heal
         return kill
 
-    heal = _best_heal(battle, strat)
     if heal:
         return heal
     save = _save_for_heal(battle, strat)

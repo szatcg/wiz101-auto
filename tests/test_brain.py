@@ -191,10 +191,19 @@ def test_summons_the_newest_minion():
 def test_finishing_the_last_enemy_beats_healing_and_summoning():
     summon = Card(2, "Troll Minion", effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
     hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400), summon]
-    b = battle(hand, [enemy("Troll", 500)], my=me(hp=100))
+    b = battle(hand, [enemy("Troll", 500)], my=me(hp=300))  # hurt, but not low
     b.enemies[0].health = 40
     action = decide(b)
     assert action.card.name == "Blood Bat" and action.reason.startswith("finish")
+
+
+def test_low_health_heals_before_finishing_the_last_enemy():
+    # A Desert Golem killed the wizard at 267/815 while it cast Troll for the kill:
+    # the enemy can act first, and spells fizzle. Low on health, heal first.
+    hand = [dmg_card(0, "Troll", 400, pips=2), heal_card(1, "Pixie", 400)]
+    b = battle(hand, [enemy("Desert Golem", 395)], my=me(hp=100))
+    b.pips = 2
+    assert decide(b).card.name == "Pixie"
 
 
 def test_kill_counts_traps_and_ignores_accuracy():
