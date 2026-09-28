@@ -29,7 +29,7 @@ from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
-from .setbacks import Setbacks
+from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -624,10 +624,13 @@ class Quester:
             return
         level = await self.client.stats.reference_level()
         quest = self._active_quest
-        if self.setbacks.record_defeat(objective, quest, level, main=quest in self._mainline):
+        main = quest in self._mainline
+        if self.setbacks.record_defeat(objective, quest, level, main=main):
+            tries = MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER
+            until = f"level {level + 1}" if main else f"level {level + 1} or an hour"
             logger.warning(
-                f"lost {objective!r} twice: setting {quest!r} aside until level {level + 1} "
-                "(or an hour) and following another questline"
+                f"lost {objective!r} {tries} times: setting {quest!r} aside until {until}; "
+                "doing other quests meanwhile"
             )
             self._mark = None  # no point recalling to it now
             _save_mark(None)
