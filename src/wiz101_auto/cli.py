@@ -214,8 +214,11 @@ def main(argv: list[str] | None = None):
     except KeyboardInterrupt:
         logger.info("interrupted")
         return
-    if "crashed" in reason:
-        sys.exit(3)  # lets `supervise` restart it
+    # A crash, or a stall on one objective (quests stuck that way are set aside,
+    # so a fresh start moves on), lets `supervise` restart it. Safety limits
+    # (deaths, hours) and the stop hotkey stay stops.
+    if "crashed" in reason or "no quest progress" in reason:
+        sys.exit(3)
 
 
 async def _record(minutes: float):
