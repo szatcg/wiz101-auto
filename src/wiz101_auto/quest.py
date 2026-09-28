@@ -1260,7 +1260,11 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
-        await self._clear_of_enemies()  # a patrol walked up while we stood still
+        # A patrol walked up while we stood still: step aside (outdoors, and not
+        # when the objective is a fight, which means going onto enemies).
+        zone_now = await self.client.zone_name() or ""
+        if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
+            await self._clear_of_enemies()
         if await self._pick_up_wanted():
             return
         await self._answer_dungeon_exit()
