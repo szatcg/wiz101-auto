@@ -1,0 +1,415 @@
+Jade Palace (8 quests)
+1.
+Bad News...
+TALK
+2.
+MooShu
+SIDE ×9
+EXPLORE
+TALK
+3.
+Welcome to MooShu?
+SIDE ×2
+TALK
+4.
+Mind Games
+TALK
+5.
+Do You Mind?
+EXPLORE
+INTERACT
+TALK
+TALK
+6.
+A Test of Strength
+TALK
+EXPLORE
+SOLO:
+BOSS
+TALK
+7.
+The Great Moodha
+EXPLORE
+TALK
+TALK
+8.
+An Ailing Emperor
+TALK
+Hametsu Village (6 quests)
+9.
+War Pigs
+TALK
+10.
+Counting Sheep
+SIDE ×5
+4× EXPLORE
+TALK
+11.
+Armed and Dangerous
+INTERACT
+TALK
+12.
+Sneak Attack
+MOB
+MOB
+TALK
+13.
+Never Again
+D&C
+TALK
+14.
+Following Orders
+BOSS
+TALK
+Tatakai Outpost (11 quests)
+15.
+Spies Like Us
+TALK
+16.
+Inside Scoop
+3× INTERACT
+TALK
+17.
+Cold Cut
+TALK
+18.
+Appetite for Destruction
+INTERACT
+TALK
+19.
+Run Away, Run Away!
+MOB
+TALK
+20.
+No Quarter
+BOSS
+TALK
+21.
+A Fighting Chance
+TALK
+22.
+You're Fired!
+INTERACT
+TALK
+23.
+Key to Success
+D&C
+TALK
+24.
+Let Me Shek
+BOSS
+TALK
+25.
+A Tale of Two Brothers
+TALK
+Crimson Fields (12 quests)
+26.
+To the Front!
+TALK
+27.
+The General
+INSTANCE
+TALK
+TALK
+28.
+A Strong Defense…
+INSTANCE
+INTERACT
+TALK
+29.
+Is a Good Defense
+INSTANCE
+3× INTERACT
+TALK
+30.
+Scouring for Scouts
+INSTANCE
+3× TALK
+31.
+A Soldier's Duty
+INSTANCE
+TALK
+32.
+Stone Cold
+INSTANCE
+BOSS
+TALK
+33.
+Passing Stones
+INSTANCE
+INTERACT
+INTERACT
+TALK
+TALK
+26.
+To the Front!
+INSTANCE
+BOSS
+BOSS
+TALK
+34.
+Battle of Evermore
+INSTANCE
+MOB
+TALK
+35.
+Warlord Katsumori
+INSTANCE
+BOSS
+BOSS
+TALK
+26.
+To the Front!
+TALK
+Shoshun Village / Cave of Solitude (11 quests)
+36.
+Sword of Omens
+TALK
+37.
+Clear Waters
+TALK
+38.
+Patience
+TALK
+39.
+No Disassemble
+D&C
+TALK
+40.
+Second Serving
+BOSS
+TALK
+41.
+Hut Hut Hut!
+2× EXPLORE
+2× MOB
+TALK
+42.
+Pagoda Puzzle
+BOSS
+TALK
+43.
+The Final Peace
+BOSS
+TALK
+44.
+Forest Flowers
+COLLECT
+TALK
+45.
+Spiritual Offering
+INTERACT
+TALK
+46.
+Jade Scepter
+TALK
+Kishibe Village (17 quests)
+47.
+Due Diligence
+TALK
+48.
+Earth Day
+TALK
+49.
+Crazy for You
+COLLECT
+TALK
+50.
+Shrining Example
+INTERACT
+TALK
+51.
+Happy Earth Spirits
+TALK
+52.
+Water Everywhere…
+MOB
+TALK
+53.
+Monknapping!
+BOSS
+TALK
+TALK
+54.
+Did You Miss Me?
+INTERACT
+TALK
+55.
+Beauty Is Shrine Deep
+TALK
+56.
+A Good Guardian
+TALK
+TALK
+57.
+…Is Hard to Find
+TALK
+58.
+For the Emperor!
+MOB
+TALK
+59.
+Stolen Food
+TALK
+D&C
+TALK
+60.
+Monk Follies
+TALK
+TALK
+61.
+Worthy Acts
+BOSS
+3× TALK
+62.
+Air Apparent
+TALK
+INTERACT
+TALK
+TALK
+63.
+The Stuff of Epics
+TALK
+Shirataki Temple (4 quests)
+64.
+Release
+SIDE ×1
+TALK
+65.
+River Temple
+INSTANCE
+BOSS
+TALK
+BOSS
+66.
+Summoning the Spirit
+INSTANCE
+TALK
+3× MOB
+BOSS
+4× INTERACT
+BOSS
+64.
+Release
+INSTANCE
+SIDE ×1
+BOSS
+BOSS
+TALK
+Ancient Burial Grounds (10 quests)
+67.
+Contemplation
+TALK
+68.
+Oni of Death
+TALK
+69.
+The Only Way
+EXPLORE
+TALK
+70.
+A Hand from Beyond
+SIDE ×1
+INTERACT
+TALK
+71.
+Shadowy Secrets
+EXPLORE
+MOB
+INTERACT
+TALK
+72.
+Third Time's the Charm
+BOSS
+INTERACT
+TALK
+73.
+Torchure
+BOSS
+TALK
+74.
+A Dirty Job
+INTERACT
+TALK
+75.
+To the Great Beyond
+SOLO:
+BOSS
+TALK
+76.
+Grandpa Says Hi!
+TALK
+Village of Sorrow (8 quests)
+77.
+Desperate Measures
+EXPLORE
+TALK
+78.
+Be Very, Very Quiet
+MOB
+TALK
+79.
+Or Call a Locksmith
+D&C
+TALK
+80.
+Spiritual Awakening
+TALK
+BOSS
+TALK
+TALK
+81.
+Chain Request
+TALK
+82.
+Soooooul Chain
+D&C
+TALK
+INTERACT
+TALK
+83.
+A Good Forgery
+TALK
+84.
+Smells Like Spirit
+BOSS
+TALK
+Yoshihito Temple (6 quests)
+85.
+Carried Away
+TALK
+86.
+Oni No Death
+INTERACT
+87.
+Left Behind
+INSTANCE
+TALK
+EXPLORE
+88.
+Question of Faith
+INSTANCE
+TALK
+BOSS
+TALK
+89.
+Tree of Life
+INSTANCE
+INTERACT
+BOSS
+86.
+Oni No Death
+INSTANCE
+BOSS
+TALK
+TALK
+Emperor's Throne Room (2 quests)
+90.
+An Imperial Cure
+INTERACT
+BOSS
+TALK
+91.
+The Key At Last
+SIDE ×1
+TALK

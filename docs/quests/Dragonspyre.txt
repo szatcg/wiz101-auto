@@ -1,0 +1,521 @@
+Wizard City (3 quests)
+1.
+Bad Blood
+SIDE ×1
+TALK
+SOLO:
+BOSS
+TALK
+EXPLORE
+TALK
+2.
+Crystal-Matic
+SIDE ×1
+EXPLORE
+TALK
+3.
+Holger's Crystals
+INTERACT
+TALK
+The Tower Archives (9 quests)
+4.
+Stone Tower Pilot
+SIDE ×1
+EXPLORE
+TALK
+5.
+The Crystal Towers
+D&C
+TALK
+6.
+The Towering Crystal
+EXPLORE
+INTERACT
+TALK
+7.
+Friend of My Friend
+TALK
+MOB
+TALK
+INTERACT
+TALK
+8.
+Key to Trust
+EXPLORE
+INTERACT
+TALK
+9.
+Wizard and Crystal
+BOSS
+TALK
+10.
+The Last Key
+EXPLORE
+INTERACT
+TALK
+11.
+The Dragon's Claw
+INTERACT
+TALK
+12.
+Portal Combat
+MOB
+INTERACT
+BOSS
+TALK
+Plaza of Conquests (14 quests)
+13.
+Warkeeper
+SIDE ×1
+TALK
+14.
+General Recommendation
+TALK
+15.
+Battle On
+BOSS
+TALK
+16.
+Blood From a Stone
+TALK
+17.
+Recommend This
+TALK
+18.
+The Art of War
+INSTANCE
+4× MOB
+INTERACT
+TALK
+19.
+Stone Soup
+TALK
+20.
+Application Procedures
+TALK
+21.
+The Best Defense
+BOSS
+TALK
+TALK
+22.
+No Weaklings Allowed
+INTERACT
+BOSS
+TALK
+23.
+Fighting With Dishonor
+TALK
+24.
+Trapper Keeper
+BOSS
+TALK
+TALK
+25.
+Foe of Foes
+INTERACT
+BOSS
+TALK
+26.
+Going Portal
+TALK
+The Grand Chasm (14 quests)
+27.
+Don't Fall In
+SIDE ×1
+TALK
+28.
+The Paper Chase
+TALK
+29.
+So Little Time
+INTERACT
+TALK
+30.
+Crystal Crawlies
+D&C
+TALK
+31.
+Charged Up
+TALK
+32.
+Just Charge It
+INSTANCE
+4× MOB
+INTERACT
+TALK
+TALK
+33.
+The Time Is Right
+INTERACT
+TALK
+34.
+Forward… Into History!
+INTERACT
+35.
+Back to the Beginning
+INSTANCE
+TALK
+7× INTERACT
+TALK
+36.
+The Vault of Fire
+INSTANCE
+TALK
+BOSS
+34.
+Forward… Into History!
+INSTANCE
+TALK
+37.
+One Good Deed
+EXPLORE
+BOSS
+TALK
+38.
+Stone Free
+TALK
+39.
+Attune Town
+INTERACT
+TALK
+The Drake Hatchery (12 quests)
+40.
+Portal Decay
+EXPLORE
+TALK
+41.
+The Glamorous Life
+INSTANCE
+3× MOB
+BOSS
+INTERACT
+TALK
+42.
+Control Ring
+EXPLORE
+TALK
+43.
+Welcome to the Academy
+SIDE ×1
+TALK
+44.
+Textbook Example
+D&C
+TALK
+45.
+Et Tu, Statue
+3× INTERACT
+TALK
+46.
+Enter the Dragon Rider
+TALK
+TALK
+47.
+The Drakester
+INTERACT
+TALK
+48.
+The Good Old Days
+TALK
+TALK
+49.
+Rein It In
+BOSS
+TALK
+50.
+Rein Check
+INTERACT
+TALK
+51.
+Feels So Good
+INTERACT
+INTERACT
+TALK
+The Crucible (13 quests)
+52.
+Passing Out
+TALK
+53.
+A Strenuous Course
+SIDE ×1
+TALK
+54.
+Back in Session
+D&C
+TALK
+55.
+A Brief History
+INTERACT
+TALK
+56.
+Justice Hurts
+INTERACT
+INTERACT
+BOSS
+TALK
+57.
+You Call This Easy?
+INSTANCE
+3× MOB
+BOSS
+TALK
+58.
+Judge Not
+INTERACT
+BOSS
+TALK
+59.
+It's an Honor
+INTERACT
+INTERACT
+BOSS
+TALK
+60.
+Feeling Defensive?
+INTERACT
+BOSS
+TALK
+61.
+Pick Up the Spare
+INSTANCE
+TALK
+MOB
+MOB
+MOB
+INTERACT
+TALK
+62.
+Obsidian in Crystal
+MOB
+MOB
+MOB
+MOB
+INTERACT
+TALK
+63.
+The Last Lesson
+INTERACT
+BOSS
+TALK
+64.
+Acceptance at Last
+TALK
+TALK
+The Labyrinth (7 quests)
+65.
+Bridge to Over There
+INSTANCE
+TALK
+BOSS
+TALK
+66.
+Jail Break
+INSTANCE
+TALK
+INTERACT
+INTERACT
+BOSS
+BOSS
+BOSS
+TALK
+67.
+The Den of the Dean
+INSTANCE
+TALK
+INTERACT
+EXPLORE
+TALK
+68.
+Cloak and Danger
+INSTANCE
+TALK
+BOSS
+TALK
+69.
+Staff Direction
+INSTANCE
+TALK
+BOSS
+TALK
+70.
+The Lesser Evil
+INSTANCE
+TALK
+INTERACT
+TALK
+BOSS
+71.
+Stay for Detention
+INSTANCE
+INTERACT
+TALK
+EXPLORE
+TALK
+Dragonspyre Academy (2 quests)
+72.
+Fire Shield
+INSTANCE
+3× MOB
+BOSS
+TALK
+73.
+Win or Go Home
+EXPLORE
+TALK
+Wizard City / Krokotopia / Marleybone / MooShu (1 quest)
+74.
+Wizard Tours
+BOSS
+BOSS
+BOSS
+BOSS
+TALK
+Crystal Grove (11 quests)
+75.
+Headless Rider
+SIDE ×2
+EXPLORE
+TALK
+76.
+Quest for Perfection
+6× INTERACT
+TALK
+77.
+Root of the Problem
+6× INTERACT
+TALK
+78.
+Cutter's Way
+MOB
+TALK
+TALK
+79.
+Room to Breathe
+MOB
+TALK
+80.
+A Quiet Place to Work
+TALK
+81.
+Sit and Spin
+D&C
+TALK
+82.
+Tools of the Trade
+INTERACT
+TALK
+83.
+Table Where?
+BOSS
+INTERACT
+TALK
+84.
+Staff Assembly
+TALK
+TALK
+85.
+Forged in Fire
+INTERACT
+TALK
+The Drake Hatchery (7 quests)
+86.
+Earn Your Wings
+TALK
+87.
+Mother of Fire
+TALK
+TALK
+88.
+Don't Count Your Eggs…
+INSTANCE
+3× MOB
+BOSS
+TALK
+89.
+Over Easy
+EXPLORE
+INTERACT
+TALK
+90.
+Hammer Time
+D&C
+TALK
+91.
+Break an Egg
+BOSS
+INTERACT
+TALK
+92.
+Words of Wisdom
+4× TALK
+The Forum (15 quests)
+93.
+Fly Free
+SIDE ×1
+EXPLORE
+TALK
+94.
+Hit the Books
+INTERACT
+TALK
+95.
+Read the Manual
+INTERACT
+TALK
+96.
+Training Wings
+EXPLORE
+TALK
+97.
+Overdue Fees
+BOSS
+TALK
+98.
+Third Time is the Charm
+EXPLORE
+INTERACT
+TALK
+99.
+Fuel and Flame
+2× D&C
+TALK
+100.
+Forging the Fire
+INTERACT
+TALK
+101.
+Repo Mage
+D&C
+TALK
+102.
+Ancient Dragon Secret
+3× COLLECT
+TALK
+103.
+He Who Smelt It
+INTERACT
+TALK
+104.
+Scales of the Dragon
+MOB
+MOB
+MOB
+TALK
+105.
+Armor for Baby
+TALK
+106.
+The Last Dragon Rider
+TALK
+107.
+The Final Countdown
+INSTANCE
+INTERACT
+MOB
+MOB
+BOSS
+INTERACT
+3× MOB
+BOSS
+TALK

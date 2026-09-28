@@ -63,11 +63,15 @@ def build_data(docs: Path = Path("docs")) -> dict:
     for i, name in enumerate(WORLDS):
         listed = lists.get(name, [])
         st = quest_status(listed, completed, book_names, later_world_reached=0 <= i < here_index)
-        areas: dict[str, dict] = {}
+        # Areas in story order; an area visited again later (Marleybone's Royal
+        # Museum) is its own group there.
+        areas: list[dict] = []
         for q in listed:
-            a = areas.setdefault(q.area, {"name": q.area, "quests": []})
-            a["quests"].append({"index": q.index, "name": q.name, "tags": q.tags, "status": st[q.name]})
-        for a in areas.values():
+            if not areas or areas[-1]["name"] != q.area:
+                areas.append({"name": q.area, "quests": []})
+            row = {"index": q.index, "name": q.name, "tags": q.tags, "status": st[q.name]}
+            areas[-1]["quests"].append(row)
+        for a in areas:
             a["total"] = len(a["quests"])
             a["done"] = sum(q["status"] == "done" for q in a["quests"])
         done = sum(v == "done" for v in st.values())
@@ -79,7 +83,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "pct": round(100 * done / len(listed)) if listed else (100 if 0 <= i < here_index else 0),
             "current": name == here,
             "reached": 0 <= i <= here_index,
-            "areas": list(areas.values()),
+            "areas": areas,
         })
 
     beat = status.get("time", 0)

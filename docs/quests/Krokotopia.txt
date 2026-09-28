@@ -1,0 +1,311 @@
+Royal Hall (6 quests)
+1.
+A Whole New World
+SIDE ×4
+EXPLORE
+TALK
+TALK
+TALK
+2.
+Digging in the Dirt
+SIDE ×1
+TALK
+3.
+Make Some Rubbings
+EXPLORE
+TALK
+4.
+Fragments of a Key
+D&C
+TALK
+5.
+The Final Rubbing
+BOSS
+TALK
+6.
+Speak to the Assistant
+SIDE ×1
+TALK
+Chamber of Fire (4 quests)
+7.
+Find My Colleague
+SIDE ×2
+TALK
+TALK
+8.
+New Digs
+INTERACT
+TALK
+9.
+Quarter Master
+SIDE ×1
+BOSS
+TALK
+10.
+Back to the Archeologist
+SIDE ×4
+TALK
+Palace of Fire (11 quests)
+11.
+Assault on the Palace
+TALK
+12.
+Gather the Troops
+SIDE ×1
+TALK
+TALK
+TALK
+TALK
+TALK
+13.
+Payback
+MOB
+MOB
+TALK
+14.
+Give 'Em Another Round
+SIDE ×1
+BOSS
+BOSS
+BOSS
+BOSS
+TALK
+15.
+Back to Winthrop
+TALK
+16.
+Into the Map Room
+TALK
+17.
+Serpent Staff
+INSTANCE
+TALK
+PUZZLE
+BOSS
+TALK
+18.
+Eye of Krok
+INSTANCE
+TALK
+PUZZLE
+BOSS
+TALK
+19.
+Use the Map Room
+INSTANCE
+TALK
+INTERACT
+TALK
+20.
+Permission to Enter
+SIDE ×1
+TALK
+21.
+Fangdango
+SIDE ×2
+TALK
+Hall of Champions (14 quests)
+22.
+Order at Last
+TALK
+23.
+The Great General
+TALK
+24.
+Minion Massacre
+MOB
+TALK
+25.
+Search for the Seal
+BOSS
+TALK
+26.
+General Admission
+TALK
+27.
+Coin of Destiny
+BOSS
+TALK
+28.
+Lay of the Land
+TALK
+TALK
+29.
+Blades of Ice
+D&C
+TALK
+30.
+Armor Handle
+D&C
+TALK
+31.
+Get Some Bling
+4× COLLECT
+TALK
+32.
+Grip It!
+D&C
+TALK
+33.
+Forge Key
+D&C
+TALK
+34.
+Taking It to the Tuts
+BOSS
+INTERACT
+TALK
+35.
+Back Among the Fold
+TALK
+Grand Arena (12 quests)
+36.
+Quest for the Warrior
+TALK
+37.
+Mark of the Gladiator
+D&C
+TALK
+38.
+Gladiator Games
+TALK
+39.
+Are You Experienced?
+MOB
+TALK
+40.
+Battle of the Sunbird
+BOSS
+TALK
+41.
+Along Came a Spider
+D&C
+TALK
+42.
+Stonechin
+BOSS
+TALK
+43.
+Enter Sandman
+MOB
+TALK
+44.
+Malletmane
+BOSS
+TALK
+45.
+Krokotopian Idol
+MOB
+TALK
+46.
+Who's More Amazing?
+BOSS
+TALK
+47.
+The Ultimate Battle
+BOSS
+TALK
+Entrance Hall (9 quests)
+48.
+Return to Shalek
+SIDE ×1
+TALK
+49.
+Find the Fang
+SIDE ×1
+TALK
+50.
+Breaking the Vault
+INSTANCE
+BOSS
+PUZZLE
+BOSS
+PUZZLE
+BOSS
+PUZZLE
+BOSS
+TALK
+51.
+Retribution
+TALK
+52.
+Guardians at the Gate
+INSTANCE
+TALK
+BOSS
+BOSS
+TALK
+EXPLORE
+TALK
+53.
+New Allies
+INSTANCE
+TALK
+3× INTERACT
+TALK
+54.
+Overpower the Overseer
+INSTANCE
+TALK
+PUZZLE
+BOSS
+TALK
+55.
+The Right Combination
+INSTANCE
+TALK
+BOSS
+56.
+Back to Balance
+TALK
+TALK
+Tomb of Storms (9 quests)
+57.
+Tomb of Storms
+SIDE ×5
+TALK
+TALK
+58.
+De-Cipher the Ahnics
+BOSS
+TALK
+59.
+De-Cipher the Djeserits
+BOSS
+TALK
+60.
+The Key to the Temple
+SIDE ×1
+BOSS
+BOSS
+BOSS
+BOSS
+TALK
+61.
+Temple Dweller
+INSTANCE
+EXPLORE
+62.
+Test of Strength
+INSTANCE
+TALK
+BOSS
+BOSS
+BOSS
+TALK
+63.
+Get Smart
+INSTANCE
+TALK
+PUZZLE
+PUZZLE
+PUZZLE
+TALK
+64.
+Triumphant Return
+TALK
+65.
+Missing Souls
+SIDE ×5
+TALK
+TALK

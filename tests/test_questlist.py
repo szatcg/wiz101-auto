@@ -58,3 +58,12 @@ def test_quest_status_story_order():
     st = quest_status(listed, completed=["A"], book=["C"], later_world_reached=False)
     assert st == {"A": "done", "B": "done", "C": "active", "D": "todo"}
     assert set(quest_status(listed, [], [], True).values()) == {"done"}
+
+
+def test_tidy_world_list_merges_repeated_quest_numbers():
+    from wiz101_auto.questlist import parse_quest_list, tidy_world_list
+
+    text = "Lab (2 quests)\n38.\nWeird Science\nTALK\n39.\nNext\nTALK\n38.\nWeird Science\nBOSS\n"
+    listed = tidy_world_list(parse_quest_list(text))
+    assert [q.index for q in listed] == [38, 39]
+    assert listed[0].tags == ["TALK", "BOSS"]

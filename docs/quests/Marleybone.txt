@@ -1,0 +1,270 @@
+Royal Museum (1 quest)
+1.
+Sarcophagus Search
+SIDE ×4
+TALK
+Digmoore Station (2 quests)
+2.
+Not So Fast…
+TALK
+3.
+A Cat-tastrophy
+TALK
+Hyde Park (6 quests)
+4.
+Back Up for Bones
+SIDE ×3
+TALK
+5.
+Garden Secret
+SIDE ×1
+MOB
+TALK
+6.
+House Hunt
+SIDE ×1
+3× EXPLORE
+MOB
+MOB
+MOB
+TALK
+7.
+Springing the Snitch
+BOSS
+TALK
+TALK
+8.
+The Right Tools
+D&C
+TALK
+9.
+Open Says Me
+TALK
+BOSS
+TALK
+TALK
+Chelsea Court (9 quests)
+10.
+Out of Control
+SIDE ×1
+TALK
+11.
+For Whom the Bell Tolls
+EXPLORE
+TALK
+12.
+A Guide…
+TALK
+13.
+Keeper of Secrets
+BOSS
+TALK
+14.
+The Only One Left
+BOSS
+TALK
+15.
+Sweet Success
+TALK
+16.
+Password, Please!
+EXPLORE
+MOB
+TALK
+TALK
+17.
+Collar Me Impressed
+TALK
+18.
+A Private Meeting
+EXPLORE
+4× TALK
+Ironworks (8 quests)
+19.
+Ticket to the Ironworks
+EXPLORE
+20.
+Internal Investigation
+SIDE ×2
+TALK
+21.
+No Entry
+INSTANCE
+TALK
+D&C
+TALK
+EXPLORE
+22.
+Gate Crashers
+INSTANCE
+TALK
+BOSS
+TALK
+23.
+Purloin the Plans
+INSTANCE
+TALK
+INTERACT
+TALK
+24.
+Bully the Boss
+INSTANCE
+TALK
+EXPLORE
+TALK
+25.
+Knock on Wood
+INSTANCE
+TALK
+BOSS
+EXPLORE
+BOSS
+TALK
+20.
+Internal Investigation
+SIDE ×2
+BOSS
+TALK
+Newgate Prison (3 quests)
+26.
+Ring the Alarm
+TALK
+27.
+Prison Break
+TALK
+28.
+Stop that Cat!
+EXPLORE
+TALK
+BOSS
+BOSS
+Knight’s Court (9 quests)
+29.
+Scratching Post
+SIDE ×1
+TALK
+30.
+Wildcat Woes
+SIDE ×1
+TALK
+BOSS
+TALK
+31.
+Cat Scratch Fever
+MOB
+TALK
+32.
+Investigation…
+SIDE ×1
+TALK
+TALK
+33.
+Location, Location…
+TALK
+TALK
+34.
+Gimme a Hand
+EXPLORE
+MOB
+TALK
+35.
+Cross Examination
+TALK
+TALK
+36.
+Doctor of Deception
+EXPLORE
+BOSS
+TALK
+37.
+Case Closed!
+TALK
+Katzenstein’s Lab (7 quests)
+38.
+Weird Science
+TALK
+39.
+The Right Combination
+TALK
+BOSS
+40.
+Locked Door
+INTERACT
+41.
+Gate Is Enough
+INSTANCE
+TALK
+BOSS
+TALK
+42.
+The Second Door
+INSTANCE
+INTERACT
+38.
+Weird Science
+INSTANCE
+BOSS
+43.
+If You Build It...
+INSTANCE
+TALK
+INTERACT
+TALK
+Katzenstein's Lab (2 quests)
+44.
+It’s Alive!
+INSTANCE
+3× INTERACT
+TALK
+45.
+Weird Science
+TALK
+Royal Museum (9 quests)
+46.
+Fetch Bones!
+TALK
+47.
+Stolen Away
+TALK
+48.
+Metal Madness
+INSTANCE
+TALK
+4× MOB
+4× INTERACT
+47.
+Stolen Away
+INSTANCE
+BOSS
+TALK
+49.
+Weights and Measures
+TALK
+50.
+More Metal Madness
+INSTANCE
+TALK
+4× MOB
+4× INTERACT
+49.
+Weights and Measures
+INSTANCE
+BOSS
+TALK
+51.
+The Last Meow
+INSTANCE
+SIDE ×1
+MOB
+TALK
+3× MOB
+BOSS
+MOB
+PUZZLE
+4× MOB
+BOSS
+52.
+Stealthy Stuff
+INSTANCE
+BOSS
+TALK

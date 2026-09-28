@@ -115,19 +115,37 @@ WORLDS = (
 WORLD_LISTS = Path("docs") / "quests"  # <World>.txt, same format as QuestList.txt
 
 
+def tidy_world_list(listed: list[ListedQuest]) -> list[ListedQuest]:
+    """One entry per quest number (a quest whose steps span areas is listed
+    again under the same number: its later steps' tags join the first), and
+    area names with straight apostrophes ("Katzenstein’s Lab" = "...'s Lab")."""
+    out: list[ListedQuest] = []
+    by_index: dict[int, ListedQuest] = {}
+    for q in listed:
+        area = q.area.replace("’", "'")
+        if q.index in by_index and norm(by_index[q.index].name) == norm(q.name):
+            by_index[q.index].tags.extend(q.tags)
+            continue
+        entry = ListedQuest(q.index, q.name, area, list(q.tags))
+        by_index[q.index] = entry
+        out.append(entry)
+    return out
+
+
 def load_world_lists(docs: Path = Path("docs")) -> dict[str, list[ListedQuest]]:
     """Quest lists per world: docs/QuestList.txt is Wizard City; docs/quests/
     <World>.txt adds others (pasted from Spiral Tracker)."""
     out: dict[str, list[ListedQuest]] = {}
     try:
-        out["Wizard City"] = parse_quest_list((docs / "QuestList.txt").read_text(encoding="utf-8"))
+        text = (docs / "QuestList.txt").read_text(encoding="utf-8")
+        out["Wizard City"] = tidy_world_list(parse_quest_list(text))
     except OSError:
         pass
     folder = docs / "quests"
     if folder.is_dir():
         for f in sorted(folder.glob("*.txt")):
             try:
-                out[f.stem] = parse_quest_list(f.read_text(encoding="utf-8"))
+                out[f.stem] = tidy_world_list(parse_quest_list(f.read_text(encoding="utf-8")))
             except OSError:
                 continue
     return out
