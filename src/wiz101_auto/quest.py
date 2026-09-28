@@ -272,6 +272,7 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._drop_hunt_for = ""  # a "Collect X" objective whose items drop from enemies
         self._unreached: dict[tuple[str, str], int] = {}  # (objective, zone) -> failed approaches
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
@@ -1000,7 +1001,16 @@ class Quester:
                     logger.info(f"found {item!r} near ({p[0]:.0f}, {p[1]:.0f})")
                     return True
             return True
-        # Already searched: let the quest marker (if any) guide us, else wait for respawns.
+        # Already searched and no pickups anywhere: many "Collect X" items drop
+        # from enemies (Flame Gems from the Palace of Fire's Desert Golems). Fight
+        # the ones here, and don't flee those fights.
+        if await self.sprinter.get_mobs() and not await self.client.in_battle():
+            if self._drop_hunt_for != objective:
+                logger.info(f"no {item!r} lying around; they must drop from enemies here: fighting for them")
+                self._drop_hunt_for = objective
+            await self.pull_mob(objective)
+            return True
+        # No enemies either: let the quest marker (if any) guide us, else wait for respawns.
         if distance(await self.client.quest_position.position(), XYZ(0, 0, 0)) < 1:
             logger.debug(f"no {item!r} found; waiting for respawns")
             self.controller.allow_idle(15)
@@ -1019,6 +1029,8 @@ class Quester:
             zone = await self.client.zone_name() or ""
         except Exception:
             return False
+        if objective == self._drop_hunt_for:
+            return False  # hunting a "Collect X" drop: every fight here counts
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
         return not fight_needed(objective, names, zone, has_boss)
