@@ -249,6 +249,25 @@ def _stronger_next_round(battle: Battle, focus: Combatant, dmg_now: float, strat
     return None
 
 
+KEEP_CHEAP_HITS = 2  # 1-pip damage cards kept in hand to finish enemies off
+
+
+def _finish_in_reach(battle: Battle, rounds: int = 2) -> bool:
+    """Can a card in hand kill every enemy left once we have the pips (a pip
+    comes each round)? Then a minion (all our pips) would only delay that."""
+    pips = battle.pips + battle.power_pips + rounds
+    enemies = battle.live_enemies
+    if not enemies:
+        return False
+    for c in battle.cards:
+        if not c.is_damage or c.pip_cost > pips:
+            continue
+        victims = enemies if c.is_aoe else enemies[:1] if len(enemies) == 1 else []
+        if victims and all(hit_damage(c, battle.me, e) >= e.health for e in victims):
+            return True
+    return False
+
+
 def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     """Off-school attack cards from gear (a starter wand's Fire Cat, Dark Sprite...)
     only take hand slots our own spells and traps could fill."""
@@ -260,6 +279,13 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     ]
     if not junk:
         return None
+    # Cheap hits finish off a nearly dead enemy without waiting rounds for pips:
+    # keep a couple in hand, off-school gear cards included.
+    cheap = [c for c in battle.cards if c.is_damage and not c.treasure and c.pip_cost <= 1]
+    if len(cheap) <= KEEP_CHEAP_HITS:
+        junk = [c for c in junk if c.pip_cost > 1]
+        if not junk:
+            return None
     card = min(junk, key=lambda c: c.base_damage())
     return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
 
@@ -480,7 +506,8 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         if junk:
             return junk
 
-    summon = None if plan_fight(battle, strat).skip_summon else _summon_action(battle, strat)
+    skip_summon = plan_fight(battle, strat).skip_summon or _finish_in_reach(battle)
+    summon = None if skip_summon else _summon_action(battle, strat)
     if summon:
         return summon
 

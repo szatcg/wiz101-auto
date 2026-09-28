@@ -278,7 +278,10 @@ def test_discards_off_school_gear_cards():
     heartbeat = Card(1, "Heartbeat", school="Life", item=True, effects=heal)
     troll = dmg_card(2, "Troll", 190, pips=2)
     troll.school = "Myth"
-    b = battle([wand, heartbeat, troll], [enemy("Alicane", 480, boss=True)], my=_myth_me())
+    bats = [dmg_card(3, "Blood Bat", 90), dmg_card(4, "Blood Bat", 90)]  # two cheap hits kept anyway
+    for bat in bats:
+        bat.school = "Myth"
+    b = battle([wand, heartbeat, troll, *bats], [enemy("Alicane", 480, boss=True)], my=_myth_me())
     action = decide(b)
     assert action.kind is ActionKind.DISCARD and action.card.name == "Frost Beetle"
     assert decide(b, discards_left=0).kind is not ActionKind.DISCARD
@@ -370,3 +373,29 @@ def test_uses_a_free_trap_instead_of_just_passing():
     assert action.card.name == "Myth Trap" and action.target is boss
     b.cards = [pixie]
     assert decide(b).kind is ActionKind.PASS
+
+
+def test_keeps_two_cheap_hits_instead_of_discarding_them():
+    myth_me = _myth_me()
+    fire_cat = dmg_card(0, "Fire Cat", 80)
+    fire_cat.school, fire_cat.item = "Fire", True
+    imp = dmg_card(1, "Imp", 70)
+    imp.school, imp.item = "Fire", True
+    troll = dmg_card(2, "Troll", 190, pips=2)
+    troll.school = "Myth"
+    b = battle([fire_cat, imp, troll], [enemy("Golem", 400)], my=myth_me)
+    b.pips = 0
+    assert decide(b).kind is not ActionKind.DISCARD  # only 2 cheap hits: keep both
+    thunder = dmg_card(3, "Thunder Snake", 75)
+    thunder.school, thunder.item = "Storm", True
+    b.cards.append(thunder)
+    assert decide(b).kind is ActionKind.DISCARD  # a third can go
+
+
+def test_no_summon_when_a_card_in_hand_finishes_the_last_enemy():
+    summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    cyclops = dmg_card(0, "Cyclops", 400, pips=3, castable=False)
+    b = battle([cyclops, summon], [enemy("Edo Nirini", 545, boss=True)])
+    b.enemies[0].health = 14
+    b.pips = 1
+    assert decide(b).kind is not ActionKind.CAST or decide(b).card.name != "Troll Minion"
