@@ -116,6 +116,7 @@ EXTRA_DISPLAY_ZONES = [
     ("ravenwood", "WizardCity/WC_Ravenwood"),
     ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
+    ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
 ]
 
 

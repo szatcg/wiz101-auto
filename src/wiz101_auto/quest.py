@@ -172,7 +172,9 @@ def choose_quest(
         # Filling in with side quests while the main story waits for a level:
         # stay in this world (no trips back to Wizard City), finish the tracked
         # one before picking another, and prefer the biggest reward (experience).
-        here = [q for q in available if world and quest_world(q) == world] or available
+        here = [q for q in available if quest_world(q) == world] if world else available
+        if not here:
+            return None  # nothing worth doing in this world: the caller grinds there
         active = next((q for q in here if q.active), None)
         if active:
             return active
@@ -311,6 +313,7 @@ class Quester:
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
         self._grinding = False  # every quest set aside: fight for experience until a level-up
+        self._main_world: str | None = None  # the world the main quest is in (side quests stay there)
         self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
@@ -647,14 +650,19 @@ class Quester:
         if await self.client.in_battle():
             return True
         zone = await self.client.zone_name() or ""
+        in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
+        if not in_main_world:
+            return False  # the main quest's marker leads there (quest step)
         if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
             await self.pull_mob("")
             return True
-        if self._last_win_zone and self._last_win_zone != zone:
+        if self._last_win_zone.split("/", 1)[0] == self._main_world and self._last_win_zone != zone:
             logger.info(f"no enemies here; going to {self._last_win_zone} to fight for experience")
             if await self.go_to_zone(self._last_win_zone):
                 return True
-        return False  # nowhere to fight: fall back to the quest step
+        # Nowhere known yet: the quest step follows the main quest's marker, and
+        # the first outdoor zone there with enemies (before its dungeon) is used.
+        return False
 
     async def _set_current_aside(self, objective: str) -> bool:
         """Set the tracked quest aside now (it can't be progressed from here) and
@@ -1063,13 +1071,26 @@ class Quester:
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
             self._mainline = {q.name for _, q in all_quests if q.mainline}
-            grinding = bool(all_quests) and all(q.name in set_aside for _, q in all_quests)
-            if grinding and not self._grinding:
-                logger.warning("every quest is set aside: fighting for experience until the next level")
-            self._grinding = grinding
             here = await self.client.zone_name() or ""
-            world = here.split("/", 1)[0] if here else None
+            # Side quests fill in only in the main quest's world (where it will be
+            # picked up again at the next level), never a trip to another world.
+            main_quests = [q for _, q in all_quests if q.mainline]
+            main_world = next((w for w in map(quest_world, main_quests) if w), None)
+            if main_world is None and main_quests:
+                # The book's area name may be unknown; its objective can place it.
+                zones = [objective_zone(q.goal) for q in main_quests if q.goal]
+                main_world = next((z.split("/", 1)[0] for z in zones if z), None)
+            world = main_world or self._main_world or (here.split("/", 1)[0] if here else None)
+            self._main_world = world
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world)
+            grinding = chosen is None and bool(all_quests)
+            if grinding and not self._grinding:
+                logger.warning(f"nothing to do in {world}: fighting there for experience until a level-up")
+            self._grinding = grinding
+            if grinding and main_quests:
+                # Track the main quest so its marker leads back into its world;
+                # _grind fights outdoors there instead of taking on the boss.
+                chosen = main_quests[0]
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities
