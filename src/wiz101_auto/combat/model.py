@@ -167,6 +167,7 @@ class Action:
     target: Combatant | None = None  # None with CAST = untargeted (AoE, self)
     target_card: Card | None = None
     reason: str = ""
+    plan_cards: set[int] = field(default_factory=set)  # hand indices a planned line uses
 
     def describe(self) -> str:
         if self.kind is ActionKind.PASS:

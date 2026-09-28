@@ -629,3 +629,23 @@ def test_troll_is_never_discarded_as_a_chip_hit():
     b = battle([troll], [enemy("Bort Malletmane", 585, boss=True)], my=bladed)
     a = decide(b)
     assert not (a.kind is ActionKind.DISCARD and a.card.name == "Troll")
+
+
+def test_kills_now_with_troll_instead_of_waiting_for_cyclops():
+    troll = myth_hit(0, dmg=190, pips=2)
+    cyclops = myth_hit(1, dmg=295, pips=3, castable=False)
+    cyclops.name = "Cyclops"
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    target = enemy("Sand Stalker", 300, trap_count=1, incoming_effects=[("spell:2", "myth", 0.4)])
+    b = battle([troll, cyclops], [target], my=bladed)
+    b.pips = 2
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name == "Troll"  # ~359 kills 300 now
+
+
+def test_trap_first_when_that_kills_sooner():
+    troll = myth_hit(0, dmg=190, pips=2)
+    b = battle([troll, myth_trap(1)], [enemy("Golem", 250)], my=_myth_me())
+    b.pips = 2
+    a = decide(b)
+    assert a.card.name == "Myth Trap"  # trap now, Troll next round kills; Troll now doesn't

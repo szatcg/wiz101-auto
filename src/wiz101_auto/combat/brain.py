@@ -635,6 +635,90 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     return action
 
 
+KILL_LOOKAHEAD = 3  # rounds the kill search looks ahead
+
+
+def _use_up(effects: list[tuple[str, str, float]], school: str) -> list[tuple[str, str, float]]:
+    """Effects left after a hit of `school`: one copy of each distinct
+    matching trap/blade (or shield) is spent."""
+    out, spent = [], set()
+    for key, eff_school, value in effects:
+        if key not in spent and (not eff_school or eff_school == school):
+            spent.add(key)
+            continue
+        out.append((key, eff_school, value))
+    return out
+
+
+def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD) -> Action | None:
+    """The first move of the quickest line that kills `target` with the cards
+    in hand: each round cast an attack, a 0-pip blade or trap, or pass; a pip
+    comes every round; blades and traps are spent by the hits they boost.
+    Fewest rounds first, then fewest pips. None if no line kills in time."""
+    me = battle.me
+    hand = [c for c in battle.cards if not c.is_enchant]
+    best: list = []  # [(rounds, pips spent), first action]
+
+    def search(depth, pips, used, out_fx, in_fx, hp, spent, first):
+        if best and (depth, spent) >= best[0] and depth >= best[0][0]:
+            return
+        if depth >= rounds:
+            return
+        options = []
+        for i, c in enumerate(hand):
+            if i in used or c.pip_cost > pips or (depth == 0 and not c.castable):
+                continue
+            if c.is_damage:
+                options.append(("hit", i, c))
+            elif c.pip_cost == 0 and EffectKind.TRAP in c.kinds:
+                options.append(("trap", i, c))
+            elif c.pip_cost == 0 and EffectKind.BLADE in c.kinds:
+                options.append(("blade", i, c))
+        for kind, i, c in options:
+            school = c.school.lower()
+            act = first
+            if kind == "hit":
+                if act is None:
+                    act = Action(ActionKind.CAST, c, None if c.is_aoe else target, reason="")
+                attacker = Combatant(**{**me.__dict__, "outgoing_effects": out_fx})
+                victim = Combatant(**{**target.__dict__, "incoming_effects": in_fx, "health": hp})
+                dmg = hit_damage(c, attacker, victim)
+                if dmg >= hp:
+                    key = (depth + 1, spent + c.pip_cost)
+                    if not best or key < best[0]:
+                        why = f"kills {target.name} in {depth + 1} round(s) (~{dmg:.0f} on the killing hit)"
+                        best[:] = [key, act, why, used | {i}]
+                    continue
+                search(depth + 1, pips - c.pip_cost + 1, used | {i},
+                       _use_up(out_fx, school), _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act)
+            else:
+                if act is None:
+                    t = None if (kind == "blade" and c.target is not Target.ENEMY_SINGLE) else target
+                    if kind == "blade" and c.target is Target.ALLY_SINGLE:
+                        t = me
+                    act = Action(ActionKind.CAST, c, t, reason="")
+                value = sum(e.value for e in c.effects if e.kind in (EffectKind.TRAP, EffectKind.BLADE)) / 100
+                existing = out_fx if kind == "blade" else in_fx
+                same = next((k for k, sch, v in existing if sch == school and abs(v - value) < 0.005), None)
+                fx = (same or f"plan:{c.name}", school, value)  # a copy of one that's up doesn't stack
+                if kind == "trap":
+                    search(depth + 1, pips + 1, used | {i}, out_fx, in_fx + [fx], hp, spent, act)
+                else:
+                    search(depth + 1, pips + 1, used | {i}, out_fx + [fx], in_fx, hp, spent, act)
+        # pass: keep the pips
+        search(depth + 1, pips + 1, used, out_fx, in_fx, hp, spent,
+               first or Action(ActionKind.PASS, reason=""))
+
+    search(0, battle.pips + battle.power_pips, frozenset(), list(me.outgoing_effects),
+           list(target.incoming_effects), target.health, 0, None)
+    if not best:
+        return None
+    action, why = best[1], best[2]
+    action.reason = why if action.kind is not ActionKind.PASS else f"waiting: {why}"
+    action.plan_cards = {hand[i].index for i in best[3]}
+    return action
+
+
 WEAK_HIT_SHARE = 0.5  # a hit under this share of the target's health doesn't deserve our blade/trap
 CHIP_HIT_SHARE = 1 / 3  # without buffs: a hit under this share is only worth it to finish
 
@@ -766,6 +850,24 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         junk = _junk_discard(battle, strat)
         if junk:
             return junk
+
+    # One enemy left: play the line that kills it in the fewest rounds (then
+    # the fewest pips). Troll with blade and traps doing 500 into 400 hp kills
+    # now; waiting for a Cyclops only when that really is faster.
+    if len(battle.live_enemies) == 1:
+        line = fastest_kill(battle, battle.live_enemies[0])
+        if line is not None:
+            if line.kind is ActionKind.PASS and discards_left > 0:
+                # Waiting on the line: bin chip hits it doesn't use, for new draws.
+                chips = [
+                    c for c in battle.cards
+                    if c.is_damage and not c.treasure and c.pip_cost == 1
+                    and c.index not in getattr(line, "plan_cards", set())
+                ]
+                if chips:
+                    junk = min(chips, key=lambda c: c.base_damage())
+                    return Action(ActionKind.DISCARD, junk, reason="not part of the killing line; drawing")
+            return line
 
     skip_summon = plan_fight(battle, strat).skip_summon or _finish_in_reach(battle)
     summon = None if skip_summon else _summon_action(battle, strat)
