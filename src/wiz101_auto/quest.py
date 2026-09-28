@@ -617,6 +617,20 @@ class Quester:
                 return True
         return False
 
+    async def _set_current_aside(self, objective: str) -> bool:
+        """Set the tracked quest aside now (it can't be progressed from here) and
+        re-rank, so the next best quest is followed. Just tracking the next quest
+        in the book let ranking pick the same one again."""
+        quest = self._active_quest
+        if not quest:
+            return await self.switch_quest()
+        level = await self.client.stats.reference_level()
+        self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
+        self.setbacks.save()
+        self._ranked_for = None
+        self._last_rank = -1e9
+        return True
+
     async def _note_defeats(self):
         """After a defeat, count it against the objective; the second one sets the
         quest aside for another questline (until a level-up or an hour passes)."""
@@ -1239,15 +1253,19 @@ class Quester:
             if await self.go_to_zone(target_zone) or await self.client.zone_name() != zone:
                 return True
         if target_zone not in (None, zone):
-            if not gate_toward(zone, target_zone, self._bad_gates) and "interiors" not in zone.lower():
-                logger.warning(f"no route from {zone} to {target_zone}; switching quests")
-                return await self.switch_quest()
+            other_world = target_zone.split("/")[0] != (zone or "").split("/")[0]
+            # No gate route: switch, unless we're just inside a building of the
+            # same world (walking out may find one). Another world: no gates lead there.
+            routable = gate_toward(zone, target_zone, self._bad_gates)
+            if not routable and (other_world or "interiors" not in zone.lower()):
+                logger.warning(f"no route from {zone} to {target_zone}; setting this quest aside")
+                return await self._set_current_aside(objective)
             if any(to == target_zone for _frm, to in self._bad_gates) and not find_zone_gate(
                 objective, zone, self._bad_gates
             ):
                 # Every way in refused us: the zone is still locked by the story.
-                logger.warning(f"{target_zone} looks locked (every gate refused); switching quests")
-                return await self.switch_quest()
+                logger.warning(f"{target_zone} looks locked (every gate refused); setting this quest aside")
+                return await self._set_current_aside(objective)
             return False  # the target is in another zone; its spots here are someone else's
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
