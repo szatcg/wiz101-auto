@@ -56,7 +56,14 @@ def build_data(docs: Path = Path("docs")) -> dict:
     completed = load_completed(docs / "CompletedQuests.txt")
     lists = load_world_lists(docs)
     book_names = [q.get("name", "") for q in book.get("quests", [])]
-    here = world_of_zone(status.get("zone", ""))
+    # Where the wizard is: the live zone; while stopped, the world at the last
+    # quest-book reading; else the furthest world with a completed quest.
+    here = world_of_zone(status.get("zone", "")) or world_of_zone(book.get("world", ""))
+    if not here:
+        done_names = {norm(n) for n in completed}
+        for name in WORLDS:
+            if any(norm(q.name) in done_names for q in lists.get(name, [])):
+                here = name
     here_index = WORLDS.index(here) if here in WORLDS else -1
 
     worlds = []
