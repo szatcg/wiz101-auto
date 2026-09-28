@@ -34,10 +34,25 @@ def new_handler() -> ClientHandler:
     return ClientHandler(client_cls=SprintyClient)
 
 
+def release_mouse_buttons(client) -> None:
+    """Send the game a left and right button-up. A click is button-down, a
+    short wait, button-up: a stop landing in between left the game thinking
+    the button was still held, and it ignored the player's own clicks."""
+    import ctypes
+
+    try:
+        send = ctypes.windll.user32.SendMessageW
+        send(client.window_handle, 0x0202, 0, 0)  # WM_LBUTTONUP
+        send(client.window_handle, 0x0205, 0, 0)  # WM_RBUTTONUP
+    except Exception as exc:
+        logger.debug(f"could not release the mouse buttons: {exc!r}")
+
+
 async def close_handler(handler: ClientHandler):
     """Unhook from the game. Each client is closed separately and failures are
     logged, so one bad unhook doesn't leave the rest of the game patched."""
     for client in list(handler.clients):
+        release_mouse_buttons(client)
         try:
             await client.close()
         except Exception as exc:
