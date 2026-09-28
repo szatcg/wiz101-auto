@@ -211,6 +211,8 @@ class GearManager:
         return False
 
     async def _optimise_slot(self, tab: str) -> str | None:
+        if not await ui.is_visible(self.client, PAGE) and not await self._open():
+            return None  # something closed the backpack (e.g. the stall watchdog)
         if not await ui.is_visible(self.client, [*PAGE, "ButtonLayout", tab]):
             return None
         items = await self._scan_tab(tab)
@@ -233,6 +235,8 @@ class GearManager:
             # Never leave the slot worse than we found it: equipping sometimes
             # doesn't take, so check the score and try again.
             for _ in range(3):
+                if not await ui.is_visible(self.client, PAGE):
+                    await self._open()
                 await self._equip_by_name(tab, best_name)
                 if await self._score() >= best_score - 0.5:
                     break

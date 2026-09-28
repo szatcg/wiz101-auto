@@ -1055,7 +1055,7 @@ class Quester:
         if await self._recall_to_mark():
             return
         if self.gear:
-            self.controller.allow_idle(180)  # trying gear on looks like "nothing happening"
+            self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
             try:
                 await self.gear.tick()
             except Exception as exc:
