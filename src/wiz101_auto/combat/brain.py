@@ -719,11 +719,15 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                 dmg = hit_damage(c, attacker, victim)
                 step = f"{c.name} (~{dmg:.0f})"
                 if dmg >= hp:
-                    key = (depth + 1, spent + c.pip_cost)
+                    cost = spent + c.pip_cost - _shield_bonus(c, battle.live_enemies)
+                    key = (depth + 1, cost)
                     if not best or key < best[0][:2]:
-                        best[:] = [(depth + 1, spent + c.pip_cost), act, steps + [step], used | {i}, dmg]
+                        best[:] = [(depth + 1, cost), act, steps + [step], used | {i}, dmg]
                     continue
-                if c.pip_cost == 0 and (_use_up(out_fx, school) != out_fx or _use_up(in_fx, school) != in_fx):
+                breaks = any(v < 0 and sch in ("", school) for _k, sch, v in in_fx)
+                if c.pip_cost == 0 and not breaks and (
+                    _use_up(out_fx, school) != out_fx or _use_up(in_fx, school) != in_fx
+                ):
                     continue  # a free chip hit would spend our blade/traps (Super Strike): only as the kill
                 search(depth + 1, paid[0] + 1, paid[1], used | {i}, _use_up(out_fx, school),
                        _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act, steps + [step])
@@ -767,6 +771,19 @@ def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD
     return action
 
 
+def _shielded_for(card: Card, target: Combatant) -> bool:
+    """A shield on `target` would cut this hit."""
+    school = card.school.lower()
+    return any(v < 0 and sch in ("", school) for _k, sch, v in target.incoming_effects)
+
+
+def _shield_bonus(card: Card, enemies: list[Combatant]) -> float:
+    """An attack that also shields us (Ether Golem: life and death) against
+    enemies of those schools: worth about a pip and a half in the plan."""
+    schools = {e.school for e in card.effects if e.kind is EffectKind.SHIELD}
+    return 1.5 if card.is_damage and any(e.school in schools for e in enemies if e.school) else 0.0
+
+
 WEAK_HIT_SHARE = 0.5  # a hit under this share of the target's health doesn't deserve our blade/trap
 CHIP_HIT_SHARE = 1 / 3  # without buffs: a hit under this share is only worth it to finish
 
@@ -800,10 +817,20 @@ def _free_hit(battle: Battle, shields_only: bool = False) -> Action | None:
     card = max(hits, key=lambda c: c.base_damage())
     school = card.school.lower()
     me = battle.me
+    enemies = battle.live_enemies
     bladed = me.outgoing_boost > 0 and not me.outgoing_effects
     if bladed or _matching(me.outgoing_effects, school, shields=False):
-        return None
-    enemies = battle.live_enemies
+        # Our blade would go on it: only worth it to knock off a shield that
+        # cuts more than the blade adds (a Tower Shield's -50% vs a +35% blade).
+        blade = sum(v for _k, sch, v in me.outgoing_effects if v > 0 and sch in ("", school))
+        worth = [
+            e for e in enemies
+            if -sum(v for _k, sch, v in e.incoming_effects if v < 0 and sch in ("", school)) > blade
+        ]
+        if not worth:
+            return None
+        t = max(worth, key=lambda e: (e.is_boss, e.health))
+        return Action(ActionKind.CAST, card, t, reason=f"0 pips: breaking {t.name}'s shield early")
 
     def shielded(e: Combatant) -> bool:
         return bool(_matching(e.incoming_effects, school, shields=True)) or (
@@ -986,6 +1013,13 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
             if setup:
                 return setup
             return Action(ActionKind.PASS, reason=f"saving pips for {stronger.name} (~{dmg:.0f} now)")
+
+        # A shield on the target (a Tower Shield: -50%) eats our big hit: knock
+        # it off with a free hit first unless this hit kills anyway.
+        if card.pip_cost > 0 and dmg < focus.health and _shielded_for(card, focus):
+            breaker = _free_hit(battle, shields_only=True)
+            if breaker is not None:
+                return breaker
 
         enchant = _pick_enchant(battle, card)
         if enchant:

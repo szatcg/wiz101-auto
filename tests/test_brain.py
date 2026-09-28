@@ -714,3 +714,30 @@ def test_ether_golem_is_an_attack_not_a_shield():
     b.pips = 1
     a = decide(b)
     assert not (a.kind is ActionKind.DISCARD and a.card.name == "Ether Golem")
+
+
+def test_super_strike_knocks_off_a_tower_shield_before_cyclops():
+    cyclops = myth_hit(1, dmg=295, pips=3)
+    tower = [("spell:7", "", -0.5)]
+    boss = enemy("Krokhotep", 1500, boss=True, shield_count=1, incoming_effects=tower)
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    b = battle([super_strike(0), cyclops], [boss], my=bladed)
+    b.pips = 3
+    a = decide(b, discards_left=0)
+    assert a.card.name == "Super Strike" and "shield" in a.reason
+
+
+def test_ether_golem_preferred_against_death_enemies_when_equal():
+    from wiz101_auto.combat.brain import fastest_kill
+
+    golem_fx = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 295),
+                Effect(EffectKind.SHIELD, Target.SELF, -70, school="life"),
+                Effect(EffectKind.SHIELD, Target.SELF, -70, school="death")]
+    golem = Card(0, "Ether Golem", school="myth", pip_cost=4, effects=golem_fx)
+    cyclops = myth_hit(1, dmg=295, pips=3)
+    cyclops.name = "Cyclops"
+    b = battle([golem, cyclops], [enemy("Death Pixie", 250, school="death")], my=_myth_me())
+    b.pips = 4
+    assert fastest_kill(b, b.enemies[0]).card.name == "Ether Golem"
+    b.enemies[0].school = "ice"
+    assert fastest_kill(b, b.enemies[0]).card.name == "Cyclops"
