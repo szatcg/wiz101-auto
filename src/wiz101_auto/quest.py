@@ -1429,6 +1429,9 @@ class Quester:
                 if await self.client.in_battle():
                     return
             else:
+                where = objective_zone(objective)
+                if where and where != await self.client.zone_name():
+                    return  # "... in Hall of Champions": not here; the quest marker leads there
                 # A boss that isn't there yet usually appears when the wizard
                 # walks into its spot (the marker); a teleport doesn't set that off.
                 if await self._walk_onto_marker():
