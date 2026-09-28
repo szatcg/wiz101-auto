@@ -139,3 +139,13 @@ def test_a_dungeons_own_quest_comes_before_the_main_quest():
     assert dungeon_quest(quests, zone, zones.get).name == "Serpent Staff"
     assert dungeon_quest(quests, zone, zones.get, {"Serpent Staff"}) is None
     assert dungeon_quest(quests, "Krokotopia/KT_Hub", zones.get) is None
+
+
+def test_any_matches_the_creature_kind():
+    from wiz101_auto.quest import defeat_names, fight_needed
+
+    obj = "Defeat Any Sphinx Sokkwi in Hall of Champions (0 of 4)"
+    assert defeat_names(obj) == ["Sphinx Sokkwi", "Sokkwi"]
+    assert fight_needed(obj, ["Sokkwi Crusher"], "Krokotopia/KT_Krokosphinx/KT_ChampHall", False)
+    assert not fight_needed(obj, ["Glacial Avenger"], "Krokotopia/KT_Krokosphinx/KT_ChampHall", False)
+    assert defeat_names("Defeat Gobbler Gorger in Colossus Boulevard") == ["Gobbler Gorger"]

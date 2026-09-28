@@ -257,6 +257,20 @@ def defeat_target(objective: str) -> str | None:
     return target or None
 
 
+def defeat_names(objective: str) -> list[str]:
+    """Names an enemy may have to count for a "Defeat X" objective, most
+    specific first. "Defeat Any Sphinx Sokkwi" takes any Sokkwi (a Sokkwi
+    Crusher counts): the last word, the creature kind, matches too."""
+    target = defeat_target(objective)
+    if not target:
+        return []
+    names = [target]
+    words = target.split()
+    if re.match(r"^\s*defeat\s+any\s", objective, re.I) and len(words) > 1:
+        names.append(words[-1])
+    return names
+
+
 def is_combat_objective(objective: str) -> bool:
     """Objectives met by fighting: 'Defeat X', 'Summon Myth Minion', 'Cast ...'."""
     first = objective.strip().lower().split(" ", 1)[0]
@@ -274,13 +288,16 @@ def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bo
         return True
     if not is_combat_objective(objective):
         return False
-    wanted = defeat_target(objective)
-    if wanted is None:
+    wanted = defeat_names(objective)
+    if not wanted:
         return True  # "Summon/Cast ...": any fight does
-    target = _norm_name(wanted).removesuffix("s")
-    if len(target) < 3:
-        return True
-    return any(target in _norm_name(n) or _norm_name(n) in target for n in enemy_names)
+    for name in wanted:
+        target = _norm_name(name).removesuffix("s")
+        if len(target) < 3:
+            return True
+        if any(target in _norm_name(n) or _norm_name(n) in target for n in enemy_names):
+            return True
+    return False
 
 
 def distance(a: XYZ, b: XYZ) -> float:
@@ -1383,9 +1400,14 @@ class Quester:
         if target:
             from .bossfarm import find_entity_named
 
-            pos = await find_entity_named(self.client, target)
-            if pos is None and target.endswith("s"):
-                pos = await find_entity_named(self.client, target[:-1])  # "Lost Souls"
+            pos = None
+            for name in defeat_names(objective):  # "Any Sphinx Sokkwi": any Sokkwi
+                pos = await find_entity_named(self.client, name)
+                if pos is None and name.endswith("s"):
+                    pos = await find_entity_named(self.client, name[:-1])  # "Lost Souls"
+                if pos is not None:
+                    target = name
+                    break
             if pos is not None:
                 logger.info(f"going after {target} for {objective!r}")
                 await self.client.teleport(pos)
