@@ -24,6 +24,7 @@ from .combat.reader import SCHOOL_ORDER
 PAGE = ["WorldView", "DeckConfiguration", "InventorySpellbookPage"]
 EQUIP = [*PAGE, "windowForBtns", "Layout", "Equip_Item"]
 NEXT_PAGE = [*PAGE, "rightscroll"]
+PREV_PAGE = [*PAGE, "leftscroll"]
 # Slots worth optimising. The deck and wand stay as they are (a starter wand's
 # item cards are the only spells some wizards have).
 SLOT_TABS = ("Tab_Hat", "Tab_Robe", "Tab_Shoes", "Tab_Athame", "Tab_Amulet", "Tab_Ring")
@@ -157,10 +158,23 @@ class GearManager:
         await asyncio.sleep(0.4)
         await ui.click(self.client, EQUIP)
 
+    async def _open_tab(self, tab: str):
+        """Show `tab` from its first page. Clicking the tab that's already
+        selected keeps the page it was on (e.g. the last one after a scan), so
+        scroll back explicitly."""
+        other = next(t for t in SLOT_TABS if t != tab)
+        await ui.click(self.client, [*PAGE, "ButtonLayout", other])  # switching tabs starts at page 1
+        await asyncio.sleep(0.5)
+        await ui.click(self.client, [*PAGE, "ButtonLayout", tab])
+        await asyncio.sleep(0.8)
+        for _ in range(MAX_PAGES):
+            if not await ui.click(self.client, PREV_PAGE):
+                break
+            await asyncio.sleep(0.4)
+
     async def _scan_tab(self, tab: str) -> list[tuple[str, bool]]:
         """(item name, equipped) for every item on the tab, from page 1."""
-        await ui.click(self.client, [*PAGE, "ButtonLayout", tab])  # also resets to page 1
-        await asyncio.sleep(0.8)
+        await self._open_tab(tab)
         found: list[tuple[str, bool]] = []
         for _ in range(MAX_PAGES):
             new = [(n, e) for _, n, e in await self._items_on_page() if n not in {f[0] for f in found}]
@@ -176,8 +190,7 @@ class GearManager:
         """Equip `name` (found by name: equipping reorders the list, and pressing
         Equip on an item that's already on takes it off). True if it's on after."""
         for attempt in range(2):
-            await ui.click(self.client, [*PAGE, "ButtonLayout", tab])
-            await asyncio.sleep(0.8)
+            await self._open_tab(tab)
             for _ in range(MAX_PAGES):
                 for window, n, equipped in await self._items_on_page():
                     if n != name:
