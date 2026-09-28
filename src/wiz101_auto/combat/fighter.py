@@ -183,7 +183,9 @@ class Fighter(CombatHandler):
         if box is None or "flee" not in (await ui.modal_text(box)).lower():
             return False
         logger.info("cancelling a flee confirmation")
-        await ui.modal_click(self.client, box, "rightButton")
+        # The left-shifted click misses message-box buttons; click No at its center.
+        if not await ui.press_modal_button(self.client, box, "rightButton"):
+            await ui.modal_click(self.client, box, "rightButton")
         await asyncio.sleep(0.5)
         return True
 
@@ -241,7 +243,16 @@ class Fighter(CombatHandler):
                 await self.flee()
                 return
 
-            # Never flee by accident: fleeing costs all of the wizard's mana.
+            # A flee confirmation already open (e.g. from before a restart): answer
+            # Yes when this fight isn't wanted, otherwise No (fleeing costs all mana).
+            box = await ui.modal_box(self.client)
+            if box is not None and "flee" in (await ui.modal_text(box)).lower():
+                if not self._judged_fight and self.unneeded_fight:
+                    self._judged_fight = True
+                    self._want_flee = await self.unneeded_fight(battle)
+                if self._want_flee and await ui.press_modal_button(self.client, box, "centerButton"):
+                    logger.info("confirmed fleeing (the confirmation was already open)")
+                    return
             if await self.cancel_flee_box():
                 continue
             if await ui.dismiss_notice(self.client):
