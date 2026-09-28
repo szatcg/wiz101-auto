@@ -122,6 +122,61 @@ async def read_stats(client, school: str) -> StatSnapshot:
 
 
 GEAR_MEMORY = Path("state") / "gear.json"
+LOOT_LOG = Path("state") / "looted_gear.json"
+
+
+class LootLog:
+    """Every piece of gear looted, by name: slot, when first looted, how many
+    times. A new item already in the log is a duplicate: nothing to check."""
+
+    def __init__(self, path: Path = LOOT_LOG, history: Path | None = Path("wiz101-auto.log")):
+        self.path = path
+        self.items: dict[str, dict] = {}
+        try:
+            self.items = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            if history is not None:
+                self._seed(history)
+
+    def _seed(self, log: Path):
+        """First run: gear looted so far, from the log's "new item" lines."""
+        pattern = re.compile(r"^(\S+ \S+).*new item: (['\"])(.+?)\2 -> ([A-Za-z]+)")
+        try:
+            with log.open(encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    m = pattern.search(line)
+                    if not m or m.group(4) == "not":
+                        continue
+                    when, name, slot = m.group(1)[:16], m.group(3), m.group(4)
+                    if self.record(name, f"Tab_{slot}"):
+                        self.items[name]["first_looted"] = when
+        except OSError:
+            return
+        self.save()
+
+    def seen(self, name: str) -> bool:
+        return norm_item(name) in {norm_item(n) for n in self.items}
+
+    def record(self, name: str, slot: str | None) -> bool:
+        """Add a looted item. True if it's the first of its name."""
+        key = next((n for n in self.items if norm_item(n) == norm_item(name)), None)
+        if key is not None:
+            self.items[key]["count"] = int(self.items[key].get("count", 1)) + 1
+            return False
+        self.items[name] = {
+            "slot": slot[4:] if slot else "",
+            "first_looted": time.strftime("%Y-%m-%d %H:%M"),
+            "count": 1,
+        }
+        return True
+
+    def save(self):
+        try:
+            self.path.parent.mkdir(exist_ok=True)
+            data = dict(sorted(self.items.items(), key=lambda kv: (kv[1].get("slot", ""), kv[0])))
+            self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        except OSError:
+            pass
 
 
 class GearInterrupted(Exception):
@@ -180,6 +235,7 @@ class GearManager:
         self.school = school
         self._level: int | None = None
         self.memory = GearMemory()
+        self.loot = LootLog()
         self.before_check = None  # async callable: step away from enemies first (set by the bot)
         self._items: set[int] | None = None  # backpack item ids seen so far
         self._last_backpack_check = 0.0
@@ -427,15 +483,26 @@ class GearManager:
         items = await self._backpack()
         if not items:
             return {}
-        new = [] if self._items is None else [texts for gid, texts in items.items() if gid not in self._items]
+        first_look = self._items is None
+        new = [texts for gid, texts in items.items() if self._items is None or gid not in self._items]
         self._items = set(items)
         by_tab: dict[str, set[str]] = {}
         for texts in new:
             tab = item_slot(texts)
+            if not tab:
+                continue
             name = texts[-1] if len(texts) > 3 else texts[0]
-            logger.info(f"new item: {name!r} -> {tab[4:] if tab else 'not gear'} ({' | '.join(texts[:3])})")
-            if tab:
-                by_tab.setdefault(tab, set()).add(name)
+            if first_look:
+                # Already in the backpack: judged before (or by hand). Just list it.
+                if not self.loot.seen(name):
+                    self.loot.record(name, tab)
+                continue
+            if not self.loot.record(name, tab):
+                logger.info(f"new item: {name!r} ({tab[4:]}) was looted before; a duplicate, not checking it")
+                continue
+            logger.info(f"new item: {name!r} -> {tab[4:]} ({' | '.join(texts[:3])})")
+            by_tab.setdefault(tab, set()).add(name)
+        self.loot.save()
         return by_tab
 
     async def tick(self):

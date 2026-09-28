@@ -68,3 +68,30 @@ def test_main_quests_get_five_tries(tmp_path):
     boss = "Defeat Akori Nirini in Akori's Chamber"
     assert not any(s.record_defeat(boss, "Payback", 14, now=0, main=True) for _ in range(4))
     assert s.record_defeat(boss, "Payback", 14, now=0, main=True)  # the fifth loss
+
+
+def test_loot_log_spots_duplicates(tmp_path):
+    from wiz101_auto.gear import LootLog
+
+    log = LootLog(tmp_path / "loot.json", history=None)
+    assert log.record("Dagger of Silence", "Tab_Athame")
+    log.save()
+    log = LootLog(tmp_path / "loot.json", history=None)
+    assert log.seen("dagger of silence")
+    assert not log.record("Dagger of Silence", "Tab_Athame")  # a duplicate
+    assert log.items["Dagger of Silence"] == {**log.items["Dagger of Silence"], "slot": "Athame", "count": 2}
+
+
+def test_loot_log_seeded_from_the_log(tmp_path):
+    from wiz101_auto.gear import LootLog
+
+    history = tmp_path / "bot.log"
+    history.write_text(
+        "2026-09-27 22:10:01.000 | INFO | gear - new item: 'Chillcloak' -> Robe (Robe-T1)\n"
+        "2026-09-27 22:11:01.000 | INFO | gear - new item: 'Snow Serpent' -> not gear ()\n"
+        "2026-09-28 01:39:22.000 | INFO | gear - new item: \"Senior Novice's Robe\" -> Robe (x)\n",
+        encoding="utf-8",
+    )
+    log = LootLog(tmp_path / "loot.json", history)
+    assert set(log.items) == {"Chillcloak", "Senior Novice's Robe"}
+    assert log.items["Chillcloak"]["first_looted"] == "2026-09-27 22:10"
