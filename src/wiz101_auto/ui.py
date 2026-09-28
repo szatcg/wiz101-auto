@@ -181,16 +181,53 @@ async def close_chat(client) -> bool:
     return True
 
 
+MODAL_SLOTS = ("leftButton", "centerButton", "rightButton")
+
+
 async def press_modal_button(client, box, name: str) -> bool:
-    """Click a visible button of a message box at its exact center."""
-    for btn in await box.get_windows_with_name(name):
+    """Click a visible message-box button and check the box closed.
+
+    The game packs the visible buttons from the left of the button row
+    ("Layout"); WizWalker's rects keep a hidden button's slot. With
+    leftButton hidden, Yes/No really sit one slot left of their rects (seen
+    on the flee confirmation), so that spot is tried when the center misses."""
+    btn = None
+    for w in await box.get_windows_with_name(name):
         try:
-            if await btn.is_visible():
-                await click_center(client, btn)
-                await asyncio.sleep(0.5)
-                return True
+            if await w.is_visible():
+                btn = w
+                break
         except Exception:
             continue
+    if btn is None:
+        return False
+    r = await btn.scale_to_client()
+    spots = [((r.x1 + r.x2) // 2, (r.y1 + r.y2) // 2)]
+    # Where it would sit with only the visible buttons packed from the row's left.
+    try:
+        layouts = await box.get_windows_with_name("Layout")
+        visible = []
+        for slot in MODAL_SLOTS:
+            for w in await box.get_windows_with_name(slot):
+                if await w.is_visible():
+                    visible.append(slot)
+                break
+        if layouts and name in visible:
+            row = await layouts[0].scale_to_client()
+            width, gap = r.x2 - r.x1, 6
+            x = row.x1 + visible.index(name) * (width + gap) + width // 2
+            spots.append((x, (r.y1 + r.y2) // 2))
+    except Exception:
+        pass
+    for x, y in spots:
+        await client.mouse_handler.click(int(x), int(y))
+        await asyncio.sleep(0.6)
+        try:
+            if not await box.is_visible():
+                return True
+        except Exception:
+            return True  # the box is gone
+    logger.debug(f"message box button {name!r} didn't close the box (tried {spots})")
     return False
 
 
