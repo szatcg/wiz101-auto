@@ -46,3 +46,41 @@ def test_humanize_quest_steps_and_places():
     line = "marked this spot in Krokotopia/KT_Krokosphinx/KT_Arena before the fight"
     e = parse_line("18:00:00 | INFO    | " + line)
     assert humanize(e) == ("MARK", "Leaving a mark here to Recall back after a defeat")
+
+
+def test_prediction_attaches_to_the_battle(tmp_path):
+    from wiz101_auto.thoughts import read_thoughts
+
+    log = tmp_path / "activity.log"
+    log.write_text(
+        "skipped first line\n"
+        "18:01:13 | INFO    | [round 4] pips=2+1P hp=1/2 vs K* 750/750, V 435/435 -> cast Cyclops on K (x)\n"
+        "18:01:13 | INFO    | predict: 0=906\n",
+        encoding="utf-8",
+    )
+    t = read_thoughts(log)
+    assert t["battle"]["predict"] == {0: 906}
+    assert all("predict" not in e["text"] for e in t["events"])
+
+
+def test_predicted_damage_for_single_and_aoe():
+    from wiz101_auto.combat.brain import predicted_damage
+    from wiz101_auto.combat.model import (
+        Action,
+        ActionKind,
+        Battle,
+        Card,
+        Combatant,
+        Effect,
+        EffectKind,
+        Target,
+    )
+
+    a = Combatant("A", 300, 300, is_enemy=True)
+    b = Combatant("B", 300, 300, is_enemy=True)
+    me = Combatant("Me", 500, 500, is_client=True)
+    hit = Card(0, "Troll", effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 190)])
+    aoe = Card(1, "Meteor", effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 100)])
+    battle = Battle(me=me, allies=[], enemies=[a, b], cards=[hit, aoe])
+    assert predicted_damage(battle, Action(ActionKind.CAST, hit, b)) == {1: 190}
+    assert predicted_damage(battle, Action(ActionKind.CAST, aoe, None)) == {0: 100, 1: 100}

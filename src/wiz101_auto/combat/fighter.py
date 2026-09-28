@@ -12,7 +12,7 @@ from wizwalker.combat import CombatHandler
 from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
-from .brain import Strategy, decide, plan_fight
+from .brain import Strategy, decide, plan_fight, predicted_damage
 from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
@@ -335,6 +335,9 @@ class Fighter(CombatHandler):
                 f"[round {battle.round}] pips={battle.pips}+{battle.power_pips}P "
                 f"hp={battle.me.health}/{battle.me.max_health} vs {foes} -> {action.describe()}"
             )
+            predicted = predicted_damage(battle, action)
+            if predicted:  # for the stream page's health bars
+                logger.info("predict: " + ", ".join(f"{i}={d}" for i, d in predicted.items()))
 
             if action.kind is ActionKind.PASS or action.card is None:
                 await self.pass_button()

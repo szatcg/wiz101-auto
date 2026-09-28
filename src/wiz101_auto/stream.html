@@ -99,7 +99,12 @@
   .foe { margin-top: 10px; }
   .foe .fn { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
   .foe .fn .boss { color: var(--orange); }
-  .foe .bar > div { background: linear-gradient(90deg, #b3263f, #ff5f6d); }
+  .foe .bar { position: relative; height: 14px; }
+  .foe .bar > div { position: absolute; top: 0; bottom: 0; left: 0; background: linear-gradient(90deg, #b3263f, #ff5f6d); }
+  .foe .bar > .hit { left: auto; background: repeating-linear-gradient(45deg, #ffe08a, #ffe08a 6px, #f2c14e 6px, #f2c14e 12px);
+    box-shadow: 0 0 10px rgba(255, 224, 138, 0.9); animation: pulse 0.9s infinite; }
+  .foe .dmg { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
+  .foe .ko { color: #10121f; background: var(--gold); border-radius: 5px; padding: 0 6px; margin-left: 6px; font-weight: 900; }
   .move { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
   .move .what { font-weight: 800; font-size: 16px; }
   .move .why { color: var(--muted); font-size: 13px; margin-top: 3px; }
@@ -230,9 +235,16 @@ function renderLower() {
   if (b && s.in_battle) {
     const pips = [...Array(b.pips)].map(() => '<span class="pip"></span>').join("") +
                  [...Array(b.power)].map(() => '<span class="pip power"></span>').join("");
-    const foes = b.enemies.filter((e) => !e.dead).map((e) => `
-      <div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span><span>${e.hp} / ${e.max}</span></div>
-      <div class="bar"><div style="width:${e.max ? (100 * e.hp) / e.max : 0}%"></div></div></div>`).join("");
+    const predict = b.predict || {};
+    const foes = b.enemies.map((e, i) => [e, predict[i] || 0]).filter(([e]) => !e.dead).map(([e, dmg]) => {
+      const hpPct = e.max ? (100 * e.hp) / e.max : 0;
+      const hitPct = e.max ? (100 * Math.min(dmg, e.hp)) / e.max : 0;
+      const after = hpPct - hitPct;
+      const mark = !dmg ? "" : dmg >= e.hp ? '<span class="ko">KO</span>' : `<span class="dmg">−${dmg}</span>`;
+      return `<div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
+        <span>${e.hp} / ${e.max}${mark}</span></div>
+        <div class="bar"><div style="width:${after}%"></div>${dmg ? `<div class="hit" style="left:${after}%; width:${hitPct}%"></div>` : ""}</div></div>`;
+    }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     $("lower").className = "card grow battle";
     $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3><div class="pips">${pips}</div></div>

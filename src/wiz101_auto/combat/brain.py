@@ -141,6 +141,21 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
     return value - card.pip_cost * 5
 
 
+def predicted_damage(battle: Battle, action: Action) -> dict[int, int]:
+    """Damage the move should do, by position in battle.enemies (an AoE hits
+    every live enemy). Empty for anything but an attack."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or not card.is_damage:
+        return {}
+    out = {}
+    for i, e in enumerate(battle.enemies):
+        if e.is_dead or e.health <= 0:
+            continue
+        if card.is_aoe or e is action.target:
+            out[i] = round(hit_damage(card, battle.me, e))
+    return out
+
+
 def _castable(cards: list[Card]) -> list[Card]:
     return [c for c in cards if c.castable]
 

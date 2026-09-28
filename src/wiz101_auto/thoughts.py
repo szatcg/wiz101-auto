@@ -19,6 +19,7 @@ _ROUND = re.compile(
 )
 _ENEMY = re.compile(r"^(.*?)(\*?) (\d+)/(\d+)( dead)?$")
 _ACTION = re.compile(r"^(.*?)(?: on (.*?))? \((.*)\)$")
+_PREDICT = re.compile(r"\| predict: (.*)$")
 _NOISE = ("resists", " effects:", "correcting clicks", "Pass went through", "saved state/",
           "message box button", "card windows:", "working on:")
 
@@ -223,6 +224,11 @@ def read_thoughts(path: Path = ACTIVITY, limit: int = 40, tail_bytes: int = 60_0
     events = []
     battle, plan = None, ""
     for line in lines:
+        m = _PREDICT.search(line)
+        if m:
+            if battle is not None:
+                battle["predict"] = {int(i): int(d) for i, d in re.findall(r"(\d+)=(\d+)", m.group(1))}
+            continue
         e = parse_line(line)
         if not e:
             continue
