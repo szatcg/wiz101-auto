@@ -608,12 +608,20 @@ class Quester:
             return XYZ(*p)
         return XYZ(sigil.x + SIGIL_LEAVE, sigil.y, sigil.z)
 
+    async def _clear_spot(self, p: XYZ) -> bool:
+        """No enemy within MOB_CLEARANCE of `p` right now (mobs patrol, so this
+        is read fresh before each teleport)."""
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+        return clear_of(p, mobs, MOB_CLEARANCE)
+
     async def _walk_in_from_around(self, target: XYZ, zone: str | None) -> bool:
         """Standing on a door marker gives walk_through no direction; back off
         to each side in turn and walk through the marker from there."""
         for i in range(4):
             ang = i * math.pi / 2
             spot = XYZ(target.x + 300 * math.cos(ang), target.y + 300 * math.sin(ang), target.z)
+            if not await self._clear_spot(spot):
+                continue
             await self.client.teleport(spot)
             await asyncio.sleep(0.8)
             if await self._zone_changed(zone):
@@ -965,6 +973,8 @@ class Quester:
             for p in points:
                 if not await is_free(self.client):
                     return True
+                if not await self._clear_spot(XYZ(*p)):
+                    continue  # an enemy is there: landing on it starts a fight
                 await self.client.teleport(XYZ(*p))
                 await asyncio.sleep(0.8)
                 if await self.collector.collect_once(item, self._press_collect):
@@ -982,6 +992,8 @@ class Quester:
                 if not await is_free(self.client):
                     return True
                 self.controller.allow_idle(10)
+                if not await self._clear_spot(XYZ(*p)):
+                    continue
                 await self.client.teleport(XYZ(*p))
                 await asyncio.sleep(1.5)  # let nearby objects stream in
                 if await self.collector.collect_once(item, self._press_collect):

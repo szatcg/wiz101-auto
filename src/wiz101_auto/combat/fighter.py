@@ -38,6 +38,8 @@ class Fighter(CombatHandler):
         self.unneeded_fight = None
         self._judged_fight = False
         self._fleeing = False
+        self._want_flee = False  # this fight isn't needed: try to flee every round
+        self._flee_method = ""
         self._last_plan = ""
 
     async def _hand_size(self) -> int:
@@ -106,35 +108,43 @@ class Fighter(CombatHandler):
         except Exception as exc:
             logger.debug(f"could not remember bosses: {exc!r}")
 
+    async def _visible_named(self, name: str):
+        for w in await self.client.root_window.get_windows_with_name(name):
+            if await w.is_visible():
+                return w
+        return None
+
     async def flee(self) -> bool:
-        """Flee on purpose: click Flee at its center, then answer Yes to "Are you
-        sure you want to flee? You will lose all your Mana..." (mana comes back
-        quickly from wisps). True if the confirmation was answered."""
+        """Flee on purpose, then answer Yes to "Are you sure you want to flee?
+        You will lose all your Mana..." (mana comes back quickly from wisps).
+        True once the flee went through."""
         self._fleeing = True
-        button = None
-        for b in await self.client.root_window.get_windows_with_name("Flee"):
-            if await b.is_visible():
-                button = b
-                break
-        if button is None:
-            return False
-        try:
-            rect = await button.scale_to_client()
-            logger.debug(f"flee: Flee button at {rect}")
-        except Exception:
-            pass
-        # The usual left-shifted click, the exact center, then WizWalker's own flee
-        # (which opened the confirmation in the old version).
-        attempts = (
-            ("left-shifted click", lambda: self.client.mouse_handler.click_window(button)),
-            ("center click", lambda: ui.click_center(self.client, button)),
-            ("WizWalker flee_button", self.flee_button),
-        )
+        pass_btn = await self._visible_named("Focus")
+        flee_btn = await self._visible_named("Flee")
+        # Hit areas sit left of the rects WizWalker computes. The usual
+        # left-shifted click on *Pass* is known to land on Flee (that's how the
+        # bot used to flee by accident), so it goes first; then clicks on the
+        # Flee window itself and WizWalker's own flee.
+        click = self.client.mouse_handler.click_window
+        attempts = []
+        if pass_btn is not None:
+            attempts.append(("left-shifted click on Pass", lambda: click(pass_btn)))
+        if flee_btn is not None:
+            attempts.append(("left-shifted click on Flee", lambda: click(flee_btn)))
+            attempts.append(("center click on Flee", lambda: ui.click_center(self.client, flee_btn)))
+        attempts.append(("WizWalker flee_button", self.flee_button))
         for how, click in attempts:
-            await click()
+            try:
+                await click()
+            except Exception as exc:
+                logger.debug(f"flee ({how}) click failed: {exc!r}")
+                continue
             seen = ""
             for _ in range(12):
                 await asyncio.sleep(0.3)
+                if not await self.client.in_battle():
+                    logger.info(f"fled ({how})")
+                    return True
                 box = await ui.modal_box(self.client)
                 text = (await ui.modal_text(box)) if box is not None else ""
                 if text and text != seen:
@@ -143,12 +153,9 @@ class Fighter(CombatHandler):
                 if box is not None and "flee" in text.lower():
                     if await ui.press_modal_button(self.client, box, "centerButton"):
                         logger.info(f"confirmed fleeing ({how})")
+                        self._flee_method = how
                         return True
             logger.debug(f"flee ({how}): no confirmation")
-            if not await self.client.in_battle():
-                return True  # fled without asking
-        logger.warning("flee confirmation didn't appear; fighting instead")
-        self._fleeing = False
         return False
 
     async def cancel_flee_box(self) -> bool:
@@ -188,6 +195,7 @@ class Fighter(CombatHandler):
 
     async def _handle_round(self):
         self._unusable.clear()  # a card that failed last round may sit in a working slot now
+        self._flee_tried_this_round = False
         discards_left = self.max_discards
         for _ in range(MAX_STEPS_PER_ROUND):
             snap = await read_battle(self)
@@ -215,15 +223,20 @@ class Fighter(CombatHandler):
             if not self._judged_fight:
                 await self._remember_bosses(battle)
 
-            # Decide once, on the first round, whether this fight is worth having.
+            # Decide once, on the first round, whether this fight is worth having;
+            # then keep trying to flee every round until it goes through.
             if self.unneeded_fight and not self._judged_fight:
                 self._judged_fight = True
                 if await self.unneeded_fight(battle):
                     names = ", ".join(e.name for e in battle.enemies)
                     logger.info(f"fight with {names} isn't needed for the quest: fleeing")
-                    if await self.flee():
-                        return
-                    continue  # the flee didn't go through: play this round instead
+                    self._want_flee = True
+            if self._want_flee and not self._flee_tried_this_round:
+                self._flee_tried_this_round = True
+                if await self.flee():
+                    return
+                logger.warning("flee didn't go through; playing this round and trying again next round")
+                self._fleeing = False  # let a stray confirmation be cancelled while we play
 
             plan = plan_fight(battle, self.strategy).text
             if plan != self._last_plan:
@@ -286,6 +299,7 @@ class Fighter(CombatHandler):
         self._unusable.clear()
         self._judged_fight = False
         self._fleeing = False
+        self._want_flee = False
         self._last_plan = ""
         await super().handle_combat()
         self.fights += 1
