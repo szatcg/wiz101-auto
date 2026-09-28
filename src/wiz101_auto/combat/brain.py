@@ -697,6 +697,8 @@ def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD
                         why = f"kills {target.name} in {depth + 1} round(s) (~{dmg:.0f} on the killing hit)"
                         best[:] = [key, act, why, used | {i}]
                     continue
+                if c.pip_cost == 0 and (_use_up(out_fx, school) != out_fx or _use_up(in_fx, school) != in_fx):
+                    continue  # a free chip hit would spend our blade/traps (Super Strike): only as the kill
                 search(depth + 1, pips - c.pip_cost + 1, used | {i},
                        _use_up(out_fx, school), _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act)
             else:

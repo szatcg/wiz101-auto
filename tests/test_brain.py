@@ -668,3 +668,16 @@ def test_one_minion_per_fight_and_not_late_against_one_enemy():
     b.summoned, b.round = 0, 8
     a = decide(b, discards_left=0)
     assert not (a.card and a.card.name == "Troll Minion")  # one enemy left, late: set up and hit
+
+
+def test_super_strike_not_used_to_chip_through_buffs():
+    troll = myth_hit(1, dmg=190, pips=2)
+    cyclops = myth_hit(2, dmg=295, pips=3, castable=False)
+    cyclops.name = "Cyclops"
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    traps = [("spell:2", "myth", 0.4), ("spell:3", "myth", 0.4)]
+    boss = enemy("Itennu Sokkwi", 590, boss=True, trap_count=2, incoming_effects=traps)
+    b = battle([super_strike(0, dmg=60), troll, cyclops], [boss], my=bladed)
+    b.pips = 1
+    a = decide(b, discards_left=0)
+    assert not (a.kind is ActionKind.CAST and a.card.name == "Super Strike")
