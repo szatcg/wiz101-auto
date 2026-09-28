@@ -103,6 +103,7 @@ SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+PRESS_X_TRIES = 4  # X presses at a prompt before moving on
 TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
@@ -505,6 +506,10 @@ class Quester:
         Doors and zone exits only trigger when you walk into them; teleporting
         onto one gets rejected by the game and snaps you back.
         """
+        # A "press X" spot (the Balance School's ladder): use it rather than
+        # walking past it.
+        if await self._press_x_here(zone):
+            return True
         pos = await self._position()
         dx, dy = target.x - pos.x, target.y - pos.y
         length = math.hypot(dx, dy)
@@ -523,10 +528,40 @@ class Quester:
             await self.client.send_key(Keycode.W, WALK_STEP_SECONDS)
             if await self.client.zone_name() != zone or await self.client.is_loading():
                 break
+            if await ui.is_visible(self.client, ui.NPC_RANGE):
+                return await self._press_x_here(zone, adjust=False)  # walked into a prompt: stop, use it
             now = await self._position()
             if distance(now, beyond) < 60 or distance(now, last) < 5:
                 break  # there, or blocked by a wall
             last = now
+        return await self._zone_changed(zone)
+
+    async def _press_x_here(self, zone: str | None, adjust: bool = True) -> bool:
+        """Use a "press X" prompt at this spot (a ladder, a door that asks),
+        pressing X a few times and waiting for the zone to change. With no
+        prompt, `adjust` makes small moves first (a step back and forward, a
+        small turn each way) looking for one. True once through."""
+        nudges = (
+            (Keycode.S, 0.15), (Keycode.W, 0.25), (Keycode.A, 0.12), (Keycode.D, 0.24), (Keycode.A, 0.12),
+        ) if adjust else ()
+        for nudge in (None, *nudges):
+            if nudge is not None:
+                await self.client.send_key(*nudge)
+                await asyncio.sleep(0.25)
+            if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                continue
+            for _ in range(PRESS_X_TRIES):
+                await self.client.send_key(Keycode.X, 0.1)
+                for _ in range(6):
+                    await asyncio.sleep(0.5)
+                    if await self._zone_changed(zone) or await self.client.is_loading():
+                        await wait_for_loading(self.client)
+                        logger.info("used the 'press X' prompt here")
+                        return True
+                if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                    break
+            if not await is_free(self.client):
+                return True  # a dialogue or menu opened: the step takes it from here
         return await self._zone_changed(zone)
 
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
