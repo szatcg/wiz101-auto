@@ -83,11 +83,10 @@ def _combo_down(codes: tuple[int, ...]) -> bool:
 
 
 class Controller:
-    def __init__(self, stop_key: str, pause_key: str, max_hours: float, max_deaths: int):
+    def __init__(self, stop_key: str, pause_key: str, max_hours: float):
         self.stop_keys = parse_hotkey(stop_key)
         self.pause_keys = parse_hotkey(pause_key)
         self.deadline = time.monotonic() + max_hours * 3600 if max_hours > 0 else None
-        self.max_deaths = max_deaths
         self.deaths = 0
         self.stopped = asyncio.Event()
         self._resume = asyncio.Event()
@@ -115,9 +114,9 @@ class Controller:
 
     def record_death(self):
         self.deaths += 1
-        logger.warning(f"wizard defeated ({self.deaths}/{self.max_deaths})")
-        if self.max_deaths and self.deaths >= self.max_deaths:
-            self.stop("too many deaths; the bot is probably out of its depth here")
+        # Deaths never stop the bot: losing fights is handled per objective
+        # (setbacks puts a quest aside and the bot levels up elsewhere).
+        logger.warning(f"wizard defeated ({self.deaths} this session)")
 
     async def checkpoint(self):
         """Await between actions: blocks while paused, raises when stopped."""

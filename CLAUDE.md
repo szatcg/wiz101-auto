@@ -65,7 +65,7 @@ while the bot is stopped.
 - Don't send keystrokes or clicks to the game yourself (outside the bot), and
   don't close Wizard101.
 - If the user presses Ctrl+Shift+Q or asks you to stop, stop and don't restart.
-- The bot stops itself on safety limits (`safety.max_hours`, `max_deaths`,
+- The bot stops itself on safety limits (`safety.max_hours`,
   12 min without quest progress). Treat those as signals to investigate, not
   to blindly restart.
 - Never commit `config.yaml`, `state/`, logs or `.venv` (they're git-ignored).

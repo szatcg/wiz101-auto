@@ -117,7 +117,7 @@ def test_controller_idle_window():
     from wiz101_auto.safety import Controller
 
     async def main():
-        c = Controller("ctrl+shift+q", "ctrl+shift+p", 0, 0)
+        c = Controller("ctrl+shift+q", "ctrl+shift+p", 0)
         assert c.idle_until == 0
         c.allow_idle(30)
         assert c.idle_until > 0

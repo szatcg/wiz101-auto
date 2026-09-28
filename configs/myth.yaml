@@ -26,7 +26,6 @@ safety:
   pause_key: ctrl+shift+p
   stall_seconds: 15          # nothing happens this long -> close menus, restart step, switch quest...
   max_hours: 3.0
-  max_deaths: 4
 
 combat:
   max_discards: 2

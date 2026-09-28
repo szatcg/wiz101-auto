@@ -214,7 +214,7 @@ async def farm_loop(client, cfg: Config, controller: Controller, progression: Pr
 
 async def run(cfg: Config):
     s = cfg.safety
-    controller = Controller(s.stop_key, s.pause_key, s.max_hours, s.max_deaths)
+    controller = Controller(s.stop_key, s.pause_key, s.max_hours)
     logger.info(f"mode={cfg.mode}; {s.stop_key}=stop, {s.pause_key}=pause/resume")
 
     handler = new_handler()

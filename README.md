@@ -17,7 +17,7 @@ card-evaluation logic.
 | **Combat** | Reads every card in hand (damage, target, pips, accuracy, enchants), every combatant (health, blades, traps, shields, boss flag) and your pips. Each step it heals when low, enchants its attack, stacks blades or traps against bosses, picks the spell and target that removes the most enemy health (kills weighted heavily), sets up while waiting for pips, and discards dead cards. |
 | **Progression** | Notices level-ups and new spells and rebuilds your deck from your spellbook: the best attacks (always keeping a cheap one for round one), a heal, a blade, a trap and a shield, all within copy limits. When a spell trainer window is open, it tries to train (experimental). |
 | **Upkeep** | Advances dialogue, declines side quests (configurable), drinks potions, picks up health and mana wisps after fights, and retries areas that haven't downloaded. |
-| **Safety** | **Ctrl+Shift+Q** stops the bot and **Ctrl+Shift+P** pauses or resumes it. It also stops after a maximum run time, too many deaths, or no quest progress for N minutes. |
+| **Safety** | **Ctrl+Shift+Q** stops the bot and **Ctrl+Shift+P** pauses or resumes it. It also stops after a maximum run time or no quest progress for N minutes (deaths never stop it). |
 
 Modes: `quest` (default), `fight` (you walk, it fights) and `farm` (fights
 the nearest mob over and over).
@@ -94,7 +94,7 @@ can be changed under `safety`.
 will actually touch:
 
 - `mode`: `quest`, `fight` or `farm`
-- `safety.max_hours` / `safety.max_deaths`: session limits
+- `safety.max_hours`: session time limit
 - `quest.teleport`: `false` to walk instead of teleporting
 - `progression.deck.include` / `exclude`: force a card in or keep one out,
   e.g. `include: {"Pixie": 2}`
@@ -138,7 +138,7 @@ All options are documented in `config.example.yaml`. The most useful ones:
   less bot-like.
 - `combat.strategy.heal_threshold`: heal below this share of your health.
 - `combat.flee_below`: flee when health drops below this share.
-- `safety.max_hours`, `safety.max_deaths`: hard limits on a session.
+- `safety.max_hours`: hard time limit on a session.
 
 ## Reporting problems
 
