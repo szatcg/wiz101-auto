@@ -25,6 +25,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `logs -n 200` | recent log; `logs -f` follows (blocks, so avoid in automation) |
 | `inspect` | one-shot: what the bot reads from the game (needs the bot STOPPED) |
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
+| `gear` | try every backpack item per slot and keep the best (needs the bot stopped) |
 | `deck -c config.yaml` | known spells, current deck, planned deck (read-only) |
 | `explore` | entities around the wizard with positions → `state/explore_*.txt` |
 | `screenshot [-o path]` | game window → `state/screenshot.png` (Read it to see the screen; works while the bot runs) |

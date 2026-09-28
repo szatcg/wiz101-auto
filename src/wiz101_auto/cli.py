@@ -117,6 +117,8 @@ def main(argv: list[str] | None = None):
     deck_p.add_argument("-c", "--config", default=None)
     deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
 
+    gear_p = sub.add_parser("gear", help="try every backpack item per slot and keep the best (bot stopped)")
+    gear_p.add_argument("-c", "--config", default=None)
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
     sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
     shot_p = sub.add_parser("screenshot", help="save the game window as a PNG (works while the bot runs)")
@@ -189,6 +191,11 @@ def main(argv: list[str] | None = None):
         asyncio.run(_deck(cfg, args.apply))
         return
 
+    if args.command == "gear":
+        _setup_logging(None, True)
+        asyncio.run(_gear(cfg))
+        return
+
     if args.mode:
         cfg.mode = args.mode
     _setup_logging(cfg.log_file, args.verbose)
@@ -202,6 +209,21 @@ def main(argv: list[str] | None = None):
         return
     if "crashed" in reason:
         sys.exit(3)  # lets `supervise` restart it
+
+
+async def _gear(cfg):
+    from .bot import close_handler, connect, new_handler
+    from .deck import current_school
+    from .gear import GearManager
+
+    handler = new_handler()
+    try:
+        client = await connect(handler)
+        school = cfg.progression.school or await current_school(client)
+        async with client.mouse_handler:
+            await GearManager(client, school).optimise("requested from the terminal")
+    finally:
+        await close_handler(handler)
 
 
 async def _deck(cfg, apply: bool):
