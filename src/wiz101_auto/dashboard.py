@@ -27,6 +27,12 @@ from loguru import logger
 from .questlist import WORLDS, load_completed, load_world_lists, norm, quest_status
 
 PORT = 8101
+ARCS = (
+    ("Arc 1", ("Wizard City", "Krokotopia", "Marleybone", "MooShu", "Dragonspyre")),
+    ("Arc 2", ("Celestia", "Zafaria", "Avalon", "Azteca", "Khrysalis")),
+    ("Arc 3", ("Polaris", "Mirage", "Empyrea")),
+    ("Arc 4", ("Karamelle", "Lemuria", "Novus", "Wallaru", "Selenopolis")),
+)
 PAGE = Path(__file__).with_name("dashboard.html")
 STATUS = Path("state") / "status.json"
 QUEST_BOOK = Path("state") / "quest_book.json"
@@ -93,6 +99,22 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "areas": areas,
         })
 
+    arcs = []
+    for arc, names in ARCS:
+        members = [w for w in worlds if w["name"] in names]
+        listed = [w for w in members if w["has_list"]]
+        total = sum(w["total"] for w in listed)
+        done = sum(w["done"] for w in listed)
+        arcs.append({
+            "name": arc,
+            "worlds": list(names),
+            "total": total,
+            "done": done,
+            "pct": round(100 * done / total) if total else 0,
+            "lists": len(listed),
+            "current": any(w["current"] for w in members),
+        })
+
     beat = status.get("time", 0)
     running = bool(beat) and time.time() - beat < STALE_SECONDS and status.get("state") != "stopped"
     return {
@@ -108,6 +130,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
         "book": book.get("quests", []),
         "recent": completed[-12:][::-1],
         "worlds": worlds,
+        "arcs": arcs,
     }
 
 
