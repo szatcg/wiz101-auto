@@ -198,7 +198,10 @@ async def run(cfg: Config):
         quester = None
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
-            quester.gear = GearManager(client, progression.school or "")
+            if cfg.gear_checks:
+                quester.gear = GearManager(client, progression.school or "")
+            else:
+                logger.info("gear checks are off (gear_checks: false)")
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
             if cfg.quest.flee_unneeded_fights:
