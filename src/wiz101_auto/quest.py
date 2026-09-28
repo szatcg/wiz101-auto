@@ -629,6 +629,20 @@ class Quester:
             logger.debug(f"marking failed: {exc!r}")
             return False
 
+    async def _heal_trip(self) -> bool:
+        """Recovery found nothing here: when the objective keeps us in this
+        zone (a fight in progress, a pickup here), heal from the hub and
+        Recall back instead of walking out and back through the gates."""
+        if not self.healer:
+            return False
+        zone = await self.client.zone_name() or ""
+        objective = await self.objective()
+        dest = objective_zone(objective) if objective else None
+        coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
+        if not zone or not coming_back:
+            return False
+        return await self.healer.trip(zone, f"no wisps here for {objective!r}")
+
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
         outside zone, another world) ends that; a heal trip Recalls back first."""
@@ -1552,7 +1566,9 @@ class Quester:
         await self._learn_arrival_gate()
         if self.healer and await self._in_dungeon(zone_now) and await self.healer.between_fights(zone_now):
             return
-        if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
+        if self.upkeep and not await recover(
+            self.client, self.upkeep, self.controller, self.go_to_zone, trip=self._heal_trip
+        ):
             return
         if await self._recall_to_mark():
             return

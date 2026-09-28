@@ -357,8 +357,10 @@ def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
     return frozenset(need or BOTH)
 
 
-async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> bool:
-    """Make sure the wizard is healthy before engaging anything.
+async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=None) -> bool:
+    """Make sure the wizard is healthy before engaging anything. `trip`, if
+    given, is tried before walking to another zone for wisps: a heal trip that
+    comes back here by Recall (True if it went).
 
     Returns True when it's fine to carry on questing, False if something
     (a fight, dialogue, loading) interrupted the recovery.
@@ -418,6 +420,10 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None) -> boo
                 if await sweep_for_wisps(client, cfg):
                     continue
             poor_zone = wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
+            if trip and not travelled and poor_zone:
+                travelled = True
+                if await trip():
+                    return True
             if go_to_zone and not travelled and poor_zone:
                 # No wisps to be had here right now (e.g. the hub after a defeat):
                 # go heal where they spawn instead of waiting for respawns.
