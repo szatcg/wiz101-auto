@@ -79,3 +79,17 @@ def test_defeat_target():
     assert defeat_target(two_part) == "Scarlet Screamer"
     assert defeat_target("Defeat Any Nirini and Collect Key in Royal Hall") == "Nirini"
     assert defeat_target("Talk To Merle Ambrose in Commons") is None
+
+
+def test_safe_landing_avoids_enemies_and_prefers_our_side():
+    from wizwalker import XYZ
+
+    from wiz101_auto.quest import clear_of, safe_landing
+
+    target, start = XYZ(0, 0, 0), XYZ(-5000, 0, 0)
+    mobs = [XYZ(100, 0, 0)]
+    assert not clear_of(target, mobs, 700)
+    spot = safe_landing(target, start, mobs, 700)
+    assert clear_of(spot, mobs, 700) and spot.x < 0  # on our side of the target
+    assert safe_landing(target, start, [XYZ(0, 0, 0)] + [XYZ(x, y, 0) for x in range(-3000, 3001, 500)
+                                                          for y in range(-3000, 3001, 500)], 700) is None

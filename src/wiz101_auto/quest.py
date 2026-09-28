@@ -156,6 +156,31 @@ def choose_quest(
     return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
+MOB_CLEARANCE = 700.0  # landing closer than this to an enemy tends to start a fight
+LANDING_RADII = (350.0, 600.0, 900.0, 1300.0, 1800.0)
+
+
+def clear_of(p: XYZ, mobs: list[XYZ], clearance: float) -> bool:
+    return all(math.dist((p.x, p.y), (m.x, m.y)) > clearance for m in mobs)
+
+
+def safe_landing(target: XYZ, start: XYZ, mobs: list[XYZ], clearance: float) -> XYZ | None:
+    """The nearest spot around `target` with no enemy within `clearance`,
+    preferring the side we come from (the walk in then passes fewer enemies)."""
+    dx, dy = start.x - target.x, start.y - target.y
+    home = math.atan2(dy, dx) if (dx or dy) else 0.0
+    for radius in LANDING_RADII:
+        options = []
+        for i in range(16):
+            ang = home + i * math.pi / 8
+            p = XYZ(target.x + radius * math.cos(ang), target.y + radius * math.sin(ang), target.z)
+            if clear_of(p, mobs, clearance):
+                options.append((abs(math.remainder(ang - home, 2 * math.pi)), p))
+        if options:
+            return min(options, key=lambda o: o[0])[1]
+    return None
+
+
 def defeat_target(objective: str) -> str | None:
     """The enemy a "Defeat X in Place (0 of 2)" objective names, else None."""
     m = re.match(r"^\s*defeat\s+(.+?)(?:\s+in\s+[^()]+)?(?:\s*\(\d+ of \d+\))?\s*$", objective, re.I)
@@ -600,18 +625,37 @@ class Quester:
                 return True
         return False
 
-    async def travel(self, target: XYZ) -> bool:
-        """Get within interact range of `target`. Returns True on success."""
+    async def travel(self, target: XYZ, avoid_mobs: bool = True) -> bool:
+        """Get within interact range of `target`. Returns True on success.
+
+        With `avoid_mobs`, a teleport never lands next to an enemy (that starts
+        an unplanned fight): it lands at the nearest clear spot and walks in."""
         start = await self._position()
         if distance(start, target) <= 5:
             return True
         zone = await self.client.zone_name()
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)] if avoid_mobs else []
 
         if not self.cfg.teleport:
             await self.client.goto(target.x, target.y)
             if await self._zone_changed(zone):
                 return True
             return distance(await self._position(), target) < INTERACT_RANGE
+
+        if mobs and not clear_of(target, mobs, MOB_CLEARANCE):
+            spot = safe_landing(target, start, mobs, MOB_CLEARANCE)
+            if spot is not None:
+                logger.info(f"enemies near the destination; landing {distance(spot, target):.0f} away")
+                await self.client.teleport(spot)
+                await asyncio.sleep(0.8)
+                if await self._zone_changed(zone):
+                    return True
+                await self.client.goto(target.x, target.y)
+                if await self._zone_changed(zone) or await self.client.in_battle():
+                    return True
+                if distance(await self._position(), target) < INTERACT_RANGE:
+                    return True
+                # Didn't get there on foot (a wall, a door): fall back to the usual way.
 
         await self.client.teleport(target)
         await asyncio.sleep(0.8)
@@ -630,6 +674,8 @@ class Quester:
             for i in range(8):
                 ang = i * math.pi / 4
                 p = XYZ(target.x + radius * math.cos(ang), target.y + radius * math.sin(ang), target.z)
+                if mobs and not clear_of(p, mobs, MOB_CLEARANCE):
+                    continue
                 await self.client.teleport(p)
                 await asyncio.sleep(0.5)
                 if distance(await self._position(), start) > BOUNCE_DISTANCE:
@@ -1174,7 +1220,7 @@ class Quester:
         if sigil is not None:
             await self._enter_by_sigil(sigil, zone)
             return
-        await self.travel(target)
+        await self.travel(target, avoid_mobs=not is_combat_objective(objective))
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
