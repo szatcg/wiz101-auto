@@ -201,19 +201,19 @@ class Fighter(CombatHandler):
             logger.warning("no visible Pass button; the round will time out")
             return
         # The action row is thin and its hit areas don't sit exactly on the rects
-        # WizWalker computes: try spots inside Pass until it goes through (the
-        # button disappears once the turn is submitted), and remember the spot.
+        # WizWalker computes: try spots inside Pass until it goes through (a
+        # submitted turn hides the hand; the Pass button itself stays visible),
+        # and remember the spot.
         r = await button.scale_to_client()
         w, h = r.x2 - r.x1, r.y2 - r.y1
         for fx, fy in _ordered(ACTION_SPOTS, self._action_spot):
+            before = await self._hand_size()
             await self.client.mouse_handler.click(int(r.x1 + w * fx), int(r.y1 + h * fy))
-            for _ in range(4):
-                await asyncio.sleep(0.3)
-                if not await button.is_visible():
-                    if self._action_spot != (fx, fy):
-                        logger.info(f"Pass went through clicking at ({fx:.2f}, {fy:.2f}) of the button")
-                    self._action_spot = (fx, fy)
-                    return
+            if before == 0 or await self._committed(before, timeout=1.5):
+                if self._action_spot != (fx, fy):
+                    logger.info(f"Pass went through clicking at ({fx:.2f}, {fy:.2f}) of the button")
+                self._action_spot = (fx, fy)
+                return
         logger.warning("Pass didn't go through at any spot; the round will time out")
 
     async def handle_round(self):
