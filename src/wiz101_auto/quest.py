@@ -1262,6 +1262,12 @@ class Quester:
                 await asyncio.sleep(3.0)
                 if await self.client.in_battle():
                     return
+            else:
+                # Fighting whatever is closest (Gobbler Scavengers instead of
+                # Munchers) costs time and risk for nothing: look around the zone
+                # for the named enemy; the stall rule moves on if none turns up.
+                await self._look_for(target)
+                return
         for _ in range(3):
             if await self.client.in_battle():
                 return
@@ -1271,6 +1277,28 @@ class Quester:
                 logger.debug(f"no mob to pull: {exc}")
                 return
             await asyncio.sleep(3.0)
+
+    async def _look_for(self, target: str):
+        """Hop across the zone's landmarks (clear of enemies) until an enemy
+        named `target` is in view, then go after it."""
+        from .bossfarm import find_entity_named
+
+        start = await self._position()
+        spots = spread_points(await self._landmarks(), (start.x, start.y, start.z), FAR_SWEEP_SPACING)
+        logger.info(f"no {target} in view; looking around the zone ({len(spots[:FAR_SWEEP_MAX])} spots)")
+        for p in spots[:FAR_SWEEP_MAX]:
+            if not await is_free(self.client):
+                return
+            if not await self._clear_spot(XYZ(*p)):
+                continue
+            await self.client.teleport(XYZ(*p))
+            await asyncio.sleep(1.5)  # let nearby entities stream in
+            pos = await find_entity_named(self.client, target)
+            if pos is not None:
+                logger.info(f"found {target} near ({p[0]:.0f}, {p[1]:.0f}); going after it")
+                await self.client.teleport(pos)
+                await asyncio.sleep(3.0)
+                return
 
     async def _no_marker_fallback(self, objective: str, zone: str) -> bool:
         """Walk through a known gate toward the place the objective names, else
