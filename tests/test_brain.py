@@ -358,3 +358,15 @@ def test_no_summon_when_the_boss_is_nearly_dead():
     assert decide(b).card.name == "Blood Bat"
     b.enemies[0].health = 550
     assert decide(b).card.name == "Troll Minion"
+
+
+def test_uses_a_free_trap_instead_of_just_passing():
+    pixie = Card(0, "Pixie", pip_cost=2, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)], castable=False)
+    trap = Card(1, "Myth Trap", pip_cost=0, effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40)])
+    boss = enemy("Edo Nirini", 545, boss=True)
+    b = battle([pixie, trap], [boss], my=me(275, 815))
+    b.pips = 1  # Pixie next round: save the pip, but the trap is free
+    action = decide(b)
+    assert action.card.name == "Myth Trap" and action.target is boss
+    b.cards = [pixie]
+    assert decide(b).kind is ActionKind.PASS

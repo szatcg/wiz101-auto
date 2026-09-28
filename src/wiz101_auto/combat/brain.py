@@ -419,8 +419,42 @@ def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
     return FightPlan(total, f"plan (~{total} rounds): " + " | ".join(parts) + note, skip)
 
 
+FREE_TRAP_LIMIT = 4  # traps worth stacking for free while waiting (one is used per hit)
+
+
+def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
+    """A 0-pip blade or trap: casting it spends no pips, so it never gets in the
+    way of what we're saving for, and the next hits land harder."""
+    free = [c for c in _castable(battle.cards) if c.pip_cost == 0 and not c.is_enchant]
+    me = battle.me
+    blades = [c for c in free if EffectKind.BLADE in c.kinds]
+    if blades and me.blade_count < max(strat.max_blades, FREE_TRAP_LIMIT):
+        card = max(blades, key=lambda c: sum(e.value for e in c.effects))
+        target = me if card.target in (Target.ALLY_SINGLE,) else None
+        return Action(ActionKind.CAST, card, target, reason="free blade while saving pips")
+    traps = [c for c in free if EffectKind.TRAP in c.kinds]
+    if traps and battle.live_enemies:
+        focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
+        if focus.trap_count < max(strat.max_traps, FREE_TRAP_LIMIT):
+            card = max(traps, key=lambda c: sum(e.value for e in c.effects))
+            t = None if card.target is Target.ENEMY_ALL else focus
+            return Action(ActionKind.CAST, card, t, reason=f"free trap on {focus.name} while saving pips")
+    return None
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
+    """The action for this step. A pass (saving pips, holding a hit) first
+    uses any free 0-pip blade/trap: it costs nothing we're saving."""
     strat = strat or Strategy()
+    action = _decide(battle, strat, discards_left=discards_left)
+    if action.kind is ActionKind.PASS and battle.live_enemies:
+        free = _free_setup(battle, strat)
+        if free:
+            return free
+    return action
+
+
+def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Action:
 
     if not battle.live_enemies:
         return Action(ActionKind.PASS, reason="no enemies")
