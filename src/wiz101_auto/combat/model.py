@@ -142,6 +142,7 @@ class Battle:
     pips: int = 0
     power_pips: int = 0
     round: int = 0
+    prismed: set[str] = field(default_factory=set)  # enemies we already cast a prism on this fight
 
     @property
     def live_enemies(self) -> list[Combatant]:

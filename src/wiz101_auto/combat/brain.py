@@ -24,6 +24,7 @@ Damage counts blades, traps, shields, weaknesses and school resistances.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 
 from ..deck_plan import minion_rank
@@ -33,6 +34,7 @@ from .model import (
     Battle,
     Card,
     Combatant,
+    Effect,
     EffectKind,
     Target,
 )
@@ -441,14 +443,21 @@ def _is_prism(card: Card) -> bool:
     return "prism" in card.name.lower() and not card.is_damage
 
 
-def _prism_gain(card: Card, me: Combatant, target: Combatant) -> float:
-    """How much harder our hits land on `target` once the prism converts them."""
+def _prism_gain(card: Card, me: Combatant, target: Combatant, hits: list[Card] = ()) -> float:
+    """How much harder our hit lands on `target` once the prism converts it,
+    blades and traps included: myth traps and blades only work on myth hits,
+    so a converted hit loses them (Malletmane: three myth traps up, the
+    storm hit would have done less than the myth one)."""
     src = card.school.lower()
     dst = OPPOSITE.get(src)
     if not dst:
         return 1.0
-    before = school_multiplier(Card(0, "", school=src), me, target)
-    after = school_multiplier(Card(0, "", school=dst), me, target)
+    own = [c for c in hits if c.is_damage and c.school.lower() == src]
+    hit = max(own, key=lambda c: c.base_damage()) if own else Card(
+        0, "", school=src, effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 100)]
+    )
+    before = hit_damage(hit, me, target)
+    after = hit_damage(dataclasses.replace(hit, school=dst), me, target)
     return after / max(0.01, before)
 
 
@@ -458,33 +467,31 @@ def _prism_useless(card: Card, battle: Battle) -> bool:
     enemies = battle.live_enemies
     if not enemies or any(e.resist is None and not e.school for e in enemies):
         return False
-    return all(_prism_gain(card, battle.me, e) < PRISM_GAIN for e in enemies)
+    return all(_prism_gain(card, battle.me, e, battle.cards) < PRISM_GAIN for e in enemies)
 
 
 def _prism_action(battle: Battle) -> Action | None:
-    """A prism (Myth Prism: myth -> storm) on an enemy that takes much more
-    from the converted school (a myth enemy resists myth and is weak to
-    storm), when we have hits of that school for it."""
+    """A prism (Myth Prism: myth -> storm) on an enemy our hit would land much
+    harder on once converted, counting blades and traps (myth ones don't work
+    on the converted hit). Once per enemy per fight: a second one adds nothing."""
     me = battle.me
     for card in _castable(battle.cards):
         if not _is_prism(card) or card.pip_cost:
             continue
         src = card.school.lower()
-        dst = OPPOSITE.get(src)
-        if not dst or not any(c.is_damage and c.school.lower() == src for c in battle.cards):
+        if not OPPOSITE.get(src) or not any(c.is_damage and c.school.lower() == src for c in battle.cards):
             continue
         best, best_gain = None, PRISM_GAIN
         for t in battle.live_enemies:
-            before = school_multiplier(Card(0, "", school=src), me, t)
-            after = school_multiplier(Card(0, "", school=dst), me, t)
-            gain = after / max(0.01, before)
+            if t.name in battle.prismed:
+                continue
+            gain = _prism_gain(card, me, t, battle.cards)
             if gain >= best_gain and t.health > 150:
                 best, best_gain = t, gain
         if best:
-            why = f"{dst} hits {best.name} x{best_gain:.2f} harder than {src}"
+            why = f"{OPPOSITE[src]} hits {best.name} x{best_gain:.2f} harder than {src} (buffs counted)"
             return Action(ActionKind.CAST, card, best, reason=why)
     return None
-
 
 def _shield_action(battle: Battle, strat: Strategy) -> Action | None:
     me = battle.me
@@ -801,14 +808,14 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         # worth less than the Troll/Cyclops a few discards may bring.
         buffed = _buffed_for(battle, card, focus)
         if (
-            card.pip_cost > 0
+            card.pip_cost == 1  # chip hits (Blood Bat); Troll and Cyclops are the real hits
             and dmg < focus.health * (WEAK_HIT_SHARE if buffed else CHIP_HIT_SHARE)
             and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips + 1
         ):
             share = WEAK_HIT_SHARE if buffed else CHIP_HIT_SHARE
             weak = [
                 c for c in battle.cards
-                if c.is_damage and not c.treasure and c.pip_cost > 0
+                if c.is_damage and not c.treasure and c.pip_cost == 1
                 and expected_damage(c, battle.me, focus) < focus.health * share
             ]
             if discards_left > 0 and weak:

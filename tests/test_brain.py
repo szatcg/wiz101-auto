@@ -603,3 +603,29 @@ def test_chip_hit_discarded_to_draw_a_bigger_one():
     b.pips = 2
     a = decide(b)
     assert a.kind is ActionKind.DISCARD and a.card.name == "Blood Bat"
+
+
+def test_prism_only_once_per_enemy():
+    cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
+    b = battle(cards, [enemy("Myth Troll", 900, school="myth")])
+    b.pips = 2
+    b.prismed = {"Myth Troll"}
+    assert decide(b, discards_left=0).kind is ActionKind.PASS
+
+
+def test_prism_skipped_when_myth_traps_outweigh_the_school_gain():
+    traps = [("spell:1", "myth", 0.4), ("spell:2", "myth", 0.3)]
+    boss = enemy("Myth Boss", 900, school="myth", trap_count=2, incoming_effects=traps)
+    cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
+    b = battle(cards, [boss])
+    b.pips = 2
+    a = decide(b, discards_left=0)
+    assert not (a.kind is ActionKind.CAST and a.card.name == "Myth Prism")
+
+
+def test_troll_is_never_discarded_as_a_chip_hit():
+    troll = myth_hit(0, dmg=190, pips=2)
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    b = battle([troll], [enemy("Bort Malletmane", 585, boss=True)], my=bladed)
+    a = decide(b)
+    assert not (a.kind is ActionKind.DISCARD and a.card.name == "Troll")

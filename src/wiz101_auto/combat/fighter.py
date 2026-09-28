@@ -60,6 +60,7 @@ class Fighter(CombatHandler):
         self.flee_below = flee_below
         self.fights = 0
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
+        self._prismed: set[str] = set()  # enemies prismed this fight
         self._card_click_x = 0.25  # the hit area sits left of the reported card rect
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
@@ -310,6 +311,7 @@ class Fighter(CombatHandler):
             if plan != self._last_plan:
                 logger.info(plan)
                 self._last_plan = plan
+            battle.prismed = set(self._prismed)
             action = decide(battle, self.strategy, discards_left=discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
@@ -340,6 +342,8 @@ class Fighter(CombatHandler):
                 continue
 
             target = snap.members.get(id(action.target)) if action.target else None
+            if "prism" in action.card.name.lower() and action.target:
+                self._prismed.add(action.target.name)  # it stays on them: one per enemy
             before = await self._hand_size()
             if not await self._cast_at(live_card, target, self._card_click_x):
                 return  # the round is over
@@ -365,6 +369,7 @@ class Fighter(CombatHandler):
 
     async def handle_combat(self):
         self._unusable.clear()
+        self._prismed: set[str] = set()
         self._judged_fight = False
         self._fleeing = False
         self._want_flee = False
