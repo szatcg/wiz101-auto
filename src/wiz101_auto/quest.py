@@ -289,6 +289,8 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._last_win_zone = ""  # where a fight was last won (to gain experience there)
+        self._grinding = False  # every quest set aside: fight for experience until a level-up
         self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
@@ -325,11 +327,12 @@ class Quester:
             won = self.controller.deaths == self._deaths_at_fight
             self._fights_seen, self._deaths_at_fight = fights, self.controller.deaths
             if won:
+                self._last_win_zone = await self.client.zone_name() or self._last_win_zone
                 self._wins_since_progress += 1
                 # Up to a few won fights count as progress (a drop hunt needs
                 # several); more without the objective moving means these
                 # enemies aren't the ones that drop it.
-                if self._wins_since_progress <= WINS_COUNT_AS_PROGRESS:
+                if self._wins_since_progress <= WINS_COUNT_AS_PROGRESS or self._grinding:
                     self._last_progress_time = time.monotonic()
                     return
         waited = time.monotonic() - self._last_progress_time
@@ -616,6 +619,22 @@ class Quester:
                 logger.success(f"picked up {item!r} on the way (for {quest!r})")
                 return True
         return False
+
+    async def _grind(self) -> bool:
+        """Every quest is set aside (bosses too strong, the rest unreachable):
+        gain the level that releases them by fighting enemies here, or where a
+        fight was last won. True if it acted this step."""
+        if await self.client.in_battle():
+            return True
+        zone = await self.client.zone_name() or ""
+        if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
+            await self.pull_mob("")
+            return True
+        if self._last_win_zone and self._last_win_zone != zone:
+            logger.info(f"no enemies here; going to {self._last_win_zone} to fight for experience")
+            if await self.go_to_zone(self._last_win_zone):
+                return True
+        return False  # nowhere to fight: fall back to the quest step
 
     async def _set_current_aside(self, objective: str) -> bool:
         """Set the tracked quest aside now (it can't be progressed from here) and
@@ -1024,6 +1043,10 @@ class Quester:
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
             self._mainline = {q.name for _, q in all_quests if q.mainline}
+            grinding = bool(all_quests) and all(q.name in set_aside for _, q in all_quests)
+            if grinding and not self._grinding:
+                logger.warning("every quest is set aside: fighting for experience until the next level")
+            self._grinding = grinding
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
@@ -1287,6 +1310,8 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
+        if self._grinding and await self._grind():
+            return
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).
         zone_now = await self.client.zone_name() or ""
