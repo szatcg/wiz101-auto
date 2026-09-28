@@ -25,6 +25,16 @@ def out_of_mana(battle) -> bool:
     return mana is not None and mana < LOW_MANA and not any(c.castable for c in battle.cards)
 
 
+# Spots (fraction of width, fraction of height) to try on the thin action-row
+# buttons (Pass, Flee); a negative height is just above the row.
+ACTION_SPOTS = [(fx, fy) for fy in (0.5, 0.2, -0.3, 0.8) for fx in (0.5, 0.3, 0.7)]  # never up into the cards
+
+
+def _ordered(spots: list, first) -> list:
+    """`spots` with `first` (one that worked before) tried first."""
+    return [first, *[s for s in spots if s != first]] if first in spots else list(spots)
+
+
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0):
         super().__init__(client)
@@ -40,6 +50,7 @@ class Fighter(CombatHandler):
         self._fleeing = False
         self._want_flee = False  # this fight isn't needed: try to flee every round
         self._flee_spot: tuple[float, float] | None = None  # where on Flee a click worked
+        self._action_spot: tuple[float, float] | None = None  # where on Pass a click worked
         self._flee_method = ""
         self._last_plan = ""
 
@@ -129,10 +140,7 @@ class Fighter(CombatHandler):
         if flee_btn is not None:
             r = await flee_btn.scale_to_client()
             w, h = r.x2 - r.x1, r.y2 - r.y1
-            spots = [(fx, fy) for fy in (0.5, 0.2, 0.8, -0.4) for fx in (0.5, 0.25, 0.75)]
-            if self._flee_spot in spots:
-                spots.remove(self._flee_spot)
-                spots.insert(0, self._flee_spot)
+            spots = _ordered(ACTION_SPOTS, self._flee_spot or self._action_spot)
             for fx, fy in spots:
                 x, y = int(r.x1 + w * fx), int(r.y1 + h * fy)
 
@@ -187,12 +195,26 @@ class Fighter(CombatHandler):
             if await done.is_visible():
                 for b in await done.get_windows_with_name("DefeatedPassButton"):
                     return await ui.click_center(self.client, b)
-        # Only a visible one: a hidden "Focus" earlier in the tree would take the
-        # click and the round would just time out (it looks like the bot froze).
-        for b in await self.client.root_window.get_windows_with_name("Focus"):
-            if await b.is_visible():
-                return await ui.click_center(self.client, b)
-        logger.warning("no visible Pass button; the round will time out")
+        # Only a visible one: a hidden "Focus" earlier in the tree would take the click.
+        button = await self._visible_named("Focus")
+        if button is None:
+            logger.warning("no visible Pass button; the round will time out")
+            return
+        # The action row is thin and its hit areas don't sit exactly on the rects
+        # WizWalker computes: try spots inside Pass until it goes through (the
+        # button disappears once the turn is submitted), and remember the spot.
+        r = await button.scale_to_client()
+        w, h = r.x2 - r.x1, r.y2 - r.y1
+        for fx, fy in _ordered(ACTION_SPOTS, self._action_spot):
+            await self.client.mouse_handler.click(int(r.x1 + w * fx), int(r.y1 + h * fy))
+            for _ in range(4):
+                await asyncio.sleep(0.3)
+                if not await button.is_visible():
+                    if self._action_spot != (fx, fy):
+                        logger.info(f"Pass went through clicking at ({fx:.2f}, {fy:.2f}) of the button")
+                    self._action_spot = (fx, fy)
+                    return
+        logger.warning("Pass didn't go through at any spot; the round will time out")
 
     async def handle_round(self):
         # One bad round (UI changing under us, a window gone) mustn't end the fight loop.
