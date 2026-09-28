@@ -542,7 +542,8 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                         logger.info(f"accepting quest: {text[:80]}")
                     # The offer's accept button doesn't always take the usual
                     # (left-shifted) click: cycle through other ways of pressing it.
-                    how = tries % 4
+                    # (Never Enter: it opens the chat box and swallows later keys.)
+                    how = tries % 3
                     if how == 0:
                         if not await ui.click(client, ui.ADVANCE_DIALOG):
                             await client.send_key(Keycode.SPACEBAR)
@@ -550,11 +551,9 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                         w = await ui.window_at(client, ui.ADVANCE_DIALOG)
                         if w is not None:
                             await ui.click_center(client, w)
-                    elif how == 2:
-                        await client.send_key(Keycode.SPACEBAR)
                     else:
-                        await client.send_key(Keycode.ENTER)
-                    if tries in (1, 2, 3):
+                        await client.send_key(Keycode.SPACEBAR)
+                    if tries in (1, 2):
                         logger.debug(f"quest offer still open; accepting another way ({how})")
                     await asyncio.sleep(0.6)
                 elif offer:

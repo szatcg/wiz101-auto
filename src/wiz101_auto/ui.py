@@ -167,11 +167,9 @@ async def dismiss_notice(client) -> bool:
             await asyncio.sleep(0.4)
             if not await box.is_visible():
                 return True
-    from wizwalker import Keycode
-
-    await client.send_key(Keycode.ENTER, 0.1)
-    await asyncio.sleep(0.4)
-    return True
+    # No Enter fallback: in Wizard101, Enter opens the chat box, and every key
+    # after that (X, W, Q...) would be typed into chat instead of playing.
+    return False
 
 
 async def click_center(client, window) -> None:
