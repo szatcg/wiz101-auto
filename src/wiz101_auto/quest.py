@@ -1220,7 +1220,10 @@ class Quester:
         if sigil is not None:
             await self._enter_by_sigil(sigil, zone)
             return
-        await self.travel(target, avoid_mobs=not is_combat_objective(objective))
+        # Always land clear of enemies: the marker of a "Defeat X" objective can
+        # sit beside other mobs (a Desert Golem by the Nirini Warriors), and
+        # pull_mob goes after the named enemy on purpose afterwards.
+        await self.travel(target)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
