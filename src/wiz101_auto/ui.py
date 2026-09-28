@@ -206,7 +206,9 @@ async def press_modal_button(client, box, name: str) -> bool:
     spots = ([_modal_spot[0]] if _modal_spot else []) + [s for s in MODAL_SPOTS if s not in _modal_spot]
     for fx, fy in spots:
         await button_click(client, int(r.x1 + w * fx), int(r.y1 + h * fy))
-        for _ in range(4):
+        # The box can stay up a couple of seconds after a click that worked
+        # (a flee happens with the round), so give it time before the next spot.
+        for _ in range(10):
             await asyncio.sleep(0.3)
             try:
                 if not await box.is_visible():
