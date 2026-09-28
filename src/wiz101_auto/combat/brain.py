@@ -16,6 +16,9 @@ The strategy is a greedy heuristic tuned for PvE questing:
      pip hit (Troll) until the target is trapped, unless pips pile up.
   6. While waiting for pips, set up blades/traps/shields.
   7. Otherwise discard dead cards (only when the hand is full) and pass.
+Instead of a pass, a 0-pip card is played when there is one: a hit (a wand's
+Super Strike) that breaks a shield on an enemy, else a blade or trap, else a
+hit that wastes no trap or blade of ours. 0-pip hits also finish enemies off.
 Damage counts blades, traps, shields, weaknesses and school resistances.
 """
 
@@ -286,6 +289,9 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
         junk = [c for c in junk if c.pip_cost > 1]
         if not junk:
             return None
+    junk = [c for c in junk if c.pip_cost > 0]  # a free hit (Super Strike) is never junk
+    if not junk:
+        return None
     card = min(junk, key=lambda c: c.base_damage())
     return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
 
@@ -297,7 +303,9 @@ def _is_trapped(target: Combatant) -> bool:
 def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | None, float] | None:
     best: tuple[Card, Combatant | None, float] | None = None
     for card in _castable(battle.cards):
-        if not card.is_damage:
+        # 0-pip hits are played by the free-hit rules (or to finish an enemy),
+        # not as the turn's attack: a chip hit would use up our traps and blades.
+        if not card.is_damage or card.pip_cost == 0:
             continue
         options = [None] if card.is_aoe else battle.live_enemies
         for target in options:
@@ -468,13 +476,83 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     return None
 
 
+FREE_HIT_SPARE_TRAPS = 3  # an enemy with this many traps can lose one to a 0-pip hit
+
+
+def _matching(effects: list[tuple[str, str, float]], school: str, shields: bool) -> list:
+    """Hanging traps/blades (or shields/weaknesses) that a `school` hit would use up."""
+    return [e for e in effects if e[1] in ("", school) and (e[2] < 0 if shields else e[2] > 0)]
+
+
+def _free_hit(battle: Battle, shields_only: bool = False) -> Action | None:
+    """A 0-pip hit (a wand's Super Strike) instead of passing. Every hit uses
+    up one matching trap on the target and one blade of ours, so: break a
+    shield first (the real hit then lands in full), else chip an enemy that has
+    no trap to lose, else one with traps to spare. Never while a blade of
+    ours would be spent on it."""
+    hits = [c for c in _castable(battle.cards) if c.pip_cost == 0 and c.is_damage and not c.treasure]
+    if not hits:
+        return None
+    card = max(hits, key=lambda c: c.base_damage())
+    school = card.school.lower()
+    me = battle.me
+    bladed = me.outgoing_boost > 0 and not me.outgoing_effects
+    if bladed or _matching(me.outgoing_effects, school, shields=False):
+        return None
+    enemies = battle.live_enemies
+
+    def shielded(e: Combatant) -> bool:
+        return bool(_matching(e.incoming_effects, school, shields=True)) or (
+            e.incoming_boost < 0 and not e.incoming_effects
+        )
+
+    def trapped(e: Combatant) -> bool:
+        return bool(_matching(e.incoming_effects, school, shields=False)) or (
+            e.incoming_boost > 0 and not e.incoming_effects
+        )
+
+    def spares(e: Combatant) -> bool:
+        return e.trap_count >= FREE_HIT_SPARE_TRAPS
+
+    if card.is_aoe:
+        harmless = all(shielded(e) or not trapped(e) or spares(e) for e in enemies)
+        if harmless and any(shielded(e) for e in enemies):
+            return Action(ActionKind.CAST, card, None, reason="0 pips: breaking shields")
+        if shields_only or not all(not trapped(e) or spares(e) for e in enemies):
+            return None
+        return Action(ActionKind.CAST, card, None, reason="0 pips instead of passing")
+    with_shield = [e for e in enemies if shielded(e)]
+    if with_shield:
+        t = max(with_shield, key=lambda e: (e.is_boss, e.health))
+        return Action(ActionKind.CAST, card, t, reason=f"0 pips: breaking {t.name}'s shield early")
+    if shields_only:
+        return None
+    clean = [e for e in enemies if not trapped(e)]
+    if clean:
+        t = min(clean, key=lambda e: e.health)
+        return Action(ActionKind.CAST, card, t, reason="0 pips instead of passing (no trap on it to waste)")
+    stacked = [e for e in enemies if spares(e)]
+    if stacked:
+        t = max(stacked, key=lambda e: e.trap_count)
+        why = f"0 pips instead of passing ({t.trap_count} traps: one to spare)"
+        return Action(ActionKind.CAST, card, t, reason=why)
+    return None
+
+
+def _break_shield(battle: Battle) -> Action | None:
+    """Before setting up a trap or blade: a 0-pip hit that removes an enemy's
+    shield, so the trap and the real hit aren't wasted against it."""
+    return _free_hit(battle, shields_only=True)
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
-    """The action for this step. A pass (saving pips, holding a hit) first
-    uses any free 0-pip blade/trap: it costs nothing we're saving."""
+    """The action for this step. Instead of a pass (saving pips, holding a hit)
+    a 0-pip card is played, since it costs nothing we're saving: a hit that
+    breaks an enemy's shield, else a blade or trap, else a harmless hit."""
     strat = strat or Strategy()
     action = _decide(battle, strat, discards_left=discards_left)
     if action.kind is ActionKind.PASS and battle.live_enemies:
-        free = _free_setup(battle, strat)
+        free = _free_hit(battle, shields_only=True) or _free_setup(battle, strat) or _free_hit(battle)
         if free:
             return free
     return action
@@ -527,7 +605,7 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
             and (focus.is_boss or focus.health > dmg * strat.setup_health_multiplier)
             and dmg < focus.health
         ):
-            setup = _setup_action(battle, strat, focus)
+            setup = _break_shield(battle) or _setup_action(battle, strat, focus)
             if setup:
                 return setup
 
@@ -546,7 +624,8 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
 
         stronger = _stronger_next_round(battle, focus, dmg, strat)
         if stronger:
-            setup = _setup_action(battle, strat, focus)  # free traps/blades while we wait
+            # shield breaks, traps and blades while we wait
+            setup = _break_shield(battle) or _setup_action(battle, strat, focus)
             if setup:
                 return setup
             return Action(ActionKind.PASS, reason=f"saving pips for {stronger.name} (~{dmg:.0f} now)")
@@ -556,7 +635,7 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
             return Action(ActionKind.ENCHANT, enchant, target_card=card, reason="boost attack")
         return Action(ActionKind.CAST, card, target, reason=f"~{dmg:.0f} dmg")
 
-    setup = _setup_action(battle, strat, None)
+    setup = _break_shield(battle) or _setup_action(battle, strat, None)
     if setup:
         return setup
 

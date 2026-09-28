@@ -282,7 +282,7 @@ def _myth_me(**kw):
 
 def test_discards_off_school_gear_cards():
     hit = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 65)]
-    wand = Card(0, "Frost Beetle", school="Ice", item=True, effects=hit)
+    wand = Card(0, "Frost Beetle", school="Ice", pip_cost=1, item=True, effects=hit)
     heal = [Effect(EffectKind.HEAL, Target.SELF, 100)]
     heartbeat = Card(1, "Heartbeat", school="Life", item=True, effects=heal)
     troll = dmg_card(2, "Troll", 190, pips=2)
@@ -408,3 +408,74 @@ def test_no_summon_when_a_card_in_hand_finishes_the_last_enemy():
     b.enemies[0].health = 14
     b.pips = 1
     assert decide(b).kind is not ActionKind.CAST or decide(b).card.name != "Troll Minion"
+
+
+def super_strike(i=0, dmg=40):
+    return Card(i, "Super Strike", school="myth", pip_cost=0, item=True,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, dmg)])
+
+
+def myth_hit(i, dmg=300, pips=2, castable=True):
+    c = dmg_card(i, "Troll", dmg, pips=pips, castable=castable)
+    c.school = "myth"
+    return c
+
+
+def test_super_strike_instead_of_passing():
+    b = battle([super_strike(), myth_hit(1, pips=2)], [enemy("Gobbler", 900)])
+    b.pips = 1
+    b.cards[-1].castable = False  # Troll next round: nothing else to do but pass
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name == "Super Strike"
+
+
+def test_trap_or_blade_before_super_strike():
+    b = battle([super_strike(), trap_card(1), myth_hit(2, pips=2)], [enemy("Gobbler", 900)])
+    b.pips = 1
+    b.cards[-1].castable = False
+    assert decide(b).card.name == "Fire Trap"
+
+
+def test_super_strike_does_not_waste_a_trap():
+    trapped = enemy("Gobbler", 900, trap_count=1, incoming_effects=[("Myth Trap", "myth", 0.3)])
+    b = battle([super_strike(), myth_hit(1, pips=2)], [trapped])
+    b.pips = 1
+    b.cards[-1].castable = False
+    assert decide(b).kind is ActionKind.PASS
+
+
+def test_super_strike_on_a_heavily_trapped_enemy():
+    traps = [(f"t{i}", "myth", 0.3) for i in range(3)]
+    trapped = enemy("Gobbler", 900, trap_count=3, incoming_effects=traps)
+    b = battle([super_strike(), myth_hit(1, pips=2)], [trapped])
+    b.pips = 1
+    b.cards[-1].castable = False
+    assert decide(b).card.name == "Super Strike"
+
+
+def test_super_strike_breaks_a_shield_before_trapping():
+    shielded = enemy("Troll", 900, shield_count=1, incoming_effects=[("Myth Shield", "myth", -0.5)])
+    b = battle([trap_card(0), super_strike(1), myth_hit(2, pips=2)], [shielded])
+    b.pips = 1
+    b.cards[-1].castable = False
+    a = decide(b)
+    assert a.card.name == "Super Strike" and "shield" in a.reason
+
+
+def test_super_strike_finishes_an_enemy():
+    b = battle([super_strike(), myth_hit(1, pips=2)], [enemy("Big", 900), enemy("Weak", 30)])
+    a = decide(b)
+    assert a.card.name == "Super Strike" and a.target.name == "Weak"
+
+
+def test_super_strike_is_not_the_turns_attack():
+    b = battle([super_strike(), myth_hit(1, pips=2)], [enemy("Gobbler", 250)])
+    assert decide(b).card.name == "Troll"
+
+
+def test_super_strike_keeps_our_blade_for_the_real_hit():
+    b = battle([super_strike(), myth_hit(1, pips=2)], [enemy("Gobbler", 900)],
+               my=me(blade_count=1, outgoing_effects=[("Mythblade", "myth", 0.35)]))
+    b.pips = 1
+    b.cards[-1].castable = False
+    assert decide(b).kind is ActionKind.PASS
