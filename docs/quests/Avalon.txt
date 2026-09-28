@@ -1,0 +1,758 @@
+MooShu (2 quests)
+1.
+This Little Light of Mine
+TALK
+2.
+Positively Absolutely
+EXPLORE
+SOLO:
+BOSS
+INTERACT
+TALK
+Wizard City (2 quests)
+3.
+Light Shine Down
+TALK
+4.
+Signs and Portents
+EXPLORE
+Caliburn (1 quest)
+5.
+Who Knows?
+SIDE ×1
+TALK
+High Road (17 quests)
+6.
+Steamed Crab
+SIDE ×1
+2× D&C
+TALK
+7.
+Crab Leg
+TALK
+8.
+A Taste of Poison
+D&C
+TALK
+9.
+Well Poisoned
+BOSS
+TALK
+10.
+That Miracle Clove
+COLLECT
+TALK
+11.
+Pound Some Sense
+D&C
+TALK
+12.
+I'm Getting Better
+SIDE ×2
+TALK
+TALK
+13.
+Fields of Gold
+TALK
+14.
+Fields of Barley
+COLLECT
+TALK
+15.
+Sumner's Tale
+TALK
+16.
+A Very Brave and Noble Thing
+SIDE ×1
+MOB
+TALK
+17.
+Vexing Thoughts
+D&C
+TALK
+18.
+Every Rose Has Its Thorn
+INSTANCE
+SIDE ×1
+INTERACT
+EXPLORE
+BOSS
+BOSS
+TALK
+19.
+On One Hand
+TALK
+20.
+A Brave and Noble Thing
+SIDE ×1
+TALK
+21.
+Arrow to the Face
+2× D&C
+INTERACT
+TALK
+22.
+To Bravely Go
+TALK
+Caer Lyon (15 quests)
+23.
+Fool's Knight
+TALK
+BOSS
+EXPLORE
+TALK
+24.
+Around Here Someplace
+SIDE ×1
+2× D&C
+TALK
+25.
+Broken Signs
+SIDE ×1
+TALK
+26.
+Displacing Beasts
+MOB
+TALK
+27.
+Songs of Bravery
+3× TALK
+28.
+Cloud Trail
+D&C
+EXPLORE
+2× TALK
+29.
+Painting the Town Red
+D&C
+BOSS
+INTERACT
+TALK
+30.
+From Here to Eternity
+2× INTERACT
+TALK
+31.
+Paint My Masterpiece
+TALK
+32.
+Nice Part of Town
+2× MOB
+TALK
+33.
+Hurry Up and Leaf
+TALK
+34.
+Little Willow
+D&C
+EXPLORE
+2× TALK
+35.
+A Joyous Occasion
+TALK
+TALK
+36.
+Great Wild Wood
+BOSS
+2× INTERACT
+TALK
+37.
+Appeal to Civility
+TALK
+TALK
+The Wild (16 quests)
+38.
+Into the Wild
+SIDE ×1
+TALK
+39.
+Owls of a Feather
+TALK
+40.
+Into the Nest
+INSTANCE
+EXPLORE
+BOSS
+EXPLORE
+2× INTERACT
+PUZZLE
+BOSS
+INTERACT
+2× TALK
+INTERACT
+39.
+Owls of a Feather
+TALK
+41.
+Friend of the Family
+TALK
+42.
+Bravest Knight
+TALK
+43.
+White Out
+SIDE ×1
+EXPLORE
+TALK
+44.
+Broken Vows
+TALK
+TALK
+45.
+Dread of Knight
+SIDE ×1
+EXPLORE
+BOSS
+INTERACT
+2× TALK
+46.
+Light My Fire
+INTERACT
+TALK
+47.
+Shoes Are Made For Walking
+TALK
+48.
+Weirwood Rover
+D&C
+TALK
+49.
+In These Shoes
+SIDE ×1
+TALK
+50.
+Lair of the Winter Wyrm
+EXPLORE
+BOSS
+2× TALK
+51.
+Out of the Woods
+INTERACT
+TALK
+52.
+Bravely Bold Sir Robin
+4× TALK
+Caer Lyon (3 quests)
+53.
+Lost the Music
+SIDE ×1
+D&C
+TALK
+54.
+Head Held Low
+2× COLLECT
+TALK
+55.
+Greatest of Sports
+EXPLORE
+BOSS
+INTERACT
+TALK
+Abbey Road (6 quests)
+56.
+Show Me the Way
+TALK
+57.
+Burning Iron
+INTERACT
+TALK
+58.
+If I Had a Hammer
+TALK
+INTERACT
+TALK
+59.
+Six to Go
+MOB
+BOSS
+TALK
+60.
+The Parting Glass
+TALK
+61.
+Warbird
+INTERACT
+TALK
+Caer Lyon (3 quests)
+62.
+On a Steel Mount I Ride
+TALK
+63.
+Lute Drop
+D&C
+BOSS
+TALK
+64.
+I Wanna Be Adored
+INTERACT
+TALK
+The Wild (11 quests)
+65.
+Bye Bye Bad Man
+TALK
+66.
+Worst Day Since Yesterday
+MOB
+TALK
+67.
+Far Away Girls
+INTERACT
+TALK
+68.
+Of Lost Liberty
+BOSS
+2× TALK
+69.
+The Rare Ould Times
+TALK
+TALK
+70.
+'Tis a Magic Place
+EXPLORE
+TALK
+71.
+To the Pipes of Pan
+TALK
+72.
+Dark Night Rises
+BOSS
+TALK
+73.
+'Twas Brillig
+EXPLORE
+CHEAT
+INTERACT
+TALK
+74.
+O Frabjous Day
+TALK
+75.
+Beneath the Haunted Moon
+INTERACT
+TALK
+The Wyrd (19 quests)
+76.
+Wyrd to Your Mother
+SIDE ×1
+EXPLORE
+D&C
+TALK
+77.
+Speed of Darkness
+SIDE ×2
+EXPLORE
+BOSS
+TALK
+78.
+Man With No Country
+EXPLORE
+TALK
+79.
+Sky Full of Sulfur
+2× INTERACT
+TALK
+80.
+Two Heads Are Worse
+TALK
+81.
+Billy Brute
+INTERACT
+TALK
+82.
+Walk the Lonesome Hills
+COLLECT
+2× D&C
+3× TALK
+83.
+Bloody Good
+TALK
+84.
+Knight Blind
+INTERACT
+MOB
+BOSS
+INTERACT
+TALK
+85.
+Pair of Brown Eyes
+INTERACT
+TALK
+86.
+Paths of Sorrow
+EXPLORE
+87.
+Haunted
+INSTANCE
+MOB
+PUZZLE
+BOSS
+88.
+Tomb of Broken Dreams
+INTERACT
+TALK
+89.
+Family Values
+TALK
+TALK
+90.
+Guest Right
+INSTANCE
+EXPLORE
+BOSS
+TALK
+EXPLORE
+BOSS
+TALK
+91.
+Man In the Mirror
+EXPLORE
+BOSS
+TALK
+92.
+The Rainbow's End
+TALK
+TALK
+93.
+A Strange Race of People
+EXPLORE
+TALK
+94.
+Where the Demons Dwell
+EXPLORE
+BOSS
+3× INTERACT
+TALK
+Dun Dara (16 quests)
+95.
+And They Do Live Well
+EXPLORE
+TALK
+96.
+Queen of Light Took Her Bow
+SIDE ×1
+TALK
+97.
+Walk the Night Alone
+EXPLORE
+TALK
+98.
+A Song of George
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+99.
+Taste of Victory
+SIDE ×1
+TALK
+100.
+The Pain of War
+TALK
+EXPLORE
+BOSS
+INTERACT
+TALK
+INTERACT
+TALK
+101.
+Stairway to Belle Regard
+TALK
+EXPLORE
+BOSS
+TALK
+TALK
+102.
+Over the Hills and Far Away
+D&C
+TALK
+103.
+Many Dreams Come True
+TALK
+TALK
+104.
+Silver Linings
+TALK
+TALK
+105.
+Kiss From a Rose
+EXPLORE
+INTERACT
+TALK
+106.
+Just the Pacts
+4× TALK
+107.
+Alas Poor Wyrm
+INTERACT
+TALK
+108.
+Vigor of Death
+D&C
+TALK
+109.
+Charmed Life
+TALK
+INTERACT
+TALK
+110.
+Dressing the Part
+INTERACT
+TALK
+Abbey Road (6 quests)
+111.
+Ten Years Gone
+TALK
+112.
+Smog and Stone
+EXPLORE
+BOSS
+INTERACT
+TALK
+113.
+Stone Smith
+TALK
+114.
+The Stonecutters
+D&C
+TALK
+TALK
+115.
+The Shape of the Rose
+EXPLORE
+TALK
+116.
+Call the Banners
+9× TALK
+Outer Yard (14 quests)
+117.
+Throw Down the Gauntlet
+EXPLORE
+BOSS
+EXPLORE
+TALK
+118.
+Constant and True
+EXPLORE
+BOSS
+EXPLORE
+2× TALK
+119.
+Wisdom of Owls
+TALK
+120.
+Break the Hand
+MOB
+TALK
+121.
+Who's Gonna Ride
+TALK
+122.
+Follow the Music
+EXPLORE
+BOSS
+TALK
+123.
+Seek and Hide
+EXPLORE
+TALK
+124.
+Happy Trails
+TALK
+125.
+Sacred Text
+INTERACT
+TALK
+126.
+Don't Say No
+TALK
+127.
+In the Dark
+EXPLORE
+BOSS
+TALK
+128.
+Creatures of Habit
+EXPLORE
+MOB
+INTERACT
+TALK
+129.
+Being the Third Number
+EXPLORE
+TALK
+130.
+The Long Way Down
+EXPLORE
+BOSS
+INTERACT
+TALK
+Lake Shore (9 quests)
+131.
+Step Down
+EXPLORE
+TALK
+132.
+The Razor's Edge
+EXPLORE
+TALK
+133.
+The Simplest Answer
+D&C
+3× INTERACT
+TALK
+134.
+Straight Edge
+MOB
+INTERACT
+TALK
+135.
+A Wee Bit O The Brogue
+MOB
+INTERACT
+TALK
+136.
+Waving the Olive Branch
+INTERACT
+EXPLORE
+TALK
+137.
+Black Magic Woman
+INTERACT
+INTERACT
+EXPLORE
+CHEAT
+EXPLORE
+TALK
+138.
+A Hero by Any Other Name
+EXPLORE
+TALK
+TALK
+139.
+As Above So Below
+2× D&C
+TALK
+Deepwater (5 quests)
+140.
+Down in the Depths
+INTERACT
+EXPLORE
+TALK
+141.
+Get a Piece of the Rock
+EXPLORE
+BOSS
+INTERACT
+TALK
+142.
+A Piece of Mine
+EXPLORE
+BOSS
+INTERACT
+TALK
+143.
+I'se the B'y
+EXPLORE
+BOSS
+INTERACT
+TALK
+144.
+And the Deep Blue Sea
+EXPLORE
+BOSS
+INTERACT
+TALK
+The Catacombs (8 quests)
+145.
+Come A'Knocking at My Door
+INTERACT
+EXPLORE
+TALK
+146.
+Fear of the Dark
+D&C
+TALK
+147.
+Revelations
+EXPLORE
+EXPLORE
+TALK
+148.
+Running Free
+EXPLORE
+TALK
+149.
+Another Life
+EXPLORE
+D&C
+TALK
+TALK
+150.
+Drifter
+TALK
+151.
+Hallowed Be Thy Name
+D&C
+TALK
+152.
+Strange World
+INTERACT
+TALK
+Crystal Caves (10 quests)
+153.
+Run Silent Run Deep
+MOB
+INTERACT
+TALK
+154.
+Déjà Vu
+EXPLORE
+5× TALK
+155.
+Ghost of the Navigator
+D&C
+6× INTERACT
+TALK
+156.
+Where Owls Dare
+EXPLORE
+TALK
+157.
+Caught Somewhere in Time
+EXPLORE
+158.
+Take Me to the Other Side
+INSTANCE
+TALK
+MOB
+TALK
+BOSS
+TALK
+TALK
+CHEAT
+BOSS
+INTERACT
+TALK
+157.
+Caught Somewhere in Time
+TALK
+159.
+The Head of the Dragon
+INSTANCE
+MOB
+INTERACT
+TALK
+MOB
+CHEAT
+TALK
+TALK
+2× BOSS
+INTERACT
+TALK
+TALK
+160.
+The Guns of Avalon
+TALK
+161.
+A Great Storm Coming
+TALK

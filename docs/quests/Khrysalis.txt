@@ -1,0 +1,1456 @@
+Wizard City (8 quests)
+1.
+Letters of Light
+TALK
+TALK
+TALK
+TALK
+2.
+Calling the Council
+TALK
+INTERACT
+TALK
+3.
+Emissaries of Light
+TALK
+4.
+Proof of Life
+SOLO:
+MOB
+TALK
+5.
+The Last Seed
+TALK
+6.
+Last Rites
+SOLO:
+MOB
+TALK
+TALK
+7.
+The Third Point
+TALK
+8.
+Diamond Forge
+INTERACT
+TALK
+Bastion (7 quests)
+9.
+Cruel Forces
+INTERACT
+TALK
+10.
+Quality of Mercy
+SOLO:
+MOB
+BOSS
+TALK
+11.
+Silent Meditation
+EXPLORE
+SOLO:
+BOSS
+TALK
+12.
+Way of the Wisp
+EXPLORE
+TALK
+13.
+Vanishing Dream
+EXPLORE
+TALK
+14.
+Secret Heart
+SIDE ×3
+TALK
+BOSS
+INTERACT
+TALK
+15.
+Free Mouse
+INSTANCE
+SIDE ×1
+TALK
+MOB
+EXPLORE
+MOB
+EXPLORE
+INTERACT
+TALK
+Silent Market (6 quests)
+16.
+Market Street
+SIDE ×2
+TALK
+17.
+Lost Sign
+EXPLORE
+TALK
+18.
+War Plans
+INSTANCE
+SIDE ×1
+EXPLORE
+BOSS
+INTERACT
+TALK
+19.
+Fading Footsteps
+INTERACT
+INTERACT
+TALK
+20.
+Window Shopping
+TALK
+TALK
+21.
+Blind Leads
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+Moon Cliffs (19 quests)
+22.
+Mouse in the Moon
+EXPLORE
+TALK
+23.
+Tunnel Trouble
+EXPLORE
+MOB
+TALK
+24.
+Long Way 'Round
+D&C
+TALK
+25.
+One of Uzzz
+EXPLORE
+TALK
+26.
+Lazy Dayz
+MOB
+INTERACT
+TALK
+27.
+Taproot
+D&C
+TALK
+28.
+Nightwatch
+SIDE ×1
+EXPLORE
+BOSS
+INTERACT
+TALK
+29.
+Bumbler Town
+TALK
+30.
+Z-Z-Zabotage!
+EXPLORE
+MOB
+4× INTERACT
+31.
+Pollen Days
+MOB
+3× COLLECT
+TALK
+32.
+Honeymill
+SIDE ×1
+MOB
+TALK
+33.
+Rat in a Cage
+BOSS
+TALK
+34.
+Wing Tips
+3× COLLECT
+TALK
+35.
+Test Pattern
+D&C
+EXPLORE
+MOB
+TALK
+36.
+Blowing Smoke
+INTERACT
+TALK
+37.
+Detention Block
+D&C
+TALK
+38.
+Smoke Rings
+EXPLORE
+INTERACT
+INTERACT
+TALK
+39.
+Warrior Brood
+BOSS
+TALK
+40.
+Escape from Apiary
+SIDE ×2
+MOB
+INTERACT
+TALK
+Last Wood (11 quests)
+41.
+Mouse Tracks
+SIDE ×1
+EXPLORE
+EXPLORE
+EXPLORE
+EXPLORE
+MOB
+TALK
+42.
+Foothold
+TALK
+43.
+Head to Foot
+MOB
+MOB
+4× INTERACT
+TALK
+44.
+Pepper Grass Nook
+TALK
+45.
+Mouse Days Are Over
+EXPLORE
+EXPLORE
+TALK
+46.
+Lake Noise
+SIDE ×1
+EXPLORE
+EXPLORE
+BOSS
+TALK
+TALK
+47.
+Code Switchers
+TALK
+48.
+Good Times
+TALK
+TALK
+49.
+Cry Havoc
+SIDE ×2
+EXPLORE
+MOB
+EXPLORE
+BOSS
+EXPLORE
+MOB
+TALK
+50.
+The World Is Closing In
+TALK
+51.
+Lost Signal
+MOB
+BOSS
+TALK
+TALK
+Silent Market (3 quests)
+52.
+Carry On
+TALK
+53.
+For All the Tea
+3× COLLECT
+BOSS
+TALK
+54.
+You Shouldn't Have
+BOSS
+TALK
+Tyrian Gorge (6 quests)
+55.
+Crack in the Mask
+4× EXPLORE
+MOB
+TALK
+56.
+Rebel Sign
+EXPLORE
+EXPLORE
+TALK
+57.
+Break Out
+4× COLLECT
+TALK
+58.
+Can't Take the Sky
+INTERACT
+TALK
+59.
+Dig Dug
+MOB
+TALK
+60.
+Cut the Cords
+INTERACT
+INTERACT
+TALK
+Last Wood (6 quests)
+61.
+Soaring Free
+TALK
+62.
+A Cunning Plan
+TALK
+63.
+Siege Warfare
+3× COLLECT
+MOB
+TALK
+64.
+Take a Message
+TALK
+65.
+Build Up
+MOB
+MOB
+TALK
+66.
+New Plan
+TALK
+Tyrian Gorge (12 quests)
+67.
+How I Learned to Stop Worrying
+5× EXPLORE
+TALK
+68.
+Eggs on the Side
+INSTANCE
+MOB
+BOSS
+INTERACT
+TALK
+69.
+Baa Baa Goatweaver
+INTERACT
+TALK
+70.
+Sticky Situation
+MOB
+TALK
+EXPLORE
+BOSS
+TALK
+TALK
+71.
+Feed Me
+SIDE ×1
+TALK
+EXPLORE
+MOB
+INTERACT
+TALK
+72.
+Barrels of Fun
+6× COLLECT
+TALK
+73.
+Local Expertise
+MOB
+TALK
+74.
+Hypothetically Speaking
+D&C
+D&C
+TALK
+75.
+All You Need to Do
+TALK
+76.
+Take Me In
+EXPLORE
+MOB
+77.
+Blind Eye
+INSTANCE
+MOB
+TALK
+EXPLORE
+MOB
+CHEAT
+76.
+Take Me In
+TALK
+Last Wood / Moon Cliffs / Bastion (5 quests)
+78.
+Fly Me to the Woods
+TALK
+79.
+Planning the Attack
+MOB
+MOB
+INTERACT
+TALK
+80.
+First Through the Breach
+MOB
+EXPLORE
+BOSS
+TALK
+81.
+Face of a Queen
+TALK
+82.
+Lair of the White Worm
+TALK
+CHEAT
+TALK
+TALK
+Tyrian Gorge (4 quests)
+83.
+Winter Comes Early
+TALK
+84.
+Scorpion in Winter
+EXPLORE
+85.
+Love at First Sting
+INSTANCE
+MOB
+INTERACT
+MOB
+EXPLORE
+BOSS
+INTERACT
+84.
+Scorpion in Winter
+TALK
+Bastion / Moon Cliffs (4 quests)
+86.
+Broke Her Crown
+TALK
+87.
+The Future's in the Air
+TALK
+88.
+Queensrych
+EXPLORE
+CHEAT
+TALK
+TALK
+89.
+Fix the Moon
+TALK
+TALK
+Tyrian Gorge (6 quests)
+90.
+Hole Cards
+TALK
+91.
+Darkest Darkness
+D&C
+TALK
+92.
+Gravel in the Gizzard
+D&C
+TALK
+93.
+Pass of the Spider
+EXPLORE
+94.
+Abyssal Cave
+INSTANCE
+EXPLORE
+MOB
+3× COLLECT
+EXPLORE
+CHEAT
+93.
+Pass of the Spider
+TALK
+Last Wood (4 quests)
+95.
+Two Pieces
+SIDE ×1
+TALK
+96.
+Broken Glass
+TALK
+97.
+Shape of My Heart
+D&C
+D&C
+TALK
+98.
+Mended Tears
+D&C
+TALK
+Moon Cliffs (20 quests)
+99.
+Heart of Glass
+TALK
+100.
+Darkest Night
+EXPLORE
+TALK
+101.
+Moon Aria
+EXPLORE
+102.
+Moonlight Shadows
+INSTANCE
+MOB
+EXPLORE
+CHEAT
+INTERACT
+INTERACT
+101.
+Moon Aria
+TALK
+103.
+Free Shadows
+TALK
+104.
+Shadow Dancer
+EXPLORE
+105.
+Touching Shadow
+INSTANCE
+CHEAT
+EXPLORE
+CHEAT
+104.
+Shadow Dancer
+TALK
+106.
+Shadows and Don'ts
+TUTORIAL
+107.
+A Pact with Darkness
+EXPLORE
+TALK
+TALK
+108.
+Shadow Self
+SIDE ×1
+INTERACT
+TALK
+109.
+Restoring the Past
+SIDE ×1
+TALK
+110.
+Kingless
+TALK
+TALK
+111.
+Uneasy Allies
+SIDE ×1
+TALK
+112.
+Let's Bee Friends
+TALK
+113.
+Toe Biter
+TALK
+114.
+Waggle Dance
+D&C
+EXPLORE
+BOSS
+TALK
+115.
+Up All Night
+D&C
+EXPLORE
+TALK
+116.
+Feel the Rhythm of the Night
+EXPLORE
+INTERACT
+EXPLORE
+CHEAT
+TALK
+TALK
+Last Wood (8 quests)
+117.
+Bastion Found
+MOB
+MOB
+TALK
+TALK
+118.
+Lost Seat
+D&C
+TALK
+119.
+Fit for a King
+INTERACT
+TALK
+120.
+Strange Allies
+TALK
+121.
+Amber Tomb
+D&C
+TALK
+122.
+Unstuck in Time
+D&C
+TALK
+EXPLORE
+INTERACT
+TALK
+123.
+Irreplaceable
+TALK
+124.
+The Dread Fort
+TALK
+TALK
+TALK
+Tyrian Gorge (3 quests)
+125.
+Twilight Days
+TALK
+126.
+Blackout
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+BOSS
+INTERACT
+TALK
+127.
+Fort Rachias
+EXPLORE
+TALK
+Fort Rachias (16 quests)
+128.
+Into Rachias
+MOB
+EXPLORE
+CHEAT
+INTERACT
+TALK
+129.
+Bees in Their Mouths
+MOB
+EXPLORE
+2× BOSS
+3× COLLECT
+INTERACT
+TALK
+130.
+Devil's Flowers
+MOB
+EXPLORE
+MOB
+TALK
+TALK
+131.
+Fifth Column
+TALK
+132.
+Black and White
+EXPLORE
+MOB
+TALK
+133.
+King of the Plains
+EXPLORE
+MOB
+TALK
+134.
+Twelve Toes
+INSTANCE
+EXPLORE
+MOB
+CHEAT
+EXPLORE
+TALK
+135.
+Sage Advice
+EXPLORE
+TALK
+136.
+Not a Number
+EXPLORE
+MOB
+INTERACT
+TALK
+137.
+We Want Information
+D&C
+TALK
+138.
+Invaders
+EXPLORE
+MOB
+5× COLLECT
+TALK
+139.
+Hold Off
+TALK
+140.
+Way of the Samoorai
+INTERACT
+141.
+Dying Star Stuff
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+CHEAT
+140.
+Way of the Samoorai
+INTERACT
+TALK
+142.
+Edge of Forever
+EXPLORE
+TALK
+Bastion (2 quests)
+143.
+Back in the Saddle
+SIDE ×1
+TALK
+TALK
+TALK
+144.
+Beach Comber
+INTERACT
+TALK
+Fort Rachias (2 quests)
+145.
+Pod People
+D&C
+TALK
+146.
+Through the Barrier
+INTERACT
+TALK
+Crescent Beach (35 quests)
+147.
+Single File
+D&C
+TALK
+148.
+Old Man of the Desert
+TALK
+BOSS
+TALK
+149.
+Tame the Wind
+INTERACT
+D&C
+D&C
+EXPLORE
+TALK
+150.
+Hopping Mad
+EXPLORE
+EXPLORE
+EXPLORE
+BOSS
+TALK
+151.
+Band of Brothers
+SIDE ×2
+EXPLORE
+152.
+Hear Me Roar
+INSTANCE
+BOSS
+TALK
+EXPLORE
+BOSS
+INTERACT
+151.
+Band of Brothers
+SIDE ×2
+TALK
+153.
+Bug Works
+D&C
+D&C
+TALK
+154.
+Mariner's Tale
+EXPLORE
+BOSS
+TALK
+155.
+Spirit that Plagued Us So
+EXPLORE
+TALK
+D&C
+TALK
+TALK
+156.
+Star-Dogged
+TALK
+TALK
+157.
+Oh Hai
+SIDE ×1
+MOB
+TALK
+158.
+Nor Any Drop to Drink
+TALK
+TALK
+159.
+From Their Bodies Fly
+EXPLORE
+TALK
+160.
+The Horned Moo
+SIDE ×1
+MOB
+TALK
+161.
+Thy Glittering Eye
+TALK
+162.
+Alone, Alone, All, All, Alone
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+163.
+And They All Dead Did Lie
+TALK
+164.
+Living On
+TALK
+165.
+Curse in a Dead Bear's Eye
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+INTERACT
+TALK
+166.
+O Happy Spirit Things!
+TALK
+167.
+From My Neck So Free!
+EXPLORE
+MOB
+INTERACT
+TALK
+168.
+He Shone Bright!
+EXPLORE
+BOSS
+INTERACT
+TALK
+169.
+The Mariner Hath His Will!
+INTERACT
+TALK
+170.
+He Heard the Loud Bassoon
+EXPLORE
+BOSS
+INTERACT
+TALK
+171.
+He Was Tyrannous and Strong
+EXPLORE
+EXPLORE
+TALK
+172.
+Diver Down
+EXPLORE
+173.
+The Full Bug
+INSTANCE
+TALK
+INTERACT
+TALK
+INTERACT
+TALK
+INTERACT
+TALK
+174.
+Fair Warning
+INSTANCE
+INTERACT
+MOB
+TALK
+175.
+The Tide is High
+INSTANCE
+INTERACT
+TALK
+INTERACT
+INTERACT
+TALK
+176.
+Sea of Heartbreak
+INSTANCE
+INTERACT
+MOB
+TALK
+177.
+Edge of the Maelstrom
+INSTANCE
+INTERACT
+TALK
+4× INTERACT
+TALK
+178.
+Maelstrom Rising
+INSTANCE
+INTERACT
+EXPLORE
+3× BOSS
+TALK
+179.
+The Last Mile
+INSTANCE
+INTERACT
+TALK
+INTERACT
+INTERACT
+172.
+Diver Down
+TALK
+Ruined Alcazar (11 quests)
+180.
+Moar Ghosts
+TALK
+181.
+Memento
+D&C
+TALK
+182.
+Fragments of a Life
+EXPLORE
+MOB
+TALK
+TALK
+183.
+Skyfall
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+TALK
+184.
+Star Talker
+D&C
+TALK
+185.
+Deep Blue Something
+INSTANCE
+INTERACT
+MOB
+2× BOSS
+TALK
+TALK
+186.
+Hart of a Star
+INSTANCE
+INTERACT
+BOSS
+TALK
+MOB
+INTERACT
+TALK
+187.
+Cor Serpentis
+INSTANCE
+INTERACT
+MOB
+EXPLORE
+MOB
+TALK
+TALK
+188.
+The Rarest Egg
+INSTANCE
+INTERACT
+TALK
+INTERACT
+BOSS
+INTERACT
+TALK
+189.
+Ashes on Your Eyes
+INTERACT
+TALK
+190.
+Stairway to Heaven
+INTERACT
+TALK
+Radiance Reborn (7 quests)
+191.
+Radiance Reborn
+TALK
+TALK
+TALK
+TALK
+TALK
+192.
+Chambers of the Mind
+EXPLORE
+TALK
+193.
+A Dream of Avalon
+EXPLORE
+TALK
+TALK
+SOLO:
+CHEAT
+INTERACT
+TALK
+194.
+A Dream of Wizard City
+EXPLORE
+SOLO:
+CHEAT
+TALK
+195.
+A Dream of Khrysalis
+EXPLORE
+TALK
+SOLO:
+CHEAT
+TALK
+196.
+Ray of Light
+INTERACT
+TALK
+TALK
+197.
+Take Me Down to Mantis City
+INTERACT
+TALK
+Sardonyx (29 quests)
+198.
+Lost Light
+SIDE ×2
+TALK
+199.
+Swirling Leaf
+BOSS
+INTERACT
+TALK
+200.
+Like Minds
+D&C
+BOSS
+INTERACT
+INTERACT
+TALK
+201.
+Heard it Through the Leaf Vine
+SIDE ×1
+TALK
+INTERACT
+BOSS
+INTERACT
+TALK
+202.
+Shoulders of Giants
+SIDE ×4
+EXPLORE
+TALK
+203.
+Postcard from the Edge
+EXPLORE
+TALK
+TALK
+204.
+Can't Go Home Again
+4× EXPLORE
+MOB
+EXPLORE
+TALK
+205.
+Sending a Message
+TALK
+EXPLORE
+TALK
+206.
+Zed's Dead, Baby
+TALK
+207.
+On the Outs
+TALK
+208.
+Wild Hornet Chase
+5× TALK
+209.
+Tower of Pale Beauty
+EXPLORE
+BOSS
+INTERACT
+TALK
+210.
+Zed's Place
+SIDE ×1
+INTERACT
+TALK
+211.
+Let's Step Inside
+TALK
+MOB
+TALK
+212.
+Locus of the Apocalypse
+EXPLORE
+MOB
+TALK
+213.
+Two of Three
+EXPLORE
+TALK
+MOB
+3× TALK
+214.
+Calmer Heads
+TALK
+TALK
+215.
+Garrison
+EXPLORE
+BOSS
+TALK
+216.
+Common People
+4× TALK
+4× COLLECT
+TALK
+217.
+The Eleventh Movement
+TALK
+218.
+Broken Fang
+INSTANCE
+TALK
+TALK
+MOB
+TALK
+CHEAT
+217.
+The Eleventh Movement
+TALK
+219.
+There Will Be Blood
+TALK
+TALK
+220.
+Walking Flower
+D&C
+INTERACT
+TALK
+221.
+Charred Leaf
+MOB
+INTERACT
+TALK
+222.
+Beauty Revisited
+SIDE ×1
+TALK
+223.
+Black Roller
+INTERACT
+TALK
+224.
+Right Here Right Now
+TALK
+225.
+One More Campaign
+TALK
+TALK
+Kondha Desert (14 quests)
+226.
+Badlands
+TALK
+227.
+Free Pattern!
+EXPLORE
+MOB
+TALK
+228.
+A Kondha Tail
+MOB
+5× COLLECT
+TALK
+229.
+No Country for Old Mice!
+EXPLORE
+INTERACT
+TALK
+230.
+Meet the Family
+3× TALK
+231.
+Desert Fruit
+5× COLLECT
+TALK
+232.
+Joshua
+D&C
+TALK
+233.
+Jasper
+SIDE ×1
+D&C
+TALK
+234.
+One Of Us
+SIDE ×3
+3× TALK
+235.
+Under Their Noses
+EXPLORE
+MOB
+INTERACT
+TALK
+236.
+Shame About That
+EXPLORE
+MOB
+3× EXPLORE
+BOSS
+TALK
+237.
+Creeping Water
+SIDE ×3
+MOB
+TALK
+238.
+Treebeards
+D&C
+INTERACT
+TALK
+239.
+Valley of the Dark Sun
+EXPLORE
+TALK
+Solar Arc (14 quests)
+240.
+Solar Power
+EXPLORE
+TALK
+241.
+Sun Storm
+BOSS
+TALK
+242.
+Life Giving
+EXPLORE
+TALK
+243.
+Sun Fire
+BOSS
+TALK
+244.
+Underworld Sun
+EXPLORE
+TALK
+245.
+Frozen Sun
+BOSS
+TALK
+246.
+The Eye of the Sun
+EXPLORE
+TALK
+247.
+Solar Justice
+EXPLORE
+TALK
+248.
+Sun's Shadow
+EXPLORE
+249.
+Creatures of Shadows and Light
+INSTANCE
+CHEAT
+BOSS
+248.
+Sun's Shadow
+TALK
+250.
+Higher Learning
+TALK
+251.
+Last Pillar
+TALK
+252.
+Tri-Stat
+TALK
+The Hive (24 quests)
+253.
+Into the Lair
+D&C
+TALK
+254.
+The Warp
+INSTANCE
+MOB
+BOSS
+TALK
+255.
+Way of Gloom
+D&C
+TALK
+256.
+Panopticon
+SIDE ×2
+MOB
+TALK
+257.
+One Bad Rat
+EXPLORE
+BOSS
+TALK
+258.
+Pit of Despair
+INSTANCE
+EXPLORE
+MOB
+MOB
+TALK
+259.
+Some Web
+INTERACT
+EXPLORE
+260.
+The Black Hole
+INSTANCE
+MOB
+MOB
+BOSS
+EXPLORE
+259.
+Some Web
+TALK
+261.
+Some Web
+TALK
+262.
+Open Doors
+SIDE ×1
+EXPLORE
+MOB
+INTERACT
+TALK
+263.
+Reclusive
+EXPLORE
+BOSS
+INTERACT
+TALK
+264.
+The Weft
+INSTANCE
+MOB
+MOB
+EXPLORE
+265.
+Palace of Fangs
+EXPLORE
+MOB
+TALK
+266.
+Shadow Smith
+EXPLORE
+MOB
+TALK
+TALK
+267.
+Night Orb
+INSTANCE
+BOSS
+CHEAT
+TALK
+268.
+Price of the Blade
+INTERACT
+TALK
+269.
+House of the Magi
+D&C
+EXPLORE
+270.
+Adepts of the Magi
+EXPLORE
+MOB
+TALK
+271.
+Reflection of Shadow
+EXPLORE
+BOSS
+TALK
+272.
+Metastasis
+EXPLORE
+BOSS
+TALK
+273.
+Unweaving Shadow
+EXPLORE
+CHEAT
+TALK
+274.
+Antivenin
+INTERACT
+TALK
+275.
+Way of Night
+EXPLORE
+CHEAT
+TALK
+Shadow Palace (5 quests)
+276.
+Doom Tree
+TALK
+EXPLORE
+4× CHEAT
+INTERACT
+TALK
+277.
+Shadow Palace
+EXPLORE
+278.
+The Galleries
+INSTANCE
+2× CHEAT
+INTERACT
+2× CHEAT
+INTERACT
+2× CHEAT
+INTERACT
+277.
+Shadow Palace
+TALK
+279.
+Final Challenge
+4× CHEAT
+TALK
+Sardonyx / Bastion / The Commons (1 quest)
+280.
+Light and Shadow
+EXPLORE
+EXPLORE
+TALK
+TALK
+TALK

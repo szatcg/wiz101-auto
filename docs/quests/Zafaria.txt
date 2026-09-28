@@ -1,0 +1,711 @@
+Baobab Crossroads (8 quests)
+1.
+Unicorn Way
+SIDE ×1
+EXPLORE
+TALK
+2.
+Natural Born Pyromancer
+TALK
+3.
+Missing Class
+SIDE ×1
+TALK
+4.
+Jambo Means Hello
+SIDE ×3
+TALK
+5.
+Finding Out Why
+INSTANCE
+SIDE ×1
+INTERACT
+D&C
+EXPLORE
+TALK
+6.
+Going to Market
+D&C
+TALK
+7.
+No Bother
+SIDE ×1
+TALK
+8.
+Restricted Access
+TALK
+Baobab Crown (9 quests)
+9.
+Meet the Elephants
+TALK
+10.
+I Intend to Have Other Plans
+TALK
+11.
+Lost Your Way
+EXPLORE
+BOSS
+TALK
+TALK
+12.
+Night Running
+TALK
+13.
+Lion Taming
+MOB
+TALK
+14.
+Wasn't He Just There?
+TALK
+15.
+Outlaws in the Market
+D&C
+D&C
+TALK
+16.
+Permission Granted
+TALK
+17.
+Into the Lion’s Jaws
+TALK
+Savannah (33 quests)
+18.
+In The Grass
+TALK
+19.
+Master of Disaster
+EXPLORE
+TALK
+20.
+Show of Strength
+MOB
+TALK
+21.
+All’s Well
+SIDE ×1
+INTERACT
+INTERACT
+TALK
+22.
+Open Cages
+INTERACT
+TALK
+TALK
+23.
+Wild Lion Chase
+TALK
+24.
+Dangerous Attraction
+MOB
+TALK
+25.
+Living with Lions
+D&C
+TALK
+26.
+Biltong
+D&C
+TALK
+27.
+Walk on the Wild Side
+TALK
+28.
+Plight of the Lions
+TALK
+29.
+Picket Fences
+INTERACT
+INTERACT
+TALK
+30.
+In the Cold Distance
+INTERACT
+TALK
+31.
+Fight to Survive
+MOB
+EXPLORE
+TALK
+32.
+Narley Dude
+TALK
+TALK
+33.
+Does Your Garden Grow
+INTERACT
+TALK
+34.
+My Work Is Done
+TALK
+35.
+Rock of Ages
+TALK
+36.
+Poisoned Well
+D&C
+TALK
+37.
+Meddling Wizards
+EXPLORE
+BOSS
+TALK
+38.
+Fruit of Life
+INTERACT
+INTERACT
+TALK
+39.
+Lioness Sleeps Tonight
+MOB
+EXPLORE
+BOSS
+TALK
+40.
+Heal Me
+TALK
+41.
+Book of Babalawo
+SIDE ×1
+TALK
+INTERACT
+TALK
+42.
+Local Treasures
+TALK
+TALK
+TALK
+TALK
+TALK
+43.
+Off the Boil
+INTERACT
+EXPLORE
+TALK
+44.
+Beat of a Different Drum
+INTERACT
+INTERACT
+TALK
+45.
+Drum Kit
+D&C
+TALK
+46.
+Drum Queen
+SIDE ×1
+TALK
+47.
+Top of the Rock
+EXPLORE
+48.
+Pride in the Name
+INSTANCE
+EXPLORE
+MOB
+CHEAT
+INTERACT
+47.
+Top of the Rock
+INTERACT
+TALK
+TALK
+49.
+Out of the Sun
+EXPLORE
+TALK
+Zamunda Outskirts (7 quests)
+50.
+Coming to Zamunda
+TALK
+TALK
+51.
+The Road to Zamunda
+TALK
+TALK
+52.
+Chaos Rains
+INTERACT
+INTERACT
+MOB
+TALK
+53.
+Tower Defense
+MOB
+INTERACT
+TALK
+54.
+Through the Zorse Gates
+TALK
+55.
+Back Into the Fray
+D&C
+INTERACT
+TALK
+56.
+Muster the Troops
+INTERACT
+EXPLORE
+MOB
+TALK
+Zamunda (22 quests)
+57.
+The King’s Shadow
+TALK
+58.
+Don’t Impress Me Much
+MOB
+MOB
+TALK
+59.
+Prisoner of Zamunda
+MOB
+INTERACT
+TALK
+60.
+Helter Skelter
+EXPLORE
+INTERACT
+INTERACT
+TALK
+61.
+Burning Tower
+MOB
+EXPLORE
+TALK
+62.
+Master of the River
+D&C
+TALK
+63.
+Water Beats Fire
+MOB
+INTERACT
+TALK
+64.
+Back on the Trail
+EXPLORE
+INTERACT
+TALK
+65.
+Snake in the Grass
+INTERACT
+TALK
+66.
+Shadow of a King
+EXPLORE
+TALK
+TALK
+67.
+Wild Zorses
+SIDE ×1
+MOB
+TALK
+68.
+The Snake’s Footprints
+TALK
+EXPLORE
+BOSS
+TALK
+TALK
+69.
+Tomb Soldiers
+SIDE ×1
+EXPLORE
+INTERACT
+TALK
+70.
+Into the Zebra Tomb
+SIDE ×1
+D&C
+INTERACT
+INTERACT
+EXPLORE
+71.
+Tomb of the Zebra Kings
+MOB
+EXPLORE
+MOB
+BOSS
+TALK
+INTERACT
+72.
+Lust for Life
+CHEAT
+INTERACT
+TALK
+73.
+Long Winded Warrior
+TALK
+74.
+Letter for the Queen
+TALK
+75.
+Savannah Run
+SIDE ×1
+TALK
+76.
+Lawn Ornament
+TALK
+INTERACT
+TALK
+77.
+Give It Away Now
+INTERACT
+TALK
+78.
+Still Broke
+TALK
+INTERACT
+EXPLORE
+TALK
+Stone Town (19 quests)
+79.
+Drum Run
+INTERACT
+TALK
+80.
+On the Docks
+TALK
+81.
+Sharp as a Tusk
+MOB
+TALK
+82.
+Missing Stripes
+TALK
+83.
+The Silver Queen
+TALK
+84.
+Elephant March
+TALK
+TALK
+85.
+Orders from the Queen
+TALK
+TALK
+86.
+My Pen
+D&C
+TALK
+87.
+All Access Pass
+TALK
+TALK
+88.
+Class Is Very Entertaining
+SIDE ×1
+TALK
+89.
+Quiet Riot
+TALK
+90.
+Calm Like a Bomb
+MOB
+TALK
+91.
+Bulls on Parade
+D&C
+TALK
+92.
+Know Your Enemy
+SIDE ×1
+TALK
+TALK
+TALK
+TALK
+93.
+Across the Spiral
+D&C
+TALK
+94.
+Welcome to the Jungle
+TALK
+95.
+River Rapids
+MOB
+TALK
+96.
+The Cat Who Could
+TALK
+97.
+Down the Crazy River
+MOB
+TALK
+Waterfront (15 quests)
+98.
+Fastest Hunk of Junk
+EXPLORE
+TALK
+99.
+Trail of the Trickster
+MOB
+TALK
+100.
+Under the Big Tent
+EXPLORE
+TALK
+CHEAT
+TALK
+TALK
+101.
+Barge Right In
+EXPLORE
+MOB
+INTERACT
+TALK
+102.
+Down By The River
+SIDE ×1
+INTERACT
+TALK
+103.
+Morning Report
+TALK
+TALK
+104.
+Arrest That Man
+EXPLORE
+105.
+Catching Shadows
+INTERACT
+TALK
+106.
+Mission Impossible
+D&C
+TALK
+107.
+Do I Look Fat In This?
+SIDE ×1
+TALK
+INTERACT
+EXPLORE
+108.
+The Black Palace
+INSTANCE
+EXPLORE
+BOSS
+EXPLORE
+ELITE
+INTERACT
+INTERACT
+INTERACT
+INTERACT
+EXPLORE
+CHEAT
+109.
+Do I Look Fat In This?
+SIDE ×1
+TALK
+110.
+Let Him Free
+INTERACT
+TALK
+111.
+Hannibal’s Queen
+SIDE ×1
+TALK
+112.
+You Can Jive
+TALK
+Drum Jungle (19 quests)
+113.
+Dancing Queen
+EXPLORE
+TALK
+114.
+Lost in the Jungle
+EXPLORE
+TALK
+115.
+Smoke Signals
+MOB
+TALK
+116.
+Escape From the Apes
+MOB
+TALK
+TALK
+117.
+Tragedy of the Apes
+EXPLORE
+TALK
+118.
+Fall From Grace
+D&C
+TALK
+119.
+Down in the Hole
+EXPLORE
+TALK
+120.
+For My Next Trick
+SIDE ×1
+D&C
+TALK
+121.
+Making a Mask
+D&C
+INTERACT
+TALK
+122.
+The Witch Doctor
+EXPLORE
+TALK
+123.
+Shrimp and Algae!
+MOB
+TALK
+124.
+Caged Follies
+4× INTERACT
+TALK
+125.
+What Is This Burning?
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+TALK
+126.
+Ship of Tears
+EXPLORE
+BOSS
+TALK
+INTERACT
+TALK
+127.
+Kingdom of the Blind
+TALK
+128.
+Shango’s Swords
+EXPLORE
+BOSS
+TALK
+EXPLORE
+BOSS
+TALK
+129.
+Cutting Through the Mist
+EXPLORE
+BOSS
+TALK
+130.
+Spider Bridge
+INTERACT
+D&C
+TALK
+TALK
+131.
+Knockin on Kallah’s Door
+EXPLORE
+CHEAT
+TALK
+Elephant Graveyard (16 quests)
+132.
+I Can See Clearly Now
+INTERACT
+TALK
+133.
+Drum House
+INTERACT
+MOB
+COLLECT
+TALK
+134.
+Drum Circle
+INTERACT
+INTERACT
+TALK
+135.
+Pure Water
+D&C
+COLLECT
+TALK
+136.
+Pool Cleaning
+2× INTERACT
+2× EXPLORE
+TALK
+137.
+Drum Beat
+COLLECT
+INTERACT
+INTERACT
+TALK
+138.
+Opening Beat
+INTERACT
+TALK
+139.
+Tomb Raiders
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+TALK
+140.
+Tomb Sweet Tomb
+INTERACT
+141.
+You Think You Can Drum
+INSTANCE
+TALK
+PUZZLE
+TALK
+142.
+Spin Me Right Round
+INSTANCE
+MOB
+TALK
+INTERACT
+INTERACT
+INTERACT
+INTERACT
+EXPLORE
+MOB
+TALK
+143.
+When Elephants Cry
+INSTANCE
+TALK
+TALK
+TALK
+144.
+Formerly Known As
+INSTANCE
+TALK
+140.
+Tomb Sweet Tomb
+TALK
+145.
+Tree of Woe
+3× TALK
+146.
+Heart of Darkness
+INTERACT
+TALK
+Mirror Lake (3 quests)
+147.
+Wizard in the Mirror
+INSTANCE
+EXPLORE
+TALK
+BOSS
+EXPLORE
+TALK
+4× CHEAT
+EXPLORE
+4× BOSS
+EXPLORE
+4× BOSS
+148.
+Chasing Shadows
+TALK
+149.
+Through Glass, Darkly
+TALK

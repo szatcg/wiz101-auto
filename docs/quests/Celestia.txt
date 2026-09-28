@@ -1,0 +1,538 @@
+Wizard City (2 quests)
+1.
+Magic: The Archmastering
+EXPLORE
+TALK
+TUTORIAL
+TALK
+2.
+Balestrom's Burden
+TALK
+Regent's Square (2 quests)
+3.
+Whodda Plunkett?
+EXPLORE
+EXPLORE
+MOB
+EXPLORE
+TALK
+4.
+The Dark Has Risen
+EXPLORE
+MOB
+TALK
+TALK
+TALK
+Selenopolis (1 quest)
+5.
+A Learn of the Wheel
+SIDE ×10
+EXPLORE
+EXPLORE
+TUTORIAL
+TALK
+TALK
+Survey Camp (8 quests)
+6.
+Door to the Stars
+SIDE ×5
+TALK
+EXPLORE
+TALK
+7.
+Deeper and Deeper
+TALK
+8.
+Survivors
+4× TALK
+9.
+Taking Notes
+INTERACT
+TALK
+10.
+Fixing a Hole
+SIDE ×1
+D&C
+TALK
+COLLECT
+TALK
+11.
+Off the Map
+SIDE ×1
+COLLECT
+TALK
+D&C
+TALK
+EXPLORE
+BOSS
+TALK
+12.
+Rub-A-Dub
+INTERACT
+TALK
+13.
+Breathing Room
+SIDE ×1
+INTERACT
+TALK
+The Grotto (8 quests)
+14.
+Whole Lotta Grotto
+TALK
+15.
+Crustacean Nation
+D&C
+TALK
+16.
+Coral of the Story
+COLLECT
+TALK
+17.
+Shocking News
+INTERACT
+MOB
+INTERACT
+TALK
+18.
+Pack Crabs
+D&C
+EXPLORE
+TALK
+19.
+The Starfish Chamber
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+20.
+My Dinner with Algae
+D&C
+INTERACT
+BOSS
+INTERACT
+TALK
+21.
+Johnny-on-the-Spot
+TALK
+INTERACT
+TALK
+District of the Stars (14 quests)
+22.
+Just Popping In
+TALK
+23.
+Explorer101
+SIDE ×1
+EXPLORE
+TALK
+D&C
+TALK
+24.
+Star Cores
+INTERACT
+TALK
+25.
+Forging Ahead
+INTERACT
+TALK
+26.
+Reference Materials
+TALK
+COLLECT
+TALK
+27.
+Putting Pieces Together
+SIDE ×1
+EXPLORE
+EXPLORE
+TALK
+28.
+Tide and Tile
+D&C
+EXPLORE
+EXPLORE
+TALK
+29.
+Turning Tiles
+INTERACT
+TALK
+30.
+Archivist, Revisited
+SIDE ×1
+TALK
+31.
+Con Job
+SIDE ×1
+4× INTERACT
+TALK
+32.
+Teeth of the Shark
+INTERACT
+TALK
+EXPLORE
+BOSS
+TALK
+33.
+Into the Stellarium
+SIDE ×1
+INTERACT
+34.
+A Star is Born
+INSTANCE
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+BOSS
+33.
+Into the Stellarium
+SIDE ×1
+INTERACT
+TALK
+The Floating Land (13 quests)
+35.
+On the Waterfront
+SIDE ×1
+TALK
+36.
+Spirit of the Sea
+MOB
+TALK
+37.
+A Stormy Offering
+COLLECT
+INTERACT
+TALK
+38.
+Claw of the Jungle
+2× BOSS
+TALK
+39.
+Distress Call
+SIDE ×1
+TALK
+40.
+Gahlwok This Way
+EXPLORE
+BOSS
+TALK
+41.
+Celestian Idol
+COLLECT
+TALK
+42.
+Almost Friends
+SIDE ×2
+MOB
+TALK
+EXPLORE
+BOSS
+TALK
+43.
+Crash of the Sky-Fish
+TALK
+TALK
+44.
+As the Water Falls
+D&C
+TALK
+45.
+Barking up the Tree
+TALK
+TALK
+46.
+Let's Go Bowling
+SIDE ×1
+EXPLORE
+TALK
+47.
+Cutting Crew
+COLLECT
+TALK
+INTERACT
+TALK
+Stormriven (10 quests)
+48.
+To Stormriven!
+TALK
+49.
+It's the Plumber
+INTERACT
+INTERACT
+TALK
+50.
+Ghosts of Celestia
+D&C
+INTERACT
+MOB
+INTERACT
+TALK
+51.
+The Moon Below
+INTERACT
+TALK
+52.
+Celestian Leftovers
+SIDE ×2
+TALK
+TALK
+53.
+Stars and Shadow
+INTERACT
+TALK
+D&C
+TALK
+54.
+Inevitable Betrayal
+SIDE ×2
+INTERACT
+BOSS
+TALK
+55.
+A Sunny Disposition
+TALK
+56.
+Storm Shards
+SIDE ×1
+D&C
+D&C
+INTERACT
+TALK
+57.
+Kraken Up
+INTERACT
+MOB
+MOB
+BOSS
+TALK
+District of the Stars (6 quests)
+58.
+An Old Sea Chantry
+TALK
+59.
+In For Repairs
+3× INTERACT
+TALK
+60.
+Lunarium Tunes
+SIDE ×1
+INTERACT
+TALK
+61.
+Dark Side of the Moon
+INSTANCE
+MOB
+INTERACT
+TALK
+3× MOB
+INTERACT
+62.
+Pylon Raiders
+INSTANCE
+INTERACT
+COLLECT
+MOB
+BOSS
+EXPLORE
+63.
+Destination: Moon
+INTERACT
+INTERACT
+TALK
+Science Center (14 quests)
+64.
+Scientific Method
+TALK
+65.
+Steamed Up
+MOB
+TALK
+66.
+Spare Parts
+INTERACT
+D&C
+TALK
+67.
+Lightning in a Bottle
+SIDE ×1
+COLLECT
+COLLECT
+TALK
+68.
+Follow the Leader
+TALK
+69.
+Steam-Bot Attack
+MOB
+MOB
+TALK
+70.
+Galvanic Company
+INTERACT
+INTERACT
+TALK
+71.
+Tower of Power
+4× INTERACT
+TALK
+72.
+Cogitator Investigator
+D&C
+EXPLORE
+TALK
+73.
+Powering Up
+D&C
+INTERACT
+TALK
+74.
+Parts Is Parts
+INTERACT
+TALK
+75.
+Cracking the Books
+EXPLORE
+MOB
+INTERACT
+TALK
+76.
+Crystal Fight
+INTERACT
+D&C
+INTERACT
+INTERACT
+D&C
+INTERACT
+MOB
+INTERACT
+EXPLORE
+BOSS
+TALK
+77.
+Pieces of the Sun
+INTERACT
+TALK
+Crustacean Empire (17 quests)
+78.
+To the Solarium!
+EXPLORE
+TALK
+79.
+Something's Fishy
+MOB
+MOB
+TALK
+80.
+Forewarned Is…
+INTERACT
+TALK
+81.
+Ring of Authority
+D&C
+TALK
+82.
+Fire in the Sea
+EXPLORE
+BOSS
+TALK
+83.
+Plunkett, I Presume?
+3× TALK
+84.
+Breaking the Mold
+INTERACT
+TALK
+85.
+Stir of Echoes
+D&C
+TALK
+86.
+Armed to the Gills
+SIDE ×1
+EXPLORE
+2× BOSS
+TALK
+87.
+The Back Door
+SIDE ×1
+TALK
+MOB
+MOB
+TALK
+88.
+Shot in the Dark
+INTERACT
+TALK
+89.
+X Marks the Spot
+TALK
+D&C
+TALK
+90.
+Finding the Way
+4× EXPLORE
+BOSS
+TALK
+91.
+Calypso Queen
+EXPLORE
+BOSS
+TALK
+92.
+Treasure This
+EXPLORE
+INTERACT
+TALK
+93.
+Let's Mako Deal
+EXPLORE
+BOSS
+TALK
+94.
+The Final Frontier
+SIDE ×1
+INTERACT
+TALK
+The Chancel (5 quests)
+95.
+The Sun of All Fears
+INSTANCE
+SIDE ×2
+EXPLORE
+96.
+Tears of the Sun
+INSTANCE
+EXPLORE
+D&C
+97.
+The Sun Also Rises
+INSTANCE
+EXPLORE
+INTERACT
+MOB
+98.
+The Big Guy
+INSTANCE
+3× BOSS
+3× INTERACT
+BOSS
+99.
+The Sun of All Fears
+SIDE ×2
+INTERACT
+TALK
+Sanctum of the Sun (2 quests)
+100.
+Trial of the Spheres
+INSTANCE
+3× PUZZLE
+CHEAT
+4× MOB
+4× INTERACT
+CHEAT
+PUZZLE
+CHEAT
+101.
+Through This Door…
+TALK
+TALK
