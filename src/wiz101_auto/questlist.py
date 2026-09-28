@@ -112,6 +112,8 @@ WORLDS = (
     "Avalon", "Azteca", "Khrysalis", "Polaris", "Mirage", "Empyrea", "Karamelle", "Lemuria",
     "Novus", "Wallaru", "Selenopolis",
 )
+# Optional side worlds, by the arc they belong to.
+SIDE_WORLDS = {"Grizzleheim": "Arc 1", "Wintertusk": "Arc 1", "Wysteria": "Arc 1", "Catacombs": "Arc 3"}
 WORLD_LISTS = Path("docs") / "quests"  # <World>.txt, same format as QuestList.txt
 # Zone ids start with the world's internal name ("WizardCity/WC_Hub").
 _ZONE_WORLDS = {"wizardcity": "Wizard City", "dragonspire": "Dragonspyre"}
@@ -122,7 +124,14 @@ def world_of_zone(zone: str) -> str:
     head = norm((zone or "").split("/", 1)[0])
     if head in _ZONE_WORLDS:
         return _ZONE_WORLDS[head]
-    return next((w for w in WORLDS if norm(w) == head), "")
+    return next((w for w in (*WORLDS, *SIDE_WORLDS) if norm(w) == head), "")
+
+
+def _same_quest(a: str, b: str) -> bool:
+    """Same quest under one number, allowing a typo ("King's Fourth"/"Forth")."""
+    from difflib import SequenceMatcher
+
+    return norm(a) == norm(b) or SequenceMatcher(None, norm(a), norm(b)).ratio() > 0.85
 
 
 def tidy_world_list(listed: list[ListedQuest]) -> list[ListedQuest]:
@@ -133,7 +142,7 @@ def tidy_world_list(listed: list[ListedQuest]) -> list[ListedQuest]:
     by_index: dict[int, ListedQuest] = {}
     for q in listed:
         area = q.area.replace("’", "'")
-        if q.index in by_index and norm(by_index[q.index].name) == norm(q.name):
+        if q.index in by_index and _same_quest(by_index[q.index].name, q.name):
             by_index[q.index].tags.extend(q.tags)
             continue
         entry = ListedQuest(q.index, q.name, area, list(q.tags))

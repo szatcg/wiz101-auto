@@ -1,0 +1,339 @@
+Northguard (3 quests)
+1.
+Bear Market
+SIDE ×1
+4× TALK
+2.
+Trade Voyage
+SIDE ×1
+4× TALK
+3.
+Grizzleheim
+SIDE ×1
+EXPLORE
+TALK
+Savarstaad Pass (16 quests)
+4.
+I'm with the Band
+SIDE ×3
+TALK
+5.
+Face Your Fate
+SIDE ×1
+MOB
+TALK
+6.
+Spiritual Father
+TALK
+BOSS
+2× TALK
+7.
+A Lesson in Manners
+MOB
+TALK
+8.
+Bear Behind Bars
+D&C
+EXPLORE
+BOSS
+2× TALK
+9.
+My Brother's Enemy
+4× TALK
+10.
+Making the Blade
+TALK
+11.
+Hammer and Tongs
+BOSS
+TALK
+12.
+Metal Health
+4× COLLECT
+D&C
+TALK
+13.
+The Spider Queen
+EXPLORE
+BOSS
+TALK
+14.
+Thrice-Blessed Blade
+EXPLORE
+EXPLORE
+BOSS
+EXPLORE
+TALK
+15.
+The Sword is Forged
+TALK
+16.
+Watch Your Back
+2× MOB
+TALK
+17.
+The Gates of Draugarth
+EXPLORE
+TALK
+BOSS
+TALK
+18.
+Fate Awaits
+BOSS
+TALK
+19.
+Immigrant Song
+SIDE ×1
+TALK
+Vigrid Roughland (15 quests)
+20.
+Lending a Paw
+SIDE ×1
+TALK
+21.
+Hunter-Gatherer
+D&C
+6× COLLECT
+TALK
+22.
+Bears in the Woods
+4× TALK
+23.
+Wolf Scouts
+MOB
+TALK
+24.
+Grimnir and Bear It
+TALK
+TALK
+25.
+That Old Ice Magic
+TALK
+26.
+Nine is Enough
+TALK
+TALK
+27.
+Grendel's List
+INTERACT
+D&C
+BOSS
+TALK
+28.
+The Eye of Truth
+INSTANCE
+3× MOB
+BOSS
+4× INTERACT
+TALK
+29.
+Finding Ivar
+TALK
+30.
+Holm Sweet Holm
+SIDE ×2
+BOSS
+TALK
+TALK
+31.
+The Traitor Within
+INSTANCE
+4× TALK
+BOSS
+INTERACT
+TALK
+32.
+Acting Boarish
+INSTANCE
+3× TALK
+BOSS
+TALK
+33.
+The Eye Has It
+INSTANCE
+3× TALK
+3× INTERACT
+BOSS
+TALK
+TALK
+BOSS
+EXPLORE
+BOSS
+30.
+Holm Sweet Holm
+SIDE ×2
+TALK
+TALK
+TALK
+Mirkholm Keep (18 quests)
+34.
+Full Grizzle Jacket
+TALK
+35.
+One in the Snout
+SIDE ×1
+MOB
+TALK
+36.
+Throwing Stones
+D&C
+INTERACT
+TALK
+37.
+Wolves at the Gate
+MOB
+EXPLORE
+TALK
+38.
+A Wolf Among Bears
+TALK
+39.
+The Bear Truth
+TALK
+40.
+Healing Helping
+D&C
+INTERACT
+TALK
+41.
+Walking Wounded
+3× INTERACT
+TALK
+42.
+Leaders of the Pack
+2× BOSS
+TALK
+43.
+Where Wolves?
+3× EXPLORE
+TALK
+44.
+Clean Them Out
+BOSS
+INTERACT
+TALK
+45.
+Grendel with Care
+TALK
+46.
+Good Eats
+3× COLLECT
+MOB
+TALK
+47.
+From Dusk the Dawn
+BOSS
+TALK
+48.
+On Second Thought…
+BOSS
+2× TALK
+49.
+All is Revealed
+SIDE ×1
+INTERACT
+INTERACT
+MOB
+INTERACT
+MOB
+INTERACT
+EXPLORE
+BOSS
+2× TALK
+50.
+The King and I
+TALK
+51.
+The Bigger They Are
+3× BOSS
+TALK
+Ravenscar (17 quests)
+52.
+Dark Wings
+TALK
+53.
+Blackbird in a Cage
+EXPLORE
+MOB
+TALK
+54.
+Bustin' Loose
+BOSS
+2× TALK
+55.
+A Wing and a Prayer
+D&C
+TALK
+56.
+No Substitutions
+3× INTERACT
+TALK
+57.
+Cauldron of Plenty
+INTERACT
+TALK
+58.
+The Tower of Lore
+EXPLORE
+BOSS
+2× TALK
+59.
+Talons of the Coven
+D&C
+TALK
+60.
+Chip Off the Old Block
+INTERACT
+TALK
+61.
+Taking Names
+BOSS
+INTERACT
+TALK
+62.
+The Unusual Suspects
+BOSS
+INTERACT
+BOSS
+INTERACT
+TALK
+63.
+Cups and Hearts
+MOB
+INTERACT
+BOSS
+INTERACT
+TALK
+64.
+Time on Their Side
+EXPLORE
+TALK
+65.
+The Long Way
+EXPLORE
+TALK
+66.
+Dusty Roads
+D&C
+TALK
+INTERACT
+TALK
+67.
+A Fistful of Feathers
+D&C
+D&C
+TALK
+INTERACT
+TALK
+68.
+Blood Brother
+EXPLORE
+BOSS
+INTERACT
+TALK
+INTERACT
+SOLO:
+BOSS
+EXPLORE
+4× BOSS
+TALK

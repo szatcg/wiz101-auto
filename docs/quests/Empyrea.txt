@@ -1,0 +1,1073 @@
+Arcanum (2 quests)
+1.
+Baba Boohooie
+TALK
+TALK
+EXPLORE
+TALK
+TALK
+2.
+Sparck's Ark
+EXPLORE
+TALK
+4× EXPLORE
+TALK
+Walruskberg (1 quest)
+3.
+Captain No Captain
+EXPLORE
+BOSS
+TALK
+Azteca / Zocalo (1 quest)
+4.
+Swine of the Ancient Mariner
+EXPLORE
+TALK
+EXPLORE
+MOB
+INTERACT
+TALK
+Arcanum (4 quests)
+5.
+Unstuck Pig
+EXPLORE
+TALK
+6.
+Shadow Tricks
+TALK
+EXPLORE
+SOLO:
+CHEAT
+TALK
+7.
+Almost Time to Go
+TALK
+8.
+Go Time
+EXPLORE
+INTERACT
+TALK
+Aeriel Shores / Aeriel Jungle (21 quests)
+9.
+To Boldly Crash…
+SIDE ×2
+TALK
+TALK
+EXPLORE
+EXPLORE
+TALK
+10.
+Spell-Castaway
+SIDE ×2
+4× TALK
+11.
+Crusher? We Barely Know Her!
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+12.
+May the Beastman Win
+SIDE ×3
+EXPLORE
+TALK
+D&C
+5× COLLECT
+INTERACT
+TALK
+13.
+The Raiders Raided
+SIDE ×1
+D&C
+14.
+Raider Nation
+INSTANCE
+EXPLORE
+ELITE
+ELITE
+BOSS
+TALK
+13.
+The Raiders Raided
+SIDE ×1
+INTERACT
+TALK
+15.
+Beasty Mountain High
+TALK
+EXPLORE
+EXPLORE
+MOB
+INTERACT
+MOB
+INTERACT
+16.
+Life's a Beast
+INSTANCE
+ELITE
+INTERACT
+ELITE
+INTERACT
+BOSS
+15.
+Beasty Mountain High
+INTERACT
+17.
+CaleBAM!
+INSTANCE
+ELITE
+ELITE
+CHEAT
+15.
+Beasty Mountain High
+TALK
+EXPLORE
+TALK
+18.
+Khan Found it!
+TALK
+EXPLORE
+TALK
+19.
+Whaeriel?
+EXPLORE
+TALK
+20.
+Eyes Are the Prize
+D&C
+TALK
+21.
+Web Head
+D&C
+TALK
+INTERACT
+TALK
+22.
+Incantation Investigation
+SOLO
+EXPLORE
+BOSS
+INTERACT
+TALK
+23.
+Khan Games
+EXPLORE
+TALK
+24.
+The Path of Khan
+INSTANCE
+MOB
+MOB
+CHEAT
+23.
+Khan Games
+EXPLORE
+TALK
+25.
+From A to Z
+TALK
+INTERACT
+INTERACT
+TALK
+INTERACT
+TALK
+Zanadu + Zanadu Sewers (22 quests)
+26.
+Zanadus and Don'ts
+EXPLORE
+TALK
+MOB
+TALK
+TALK
+TALK
+27.
+Out of His Comfort Zone
+SIDE ×1
+EXPLORE
+BOSS
+EXPLORE
+INTERACT
+TALK
+TALK
+28.
+Welcome to the Leisure Dome
+EXPLORE
+29.
+A Little Khan and Dance
+INSTANCE
+PUZZLE
+28.
+Welcome to the Leisure Dome
+TALK
+TALK
+30.
+King Khan
+TALK
+TALK
+31.
+Ruumbaya
+SIDE ×3
+EXPLORE
+MOB
+TALK
+EXPLORE
+SOLO:
+MOB
+INTERACT
+TALK
+32.
+Waiting in the Sky
+EXPLORE
+33.
+It Really is a Silly name
+INSTANCE
+ELITE
+ELITE
+CHEAT
+32.
+Waiting in the Sky
+TALK
+34.
+A Hazy Cosmic Jive
+INTERACT
+TALK
+EXPLORE
+ELITE
+INTERACT
+EXPLORE
+MOB
+TALK
+EXPLORE
+TALK
+35.
+Negative Reinforcement
+TALK
+EXPLORE
+36.
+Sparck in Charge
+INSTANCE
+EXPLORE
+BOSS
+ELITE
+INTERACT
+35.
+Negative Reinforcement
+EXPLORE
+INTERACT
+TALK
+37.
+Rebel Rebel
+TALK
+COLLECT
+D&C
+INTERACT
+TALK
+38.
+The Return of the King
+SIDE ×1
+EXPLORE
+39.
+Such a Krok
+INSTANCE
+ELITE
+ELITE
+CHEAT
+TALK
+38.
+The Return of the King
+SIDE ×1
+TALK
+40.
+To the Bat's Cave!
+EXPLORE
+D&C
+INTERACT
+D&C
+41.
+Meeting of the Minds
+INSTANCE
+ELITE
+INTERACT
+ELITE
+ELITE
+CHEAT
+40.
+To the Bat's Cave!
+TALK
+42.
+A Chain of Ice and Fire
+EXPLORE
+INTERACT
+TALK
+Outer Athanor (15 quests)
+43.
+Avalanche!
+MOB
+TALK
+44.
+Dread Shed
+EXPLORE
+45.
+Steam Wrath
+INSTANCE
+INTERACT
+BOSS
+4× INTERACT
+MOB
+INTERACT
+EXPLORE
+44.
+Dread Shed
+TALK
+46.
+Real Politics
+TALK
+EXPLORE
+47.
+Afraid of the Dark
+TALK
+ELITE
+46.
+Real Politics
+TALK
+TALK
+48.
+Lava Trouble
+TALK
+49.
+A Hot Mess
+INSTANCE
+MOB
+INTERACT
+BOSS
+TALK
+50.
+Tunnel Visions
+TALK
+TALK
+EXPLORE
+TALK
+51.
+Snowballistic!
+MOB
+TALK
+52.
+Cold Storage
+INSTANCE
+TALK
+ELITE
+BOSS
+INTERACT
+EXPLORE
+TALK
+53.
+Ice, Meet Fire
+SIDE ×3
+EXPLORE
+54.
+Tunnel of Terror
+INSTANCE
+MOB
+INTERACT
+CHEAT
+INTERACT
+MOB
+53.
+Ice, Meet Fire
+SIDE ×3
+TALK
+Inner Athanor (8 quests)
+55.
+Simmering Tensions
+INTERACT
+EXPLORE
+MOB
+TALK
+56.
+Inside Voices
+TALK
+TALK
+57.
+Too Hot to Handle
+ELITE
+TALK
+58.
+Peace Pipe
+EXPLORE
+EXPLORE
+INTERACT
+PUZZLE
+TALK
+59.
+Lava at First Sight
+EXPLORE
+60.
+Cistern, Turn, Turn
+BOSS
+INTERACT
+59.
+Lava at First Sight
+TALK
+61.
+Getting Warmer
+TALK
+Outer Athanor (3 quests)
+62.
+Cold War
+INTERACT
+TALK
+63.
+Bunker Busters
+EXPLORE
+MOB
+TALK
+TALK
+64.
+Re-Counciliation
+EXPLORE
+TALK
+EXPLORE
+TALK
+Inner Athanor (9 quests)
+65.
+Insulation Insurrection
+EXPLORE
+66.
+Great Scott, Bat Bots
+ELITE
+INTERACT
+INTERACT
+65.
+Insulation Insurrection
+TALK
+67.
+Full Steam Ahead
+TALK
+68.
+Athano-More
+EXPLORE
+69.
+Bat-tlefield
+EXPLORE
+INTERACT
+CHEAT
+68.
+Athano-More
+TALK
+INTERACT
+TALK
+EXPLORE
+TALK
+EXPLORE
+70.
+The Deadliest Catch
+TALK
+TALK
+5× COLLECT
+D&C
+TALK
+INTERACT
+TALK
+71.
+Eat or Be Eaten
+INTERACT
+TALK
+Sepidious (18 quests)
+72.
+Gut Bomb
+EXPLORE
+3× COLLECT
+3× COLLECT
+INTERACT
+3× COLLECT
+TALK
+INTERACT
+TALK
+73.
+Belly Aching
+D&C
+4× COLLECT
+TALK
+74.
+He's Good for the Heart
+EXPLORE
+75.
+Qhatastrophe
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+74.
+He's Good for the Heart
+INTERACT
+EXPLORE
+TALK
+76.
+The Eyes Have it
+EXPLORE
+77.
+Oaky-Doke
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+76.
+The Eyes Have it
+TALK
+TALK
+78.
+Disappearing Ink
+TALK
+79.
+The Other Side of the Coin
+INSTANCE
+ELITE
+CHEAT
+78.
+Disappearing Ink
+TALK
+INTERACT
+TALK
+TALK
+80.
+Eye-Eye, Captain
+EXPLORE
+81.
+Right in the Eye
+INSTANCE
+TALK
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+80.
+Eye-Eye, Captain
+INTERACT
+TALK
+82.
+Brain Drain
+EXPLORE
+83.
+Massive Headache
+INSTANCE
+ELITE
+CHEAT
+82.
+Brain Drain
+TALK
+INTERACT
+INTERACT
+INTERACT
+TALK
+84.
+Only Mostly Dead
+TALK
+EXPLORE
+INTERACT
+TALK
+INTERACT
+TALK
+The Arcanum / Ravenwood (4 quests)
+85.
+Of Note
+EXPLORE
+TALK
+TALK
+EXPLORE
+TALK
+86.
+With all the Dying Trees I Scream
+7× TALK
+TALK
+87.
+Finally Growing Into It
+SOLO
+EXPLORE
+EXPLORE
+MOB
+INTERACT
+TALK
+EXPLORE
+MOB
+INTERACT
+MOB
+BOSS
+INTERACT
+TALK
+88.
+Make Like a Tree and Go
+TALK
+Aeriel Shore & Jungle (4 quests)
+89.
+Empyre-B
+EXPLORE
+TALK
+90.
+Communications Officer
+TALK
+D&C
+TALK
+91.
+Go Full Circle
+EXPLORE
+INTERACT
+TALK
+92.
+Into the Jungle
+INSTANCE
+MOB
+MOB
+MOB
+TALK
+Samsara (4 quests)
+93.
+To Samsara
+INTERACT
+TALK
+94.
+Wheel in the Sky
+3× TALK
+95.
+Purify Me
+3× INTERACT
+TALK
+96.
+Further to Fly
+TALK
+INTERACT
+TALK
+Mandalla / Samsara Village (5 quests)
+97.
+The Quest Bears Fruit
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+TALK
+98.
+Fungus Humungous
+EXPLORE
+99.
+The Spore the Merrier
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+98.
+Fungus Humungous
+TALK
+TALK
+100.
+Pretty Darn Quickening
+EXPLORE
+TALK
+INTERACT
+TALK
+Nexus (Reverie) (6 quests)
+101.
+Into the Great Beyond
+INSTANCE
+EXPLORE
+EXPLORE
+CHEAT
+TALK
+102.
+Dream Deeper
+EXPLORE
+103.
+Dreams and Nightmares
+INSTANCE
+EXPLORE
+EXPLORE
+D&C
+CHEAT
+PUZZLE
+INTERACT
+CHEAT
+TALK
+EXPLORE
+102.
+Dream Deeper
+TALK
+104.
+'Til Wizard Voices Wake Us
+EXPLORE
+TALK
+105.
+Zana-Redo
+TALK
+Zanadu (5 quests)
+106.
+Pretty Standard Procedure
+3× TALK
+D&C
+D&C
+D&C
+TALK
+107.
+This Little Light Net of Mine…
+TALK
+EXPLORE
+108.
+At the End of His Hope
+INSTANCE
+ELITE
+CHEAT
+ELITE
+EXPLORE
+107.
+This Little Light Net of Mine…
+TALK
+TALK
+109.
+The Voyage Home
+EXPLORE
+INTERACT
+TALK
+Nimbus Citadel (9 quests)
+110.
+Sparck Seconds that Emotion
+EXPLORE
+EXPLORE
+TALK
+TALK
+EXPLORE
+111.
+A Light Fight
+INSTANCE
+MOB
+ELITE
+CHEAT
+110.
+Sparck Seconds that Emotion
+TALK
+TALK
+112.
+Raven is the Word
+SIDE ×1
+EXPLORE
+EXPLORE
+EXPLORE
+113.
+The Ultimate Price of Peace
+INSTANCE
+EXPLORE
+MOB
+ELITE
+CHEAT
+112.
+Raven is the Word
+SIDE ×1
+TALK
+114.
+More Like Scare-o Plains
+SIDE ×1
+TALK
+115.
+Welcome to the Grand Contusion
+ELITE
+114.
+More Like Scare-o Plains
+SIDE ×1
+EXPLORE
+TALK
+Port Aero / Plains / Velo City (13 quests)
+116.
+Stream On
+TALK
+TALK
+D&C
+TALK
+INTERACT
+TALK
+117.
+Dude Looks Like a Lion
+EXPLORE
+CHEAT
+TALK
+118.
+Take Me Down to Velo City
+SIDE ×2
+EXPLORE
+MOB
+TALK
+TALK
+119.
+Newts Hate Frogs
+SIDE ×1
+EXPLORE
+120.
+Lord Humongish
+INSTANCE
+MOB
+CHEAT
+119.
+Newts Hate Frogs
+SIDE ×1
+TALK
+121.
+A for Real Snipe Hunt
+TALK
+D&C
+TALK
+122.
+When the Whirlyburly's Done
+SIDE ×1
+TALK
+EXPLORE
+MOB
+TALK
+INTERACT
+TALK
+TALK
+INTERACT
+TALK
+123.
+Where the Blue-ffalo Roam…
+MOB
+EXPLORE
+124.
+...And the Skies Are Dark Cloudy All Day
+INSTANCE
+MOB
+INTERACT
+ELITE
+CHEAT
+123.
+Where the Blue-ffalo Roam…
+TALK
+125.
+The Truth Hurts
+EXPLORE
+EXPLORE
+ELITE
+CHEAT
+TALK
+126.
+Ain't No Citadel High Enough
+EXPLORE
+EXPLORE
+MOB
+ELITE
+ELITE
+TALK
+EXPLORE
+INTERACT
+Nimbus Citadel (9 quests)
+127.
+The Search for Sparck
+EXPLORE
+128.
+Fair-Weather Friends
+INSTANCE
+MOB
+ELITE
+BOSS
+127.
+The Search for Sparck
+TALK
+129.
+Vanitus Veritas
+EXPLORE
+130.
+The Only Thing to Fear…
+INSTANCE
+MOB
+MOB
+CHEAT
+129.
+Vanitus Veritas
+TALK
+131.
+The Celestial Loophole
+EXPLORE
+132.
+A Less than Admirable Admiral
+CHEAT
+131.
+The Celestial Loophole
+INTERACT
+TALK
+Samsara Village (7 quests)
+133.
+We got a Mandalla Down!
+SIDE ×5
+TALK
+134.
+The Shattered Wheel
+SIDE ×4
+INTERACT
+TALK
+135.
+Swarming Skies
+MOB
+TALK
+136.
+Maizes and Monsters
+MOB
+TALK
+137.
+The Shadow of Death
+EXPLORE
+ELITE
+TALK
+TALK
+138.
+Save Our Scrolls
+D&C
+COLLECT
+TALK
+TALK
+139.
+A Cry for Help
+SIDE ×1
+TALK
+TALK
+INTERACT
+TALK
+Chaos Jungle (10 quests)
+140.
+Search and Rescue
+COLLECT
+TALK
+EXPLORE
+MOB
+INTERACT
+TALK
+TALK
+141.
+Jungle Chaos!
+EXPLORE
+MOB
+EXPLORE
+142.
+Fallout
+INSTANCE
+ELITE
+INTERACT
+TALK
+MOB
+TALK
+EXPLORE
+141.
+Jungle Chaos!
+TALK
+143.
+Signal to Noise
+EXPLORE
+EXPLORE
+144.
+Rescue Mission
+INSTANCE
+MOB
+MOB
+143.
+Signal to Noise
+EXPLORE
+TALK
+TALK
+145.
+Rebuilding the Bat
+EXPLORE
+INTERACT
+TALK
+CHEAT
+TALK
+146.
+Gathering Shadows
+D&C
+TALK
+TALK
+147.
+Extra Life
+EXPLORE
+D&C
+INTERACT
+EXPLORE
+EXPLORE
+TALK
+EXPLORE
+INTERACT
+TALK
+Husk (16 quests)
+148.
+Timber Timbre
+EXPLORE
+149.
+Astral Project Your Voice!
+INSTANCE
+MOB
+ELITE
+CHEAT
+148.
+Timber Timbre
+EXPLORE
+INTERACT
+TALK
+150.
+Battling the Elementals
+EXPLORE
+151.
+In the Elemental Groove
+INSTANCE
+ELITE
+ELITE
+BOSS
+150.
+Battling the Elementals
+INTERACT
+TALK
+152.
+Spirit of the Grove
+EXPLORE
+153.
+Smells Like Tree Spirit
+INSTANCE
+EXPLORE
+2× CHEAT
+152.
+Spirit of the Grove
+EXPLORE
+INTERACT
+TALK
+154.
+Braving the Storm
+CHEAT
+EXPLORE
+155.
+Storm the Titan
+EXPLORE
+CHEAT
+154.
+Braving the Storm
+TALK
+EXPLORE
+156.
+The End of Days
+TALK
+INTERACT
+CHEAT
+INTERACT
+TALK
+154.
+Braving the Storm
+TALK
+157.
+Undo the Undoing
+EXPLORE
+TALK
+158.
+Nothing to Fear
+TALK
+TALK

@@ -1,0 +1,610 @@
+Arcanum (2 quests)
+1.
+Something Wicked That Way Goes
+TALK
+INTERACT
+EXPLORE
+TALK
+INTERACT
+EXPLORE
+SOLO:
+CHEAT
+TALK
+2.
+Executive Action
+TALK
+TALK
+Jade Palace (1 quest)
+3.
+The Palace of the Jaded
+TALK
+INTERACT
+TALK
+Catmandu (10 quests)
+4.
+Golden Horde Mode
+MOB
+TALK
+5.
+The Longest Yarn
+SIDE ×1
+EXPLORE
+6.
+Gold Meddlers
+INSTANCE
+MOB
+MOB
+CHEAT
+5.
+The Longest Yarn
+SIDE ×1
+TALK
+7.
+Illegally Smoldering Cats
+3× INTERACT
+TALK
+8.
+A Hello to Arms
+D&C
+TALK
+9.
+Felinious Monk
+EXPLORE
+EXPLORE
+BOSS
+TALK
+10.
+Scaredy Cats
+SIDE ×5
+EXPLORE
+11.
+Ba-Zheng-A
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+CHEAT
+10.
+Scaredy Cats
+SIDE ×5
+EXPLORE
+INTERACT
+INTERACT
+TALK
+TALK
+Conatus (1 quest)
+12.
+World Piece
+6× TALK
+Puerto Nuovo (13 quests)
+13.
+A Whole Nuovo World
+SIDE ×2
+EXPLORE
+MOB
+TALK
+14.
+Paradise Found
+3× EXPLORE
+TALK
+15.
+Strange Things Indeed
+EXPLORE
+INTERACT
+4× EXPLORE
+SOLO:
+CHEAT
+INTERACT
+TALK
+16.
+Hasta Banana
+4× TALK
+MOB
+TALK
+TALK
+17.
+Yours and Vines
+EXPLORE
+INTERACT
+INTERACT
+TALK
+18.
+Don't Drink the Water
+EXPLORE
+MOB
+EXPLORE
+19.
+Ponce Upon a Time
+INSTANCE
+CHEAT
+ELITE
+MOB
+18.
+Don't Drink the Water
+TALK
+20.
+Monkeys of Doom
+TALK
+MOB
+TALK
+COLLECT
+TALK
+21.
+Who Let the Monkeys Out?
+EXPLORE
+22.
+Brigands and Beasties
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+21.
+Who Let the Monkeys Out?
+INTERACT
+TALK
+23.
+Gone to the Dogs
+3× TALK
+New Vicorgia (9 quests)
+24.
+The Irk Store Called
+TALK
+D&C
+TALK
+TALK
+25.
+What Works on Irks
+EXPLORE
+MOB
+TALK
+TALK
+26.
+A Classic Tale
+4× EXPLORE
+TALK
+27.
+The Deepest Circle of Well
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+INTERACT
+TALK
+28.
+All's Well that Cleanses Well
+SIDE ×1
+3× TALK
+MOB
+INTERACT
+TALK
+29.
+Let Ship the Dogs of War
+TALK
+TALK
+EXPLORE
+ELITE
+TALK
+30.
+The Baddest Dog
+EXPLORE
+31.
+Small World After All
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+INTERACT
+ELITE
+30.
+The Baddest Dog
+EXPLORE
+EXPLORE
+MOB
+TALK
+Conatus (4 quests)
+32.
+No Bad Deed
+TALK
+EXPLORE
+33.
+Booth or Consequences
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+32.
+No Bad Deed
+EXPLORE
+TALK
+34.
+Heaven is a Place Disturbed
+SIDE ×1
+TALK
+EXPLORE
+TALK
+Stone of Heaven (11 quests)
+35.
+Throwing Stones
+ELITE
+EXPLORE
+TALK
+36.
+Step By Step
+EXPLORE
+37.
+Moo Bu and You Too
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+36.
+Step By Step
+TALK
+38.
+Cannon, Cann-Off
+MOB
+EXPLORE
+MOB
+TALK
+39.
+The Equine Climb
+EXPLORE
+40.
+Horse Tower
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+39.
+The Equine Climb
+TALK
+41.
+Tung-Lashing
+EXPLORE
+CHEAT
+EXPLORE
+INTERACT
+TALK
+42.
+The Many Faces of Dasein
+SIDE ×1
+EXPLORE
+TALK
+EXPLORE
+TALK
+43.
+Piece Conference
+SIDE ×2
+EXPLORE
+MOB
+EXPLORE
+EXPLORE
+SOLO:
+CHEAT
+EXPLORE
+TALK
+TALK
+La Ville Rose (15 quests)
+44.
+One Fish Shoe Fish
+MOB
+TALK
+45.
+Table Flip
+TALK
+EXPLORE
+46.
+Café Melee
+INSTANCE
+MOB
+EXPLORE
+MOB
+45.
+Table Flip
+TALK
+TALK
+47.
+Secrets of the Fish
+D&C
+TALK
+48.
+Pingouin Some, Lose Some
+EXPLORE
+EXPLORE
+TALK
+3× EXPLORE
+MOB
+TALK
+49.
+The Quakespiracy
+EXPLORE
+50.
+Revenge!
+INSTANCE
+MOB
+INTERACT
+MOB
+EXPLORE
+CHEAT
+EXPLORE
+CHEAT
+49.
+The Quakespiracy
+TALK
+TALK
+51.
+Where Is His Mind?
+D&C
+TALK
+EXPLORE
+INTERACT
+TALK
+52.
+Wish From La Rose
+TALK
+53.
+Thanks For All The Fish
+EXPLORE
+EXPLORE
+54.
+Dupli-Qhat
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+53.
+Thanks For All The Fish
+TALK
+55.
+Greed Isn't Good
+EXPLORE
+EXPLORE
+TALK
+Puerto Nuovo (11 quests)
+56.
+Monkey Business
+TALK
+EXPLORE
+MOB
+EXPLORE
+EXPLORE
+TALK
+EXPLORE
+INTERACT
+TALK
+57.
+Unicorn Economics
+TALK
+58.
+Something Smells Fishy
+TALK
+TALK
+EXPLORE
+MOB
+TALK
+59.
+Cheeky Monkeys
+EXPLORE
+TALK
+EXPLORE
+SOLO:
+MOB
+4× TALK
+60.
+A Hairy Problem
+TALK
+EXPLORE
+61.
+Mustache of the Titans
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+60.
+A Hairy Problem
+INTERACT
+TALK
+TALK
+62.
+Setting Things Straight
+EXPLORE
+EXPLORE
+ELITE
+TALK
+63.
+Thou Shalt Not Steel
+EXPLORE
+TALK
+EXPLORE
+MOB
+EXPLORE
+MOB
+INTERACT
+TALK
+64.
+On The Brink!
+EXPLORE
+EXPLORE
+CHEAT
+TALK
+65.
+A Challenging Challenge
+EXPLORE
+EXPLORE
+TALK
+Nucleus Gallery (4 quests)
+66.
+Duel Perspectives
+EXPLORE
+67.
+Wowzer
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+66.
+Duel Perspectives
+TALK
+TALK
+68.
+What Comes Next?
+EXPLORE
+TALK
+New Vicorgia (12 quests)
+69.
+Great Balls of Ire
+EXPLORE
+EXPLORE
+TALK
+MOB
+TALK
+70.
+Bad to the Marleybone
+EXPLORE
+EXPLORE
+ELITE
+EXPLORE
+EXPLORE
+TALK
+71.
+Our Flag Means Stress
+EXPLORE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+MOB
+EXPLORE
+TALK
+72.
+Naval Razing
+MOB
+TALK
+73.
+Mind Over Political Matters
+EXPLORE
+TALK
+EXPLORE
+EXPLORE
+74.
+The Truth of Cats and Dogs
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+73.
+Mind Over Political Matters
+EXPLORE
+INTERACT
+TALK
+75.
+Dasein Divided
+TALK
+76.
+Vive La Several Revolutions
+EXPLORE
+MOB
+TALK
+77.
+Raining Attacks and Dogs
+EXPLORE
+78.
+Once More Into The Breach
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+77.
+Raining Attacks and Dogs
+INTERACT
+TALK
+Puerto Nuovo (5 quests)
+79.
+The Aberrants Go Marching
+EXPLORE
+ELITE
+TALK
+80.
+Bad Manzana
+EXPLORE
+CHEAT
+TALK
+81.
+The Leyline and the Unicorn
+EXPLORE
+82.
+Battle of the Three Armies
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+81.
+The Leyline and the Unicorn
+EXPLORE
+EXPLORE
+TALK
+La Ville Rose (1 quest)
+83.
+Mad Maxine
+EXPLORE
+CHEAT
+TALK
+INTERACT
+TALK
+Nucleus Gallery (6 quests)
+84.
+Manticore Concept
+EXPLORE
+85.
+The Folly of Manticore
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+MOB
+84.
+Manticore Concept
+EXPLORE
+TALK
+86.
+Manticore Meltdown
+EXPLORE
+87.
+Manticore's Madness
+INSTANCE
+EXPLORE
+CHEAT
+86.
+Manticore Meltdown
+TALK
+TALK
+Conatus / The Arcanum (1 quest)
+88.
+This War of Mind
+3× EXPLORE
+TALK

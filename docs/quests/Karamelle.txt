@@ -1,0 +1,657 @@
+Arcanum / Bastion (6 quests)
+1.
+Better Recognize
+TALK
+EXPLORE
+TALK
+2.
+The Cabal Strikes Back
+EXPLORE
+TALK
+3.
+Prawn To King's Fourth
+EXPLORE
+4.
+How Shellfish
+INSTANCE
+MOB
+EXPLORE
+BOSS
+3.
+Prawn To King's Forth
+TALK
+TALK
+5.
+Mole Problems
+SOLO
+EXPLORE
+ELITE
+TALK
+TALK
+TALK
+Karamelle City (4 quests)
+6.
+Willkommen!
+SIDE ×2
+EXPLORE
+INTERACT
+7.
+GlockenSpoiled
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+6.
+Willkommen!
+SIDE ×2
+TALK
+8.
+Monsters Cabal
+TALK
+INTERACT
+EXPLORE
+Von Trap Estate / Rock Candy Mountains (2 quests)
+8.
+Monsters Cabal
+EXPLORE
+TALK
+EXPLORE
+TALK
+9.
+Candy Crushing
+SIDE ×1
+MOB
+EXPLORE
+MOB
+TALK
+TALK
+Karamelle City (1 quest)
+10.
+Nana Nana Nana Nana Pet Man!
+EXPLORE
+EXPLORE
+TALK
+PET
+INTERACT
+EXPLORE
+TALK
+Gumdrop Forest (4 quests)
+11.
+Sweets-N-Stuff
+EXPLORE
+TALK
+TALK
+D&C
+TALK
+12.
+A Job from the Gnome Ranger
+SIDE ×1
+EXPLORE
+13.
+The Gobbler Job
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+BOSS
+12.
+A Job from the Gnome Ranger
+SIDE ×1
+TALK
+Sweetzburg Gummy Plant (9 quests)
+14.
+Sweetzburg Right Ahead!
+EXPLORE
+TALK
+EXPLORE
+MOB
+TALK
+15.
+Fizzling, Right?
+SIDE ×2
+EXPLORE
+16.
+Pow-Pow-Power Room
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+15.
+Fizzling, Right?
+SIDE ×2
+INTERACT
+TALK
+17.
+The Witching Scour
+TALK
+TALK
+TALK
+EXPLORE
+ELITE
+TALK
+18.
+Quaky-Quaky
+EXPLORE
+19.
+Sweet Words
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+18.
+Quaky-Quaky
+EXPLORE
+TALK
+20.
+Holey Factory Floor!
+SIDE ×1
+EXPLORE
+PHOTOMANCY
+MOB
+PHOTOMANCY
+TALK
+TALK
+Gumdrop Forest (4 quests)
+21.
+The Face Eaters
+TALK
+COLLECT
+D&C
+TALK
+22.
+Time To Nibbleheim
+EXPLORE
+23.
+Candy Critter Party Bag
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+22.
+Time To Nibbleheim
+TALK
+Nibbleheim (3 quests)
+24.
+Nibbleheim Stinks!
+MOB
+TALK
+25.
+Trouble with Nibbles
+EXPLORE
+MOB
+TALK
+EXPLORE
+EXPLORE
+TALK
+26.
+A Foundry Most Foul
+EXPLORE
+EXPLORE
+MOB
+TALK
+Nibbleheim Mine (14 quests)
+27.
+Forever Mines
+TALK
+TALK
+TALK
+EXPLORE
+28.
+Shaking Hans
+INSTANCE
+MOB
+EXPLORE
+CHEAT
+EXPLORE
+MOB
+27.
+Forever Mines
+TALK
+29.
+There's a Hole In Your Mine
+EXPLORE
+30.
+Rigamatroll
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+MOB
+29.
+There's a Hole In Your Mine
+INTERACT
+TALK
+TALK
+31.
+Better Choco-Late Than Never
+TALK
+TALK
+TALK
+TALK
+32.
+Overtasking
+EXPLORE
+TALK
+EXPLORE
+D&C
+33.
+Cursed-Case Scenario
+PET
+EXPLORE
+ELITE
+TALK
+EXPLORE
+TALK
+34.
+The Proofing is in the Pudding
+EXPLORE
+35.
+The Truth is in the Treacle
+INSTANCE
+MOB
+PHOTOMANCY
+MOB
+34.
+The Proofing is in the Pudding
+PHOTOMANCY
+TALK
+36.
+Oh Me, Oh Mine
+TALK
+EXPLORE
+INTERACT
+TALK
+37.
+Under The Candy Coating
+TALK
+EXPLORE
+MOB
+TALK
+Gutenstadt (9 quests)
+38.
+Copy Waste-Ya!
+SIDE ×1
+EXPLORE
+39.
+Can Haz Qhats!
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+38.
+Copy Waste-Ya!
+SIDE ×1
+EXPLORE
+TALK
+40.
+Candy Barred
+EXPLORE
+EXPLORE
+EXPLORE
+MOB
+TALK
+41.
+High-Fructose Action
+SOLO
+EXPLORE
+EXPLORE
+ELITE
+TALK
+42.
+The Guten Escape
+TALK
+TALK
+TALK
+D&C
+TALK
+43.
+Mage Against The Machine
+TALK
+INTERACT
+EXPLORE
+44.
+Nana Goes Nanners
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+MOB
+43.
+Mage Against The Machine
+TALK
+Black Licorice Forest (6 quests)
+45.
+Forest Stumps
+TALK
+TALK
+EXPLORE
+EXPLORE
+D&C
+TALK
+46.
+Witch Way
+EXPLORE
+TALK
+TALK
+MOB
+INTERACT
+TALK
+47.
+Sugar Plum Rotten
+EXPLORE
+EXPLORE
+48.
+Gum Runner
+INSTANCE
+EXPLORE
+BOSS
+47.
+Sugar Plum Rotten
+INTERACT
+TALK
+49.
+The Power of Sour
+TALK
+D&C
+TALK
+Candy Corn Farm (11 quests)
+50.
+What's The Farm?
+INTERACT
+TALK
+EXPLORE
+EXPLORE
+51.
+Brudel Legend
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+2× BOSS
+50.
+What's The Farm?
+TALK
+52.
+Moose Spit
+SIDE ×2
+D&C
+INTERACT
+TALK
+53.
+Corporate Espiomancy
+TALK
+54.
+Secret Dross
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+EXPLORE
+PHOTOMANCY
+INTERACT
+ELITE
+53.
+Corporate Espiomancy
+TALK
+55.
+Words of Power
+EXPLORE
+PHOTOMANCY
+EXPLORE
+56.
+You Don't Know Gumberjack
+INSTANCE
+MOB
+PHOTOMANCY
+MOB
+EXPLORE
+ELITE
+55.
+Words of Power
+PHOTOMANCY
+TALK
+57.
+Something Wonky This Way Comes
+EXPLORE
+BOSS
+PHOTOMANCY
+TALK
+Black Licorice Forest (5 quests)
+58.
+The Witch in The Woods
+EXPLORE
+TALK
+TALK
+PET
+EXPLORE
+TALK
+59.
+Screams In the Witch-House
+EXPLORE
+60.
+Kangaroo's Court
+INSTANCE
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+CHEAT
+59.
+Screams In the Witch-House
+INTERACT
+EXPLORE
+TALK
+EXPLORE
+61.
+Down, Down To Gobbler Town
+EXPLORE
+MOB
+EXPLORE
+TALK
+Gobblerton (17 quests)
+62.
+Get To Gobblering
+MOB
+TALK
+63.
+You Are What You Gobble
+TALK
+TALK
+TALK
+TALK
+TALK
+64.
+King Sized Conundrum
+TALK
+EXPLORE
+SOLO:
+ELITE
+EXPLORE
+TALK
+65.
+Hit The Gym
+EXPLORE
+EXPLORE
+66.
+One Snotty Gym
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+65.
+Hit The Gym
+EXPLORE
+TALK
+67.
+Work Witch
+D&C
+TALK
+68.
+Mmmmm, Knowledge
+EXPLORE
+ELITE
+INTERACT
+TALK
+69.
+GobbSmacked!
+EXPLORE
+70.
+The King is in the Building
+INSTANCE
+EXPLORE
+CHEAT
+69.
+GobbSmacked!
+EXPLORE
+TALK
+71.
+Nothingburger Extra cheese
+INTERACT
+TALK
+TALK
+TALK
+TALK
+TALK
+72.
+The Good Kind of Crop Dusting
+INTERACT
+EXPLORE
+73.
+Please Pass the Jelly
+INSTANCE
+MOB
+MOB
+MOB
+72.
+The Good Kind of Crop Dusting
+INTERACT
+INTERACT
+TALK
+TALK
+74.
+Just What They Kneaded
+TALK
+TALK
+EXPLORE
+MOB
+INTERACT
+75.
+Gobb-U-Ler Mechanics
+TALK
+INTERACT
+INTERACT
+EXPLORE
+TALK
+TALK
+Karamelle City (18 quests)
+76.
+World of Spycraft
+TALK
+EXPLORE
+TALK
+77.
+What is Your Function?
+EXPLORE
+78.
+Sweetened With Splendorphins
+INSTANCE
+EXPLORE
+MOB
+INTERACT
+ELITE
+INTERACT
+BOSS
+77.
+What is Your Function?
+TALK
+79.
+Familiar Ground
+EXPLORE
+80.
+Ninja-Bread House
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+79.
+Familiar Ground
+EXPLORE
+81.
+Worm Notice
+EXPLORE
+82.
+Lair of The Spirit Eater
+INSTANCE
+INTERACT
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+81.
+Worm Notice
+TALK
+83.
+Supervillain Team-Up
+EXPLORE
+EXPLORE
+EXPLORE
+84.
+Into The Unknown
+EXPLORE
+85.
+We Have Met The Enemy
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+84.
+Into The Unknown
+TALK
+86.
+The Ultimate Mystery
+EXPLORE
+87.
+...And They is Us!
+INSTANCE
+EXPLORE
+CHEAT
+86.
+The Ultimate Mystery
+EXPLORE
+TALK
+EXPLORE
+TALK
+88.
+Everything And Nothing
+TALK
+TALK

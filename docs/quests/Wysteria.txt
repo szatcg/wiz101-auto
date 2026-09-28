@@ -1,0 +1,192 @@
+Wizard City (2 quests)
+1.
+To the Registrar
+TALK
+2.
+Exchange Student
+SIDE ×1
+TALK
+Pigswick Academy (6 quests)
+3.
+The Spiral Cup
+SIDE ×1
+EXPLORE
+TALK
+EXPLORE
+SOLO:
+CHEAT
+TALK
+TALK
+4.
+Bunking With the Enemy
+4× TALK
+INTERACT
+TALK
+5.
+Meet the New Boss
+TALK
+6.
+Teacher Teacher
+8× TALK
+7.
+Seek Out the Source
+SIDE ×1
+EXPLORE
+TALK
+8.
+O'Hare-y Situation
+TALK
+Pegasus Place (7 quests)
+9.
+Goblin Up
+SIDE ×1
+MOB
+TALK
+10.
+Hey Verne!
+TALK
+11.
+Of Unknown Origin
+COLLECT
+TALK
+12.
+Lapin It Up
+SIDE ×1
+TALK
+13.
+In-Flight Meals
+COLLECT
+TALK
+14.
+Hobble Gobble
+D&C
+TALK
+15.
+Peg-A-Portal
+EXPLORE
+TALK
+TALK
+Pigswick Academy (2 quests)
+16.
+Shopping List
+6× TALK
+17.
+Check This Out
+SIDE ×1
+4× TALK
+Pegasus Place (2 quests)
+18.
+Return To Verne
+SIDE ×1
+TALK
+19.
+Portal Remains
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+Pigswick Academy (13 quests)
+20.
+The Starting Bell
+SIDE ×1
+TALK
+21.
+One Good Tournament
+5× TALK
+22.
+It Was Just Here…
+EXPLORE
+TALK
+TALK
+23.
+Show Must Go On
+TALK
+EXPLORE
+SOLO:
+MOB
+TALK
+TALK
+24.
+The Principal's Office
+SIDE ×1
+TALK
+25.
+Housing Bureau
+INTERACT
+TALK
+26.
+All Signs Point To…
+TALK
+EXPLORE
+SOLO:
+MOB
+TALK
+TALK
+27.
+Get a Clue
+EXPLORE
+TALK
+28.
+Tree and Leaf
+3× TALK
+29.
+Second Chants
+SIDE ×1
+4× TALK
+30.
+For Want of a Wand
+SIDE ×2
+TALK
+TALK
+EXPLORE
+TALK
+TALK
+31.
+Let's Dance
+TALK
+EXPLORE
+SOLO:
+MOB
+TALK
+TALK
+32.
+Take Your Leave
+TALK
+Tanglewood Way (1 quest)
+33.
+Green Thumb
+EXPLORE
+D&C
+TALK
+Pigswick Academy (5 quests)
+34.
+Tree Top
+TALK
+TALK
+35.
+Step Into My Parlor
+TALK
+CHEAT
+TALK
+36.
+Bramble On
+SIDE ×2
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+37.
+Last Round
+EXPLORE
+TALK
+EXPLORE
+SOLO:
+CHEAT
+TALK
+TALK
+38.
+We Are the Champions
+SIDE ×1
+TALK

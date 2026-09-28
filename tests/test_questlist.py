@@ -67,3 +67,11 @@ def test_tidy_world_list_merges_repeated_quest_numbers():
     listed = tidy_world_list(parse_quest_list(text))
     assert [q.index for q in listed] == [38, 39]
     assert listed[0].tags == ["TALK", "BOSS"]
+
+
+def test_tidy_world_list_merges_a_repeat_with_a_typo():
+    from wiz101_auto.questlist import parse_quest_list, tidy_world_list
+
+    text = ("A (2 quests)\n3.\nPrawn To King's Fourth\nEXPLORE\n4.\nHow Shellfish\nMOB\n"
+            "3.\nPrawn To King's Forth\nTALK\n")
+    assert [q.index for q in tidy_world_list(parse_quest_list(text))] == [3, 4]

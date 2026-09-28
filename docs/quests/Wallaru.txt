@@ -1,0 +1,600 @@
+The Arcanum / Conatus (3 quests)
+1.
+Das Day Afternoon
+TALK
+INTERACT
+SOLO:
+ELITE
+TALK
+2.
+The Quest For Dirt!
+EXPLORE
+COLLECT
+TALK
+3.
+Walla-Me-And-You
+SIDE ×4
+TALK
+TALK
+EXPLORE
+TALK
+Hope Springs (7 quests)
+4.
+Gatekeepers Galore
+EXPLORE
+EXPLORE
+EXPLORE
+MOB
+EXPLORE
+TALK
+5.
+Woop Woop Workaround
+SIDE ×1
+TALK
+TALK
+6.
+Desperate Times, Desperate Dingoes
+EXPLORE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+TALK
+7.
+Another Day, Another Ambush
+EXPLORE
+EXPLORE
+MOB
+TALK
+8.
+The Only Way Out Is Under
+TALK
+EXPLORE
+9.
+A Tun of Tunnel Trouble
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+8.
+The Only Way Out Is Under
+EXPLORE
+TALK
+Kingsland (5 quests)
+10.
+Wrong Place, Wrong Shrine
+EXPLORE
+CHEAT
+TALK
+11.
+Deathly Dependents
+SIDE ×1
+D&C
+TALK
+12.
+The Outback Steps In
+EXPLORE
+13.
+Two Rivals, One Mine
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+12.
+The Outback Steps In
+EXPLORE
+TALK
+TALK
+Outback (8 quests)
+14.
+Out And Walkabout
+MOB
+TALK
+15.
+Stop And Goanna
+EXPLORE
+EXPLORE
+MOB
+TALK
+16.
+Ride Or Cry
+EXPLORE
+MOB
+TALK
+TALK
+17.
+What A Crock… Hunter
+D&C
+INTERACT
+TALK
+18.
+The Great Emu Warrior
+EXPLORE
+19.
+Little Big Man
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+18.
+The Great Emu Warrior
+TALK
+20.
+I Dream Of Meanie
+INTERACT
+SOLO:
+CHEAT
+TALK
+EXPLORE
+TALK
+Hope Springs (3 quests)
+21.
+Up in the Sky, It's a Bird!
+SIDE ×1
+3× EXPLORE
+22.
+Bank Run
+INSTANCE
+CHEAT
+EXPLORE
+MOB
+21.
+Up in the Sky, It's a Bird!
+SIDE ×1
+EXPLORE
+TALK
+TALK
+Outback (6 quests)
+23.
+There And Outback Again
+INTERACT
+EXPLORE
+MOB
+INTERACT
+3× EXPLORE
+ELITE
+TALK
+24.
+Hero Of The Trails
+EXPLORE
+EXPLORE
+25.
+Ridgy-Didge
+INSTANCE
+MOB
+INTERACT
+EXPLORE
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+EXPLORE
+CHEAT
+24.
+Hero Of The Trails
+EXPLORE
+EXPLORE
+TALK
+26.
+The Way Of The Wombat
+TALK
+MOB
+TALK
+27.
+Perchance To Scream
+INTERACT
+SOLO:
+CHEAT
+TALK
+Wobbegong Territory (1 quest)
+28.
+Wobbegong With The Wind
+EXPLORE
+MOB
+TALK
+EXPLORE
+TALK
+Collie Ranch (6 quests)
+29.
+Judicial Ranch
+EXPLORE
+MOB
+TALK
+30.
+Mortal Wombat!
+D&C
+TALK
+31.
+Good Golly, Ned Collie!
+EXPLORE
+32.
+Wild West Pasture
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+31.
+Good Golly, Ned Collie!
+TALK
+33.
+Talk Of The Town
+5× TALK
+Wobbegong Territory (7 quests)
+34.
+Drove Me Crazy
+EXPLORE
+MOB
+TALK
+35.
+Funyips With Bunyips
+EXPLORE
+TALK
+D&C
+COLLECT
+TALK
+36.
+Smoothie Operator
+EXPLORE
+37.
+What Dreams May Bun
+INSTANCE
+ELITE
+EXPLORE
+CHEAT
+36.
+Smoothie Operator
+COLLECT
+TALK
+38.
+Collie Collared
+EXPLORE
+CHEAT
+TALK
+39.
+Despairing Is Caring
+INTERACT
+SOLO:
+CHEAT
+TALK
+TALK
+Collie Ranch (11 quests)
+40.
+Judging Judges
+TALK
+TALK
+EXPLORE
+MOB
+COLLECT
+TALK
+41.
+Bombshell Report
+EXPLORE
+42.
+Dirty Judges
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+41.
+Bombshell Report
+TALK
+43.
+Next At Wombat
+D&C
+TALK
+44.
+Hems For All He's Worth
+EXPLORE
+45.
+War, What Is He Good For?
+INSTANCE
+EXPLORE
+EXPLORE
+ELITE
+44.
+Hems For All He's Worth
+EXPLORE
+TALK
+46.
+Red Ned Redemption
+INTERACT
+4× EXPLORE
+47.
+You Can Go Home Again
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+46.
+Red Ned Redemption
+EXPLORE
+TALK
+Wobbegong Territory (1 quest)
+48.
+The Little Prince
+SIDE ×1
+EXPLORE
+CHEAT
+EXPLORE
+TALK
+TALK
+Eucalyptus Forest (3 quests)
+49.
+Drop Bear Gorgeous
+EXPLORE
+MOB
+TALK
+50.
+Mighty Drover Kanga-Rangers
+EXPLORE
+TALK
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+TALK
+TALK
+51.
+Dreamwalking, Dreamtalking
+D&C
+EXPLORE
+TALK
+TALK
+Billabong Resort (7 quests)
+52.
+Thrills and Bills
+SIDE ×1
+TALK
+TALK
+ELITE
+TALK
+53.
+Not-So-Jolly Rozzer
+TALK
+TALK
+INTERACT
+INTERACT
+EXPLORE
+MOB
+TALK
+3× INTERACT
+EXPLORE
+ELITE
+TALK
+54.
+Paranoia Activity
+INTERACT
+SOLO:
+CHEAT
+TALK
+55.
+The Great Explo-Dition
+TALK
+EXPLORE
+56.
+Creatures From Billabong Lagoons
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+55.
+The Great Explo-Dition
+INTERACT
+TALK
+57.
+The Key To Locke
+TALK
+EXPLORE
+TALK
+Eucalyptus Forest (4 quests)
+58.
+Lake Of Ire
+EXPLORE
+59.
+Dreampunk
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+MOB
+EXPLORE
+MOB
+58.
+Lake Of Ire
+TALK
+60.
+Morp And Memories
+TALK
+EXPLORE
+CHEAT
+TALK
+EXPLORE
+TALK
+Billabong Resort (1 quest)
+61.
+Cane-Do Attitude
+EXPLORE
+CHEAT
+TALK
+TALK
+Wobbegong Territory (2 quests)
+62.
+The Woe Warrior
+EXPLORE
+EXPLORE
+ELITE
+TALK
+63.
+Furryosa Woe
+EXPLORE
+ELITE
+EXPLORE
+TALK
+TALK
+Eucalyptus Forest (1 quest)
+64.
+The Great Dreamscape
+INTERACT
+EXPLORE
+SOLO:
+CHEAT
+TALK
+TALK
+The Dreaming (13 quests)
+65.
+The Dream Master
+EXPLORE
+EXPLORE
+MOB
+TALK
+66.
+Nightmare On Memory Lane
+EXPLORE
+EXPLORE
+67.
+A New Nightmare
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+MOB
+66.
+Nightmare On Memory Lane
+TALK
+68.
+Veggie's Revenge
+EXPLORE
+EXPLORE
+ELITE
+TALK
+69.
+The Dream Child
+EXPLORE
+EXPLORE
+70.
+The Dream Warriors
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+69.
+The Dream Child
+TALK
+71.
+Freddie's Dread
+EXPLORE
+72.
+The Final Nightmare
+INSTANCE
+EXPLORE
+CHEAT
+71.
+Freddie's Dread
+EXPLORE
+TALK
+73.
+Dreams of Nothing
+INTERACT
+74.
+Yes, To Novus!
+EXPLORE
+TALK
+Conatus / La Ville Rose (1 quest)
+75.
+Novus, No More
+TALK
+EXPLORE
+EXPLORE
+MOB
+TALK
+EXPLORE
+TALK
+Telos / Wildlands (1 quest)
+76.
+Heroes Of Old
+EXPLORE
+ELITE
+EXPLORE
+EXPLORE
+Conatus / Doom Moon (9 quests)
+77.
+Bam, Zoom, To The Doom
+EXPLORE
+INTERACT
+EXPLORE
+78.
+The Man On The Moon Is The Engineer
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+77.
+Bam, Zoom, To The Doom
+TALK
+79.
+Moon Magic!
+EXPLORE
+80.
+Wailers On The Moon
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+79.
+Moon Magic!
+TALK
+81.
+Wizard Vs. Spiral
+EXPLORE
+EXPLORE
+82.
+Doom Moon 101
+INSTANCE
+EXPLORE
+4× CHEAT
+81.
+Wizard Vs. Spiral
+EXPLORE
+INTERACT
+EXPLORE
+TALK
+TALK
+TALK
+The Arcanum / Conatus (1 quest)
+83.
+Pax Arcana
+SIDE ×1
+EXPLORE
+EXPLORE
+TALK
+EXPLORE
+TALK
+TALK

@@ -1,0 +1,210 @@
+The Arcanum (1 quest)
+1.
+Arcanum101
+SIDE ×1
+EXPLORE
+TALK
+TALK
+EXPLORE
+Selenopolis – Krokotopia (1 quest)
+2.
+Dark Gripe Of The Moon
+TALK
+EXPLORE
+MOB
+TALK
+Garden of Khonsu (1 quest)
+3.
+Save Ceren & Istar
+EXPLORE
+TALK
+Vivarium (6 quests)
+4.
+Tick, Tick, Lune
+TALK
+MOB
+TALK
+5.
+Need For Seeds
+COLLECT
+INTERACT
+6.
+Come on Chameleons!
+D&C
+TALK
+COLLECT
+7.
+Tut-Tut, Now
+MOB
+TALK
+8.
+The Mean Tree
+CHEAT
+9.
+Life From Death
+D&C
+COLLECT
+INTERACT
+Garden of Khonsu (1 quest)
+10.
+Nightchant and the Moon
+SIDE ×1
+CHEAT
+TALK
+Tomb of the Forgotten (13 quests)
+11.
+Save Ozzy, Pork & Quartermane
+EXPLORE
+TALK
+12.
+Chamele-off!
+MOB
+TALK
+13.
+Are You My Mummy?
+BOSS
+INTERACT
+TALK
+14.
+The Ghost Eaters
+ELITE
+INTERACT
+TALK
+15.
+Prophet Motive
+ELITE
+TALK
+16.
+You and Mimas
+ELITE
+INTERACT
+TALK
+17.
+Stuck On Khonsu
+ELITE
+INTERACT
+TALK
+18.
+Light and Night Fight
+CHEAT
+TALK
+CHEAT
+TALK
+19.
+Friends Like These
+CHEAT
+INTERACT
+TALK
+20.
+Puzzles & Pathways
+MOB
+MOB
+INTERACT
+TALK
+21.
+Wherever Yous Are
+ELITE
+INTERACT
+TALK
+22.
+This Anubites
+MOB
+TALK
+23.
+Behold His Works and Despair
+SIDE ×2
+INTERACT
+CHEAT
+TALK
+Selenopolis (1 quest)
+24.
+Save Ivan & Dyvim
+TALK
+Marketplace of Ideas (1 quest)
+25.
+A Tale of Two Captives
+SIDE ×2
+INSTANCE:
+TALK
+MOB
+TALK
+MOB
+ELITE
+TALK
+Underground Market Place (1 quest)
+26.
+Tawarest in Peace
+SIDE ×1
+COLLECT
+MOB
+TALK
+INSTANCE:
+TALK
+MOB
+MOB
+INTERACT
+CHEAT
+TALK
+Grand Exposition (1 quest)
+27.
+Thothic Horror
+INTERACT
+MOB
+MOB
+COLLECT
+INSTANCE:
+INTERACT
+MOB
+INTERACT
+MOB
+INTERACT
+MOB
+CHEAT
+TALK
+Marketplace of Ideas (1 quest)
+28.
+Anubis, Anu-That
+COLLECT
+INSTANCE:
+MOB
+INTERACT
+MOB
+CHEAT
+TALK
+Grand Exposition (1 quest)
+29.
+Ra Is War
+EXPLORE
+MOB
+EXPLORE
+INSTANCE:
+MOB
+MOB
+MOB
+CHEAT
+TALK
+Marketplace of Ideas (1 quest)
+30.
+The Final Act
+SOLO:
+CHEAT
+CHEAT
+CHEAT
+CHEAT
+TALK
+TALK
+TALK
+Selenopolis (2 quests)
+31.
+Weremander By Night
+INSTANCE:
+EXPLORE
+CHEAT
+CHEAT
+CHEAT
+TALK
+32.
+From Moon to the Earth
+SIDE ×1
+CHEAT
+TALK

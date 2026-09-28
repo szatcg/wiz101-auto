@@ -1,0 +1,544 @@
+Wizard City (4 quests)
+1.
+Head of the Class
+SIDE ×1
+TALK
+2.
+Pomp and Circumstance
+INTERACT
+INTERACT
+TALK
+TALK
+3.
+Tree Talk
+TALK
+TALK
+4.
+Where Land Meets the Sky
+TALK
+Walruskberg (19 quests)
+5.
+Polaris Bound
+EXPLORE
+TALK
+6.
+Scene of the Crime
+SIDE ×2
+EXPLORE
+TALK
+EXPLORE
+BOSS
+TALK
+7.
+Red Rosa
+SIDE ×1
+TALK
+8.
+Down to the Harbor
+EXPLORE
+TALK
+9.
+Fishy Business
+SIDE ×1
+INTERACT
+MOB
+EXPLORE
+BOSS
+INTERACT
+TALK
+10.
+Poisson Party
+EXPLORE
+11.
+Sea Chicken
+INSTANCE
+TALK
+MOB
+BOSS
+INTERACT
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+INTERACT
+10.
+Poisson Party
+TALK
+12.
+Revolution Without a Leader
+TALK
+13.
+Private Dancer
+TALK
+14.
+Papers, Please
+EXPLORE
+MOB
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+15.
+Dance Revolution
+INTERACT
+EXPLORE
+INTERACT
+TALK
+INTERACT
+TALK
+TALK
+16.
+Storming the Basstille
+SIDE ×1
+EXPLORE
+17.
+The Basstille
+INSTANCE
+EXPLORE
+MOB
+TALK
+EXPLORE
+MOB
+EXPLORE
+BOSS
+EXPLORE
+CHEAT
+16.
+Storming the Basstille
+SIDE ×1
+TALK
+TALK
+18.
+The Flag Tower
+INSTANCE
+TALK
+MOB
+MOB
+MOB
+INTERACT
+TALK
+19.
+Vive la Penguinonia
+SIDE ×1
+EXPLORE
+20.
+The Imperial Palace
+INSTANCE
+MOB
+BOSS
+BOSS
+19.
+Vive la Penguinonia
+SIDE ×1
+EXPLORE
+TALK
+Forlorn Tayg (14 quests)
+21.
+Into the Bleaks
+SIDE ×1
+EXPLORE
+TALK
+22.
+Hazards of the Road
+SIDE ×2
+TALK
+23.
+Highway Bullies
+D&C
+TALK
+24.
+A Hand for a Handmaiden
+EXPLORE
+BOSS
+3× TALK
+25.
+Flapjack Dreams
+SIDE ×1
+D&C
+TALK
+TALK
+26.
+New Blago Bridge
+EXPLORE
+BOSS
+INTERACT
+TALK
+27.
+Snowbeard
+EXPLORE
+BOSS
+TALK
+28.
+Scorched Earth
+EXPLORE
+29.
+The Sunken Tower
+INSTANCE
+MOB
+CHEAT
+28.
+Scorched Earth
+TALK
+30.
+The Veiled Vale
+SIDE ×1
+EXPLORE
+TALK
+31.
+The Witch's Garden
+EXPLORE
+32.
+The Statue Garden
+INSTANCE
+MOB
+CHEAT
+31.
+The Witch's Garden
+TALK
+River of Frozen Tears (11 quests)
+33.
+The Witch's Daughter
+TALK
+34.
+River of Frozen Tears
+EXPLORE
+TALK
+35.
+Don't Tease the Yeti
+D&C
+TALK
+36.
+The Other Yeti
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+TALK
+37.
+Icefall
+EXPLORE
+INTERACT
+TALK
+38.
+Sunless Shrine
+EXPLORE
+D&C
+INTERACT
+INTERACT
+39.
+Trial of Courage
+INSTANCE
+MOB
+TALK
+40.
+Trial of Wisdom
+INSTANCE
+2× CHEAT
+TALK
+41.
+Trial of Valor
+INSTANCE
+BOSS
+TALK
+42.
+The Auroracle
+INSTANCE
+EXPLORE
+TALK
+TALK
+43.
+The Witch's Wisdom
+TALK
+TALK
+Urville Station (13 quests)
+44.
+Infiltrating Urville
+TALK
+45.
+The One Who Sees
+SIDE ×1
+EXPLORE
+TALK
+46.
+Nostradonimus
+MOB
+TALK
+47.
+A New Vision
+TALK
+48.
+Darling Clementine
+EXPLORE
+BOSS
+TALK
+49.
+Divide and Conquer
+TALK
+50.
+Master of Beasts
+EXPLORE
+51.
+The Kennels
+INSTANCE
+MOB
+INTERACT
+PUZZLE
+CHEAT
+50.
+Master of Beasts
+TALK
+52.
+The Commandant
+EXPLORE
+53.
+The Commandant's Quarters
+INSTANCE
+BOSS
+INTERACT
+BOSS
+52.
+The Commandant
+TALK
+54.
+Cage-Free
+TALK
+Frigid Maw (11 quests)
+55.
+Ivan's Charge
+EXPLORE
+MOB
+EXPLORE
+TALK
+56.
+Into the Maw
+EXPLORE
+TALK
+57.
+The Pebble Trough
+MOB
+INTERACT
+TALK
+58.
+Secrets of the Mine
+EXPLORE
+TALK
+59.
+Charm of the Mine
+EXPLORE
+60.
+Lair of the Pit Boss
+INSTANCE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+59.
+Charm of the Mine
+5× COLLECT
+TALK
+61.
+Borealis Majoris
+EXPLORE
+62.
+The Secret Dock
+EXPLORE
+CHEAT
+61.
+Borealis Majoris
+TALK
+63.
+Pebble and the Penguin
+TALK
+TALK
+The Arcanum (4 quests)
+64.
+Back to the Witch's House
+TALK
+65.
+The Arcanum
+EXPLORE
+TALK
+66.
+Polaris in Perspective
+TALK
+67.
+Arcanum Initiation
+EXPLORE
+4× INTERACT
+TALK
+Avalon (2 quests)
+68.
+Chasing a Shadow
+TALK
+69.
+Morganthe's Legacy
+EXPLORE
+BOSS
+TALK
+The Arcanum (4 quests)
+70.
+The Truth About Old Cob
+TALK
+71.
+The Myth Scholar
+TALK
+72.
+Spider's Spawn
+TALK
+73.
+Knowledge and Information
+TALK
+Zafaria (2 quests)
+74.
+Ancient Insights
+TALK
+75.
+Cave of Bad Seeds
+BOSS
+TALK
+TALK
+The Arcanum (2 quests)
+76.
+Rasputin the Rat
+TALK
+77.
+Gemstone Secrets
+TALK
+TALK
+Celestia (1 quest)
+78.
+The Desert Star
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+The Arcanum (1 quest)
+79.
+The Auroracle's Riddle
+TALK
+Polaris (1 quest)
+80.
+Sundering of Land and Sky
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+BOSS
+INTERACT
+EXPLORE
+BOSS
+INTERACT
+TALK
+The Arcanum (1 quest)
+81.
+Story of the Sky Anchor
+TALK
+Fornlorn Tayg (1 quest)
+82.
+Hunting a Rat
+TALK
+Walruskberg (2 quests)
+83.
+Back to Walruskberg
+TALK
+84.
+The Empress and the Rat
+TALK
+TALK
+Kataba Iceblock (12 quests)
+85.
+The Kataba Iceblock
+INTERACT
+TALK
+86.
+Yummy Sushi
+INTERACT
+TALK
+87.
+Operation Icebath
+EXPLORE
+88.
+Iceblock Infiltration
+INSTANCE
+TALK
+COLLECT
+TALK
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+MOB
+87.
+Operation Icebath
+TALK
+89.
+Rasputin's Surprises
+D&C
+TALK
+EXPLORE
+BOSS
+EXPLORE
+MOB
+EXPLORE
+TALK
+90.
+Rise of the Titan
+EXPLORE
+91.
+The Titan Forge
+INSTANCE
+2× BOSS
+EXPLORE
+CHEAT
+90.
+Rise of the Titan
+TALK
+TALK
+92.
+Chasing the Rat
+TALK
+EXPLORE
+93.
+Voyage of the Kalypso
+INSTANCE
+4× INTERACT
+EXPLORE
+BOSS
+TALK
+INTERACT
+92.
+Chasing the Rat
+TALK
+Borealis Peaks (7 quests)
+94.
+Climbing the Peaks
+EXPLORE
+95.
+The Jeweled Slopes
+INSTANCE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+94.
+Climbing the Peaks
+TALK
+96.
+Saving the Sky Anchor
+EXPLORE
+97.
+Horizon Hold
+CHEAT
+96.
+Saving the Sky Anchor
+TALK
+98.
+Back to the Arcanum
+EXPLORE
+TALK

@@ -94,6 +94,7 @@
   .card .name { font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
   .card .pct { font-size: 24px; font-weight: 800; margin: 6px 0; }
   .card .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .badge.side { background: rgba(111, 168, 255, 0.15); color: var(--blue); }
   .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); }
 
   .detail {
@@ -218,14 +219,17 @@ function renderWorlds() {
   document.getElementById("progress").innerHTML =
     row("total", "Overall", "every listed quest", pct, done, total, data.deaths ? data.deaths.total : 0) +
     data.arcs.map((a) => row(a.current ? "here" : "", a.name,
-      `${a.worlds[0]} to ${a.worlds[a.worlds.length - 1]}`, a.pct, a.done, a.total, a.deaths)).join("");
+      `${a.worlds[0]} to ${a.worlds[a.worlds.length - 1]}` +
+        (a.side_total ? ` · side worlds ${a.side_done}/${a.side_total}` : ""),
+      a.pct, a.done, a.total, a.deaths)).join("");
 
   if (openWorld === null) openWorld = (data.worlds.find((w) => w.current) || data.worlds[0]).name;
   const card = (w) => {
     const cls = ["card", w.current ? "current" : "", w.name === openWorld ? "open" : "", !w.reached && !w.done ? "locked" : ""].join(" ");
     const meta = w.has_list ? `${w.done} / ${w.total} quests` : (w.reached ? "no quest list yet" : "not reached");
     return `<button class="${cls}" data-world="${esc(w.name)}">
-      <div class="name"><span>${esc(w.name)}${skull(w.deaths)}</span>${w.current ? '<span class="badge">here</span>' : ""}</div>
+      <div class="name"><span>${esc(w.name)}${skull(w.deaths)}</span>${w.current ? '<span class="badge">here</span>'
+        : w.side ? '<span class="badge side">side</span>' : ""}</div>
       <div class="pct">${w.pct}%</div>
       <div class="bar"><div style="width:${w.pct}%"></div></div>
       <div class="meta">${meta}</div>
@@ -234,7 +238,7 @@ function renderWorlds() {
   const byName = Object.fromEntries(data.worlds.map((w) => [w.name, w]));
   document.getElementById("worlds").innerHTML = data.arcs.map((a) =>
     `<div class="arc-title">${esc(a.name)} · ${a.pct}%${skull(a.deaths)}</div>
-     <div class="grid">${a.worlds.map((n) => byName[n]).filter(Boolean).map(card).join("")}</div>`).join("");
+     <div class="grid">${[...a.worlds, ...(a.side_worlds || [])].map((n) => byName[n]).filter(Boolean).map(card).join("")}</div>`).join("");
   document.querySelectorAll(".card").forEach((el) => el.addEventListener("click", () => {
     openWorld = el.dataset.world;
     render();

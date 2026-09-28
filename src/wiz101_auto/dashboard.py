@@ -25,7 +25,15 @@ from pathlib import Path
 from loguru import logger
 
 from . import lifetime
-from .questlist import WORLDS, load_completed, load_world_lists, norm, quest_status, world_of_zone
+from .questlist import (
+    SIDE_WORLDS,
+    WORLDS,
+    load_completed,
+    load_world_lists,
+    norm,
+    quest_status,
+    world_of_zone,
+)
 
 PORT = 8101
 ARCS = (
@@ -65,8 +73,11 @@ def build_data(docs: Path = Path("docs")) -> dict:
 
     deaths_by_world = lifetime.load().get("deaths_by_world", {})
     worlds = []
-    for i, name in enumerate(WORLDS):
+    for name in (*WORLDS, *SIDE_WORLDS):
+        side = name in SIDE_WORLDS
+        i = WORLDS.index(name) if not side else -1
         listed = lists.get(name, [])
+        # Side worlds are optional: moving on in the story doesn't finish them.
         st = quest_status(listed, completed, book_names, later_world_reached=0 <= i < here_index)
         # Areas in story order; an area visited again later (Marleybone's Royal
         # Museum) is its own group there.
@@ -86,15 +97,17 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "total": len(listed),
             "done": done,
             "pct": round(100 * done / len(listed)) if listed else (100 if 0 <= i < here_index else 0),
+            "side": side,
             "current": name == here,
             "deaths": int(deaths_by_world.get(name, 0)),
-            "reached": 0 <= i <= here_index,
+            "reached": (0 <= i <= here_index) or (side and (done > 0 or name == here)),
             "areas": areas,
         })
 
     arcs = []
     for arc, names in ARCS:
         members = [w for w in worlds if w["name"] in names]
+        extras = [w for w in worlds if w["side"] and SIDE_WORLDS[w["name"]] == arc]
         listed = [w for w in members if w["has_list"]]
         total = sum(w["total"] for w in listed)
         done = sum(w["done"] for w in listed)
@@ -105,7 +118,10 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "done": done,
             "pct": round(100 * done / total) if total else 0,
             "lists": len(listed),
-            "deaths": sum(w["deaths"] for w in members),
+            "side_worlds": [w["name"] for w in extras],
+            "side_done": sum(w["done"] for w in extras),
+            "side_total": sum(w["total"] for w in extras),
+            "deaths": sum(w["deaths"] for w in members + extras),
             "current": any(w["current"] for w in members),
         })
 

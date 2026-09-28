@@ -1,0 +1,285 @@
+Northguard (4 quests)
+1.
+Cold News
+TALK
+2.
+Times are Tough
+SIDE ×2
+TALK
+3.
+News of the North
+TALK
+TALK
+4.
+A Bigger Boat
+TALK
+Hrundle Fjord (11 quests)
+5.
+Cold Day in Hrundle
+2× EXPLORE
+TALK
+6.
+The Cold Gates
+EXPLORE
+TALK
+7.
+And on Drums…
+D&C
+TALK
+8.
+Hready to Hrundle
+2× EXPLORE
+TALK
+9.
+Springtime for Hrundle
+SIDE ×2
+EXPLORE
+BOSS
+2× INTERACT
+TALK
+10.
+Big Grandma's House
+SIDE ×1
+TALK
+11.
+That's So Raven
+TALK
+12.
+Norn Time
+EXPLORE
+2× INTERACT
+EXPLORE
+TALK
+MOB
+2× TALK
+13.
+Turn a New Leif
+TALK
+INTERACT
+2× TALK
+14.
+Tooth and Leaf
+TALK
+2× COLLECT
+D&C
+2× TALK
+15.
+Root of the Loom
+INTERACT
+TALK
+INTERACT
+TALK
+Austrilund (8 quests)
+16.
+Austrilund Weekend
+TALK
+17.
+Four Challenges
+SIDE ×3
+TALK
+18.
+Board to Death
+EXPLORE
+BOSS
+2× TALK
+3× INTERACT
+2× TALK
+19.
+Pieces of You
+D&C
+TALK
+INTERACT
+2× TALK
+20.
+Riddle Me This
+2× TALK
+21.
+Spear Carrier
+SIDE ×1
+TALK
+MOB
+2× TALK
+22.
+Out Clubbing
+EXPLORE
+BOSS
+TALK
+23.
+Enemy at the Gate
+EXPLORE
+INTERACT
+TALK
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+TALK
+BOSS
+TALK
+Vestrilund (10 quests)
+24.
+Into the Vestrilund
+SIDE ×5
+TALK
+25.
+Fishes & Loaves
+2× COLLECT
+TALK
+26.
+Monster Mash
+2× MOB
+TALK
+27.
+Golden Axe
+EXPLORE
+BOSS
+TALK
+28.
+Trees for the Forest
+COLLECT
+TALK
+29.
+The Walls Have Ice
+COLLECT
+TALK
+30.
+Key to the Kingdom
+EXPLORE
+TALK
+31.
+That Was Easy…
+TALK
+BOSS
+TALK
+32.
+Sing a Warsong
+TALK
+33.
+Warriors Three
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+2× TALK
+Sudrilund (6 quests)
+34.
+Su Su Sudrilund
+SIDE ×2
+TALK
+BOSS
+TALK
+35.
+Calling Ketil Black
+SIDE ×2
+EXPLORE
+BOSS
+EXPLORE
+BOSS
+TALK
+INTERACT
+TALK
+36.
+Use Your Illusion
+D&C
+COLLECT
+TALK
+37.
+The Dragon Gate
+SIDE ×1
+2× INTERACT
+TALK
+38.
+Golden Delicious
+EXPLORE
+BOSS
+INTERACT
+TALK
+39.
+Weight of the Word
+SIDE ×1
+INTERACT
+TALK
+INTERACT
+2× TALK
+Nordrilund (13 quests)
+40.
+Nordrilund Exposure
+TALK
+41.
+A Bridge Too Far
+SIDE ×2
+COLLECT
+INTERACT
+TALK
+42.
+The Riddle of the Road
+EXPLORE
+TALK
+EXPLORE
+2× TALK
+43.
+…A Serpent's Tooth
+INTERACT
+TALK
+INTERACT
+D&C
+TALK
+INTERACT
+2× TALK
+44.
+Bones of the Earth
+EXPLORE
+45.
+Take the Low Road
+INSTANCE
+TALK
+D&C
+TALK
+46.
+Hammer Don't Hurt 'Em
+INSTANCE
+TALK
+2× INTERACT
+EXPLORE
+BOSS
+TALK
+47.
+Bridge to Nowhere
+INSTANCE
+TALK
+BOSS
+EXPLORE
+BOSS
+TALK
+48.
+A Hello to Arms
+INSTANCE
+TALK
+MOB
+TALK
+49.
+The Magic Flute
+INSTANCE
+TALK
+2× INTERACT
+EXPLORE
+4× BOSS
+TALK
+50.
+Rune With a View
+INSTANCE
+TALK
+4× INTERACT
+EXPLORE
+4× CHEAT
+4× INTERACT
+EXPLORE
+TALK
+44.
+Bones of the Earth
+TALK
+51.
+Winter News
+2× TALK

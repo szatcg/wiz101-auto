@@ -1,0 +1,140 @@
+Golem Court / The Drains (5 quests)
+1.
+Subterranean Sanitation
+SIDE ×1
+TALK
+TALK
+MOB
+TALK
+2.
+These Monsters are Trash
+SIDE ×1
+EXPLORE
+3.
+Take Out the Trash
+INSTANCE
+MOB
+MOB
+TALK
+CHEAT
+2.
+These Monsters are Trash
+SIDE ×1
+EXPLORE
+TALK
+TALK
+4.
+Incan't Take No More
+INTERACT
+INTERACT
+EXPLORE
+TALK
+The Catacombs (9 quests)
+5.
+No Place Like Catacomb
+EXPLORE
+MOB
+EXPLORE
+6.
+Ancient War, What is it Good For?
+INSTANCE
+EXPLORE
+ELITE
+INTERACT
+INTERACT
+EXPLORE
+ELITE
+INTERACT
+EXPLORE
+2× CHEAT
+5.
+No Place Like Catacomb
+INTERACT
+EXPLORE
+TALK
+7.
+Bear With Me
+SIDE ×2
+EXPLORE
+8.
+Blather, Prince, Repeat
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+7.
+Bear With Me
+SIDE ×2
+EXPLORE
+TALK
+9.
+Veni Vidi Viggor
+SIDE ×1
+EXPLORE
+10.
+The More He Knows
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+9.
+Veni Vidi Viggor
+SIDE ×1
+EXPLORE
+INTERACT
+TALK
+INTERACT
+TALK
+Dragonspyre Academy (1 quest)
+11.
+Ashback
+TALK
+The Catacombs – Lower Level (9 quests)
+12.
+Deeper Mysteries
+EXPLORE
+MOB
+TALK
+13.
+Druid Legacies
+TALK
+TALK
+14.
+A Prison Out of Time
+EXPLORE
+TALK
+15.
+Be Kind, Re-Bind
+INTERACT
+INTERACT
+TALK
+16.
+Tempus Fugitives
+INTERACT
+17.
+Return to Avalon
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+18.
+The Mind Thief
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+19.
+To Face the Devourer
+INSTANCE
+CHEAT
+16.
+Tempus Fugitives
+EXPLORE
+TALK

@@ -1,0 +1,777 @@
+Arcanum / Caravan / Alkali Barrows / Thieves' Den (1 quest)
+1.
+Old is New Again
+TALK
+TALK
+3× TALK
+EXPLORE
+ELITE
+TALK
+EXPLORE
+MOB
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+Ravenwood / Regents Square / Walruskberg / Forlorn Tayg (5 quests)
+2.
+La Mort Et Lemuria
+SIDE ×1
+TALK
+EXPLORE
+TALK
+3.
+Metaphor All
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+ELITE
+2.
+La Mort Et Lemuria
+SIDE ×1
+TALK
+TALK
+EXPLORE
+TALK
+EXPLORE
+4.
+The Mountain of Badness
+INSTANCE
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+ELITE
+2.
+La Mort Et Lemuria
+SIDE ×1
+EXPLORE
+INTERACT
+INTERACT
+TALK
+TALK
+EXPLORE
+CHEAT
+TALK
+EXPLORE
+TALK
+Arcanum (5 quests)
+5.
+Say The Magic Words
+TALK
+TALK
+TALK
+6.
+The Lost Word
+INSTANCE
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+MOB
+INTERACT
+EXPLORE
+BOSS
+5.
+Say The Magic Words
+TALK
+7.
+Small World After All
+TALK
+EXPLORE
+INTERACT
+TALK
+TALK
+8.
+Lemur, Le Merrier
+TALK
+EXPLORE
+TALK
+Telos (2 quests)
+9.
+Lord of the Ringtails
+SIDE ×2
+EXPLORE
+EXPLORE
+MOB
+TALK
+10.
+Sancless Job
+SIDE ×2
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+INTERACT
+TALK
+Wildlands (5 quests)
+11.
+Where the Wildlands Are
+EXPLORE
+MOB
+TALK
+12.
+Looney Attunes
+EXPLORE
+EXPLORE
+INTERACT
+INTERACT
+INTERACT
+13.
+As Daseined
+PHOTOMANCY
+EXPLORE
+TALK
+14.
+Tour De Telos
+INTERACT
+EXPLORE
+TALK
+EXPLORE
+TALK
+15.
+Grease a Few Hooves
+EXPLORE
+MOB
+TALK
+COLLECT
+TALK
+EXPLORE
+EXPLORE
+TALK
+Ursai Village / Wildlands (7 quests)
+16.
+Welcome to Bearadise
+EXPLORE
+TALK
+EXPLORE
+D&C
+TALK
+17.
+Bear Necessities
+TALK
+TALK
+TALK
+INTERACT
+TALK
+COLLECT
+TALK
+18.
+Killapedeing Me Softly
+D&C
+TALK
+TALK
+EXPLORE
+TALK
+19.
+Word, Sound & Power
+TALK
+D&C
+TALK
+EXPLORE
+TALK
+20.
+Writ At Large
+EXPLORE
+21.
+Real Lies
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+20.
+Writ At Large
+INTERACT
+TALK
+Ursai Village (8 quests)
+22.
+Tosh,Oh!
+TALK
+COLLECT
+EXPLORE
+EXPLORE
+23.
+Gotta Go Up To Get Down
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+EXPLORE
+BOSS
+22.
+Tosh,Oh!
+EXPLORE
+TALK
+24.
+The Chicken's Coup
+EXPLORE
+25.
+Killawhat Now?
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+BOSS
+24.
+The Chicken's Coup
+EXPLORE
+EXPLORE
+TALK
+26.
+Existence Redefined
+INTERACT
+INTERACT
+TALK
+27.
+Bald-Faced Truth
+SIDE ×1
+EXPLORE
+TALK
+Telos / Wildlands (2 quests)
+28.
+From One Darkness To The Next
+INTERACT
+TALK
+EXPLORE
+TALK
+29.
+No Crane, No Gain
+SIDE ×1
+MOB
+TALK
+EXPLORE
+TALK
+Night Forest (8 quests)
+30.
+Night Forest Of The Living Dead
+TALK
+6× INTERACT
+D&C
+TALK
+31.
+Gasp! Malughast!
+TALK
+EXPLORE
+CHEAT
+EXPLORE
+TALK
+32.
+Savage Taunts Of Solomon Crane
+EXPLORE
+TALK
+PET
+INTERACT
+TALK
+33.
+Scion, Sci-Off
+INTERACT
+EXPLORE
+SOLO:
+MOB
+EXPLORE
+EXPLORE
+INTERACT
+INTERACT
+TALK
+34.
+A Fool's Rules
+EXPLORE
+EXPLORE
+35.
+Super Ghosts And Ghouls
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+34.
+A Fool's Rules
+EXPLORE
+TALK
+36.
+Banishment Hammer
+TALK
+TALK
+Wildlands (1 quest)
+37.
+Straight To The Wildlands
+MOB
+TALK
+TALK
+Night Forest (5 quests)
+38.
+Night Forest's Watch
+3× INTERACT
+TALK
+39.
+Apothecary Now
+D&C
+COLLECT
+TALK
+40.
+Worth 1000 Woes
+TALK
+EXPLORE
+PHOTOMANCY
+EXPLORE
+PHOTOMANCY
+PHOTOMANCY
+TALK
+41.
+Ghast Of Us
+TALK
+TALK
+EXPLORE
+CHEAT
+TALK
+42.
+Solomon Joins The Party
+EXPLORE
+TALK
+Badlands (4 quests)
+43.
+Being in the World
+SIDE ×1
+INTERACT
+EXPLORE
+TALK
+EXPLORE
+TALK
+44.
+The Duck Of Bronze
+COLLECT
+INTERACT
+D&C
+TALK
+45.
+Duck Savage Unbound!
+EXPLORE
+TALK
+46.
+Onward!
+EXPLORE
+TALK
+Mandoria (20 quests)
+47.
+The Lost Realm Of Mandoria
+MOB
+EXPLORE
+MOB
+EXPLORE
+INTERACT
+TALK
+48.
+The Search Continues
+EXPLORE
+49.
+Meet The Manders
+INSTANCE
+INTERACT
+MOB
+48.
+The Search Continues
+TALK
+50.
+Mothly Hospitality
+EXPLORE
+TALK
+51.
+Palace of Malice
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+MOB
+50.
+Mothly Hospitality
+INTERACT
+EXPLORE
+TALK
+EXPLORE
+52.
+The Dungeons of Moth-Amon
+INSTANCE
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+BOSS
+50.
+Mothly Hospitality
+INTERACT
+EXPLORE
+TALK
+53.
+Mandar The Superstitious
+EXPLORE
+SOLO:
+BOSS
+TALK
+TALK
+54.
+Savage Science
+COLLECT
+INTERACT
+D&C
+TALK
+55.
+Mandar the Swordsmander
+SIDE ×1
+EXPLORE
+56.
+The Sword Of He-Mander
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+55.
+Mandar the Swordsmander
+SIDE ×1
+TALK
+TALK
+57.
+Mandar The Boarbarian
+EXPLORE
+EXPLORE
+MOB
+EXPLORE
+58.
+Boarish Hospitality
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+BOSS
+EXPLORE
+ELITE
+57.
+Mandar The Boarbarian
+TALK
+TALK
+59.
+The Fane Of The Ancient One
+EXPLORE
+60.
+The Final Test
+INSTANCE
+EXPLORE
+MOB
+EXPLORE
+CHEAT
+59.
+The Fane Of The Ancient One
+EXPLORE
+INTERACT
+INTERACT
+TALK
+TALK
+Telos / Badlands (3 quests)
+61.
+Another Stone Down
+INTERACT
+EXPLORE
+TALK
+62.
+Skyfallen
+EXPLORE
+INTERACT
+TALK
+63.
+Emergency Repairs
+COLLECT
+D&C
+TALK
+INTERACT
+TALK
+Sky City (15 quests)
+64.
+Welcome To The Sky
+TALK
+MOB
+TALK
+65.
+The Tour You Know
+SIDE ×1
+EXPLORE
+EXPLORE
+INTERACT
+INTERACT
+EXPLORE
+EXPLORE
+TALK
+TALK
+TALK
+EXPLORE
+66.
+A Warm Welcome?
+INSTANCE
+MOB
+65.
+The Tour You Know
+SIDE ×1
+EXPLORE
+TALK
+67.
+The Secret Struggle
+EXPLORE
+TALK
+EXPLORE
+68.
+Mongonium Heist
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+MOB
+67.
+The Secret Struggle
+INTERACT
+EXPLORE
+TALK
+69.
+To The Rescue!
+D&C
+EXPLORE
+70.
+There Goes The Neighborhood… Watch
+INSTANCE
+MOB
+EXPLORE
+MOB
+EXPLORE
+ELITE
+69.
+To The Rescue!
+INTERACT
+TALK
+71.
+As The Mana Flows
+PHOTOMANCY
+TALK
+72.
+To Save Sky City!
+D&C
+EXPLORE
+73.
+Morg Showdown!
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+CHEAT
+72.
+To Save Sky City!
+INTERACT
+EXPLORE
+TALK
+74.
+Down to Earth Again
+EXPLORE
+TALK
+TALK
+Heap (12 quests)
+75.
+Heap of Trouble
+INTERACT
+TALK
+EXPLORE
+TALK
+76.
+Irregular Occurrence
+EXPLORE
+MOB
+TALK
+77.
+Pips Aplenty
+EXPLORE
+MOB
+TALK
+TALK
+78.
+Crime and Punishment
+TALK
+TALK
+TALK
+TALK
+EXPLORE
+D&C
+TALK
+79.
+Prune Disgrace
+SIDE ×1
+EXPLORE
+80.
+Prune's Day
+INSTANCE
+MOB
+EXPLORE
+BOSS
+79.
+Prune Disgrace
+SIDE ×1
+EXPLORE
+TALK
+81.
+Dinner is for Closers
+EXPLORE
+82.
+Lock-Up, Up and Away!
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+BOSS
+81.
+Dinner is for Closers
+EXPLORE
+TALK
+83.
+Nose for Clues
+PET
+D&C
+TALK
+84.
+Don't Fear Prim Reaper
+EXPLORE
+EXPLORE
+EXPLORE
+TALK
+Wildlands (1 quest)
+85.
+Charity for Clarity
+INTERACT
+D&C
+EXPLORE
+EXPLORE
+EXPLORE
+TALK
+Heap (9 quests)
+86.
+The Buzzing Brain
+EXPLORE
+INTERACT
+EXPLORE
+SOLO:
+MOB
+PHOTOMANCY
+PHOTOMANCY
+PHOTOMANCY
+EXPLORE
+TALK
+87.
+Worst Criminal Ever
+EXPLORE
+BOSS
+TALK
+88.
+Detective Mission
+EXPLORE
+INTERACT
+89.
+The Dark is Eyeing
+INSTANCE
+MOB
+EXPLORE
+MOB
+88.
+Detective Mission
+EXPLORE
+INTERACT
+INTERACT
+EXPLORE
+TALK
+90.
+Lion's Care
+TALK
+EXPLORE
+EXPLORE
+91.
+Mind Sweeper
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+90.
+Lion's Care
+EXPLORE
+EXPLORE
+TALK
+92.
+Peace Meal
+TALK
+EXPLORE
+TALK
+Telos (12 quests)
+93.
+The More You Hero
+INTERACT
+EXPLORE
+MOB
+TALK
+TALK
+TALK
+94.
+Amazing Bass
+EXPLORE
+95.
+Buck, Bantam, Bass
+INSTANCE
+ELITE
+EXPLORE
+ELITE
+EXPLORE
+BOSS
+94.
+Amazing Bass
+TALK
+96.
+For Whom the Treble Tolls
+EXPLORE
+97.
+Treble Alliance
+INSTANCE
+MOB
+EXPLORE
+ELITE
+EXPLORE
+ELITE
+96.
+For Whom the Treble Tolls
+TALK
+98.
+Do Or Scion
+EXPLORE
+BOSS
+EXPLORE
+TALK
+99.
+To Err Is Hero
+EXPLORE
+100.
+To Forgive, Dasein
+INSTANCE
+STANDARD & CHALLENGE
+99.
+To Err Is Hero
+INTERACT
+TALK
+101.
+The Next Thing
+TALK
+TALK
