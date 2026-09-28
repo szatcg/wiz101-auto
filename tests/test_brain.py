@@ -703,3 +703,14 @@ def test_power_pip_counts_double_for_our_school():
     cyclops = myth_hit(0, dmg=295, pips=3)
     assert _pay(cyclops, "myth", 1, 1) == (0, 0)  # 1 pip + a power pip (2) pays 3
     assert _pay(cyclops, "myth", 1, 0) is None
+
+
+def test_ether_golem_is_an_attack_not_a_shield():
+    effects = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 295),
+               Effect(EffectKind.SHIELD, Target.SELF, -70, school="life"),
+               Effect(EffectKind.SHIELD, Target.SELF, -70, school="death")]
+    golem = Card(0, "Ether Golem", school="myth", pip_cost=4, effects=effects, castable=False)
+    b = battle([golem], [enemy("Sokkwi Frostmancer", 435, school="ice")], my=_myth_me())
+    b.pips = 1
+    a = decide(b)
+    assert not (a.kind is ActionKind.DISCARD and a.card.name == "Ether Golem")

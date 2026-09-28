@@ -322,7 +322,7 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
         return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
     useless = [
         c for c in battle.cards
-        if not c.treasure and not c.is_enchant and EffectKind.SHIELD in c.kinds
+        if not c.treasure and not c.is_enchant and not c.is_damage and EffectKind.SHIELD in c.kinds
         and _shield_useless(c, battle.live_enemies)
     ]
     if useless:
@@ -445,7 +445,7 @@ def _relevant_shield(battle: Battle) -> Action | None:
     a death or life enemy), unless one blocking that school is already up."""
     me = battle.me
     for card in _castable(battle.cards):
-        if card.pip_cost or card.is_enchant or EffectKind.SHIELD not in card.kinds:
+        if card.pip_cost or card.is_enchant or card.is_damage or EffectKind.SHIELD not in card.kinds:
             continue
         schools = _shield_schools(card) - {""}
         foes = [e for e in battle.live_enemies if e.school in schools]
@@ -522,7 +522,8 @@ def _shield_action(battle: Battle, strat: Strategy) -> Action | None:
         return None
     shields = [
         c for c in _castable(battle.cards)
-        if EffectKind.SHIELD in c.kinds and not c.is_enchant and _shield_fits(c, battle.live_enemies)
+        if EffectKind.SHIELD in c.kinds and not c.is_enchant and not c.is_damage
+        and _shield_fits(c, battle.live_enemies)
     ]
     if not shields:
         return None
