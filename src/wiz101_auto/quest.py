@@ -235,6 +235,7 @@ class Quester:
         self.completions = CompletionTracker()  # -> docs/CompletedQuests.txt
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
+        self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
         self._teleported = False  # a recall moved us: not a gate
@@ -450,6 +451,7 @@ class Quester:
         if deaths <= self._seen_deaths:
             return
         self._seen_deaths = deaths
+        self._recall_pending = self._mark is not None
         objective = await self.objective()
         if not is_combat_objective(objective):
             return
@@ -472,8 +474,8 @@ class Quester:
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
         Recall to jump back to the marked dungeon entrance. True if we recalled."""
-        if not self._mark:
-            return False
+        if not self._mark or not self._recall_pending:
+            return False  # only after a defeat: otherwise we left on purpose (or are inside)
         marked_zone, marked_objective = self._mark
         zone = await self.client.zone_name()
         if zone == marked_zone:
@@ -485,6 +487,7 @@ class Quester:
         if not await is_free(self.client):
             return False
         logger.info(f"recalling to the dungeon entrance in {marked_zone} instead of walking back")
+        self._recall_pending = False
         self._mark = None  # one try per mark: never loop on a failing recall
         _save_mark(None)
         self.controller.allow_idle(40)
