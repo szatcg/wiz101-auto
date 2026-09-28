@@ -562,4 +562,13 @@ def test_prism_only_on_an_enemy_weak_to_the_other_school():
     cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
     neutral = battle(cards, [enemy("Guard", 900, school="fire")])
     neutral.pips = 2
-    assert decide(neutral).kind is ActionKind.PASS
+    a = decide(neutral)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Myth Prism"  # never useful in this fight
+    assert decide(neutral, discards_left=0).kind is ActionKind.PASS
+
+
+def test_prism_kept_while_an_enemy_is_unknown():
+    cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
+    b = battle(cards, [enemy("Mystery", 900)])  # no school, no resist read
+    b.pips = 2
+    assert decide(b).kind is ActionKind.PASS

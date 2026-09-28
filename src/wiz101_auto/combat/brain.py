@@ -302,6 +302,10 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     ]
     if useless:
         return Action(ActionKind.DISCARD, useless[0], reason="shield for schools none of these enemies use")
+    prisms = [c for c in battle.cards if _is_prism(c) and not c.treasure and _prism_useless(c, battle)]
+    if prisms:
+        why = "prism: no enemy here takes more from the other school"
+        return Action(ActionKind.DISCARD, prisms[0], reason=why)
     free = [c for c in battle.cards if c.pip_cost == 0 and c.is_damage and not c.treasure]
     if len(free) > KEEP_FREE_HITS:
         card = min(free, key=lambda c: c.base_damage())
@@ -435,6 +439,26 @@ PRISM_GAIN = 1.25  # the converted school must hit this much harder to be worth 
 
 def _is_prism(card: Card) -> bool:
     return "prism" in card.name.lower() and not card.is_damage
+
+
+def _prism_gain(card: Card, me: Combatant, target: Combatant) -> float:
+    """How much harder our hits land on `target` once the prism converts them."""
+    src = card.school.lower()
+    dst = OPPOSITE.get(src)
+    if not dst:
+        return 1.0
+    before = school_multiplier(Card(0, "", school=src), me, target)
+    after = school_multiplier(Card(0, "", school=dst), me, target)
+    return after / max(0.01, before)
+
+
+def _prism_useless(card: Card, battle: Battle) -> bool:
+    """No enemy in this fight (all of them known) takes enough extra from the
+    converted school: the prism will never be played here."""
+    enemies = battle.live_enemies
+    if not enemies or any(e.resist is None and not e.school for e in enemies):
+        return False
+    return all(_prism_gain(card, battle.me, e) < PRISM_GAIN for e in enemies)
 
 
 def _prism_action(battle: Battle) -> Action | None:
