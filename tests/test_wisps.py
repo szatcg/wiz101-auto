@@ -91,3 +91,19 @@ def test_close_enough_to_fight_without_wisps():
     assert close_enough(cfg, 0.83, 0.9)
     assert not close_enough(cfg, 0.6, 0.9)
     assert not close_enough(cfg, 0.9, 0.3)
+
+
+def test_heal_zone_skips_zones_that_gave_nothing():
+    from wiz101_auto.upkeep import barren_zones, best_wisp_zone, note_barren
+
+    spots = {
+        "Krokotopia/KT_Pyramid/KT_PalaceOfFire": [(0, 0, 0), (1, 0, 0), (2, 0, 0)],
+        "Krokotopia/KT_Pyramid/KT_Hall": [(0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)],
+    }
+    here = "Krokotopia/KT_Krokosphinx/KT_EntranceHall"
+    assert best_wisp_zone(here, spots) == "Krokotopia/KT_Pyramid/KT_Hall"
+    avoid = {"Krokotopia/KT_Pyramid/KT_Hall"}
+    assert best_wisp_zone(here, spots, avoid=avoid) == "Krokotopia/KT_Pyramid/KT_PalaceOfFire"
+    note_barren(here, now=100.0)
+    assert here in barren_zones(now=200.0)
+    assert here not in barren_zones(now=100.0 + 3600)

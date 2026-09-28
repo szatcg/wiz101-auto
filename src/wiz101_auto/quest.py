@@ -653,17 +653,18 @@ class Quester:
             logger.debug(f"marking failed: {exc!r}")
             return False
 
-    async def _heal_trip(self) -> bool:
+    async def _heal_trip(self, force: bool = False) -> bool:
         """Recovery found nothing here: when the objective keeps us in this
         zone (a fight in progress, a pickup here), heal from the hub and
-        Recall back instead of walking out and back through the gates."""
+        Recall back instead of walking out and back through the gates.
+        `force`: resting here gave nothing at all, so go anyway."""
         if not self.healer:
             return False
         zone = await self.client.zone_name() or ""
         objective = await self.objective()
         dest = objective_zone(objective) if objective else None
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
-        if not zone or not coming_back:
+        if not zone or not (coming_back or force):
             return False
         return await self.healer.trip(zone, f"no wisps here for {objective!r}")
 

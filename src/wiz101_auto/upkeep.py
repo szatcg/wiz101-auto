@@ -305,6 +305,22 @@ WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 # Interiors recovery gave up on (walk out on the quest path instead).
 _leaving_interior: set[str] = set()
+REST_PROBE_SECONDS = 60.0  # resting this long without gaining anything: no wisps here, heal elsewhere
+BARREN_SECONDS = 1800.0  # how long a zone that gave nothing is skipped as a place to heal
+_barren: dict[str, float] = {}  # zone -> when resting there gave nothing
+
+
+def note_barren(zone: str, now: float | None = None):
+    import time as _time
+
+    _barren[zone] = _time.monotonic() if now is None else now
+
+
+def barren_zones(now: float | None = None) -> set[str]:
+    import time as _time
+
+    now = _time.monotonic() if now is None else now
+    return {z for z, t in _barren.items() if now - t < BARREN_SECONDS}
 
 
 def best_wisp_zone(
@@ -313,6 +329,7 @@ def best_wisp_zone(
     preferred: list[str] = (),
     need=BOTH,
     kinds: dict | None = None,
+    avoid: set[str] = frozenset(),
 ) -> str | None:
     """Where to recover: a preferred heal zone in the same world when health is
     needed, else the zone with the most remembered spots of the needed wisp
@@ -321,7 +338,7 @@ def best_wisp_zone(
         spots, kinds = wisp_memory().spots, wisp_memory().kinds
     kinds = kinds or {}
     world = current_zone.split("/", 1)[0]
-    in_world = [z for z in preferred if z.split("/", 1)[0] == world and z != current_zone]
+    in_world = [z for z in preferred if z.split("/", 1)[0] == world and z != current_zone and z not in avoid]
     if HEALTH in need and in_world:
         return in_world[0]
     same_world = [
@@ -331,11 +348,12 @@ def best_wisp_zone(
     ]
     zones = sorted(((n, z) for n, z in same_world if n >= 3), reverse=True)
     for _, z in zones:
-        if z != current_zone:
+        if z != current_zone and z not in avoid:
             return z
     if in_world:
         return in_world[0]
-    if world == "WizardCity" and current_zone != "WizardCity/WC_Streets/WC_Unicorn":
+    unicorn = "WizardCity/WC_Streets/WC_Unicorn"
+    if world == "WizardCity" and current_zone != unicorn and unicorn not in avoid:
         return "WizardCity/WC_Streets/WC_Unicorn"
     return None
 
@@ -378,6 +396,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     started = loop.time()
     last_report = started
     rested = False
+    rest_start: tuple[float, float, float] | None = None  # (when, hp, mana) resting began
+    moved_on = False  # already left a zone that gave nothing
     travelled = False
     fruitless = 0  # remembered spots visited in a row without gaining anything
     swept: set[str] = set()
@@ -432,7 +452,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
                 fruitless = 0
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need)
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones())
                 if dest:
                     what = " and ".join(sorted(need))
                     logger.info(f"no {what} wisps in {zone}; going to {dest} for them")
@@ -458,6 +478,27 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         if not rested:
             await move_to_safety(client)
             rested = True
+            rest_start = (loop.time(), hp, mana)
+        elif rest_start and loop.time() - rest_start[0] > REST_PROBE_SECONDS and not moved_on:
+            gained = hp - rest_start[1] >= 0.01 or mana - rest_start[2] >= 0.01
+            if not gained:
+                # A minute of rest gave nothing: no wisps (and no regeneration)
+                # here. Heal where we know we can instead of waiting.
+                zone = await client.zone_name() or "?"
+                note_barren(zone)
+                moved_on = True
+                waited = f"{REST_PROBE_SECONDS:.0f}s"
+                logger.info(f"nothing recovered in {waited} in {zone}; going somewhere to heal")
+                if trip and await trip(force=True):
+                    return True
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
+                                      avoid=barren_zones())
+                if dest and go_to_zone and await go_to_zone(dest):
+                    logger.info(f"went to {dest} to heal")
+                    rested, rest_start = False, None
+                    continue
+                logger.info("no known place to heal; carrying on")
+                return True
 
         elapsed = loop.time() - started
         if elapsed > cfg.rest_max_minutes * 60:
