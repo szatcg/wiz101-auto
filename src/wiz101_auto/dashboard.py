@@ -44,6 +44,8 @@ ARCS = (
 )
 PAGE = Path(__file__).with_name("dashboard.html")
 OVERLAY = Path(__file__).with_name("overlay.html")
+STREAM = Path(__file__).with_name("stream.html")
+SERVER_STARTED = time.time()  # "live for" on the stream page
 STATUS = Path("state") / "status.json"
 QUEST_BOOK = Path("state") / "quest_book.json"
 STALE_SECONDS = 30  # heartbeat older than this: the bot isn't running
@@ -143,6 +145,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
         "worlds": worlds,
         "arcs": arcs,
         "deaths": {"total": lifetime.load().get("deaths", 0), "session": status.get("deaths", 0)},
+        "live_since": SERVER_STARTED,
     }
 
 
@@ -153,6 +156,14 @@ class _Handler(BaseHTTPRequestHandler):
             kind = "application/json"
         elif self.path.split("?")[0] in ("/", "/index.html"):
             body = PAGE.read_bytes()
+            kind = "text/html; charset=utf-8"
+        elif self.path.split("?")[0].endswith("thoughts.json"):
+            from .thoughts import read_thoughts
+
+            body = json.dumps(read_thoughts()).encode("utf-8")
+            kind = "application/json"
+        elif self.path.split("?")[0].rstrip("/") == "/stream":
+            body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
         elif self.path.split("?")[0].rstrip("/") == "/overlay":
             body = OVERLAY.read_bytes()  # for an OBS Browser Source

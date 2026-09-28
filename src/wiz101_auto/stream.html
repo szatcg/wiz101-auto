@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wizzbot Stream</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* A 1920x1080 OBS Browser Source. The game window (1440x810 at 20,20) is
+     left transparent: put the game capture under this source. */
+  :root {
+    --bg: #0c0e1d;
+    --panel: rgba(23, 26, 52, 0.92);
+    --panel-2: rgba(33, 37, 72, 0.95);
+    --line: #2f356a;
+    --text: #eceaff;
+    --muted: #9ea1c9;
+    --gold: #f2c14e;
+    --gold-2: #ffdf8a;
+    --green: #5fd38d;
+    --red: #ff6b6b;
+    --blue: #6fa8ff;
+    --violet: #b48cff;
+    --teal: #4fd1c5;
+    --orange: #ff9f5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  body { font-family: Inter, "Segoe UI", sans-serif; color: var(--text); }
+
+  /* Everything but the game window gets the backdrop. */
+  .backdrop {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 500px at 85% 10%, rgba(120, 90, 220, 0.28), transparent 60%),
+      radial-gradient(900px 500px at 10% 100%, rgba(40, 120, 200, 0.22), transparent 60%),
+      linear-gradient(160deg, #141735, var(--bg) 55%, #0a0b18);
+    clip-path: path(evenodd, "M0 0 H1920 V1080 H0 Z M20 20 H1460 V830 H20 Z");
+  }
+  .frame {
+    position: absolute; left: 14px; top: 14px; width: 1452px; height: 822px;
+    border: 3px solid var(--gold); border-radius: 18px;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6) inset, 0 0 30px rgba(242, 193, 78, 0.35);
+    pointer-events: none;
+  }
+  .frame .tag {
+    position: absolute; top: -16px; left: 28px; padding: 3px 14px; border-radius: 999px;
+    background: var(--gold); color: #1b1606; font: 900 15px Cinzel, serif; letter-spacing: 2px;
+  }
+
+  /* ---- sidebar ---- */
+  .side { position: absolute; left: 1484px; top: 14px; width: 422px; height: 1052px; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .brand { display: flex; align-items: center; justify-content: space-between; }
+  .brand h1 { margin: 0; font: 900 34px Cinzel, serif; letter-spacing: 3px;
+    background: linear-gradient(180deg, var(--gold-2), var(--gold)); -webkit-background-clip: text; color: transparent; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06); font-weight: 800; font-size: 15px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #777; }
+  .dot.run { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .dot.fight { background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .timers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .timer { background: rgba(255, 255, 255, 0.04); border-radius: 12px; padding: 8px 12px; }
+  .timer small, .label { display: block; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  .timer b { font: 800 26px Inter; font-variant-numeric: tabular-nums; }
+
+  .vitals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
+  .vital b { display: block; font: 800 30px Inter; }
+  .vital.deaths b { color: var(--red); }
+  .vital.level b { color: var(--gold); }
+  .hp { margin-top: 10px; height: 14px; border-radius: 8px; background: #3a1d2a; overflow: hidden; }
+  .hp > div { height: 100%; background: linear-gradient(90deg, #e44d6a, #ff8a7a); transition: width 0.6s; }
+  .hptext { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .quest-name { font: 700 22px Cinzel, serif; color: var(--gold-2); margin-top: 4px; line-height: 1.2; }
+  .objective { margin-top: 8px; font-size: 17px; font-weight: 600; line-height: 1.35; }
+  .where { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+  .prog { display: grid; grid-template-columns: 110px 1fr 52px; gap: 10px; align-items: center; margin-top: 9px; font-size: 14px; }
+  .prog .n { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prog .p { text-align: right; font-weight: 800; color: var(--gold); }
+  .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #c99a2e, var(--gold)); transition: width 0.8s; }
+
+  .book li { list-style: none; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+  .book ul { margin: 6px 0 0; padding: 0; }
+  .book .tracked { color: var(--gold-2); font-weight: 800; }
+  .book small { color: var(--muted); }
+  .grow { flex: 1; min-height: 0; overflow: hidden; }
+
+  /* battle card */
+  .battle { border-color: rgba(255, 107, 107, 0.6); box-shadow: 0 0 22px rgba(255, 107, 107, 0.18); }
+  .battle .head { display: flex; justify-content: space-between; align-items: center; }
+  .battle h3 { margin: 0; font: 900 20px Cinzel, serif; color: var(--red); letter-spacing: 1px; }
+  .pips { display: flex; gap: 5px; }
+  .pip { width: 16px; height: 16px; border-radius: 50%; background: #e6e6f5; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+  .pip.power { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  .foe { margin-top: 10px; }
+  .foe .fn { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
+  .foe .fn .boss { color: var(--orange); }
+  .foe .bar > div { background: linear-gradient(90deg, #b3263f, #ff5f6d); }
+  .move { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
+  .move .what { font-weight: 800; font-size: 16px; }
+  .move .why { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .plan { margin-top: 8px; font-size: 13px; color: var(--teal); line-height: 1.35; }
+
+  /* ---- thoughts strip ---- */
+  .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
+  .thoughts .title { position: absolute; left: 0; top: 0; width: 170px; height: 100%; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; text-align: center; }
+  .thoughts .title b { font: 900 22px Cinzel, serif; color: var(--gold); line-height: 1.1; }
+  .thoughts .title span { font-size: 42px; margin-bottom: 6px; }
+  .feed { position: absolute; left: 184px; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column-reverse; gap: 7px; overflow: hidden; }
+  .ev { display: grid; grid-template-columns: 40px 76px 1fr; align-items: center; gap: 10px; padding: 10px 14px;
+    background: var(--panel); border-radius: 12px; border-left: 5px solid var(--muted); animation: slide 0.45s ease-out; }
+  .ev:last-child { background: var(--panel-2); box-shadow: 0 0 14px rgba(242, 193, 78, 0.18); }
+  @keyframes slide { from { transform: translateX(40px); opacity: 0; } }
+  .ev .ic { font-size: 22px; text-align: center; }
+  .ev .t { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ev .m { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .m em { font-style: normal; color: var(--muted); font-size: 14px; }
+  .ev .m b { color: var(--gold-2); }
+  .k-cast { border-left-color: var(--red); } .k-discard { border-left-color: #8a8fb8; } .k-pass { border-left-color: #6d7195; }
+  .k-plan { border-left-color: var(--teal); } .k-travel { border-left-color: var(--blue); } .k-heal { border-left-color: var(--green); }
+  .k-loot { border-left-color: var(--gold); } .k-mark, .k-recall { border-left-color: var(--violet); } .k-hunt { border-left-color: var(--orange); }
+  .k-quest, .k-success { border-left-color: var(--gold); } .k-warning, .k-flee { border-left-color: var(--orange); }
+  .k-talk { border-left-color: #7fd6ff; } .k-train { border-left-color: var(--violet); }
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+<div class="frame"><span class="tag">LIVE · WIZARD101 BOT</span></div>
+
+<div class="side">
+  <div class="card">
+    <div class="brand"><h1>WIZZBOT</h1><span class="pill"><span class="dot" id="dot"></span><span id="state">…</span></span></div>
+    <div class="timers">
+      <div class="timer"><small>Live for</small><b id="live">0:00:00</b></div>
+      <div class="timer"><small>Bot up</small><b id="uptime">0:00:00</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="vitals">
+      <div class="vital level"><span class="label">Level</span><b id="level">–</b></div>
+      <div class="vital deaths"><span class="label">Deaths 💀</span><b id="deaths">–</b></div>
+      <div class="vital"><span class="label">This session</span><b id="sdeaths">–</b></div>
+    </div>
+    <div class="hp"><div id="hp" style="width:0%"></div></div>
+    <div class="hptext"><span>Health</span><span id="hptext"></span></div>
+  </div>
+
+  <div class="card">
+    <span class="label">Current quest</span>
+    <div class="quest-name" id="quest">—</div>
+    <div class="objective" id="objective"></div>
+    <div class="where" id="where"></div>
+  </div>
+
+  <div class="card">
+    <span class="label">Progress</span>
+    <div class="prog"><span class="n" id="wName">World</span><div class="bar"><div id="wBar"></div></div><span class="p" id="wPct">0%</span></div>
+    <div class="prog"><span class="n" id="aName">Arc</span><div class="bar"><div id="aBar"></div></div><span class="p" id="aPct">0%</span></div>
+    <div class="prog"><span class="n">Spiral</span><div class="bar"><div id="oBar"></div></div><span class="p" id="oPct">0%</span></div>
+  </div>
+
+  <div class="card grow" id="lower"></div>
+</div>
+
+<div class="thoughts">
+  <div class="title"><span>🧠</span><b>BOT'S<br>THOUGHTS</b></div>
+  <div class="feed" id="feed"></div>
+</div>
+
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (id) => document.getElementById(id);
+const clock = (sec) => {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+};
+const ICONS = { cast: "⚔️", discard: "🗑️", pass: "⏳", enchant: "✨", plan: "🧮", travel: "🧭", heal: "💚", loot: "💎",
+  mark: "📍", recall: "🌀", hunt: "🎯", quest: "📜", success: "✅", warning: "⚠️", flee: "🏃", talk: "💬", train: "📚", info: "•" };
+
+let data = null, thoughts = null, fetchedAt = 0;
+
+function renderSide() {
+  const s = data.status || {};
+  const live = data.running && Date.now() / 1000 - (data.updated || 0) < 120;
+  const fight = live && s.in_battle;
+  $("dot").className = "dot " + (fight ? "fight" : live ? "run" : "");
+  $("state").textContent = fight ? "IN BATTLE" : live ? "QUESTING" : "PAUSED";
+  $("level").textContent = s.level ?? "–";
+  $("deaths").textContent = data.deaths ? data.deaths.total : "–";
+  $("sdeaths").textContent = data.deaths ? data.deaths.session : "–";
+  const [hp, max] = String(s.health || "0/0").split("/").map(Number);
+  $("hp").style.width = max ? `${(100 * hp) / max}%` : "0%";
+  $("hptext").textContent = max ? `${hp} / ${max}` : "";
+  $("quest").textContent = data.current.quest || "—";
+  $("objective").textContent = data.current.objective || "";
+  const zone = ((s.zone || "").split("/").slice(1).pop() || "")
+    .replace(/^[A-Z]{2}_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+  $("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
+  const w = data.worlds.find((x) => x.current);
+  if (w) { $("wName").textContent = w.name; $("wPct").textContent = `${w.pct}%`; $("wBar").style.width = `${w.pct}%`; }
+  const a = data.arcs.find((x) => x.current);
+  if (a) { $("aName").textContent = a.name; $("aPct").textContent = `${a.pct}%`; $("aBar").style.width = `${a.pct}%`; }
+  const tot = data.arcs.reduce((n, x) => n + x.total, 0), done = data.arcs.reduce((n, x) => n + x.done, 0);
+  const op = tot ? Math.round((100 * done) / tot) : 0;
+  $("oPct").textContent = `${op}%`; $("oBar").style.width = `${op}%`;
+}
+
+function renderLower() {
+  const s = (data && data.status) || {};
+  const b = thoughts && thoughts.battle;
+  if (b && s.in_battle) {
+    const pips = [...Array(b.pips)].map(() => '<span class="pip"></span>').join("") +
+                 [...Array(b.power)].map(() => '<span class="pip power"></span>').join("");
+    const foes = b.enemies.filter((e) => !e.dead).map((e) => `
+      <div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span><span>${e.hp} / ${e.max}</span></div>
+      <div class="bar"><div style="width:${e.max ? (100 * e.hp) / e.max : 0}%"></div></div></div>`).join("");
+    const what = b.kind === "pass" ? "Pass" : `${b.kind[0].toUpperCase()}${b.kind.slice(1)} ${esc(b.card)}${b.target ? " → " + esc(b.target) : ""}`;
+    $("lower").className = "card grow battle";
+    $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3><div class="pips">${pips}</div></div>
+      ${foes}
+      <div class="move"><div class="what">${ICONS[b.kind] || "⚔️"} ${what}</div><div class="why">${esc(b.why)}</div></div>
+      ${b.plan ? `<div class="plan">🧮 ${esc(b.plan)}</div>` : ""}`;
+    return;
+  }
+  const book = (data && data.book) || [];
+  $("lower").className = "card grow book";
+  $("lower").innerHTML = `<span class="label">Quest book</span><ul>${book.slice(0, 9).map((q) => `
+    <li><span class="${q.name === data.current.quest ? "tracked" : ""}">${esc(q.name)}</span>
+    <small>${q.main ? "main" : q.spell ? "spell" : "side"}</small></li>`).join("")}</ul>`;
+}
+
+function describe(e) {
+  if (e.round != null) {
+    const head = e.kind === "pass" ? "Pass" : `${e.kind[0].toUpperCase()}${e.kind.slice(1)} <b>${esc(e.card)}</b>${e.target ? " → " + esc(e.target) : ""}`;
+    return `R${e.round} · ${head} <em>— ${esc(e.why)}</em>`;
+  }
+  if (e.kind === "plan") return `Plan: ${esc(e.text)}`;
+  return esc(e.text);
+}
+
+function renderFeed() {
+  const evs = (thoughts && thoughts.events) || [];
+  $("feed").innerHTML = evs.slice(-4).map((e) => `
+    <div class="ev k-${e.kind}"><span class="ic">${ICONS[e.kind] || "•"}</span><span class="t">${e.time}</span>
+    <span class="m">${describe(e)}</span></div>`).join("");
+}
+
+function tick() {
+  if (!data) return;
+  $("live").textContent = clock(Date.now() / 1000 - (data.live_since || Date.now() / 1000));
+  const up = ((data.status || {}).uptime_s || 0) + (Date.now() - fetchedAt) / 1000;
+  $("uptime").textContent = data.running ? clock(up) : "—";
+}
+
+let lastFeed = "";
+async function poll() {
+  try {
+    const [d, t] = await Promise.all([
+      fetch(`data.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`thoughts.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
+    ]);
+    data = d; thoughts = t; fetchedAt = Date.now();
+    renderSide();
+    renderLower();
+    const key = JSON.stringify(t.events.slice(-4).map((e) => e.time + e.text));
+    if (key !== lastFeed) { lastFeed = key; renderFeed(); }  // re-render only on news: keeps the slide-in
+  } catch (e) {
+    $("state").textContent = "OFFLINE";
+  }
+}
+poll();
+setInterval(poll, 2000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
