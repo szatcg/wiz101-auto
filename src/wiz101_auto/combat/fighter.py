@@ -39,6 +39,7 @@ class Fighter(CombatHandler):
         self._judged_fight = False
         self._fleeing = False
         self._want_flee = False  # this fight isn't needed: try to flee every round
+        self._flee_spot: tuple[float, float] | None = None  # where on Flee a click worked
         self._flee_method = ""
         self._last_plan = ""
 
@@ -119,28 +120,35 @@ class Fighter(CombatHandler):
         You will lose all your Mana..." (mana comes back quickly from wisps).
         True once the flee went through."""
         self._fleeing = True
-        pass_btn = await self._visible_named("Focus")
         flee_btn = await self._visible_named("Flee")
-        # Hit areas sit left of the rects WizWalker computes. The usual
-        # left-shifted click on *Pass* is known to land on Flee (that's how the
-        # bot used to flee by accident), so it goes first; then clicks on the
-        # Flee window itself and WizWalker's own flee.
-        shifted = self.client.mouse_handler.click_window
+        # Hit areas don't sit exactly on the rects WizWalker computes, and the
+        # action buttons are thin: probe points inside Flee's own width (well
+        # clear of Draw and Pass), at a few heights, until the confirmation shows.
+        # The spot that works is remembered for the rest of the session.
         attempts = []
-        if pass_btn is not None:
-            attempts.append(("left-shifted click on Pass", lambda: shifted(pass_btn)))
         if flee_btn is not None:
-            attempts.append(("left-shifted click on Flee", lambda: shifted(flee_btn)))
-            attempts.append(("center click on Flee", lambda: ui.click_center(self.client, flee_btn)))
-        attempts.append(("WizWalker flee_button", self.flee_button))
-        for how, click in attempts:
+            r = await flee_btn.scale_to_client()
+            w, h = r.x2 - r.x1, r.y2 - r.y1
+            spots = [(fx, fy) for fy in (0.5, 0.2, 0.8, -0.4) for fx in (0.5, 0.25, 0.75)]
+            if self._flee_spot in spots:
+                spots.remove(self._flee_spot)
+                spots.insert(0, self._flee_spot)
+            for fx, fy in spots:
+                x, y = int(r.x1 + w * fx), int(r.y1 + h * fy)
+
+                async def click_at(x=x, y=y):
+                    await self.client.mouse_handler.click(x, y)
+
+                attempts.append((f"Flee at ({fx:.2f}, {fy:.2f}) = ({x}, {y})", click_at, (fx, fy)))
+        attempts.append(("WizWalker flee_button", self.flee_button, None))
+        for how, click, spot in attempts:
             try:
                 await click()
             except Exception as exc:
                 logger.debug(f"flee ({how}) click failed: {exc!r}")
                 continue
             seen = ""
-            for _ in range(12):
+            for _ in range(5):
                 await asyncio.sleep(0.3)
                 if not await self.client.in_battle():
                     logger.info(f"fled ({how})")
@@ -154,6 +162,8 @@ class Fighter(CombatHandler):
                     if await ui.press_modal_button(self.client, box, "centerButton"):
                         logger.info(f"confirmed fleeing ({how})")
                         self._flee_method = how
+                        if spot is not None:
+                            self._flee_spot = spot
                         return True
             logger.debug(f"flee ({how}): no confirmation")
         return False
