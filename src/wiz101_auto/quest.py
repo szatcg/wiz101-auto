@@ -322,6 +322,7 @@ class Quester:
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
+        self._last_loot_scan = 0.0
         self.fighter = None  # set by the bot: its fight count tells won fights apart
         self._fights_seen = 0
         self._deaths_at_fight = 0
@@ -712,6 +713,20 @@ class Quester:
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
             await wait_for_loading(self.client, appear_timeout=5.0)
+
+    async def _pick_up_loot(self) -> bool:
+        """Every few seconds, grab a reagent or chest nearby (clear of enemies):
+        a few seconds each, and reagents and chests pay off later."""
+        if time.monotonic() - self._last_loot_scan < WANTED_SCAN_SECONDS:
+            return False
+        self._last_loot_scan = time.monotonic()
+        if await self.client.in_battle():
+            return False
+        try:
+            return await self.collector.collect_nearby(self._press_collect)
+        except Exception as exc:
+            logger.debug(f"loot pickup failed: {exc!r}")
+            return False
 
     async def _pick_up_wanted(self) -> bool:
         """Every few seconds, grab any wanted "Collect X" item in view (away from
@@ -1508,6 +1523,8 @@ class Quester:
         if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
             await self._clear_of_enemies()
         if await self._pick_up_wanted():
+            return
+        if await self._pick_up_loot():
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()

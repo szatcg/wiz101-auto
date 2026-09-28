@@ -17,6 +17,7 @@ from loguru import logger
 from .names import lang_name
 
 CANDIDATE_CACHE_SECONDS = 5.0
+LOOT_RANGE = 2000.0  # free pickups this close are worth the small detour
 WALK_IN = 150.0  # distance to land from an item before walking onto it
 
 _VERBS = r"(?:collect|find|gather|get|retrieve|recover|pick up)"
@@ -110,6 +111,27 @@ async def path_points(client) -> list[tuple[float, float, float]]:
     return out
 
 
+# Free pickups lying around the world: reagents (object names like "Parchment",
+# "Wood", "Cattail", "FrostedFlax_01"), treasure chests ("WC-Chest-Common-001"
+# Wooden Chest, "-Rare-" Silver Chest) and hidden house items ("COLLECT_...").
+REAGENTS = (
+    "parchment", "wood", "stone", "stoneblock", "ore", "cattail", "frostedflax", "frostflower",
+    "blacklotus", "mandrake", "redmandrake", "deepmushroom", "mushroom", "fireflower", "pearl",
+    "sunstone", "amber", "ash", "spidersilk", "springwater", "shell", "mistwood", "scrapiron",
+    "bloodmoss", "lavalily", "sandstone", "stormcloud", "ghostfire", "jewel",
+)
+_REAGENT_RE = re.compile(r"^(?:[a-z]{2}_)?(" + "|".join(REAGENTS) + r")(?:_?\d+)?$")
+_CHEST_RE = re.compile(r"(^|[-_])chest([-_]|$)")
+
+
+def is_collectable(object_name: str) -> bool:
+    """A free pickup worth a small detour (a reagent, chest or house item)."""
+    name = (object_name or "").strip().lower().replace(" ", "")
+    if not name:
+        return False
+    return name.startswith("collect_") or bool(_CHEST_RE.search(name)) or bool(_REAGENT_RE.match(name))
+
+
 def away_from(points: list, mobs: list, safe_distance: float) -> list:
     """Points with no mob within `safe_distance` (mobs are landmarks too)."""
     def clear(p) -> bool:
@@ -122,6 +144,7 @@ class Collector:
     def __init__(self, client, safe_distance: float = 700.0):
         self.client = client
         self.safe_distance = safe_distance
+        self._looted: set[int] = set()  # free pickups already tried (by entity id)
         self._taken: dict[int, float] = {}  # entity id -> when we grabbed it
         self._cache: tuple[str, float, list] | None = None
 
@@ -146,6 +169,48 @@ class Collector:
                 continue
         self._cache = (item, now, found)
         return found
+
+    async def collect_nearby(self, press_interact, max_range: float = LOOT_RANGE) -> bool:
+        """Grab the nearest safe free pickup (reagent, chest...) within
+        `max_range`. Each one is tried once (chests stay after opening). True
+        if it went for one."""
+        me = await self.client.body.position()
+        found = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                template = await e.object_template()
+                if not template or not is_collectable(await template.object_name()):
+                    continue
+                gid = await e.global_id_full()
+                if gid in self._looted:
+                    continue
+                pos = await e.location()
+                if pos.distance(me) <= max_range:
+                    found.append((e, gid, pos, await template.object_name()))
+            except Exception:
+                continue
+        if not found:
+            return False
+        entities = [f[0] for f in found]
+        safe = await self.client.find_safe_entities_from(entities, safe_distance=self.safe_distance)
+        safe_ids = {id(e) for e in safe}
+        options = [f for f in found if id(f[0]) in safe_ids]
+        if not options:
+            return False
+        _e, gid, spot, name = min(options, key=lambda f: f[2].distance(me))
+        self._looted.add(gid)
+        logger.info(f"picking up {name!r} on the way ({spot.distance(me):.0f} away)")
+        from wizwalker import XYZ
+
+        back = XYZ(me.x, me.y, me.z)
+        await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
+        await asyncio.sleep(0.8)
+        await self.client.goto(spot.x, spot.y)
+        await asyncio.sleep(0.3)
+        await press_interact()
+        await asyncio.sleep(1.0)
+        await self.client.teleport(back)  # carry on from where we were
+        return True
 
     async def collect_once(self, item: str, press_interact) -> bool:
         """Grab the nearest safe matching entity. True if we tried one."""

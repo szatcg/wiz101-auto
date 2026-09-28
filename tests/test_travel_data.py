@@ -121,3 +121,14 @@ def test_floor_points_drop_cameras_in_the_air():
 
     pts = [(0, 0, 48), (100, 0, 330), (200, 0, 1133), (300, 0, -20)]
     assert floor_points(pts, 48) == [(0, 0, 48), (100, 0, 330), (300, 0, -20)]
+
+
+def test_collectables():
+    from wiz101_auto.collect import is_collectable
+
+    for name in ("Parchment", "Wood", "Cattail", "FrostedFlax_01", "WC-Chest-Common-001", "WC-Chest-Rare-001",
+                 "COLLECT_HOUSE_WC_decor_painting_03"):
+        assert is_collectable(name), name
+    for name in ("WC_WispHealth", "Basic Positional", "WC_Myth_Desk", "Wooden Door", "Ghoul-Purple-L02",
+                 "WC_Gardening_Dirt_Normal", "Stonehenge_Arch"):
+        assert not is_collectable(name), name
