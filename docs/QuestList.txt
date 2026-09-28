@@ -1,0 +1,229 @@
+Unicorn Way (10 quests)
+1.
+Unicorn Way
+INSTANCE
+SIDE ×1
+EXPLORE
+TALK
+2.
+Ghost Hunters
+SIDE ×1
+MOB
+TALK
+TALK
+3.
+Skeleton Crew
+SIDE ×1
+MOB
+TALK
+4.
+Monsters and Mazes
+EXPLORE
+TALK
+5.
+Finding Out Why
+SIDE ×1
+INTERACT
+D&C
+EXPLORE
+TALK
+6.
+Who Could It Be Now?
+TALK
+7.
+Sinister Skeleton
+INSTANCE
+EXPLORE
+BOSS
+EXPLORE
+TALK
+8.
+Grim Tales
+SIDE ×3
+TALK
+TALK
+9.
+To Ravenwood!
+SIDE ×3
+TALK
+TALK
+TALK
+TALK
+10.
+Panic In Three Streets!
+SIDE ×6
+TALK
+Cyclops Lane (6 quests)
+11.
+A Good Day to Cyclops
+EXPLORE
+TALK
+12.
+A Stroll With Trolls
+MOB
+TALK
+13.
+Run and Done
+TALK
+TALK
+TALK
+TALK
+TALK
+TALK
+14.
+The Cave Escape
+INSTANCE
+SIDE ×2
+MOB
+EXPLORE
+D&C
+INTERACT
+INTERACT
+INTERACT
+TALK
+15.
+Oh Me, Oh Minotaur
+SIDE ×2
+MOB
+TALK
+16.
+Akilles' Deal
+INSTANCE
+SIDE ×2
+EXPLORE
+BOSS
+INTERACT
+TALK
+TALK
+Firecat Alley (7 quests)
+17.
+Putting Out the Fire!
+TALK
+MOB
+TALK
+18.
+She Ran Crying Wildfire
+TALK
+MOB
+TALK
+19.
+Which Hunt?
+SIDE ×1
+TALK
+MOB
+TALK
+TALK
+D&C
+TALK
+20.
+100% Not That Witch
+INSTANCE
+D&C
+TALK
+EXPLORE
+BOSS
+TALK
+21.
+Which Craft?
+TALK
+TALK
+INTERACT
+INTERACT
+TALK
+22.
+The Cure
+INSTANCE
+SIDE ×1
+EXPLORE
+BOSS
+TALK
+TALK
+23.
+Firecat's In The Bag
+SIDE ×1
+TALK
+TALK
+Triton Avenue (11 quests)
+24.
+Trouble on Triton Avenue
+SIDE ×1
+TALK
+25.
+Menacing Minions
+MOB
+TALK
+26.
+The Shadow of Death Magic
+TALK
+D&C
+TALK
+27.
+Quest for Clues
+D&C
+TALK
+28.
+Catching a Glimpse
+TALK
+29.
+Clear as Crystal
+INSTANCE
+INTERACT
+D&C
+TALK
+EXPLORE
+INTERACT
+TALK
+30.
+Luminate
+TALK
+31.
+The Enemy Revealed
+INSTANCE
+EXPLORE
+BOSS
+TALK
+TALK
+32.
+To Tame a Tempest
+SIDE ×2
+TALK
+INTERACT
+TALK
+TALK
+33.
+Triton Report
+SIDE ×2
+TALK
+34.
+Calming the Chaos
+TALK
+Olde Town (4 quests)
+35.
+A Brief History of the Spiral
+INSTANCE
+SIDE ×1
+TALK
+EXPLORE
+EXPLORE
+BOSS
+EXPLORE
+TALK
+36.
+Throwing Nightshade
+INSTANCE
+EXPLORE
+BOSS
+TALK
+37.
+Things and Stuff
+D&C
+TALK
+TALK
+38.
+Take a Walk on the Nightside
+SIDE ×2
+EXPLORE
+TALK
+EXPLORE
+TALK
+TALK

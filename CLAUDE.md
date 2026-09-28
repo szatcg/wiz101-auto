@@ -74,6 +74,7 @@ while the bot is stopped.
 |---|---|
 | `wiz101-auto.log` | full DEBUG log (rotates at 10 MB) |
 | `activity.log` | INFO+ only, short format: what the bot decides/does (read this first) |
+| `docs/CompletedQuests.txt` | names of quests the bot completed, in order (a quest that leaves the quest book on two readings) |
 | `state/learned_gates.json` | zone gates learned while playing (missing from the data files, e.g. Haunted Cave) |
 | `state/setbacks.json` | defeats per objective and quests set aside after 2 losses (until a level-up or 1 hour) |
 | `state/mark.json` | the dungeon the wizard marked and for which objective (Recall target after a defeat) |
@@ -95,6 +96,7 @@ while the bot is stopped.
 | `bot.py` | connects, runs the concurrent loops (combat, dialogue, quest, watchdog, status) |
 | `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
 | `setbacks.py` | quests set aside after losing the same fight twice |
+| `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |
 | `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |
 | `collect.py` | "Collect X" objectives (entity name matching) |
 | `travel_data.py` | no-marker fallback: zone gates/names and Zeke/Eloise quest spots from WizSprinter's `traversalData` |

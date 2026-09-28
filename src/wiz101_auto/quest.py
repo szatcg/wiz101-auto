@@ -28,6 +28,7 @@ from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .npc import ServicesMenu
+from .questlist import CompletionTracker, load_quest_list, norm
 from .setbacks import Setbacks
 from .travel_data import (
     find_zone_gate,
@@ -96,9 +97,10 @@ UNKNOWN_HOPS = 5  # an area we can't route to counts as fairly far
 # District, Olde Town...) aren't listed and count as the current area.
 AREA_ORDER = (
     "unicorn way",
-    "triton avenue",
-    "firecat alley",
     "cyclops lane",
+    "firecat alley",
+    "triton avenue",
+    "olde town",
     "haunted cave",
     "firefly forest",
     "colossus boulevard",
@@ -115,28 +117,42 @@ def area_rank(world: str) -> int | None:
     return next((i for i, a in enumerate(AREA_ORDER) if a in w), None)
 
 
-def quest_rank(q: QuestEntry, current_area: int = 0) -> tuple:
+def _area_of(q: QuestEntry, order: dict) -> int | None:
+    """A listed quest belongs to its list area (the book's "world" only shows
+    where its current step is); others to the area the book shows."""
+    listed = order.get(norm(q.name))
+    return area_rank(listed.area if listed else q.world)
+
+
+def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) -> tuple:
     """Higher is better. Spell quests make the wizard stronger; then the earliest
     area is cleared first; within an area, quests without a fight (talk, go to,
-    collect) are quick experience; nearer beats farther; the tracked quest wins
-    ties so the bot doesn't flip between equals."""
+    collect) are quick experience; quests from docs/QuestList.txt go in list
+    order; nearer beats farther; the tracked quest wins ties so the bot doesn't
+    flip between equals."""
+    order = order or {}
     hops = UNKNOWN_HOPS if q.hops is None else q.hops
-    area = area_rank(q.world)
+    area = _area_of(q, order)
     area = current_area if area is None else area
     easy = bool(q.goal) and not is_combat_objective(q.goal)
-    return (q.activity, -area, easy, -hops, q.active, q.mainline, q.reward)
+    listed = order.get(norm(q.name))
+    position = -listed.index if listed else -10_000
+    return (q.activity, -area, easy, position, -hops, q.active, q.mainline, q.reward)
 
 
-def choose_quest(quests: list[QuestEntry], set_aside: set[str] = frozenset()) -> QuestEntry | None:
+def choose_quest(
+    quests: list[QuestEntry], set_aside: set[str] = frozenset(), order: dict | None = None
+) -> QuestEntry | None:
     """Which quest to track: spell/class quests first, then clear the earliest
-    area's quests (the easy ones first). Quests set aside (lost to twice) are
-    skipped while anything else is available."""
+    area's quests (the easy ones first, listed ones in list order). Quests set
+    aside (lost to twice) are skipped while anything else is available."""
+    order = order or {}
     quests = [q for q in quests if q.name not in set_aside] or quests
     if not quests:
         return None
-    areas = [a for a in (area_rank(q.world) for q in quests) if a is not None]
+    areas = [a for a in (_area_of(q, order) for q in quests) if a is not None]
     current = min(areas) if areas else 0
-    return max(quests, key=lambda q: quest_rank(q, current))
+    return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
 def is_combat_objective(objective: str) -> bool:
@@ -215,6 +231,8 @@ class Quester:
         self._sigil_failed_at: XYZ | None = None  # sigil whose last try didn't start
         self._last_stuck_check = 0.0
         self.setbacks = Setbacks.load()
+        self.quest_order = load_quest_list()  # docs/QuestList.txt
+        self.completions = CompletionTracker()  # -> docs/CompletedQuests.txt
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._zone_before = ""  # for learning gates on arrival
@@ -757,10 +775,17 @@ class Quester:
                     break
                 await asyncio.sleep(0.6)
             activities = {q.name for _, q in all_quests if q.activity}
+            done = self.completions.update({q.name for _, q in all_quests})
+            for name in done:
+                listed = self.quest_order.get(norm(name))
+                where = f" (#{listed.index} on the quest list)" if listed else ""
+                logger.success(f"quest completed: {name!r}{where}")
+            self.completions.log(done)
             active = next((q for _, q in all_quests if q.active), None)
             self._active_quest = active.name if active else self._active_quest
             level = await self.client.stats.reference_level()
-            chosen = choose_quest([q for _, q in all_quests], self.setbacks.set_aside(level))
+            set_aside = self.setbacks.set_aside(level)
+            chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities
