@@ -220,7 +220,7 @@ async def press_modal_button(client, box, name: str) -> bool:
     except Exception:
         pass
     for x, y in spots:
-        await client.mouse_handler.click(int(x), int(y))
+        await button_click(client, int(x), int(y))
         await asyncio.sleep(0.6)
         try:
             if not await box.is_visible():
@@ -264,11 +264,21 @@ async def dismiss_notice(client) -> bool:
     return False
 
 
+async def button_click(client, x: int, y: int) -> None:
+    """Click like a person: hover a moment, then press and hold briefly.
+    WizWalker's click presses and releases instantly and then moves the cursor
+    away, which cards accept but buttons (Pass, Flee, Yes/No) ignore: seen on
+    the flee confirmation, where clicks right on Yes did nothing."""
+    mouse = client.mouse_handler
+    await mouse.set_mouse_position(x, y)
+    await asyncio.sleep(0.15)
+    await mouse.click(x, y, sleep_duration=0.1)
+
+
 async def click_center(client, window) -> None:
-    """Click the exact center (the global 25%-of-width click can land on a
-    neighbouring button, e.g. Pass -> Flee)."""
+    """Click the exact center of a button (hover + held click)."""
     r = await window.scale_to_client()
-    await client.mouse_handler.click(int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2))
+    await button_click(client, int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2))
 
 
 async def is_visible(client, path: list[str]) -> bool:

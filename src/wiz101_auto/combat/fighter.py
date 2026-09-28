@@ -162,7 +162,7 @@ class Fighter(CombatHandler):
                 x, y = int(r.x1 + w * fx), int(r.y1 + h * fy)
 
                 async def click_at(x=x, y=y):
-                    await self.client.mouse_handler.click(x, y)
+                    await ui.button_click(self.client, x, y)
 
                 attempts.append((f"Flee at ({fx:.2f}, {fy:.2f}) = ({x}, {y})", click_at, (fx, fy)))
         attempts.append(("WizWalker flee_button", self.flee_button, None))
@@ -228,7 +228,7 @@ class Fighter(CombatHandler):
         w, h = r.x2 - r.x1, r.y2 - r.y1
         for fx, fy in _ordered(ACTION_SPOTS, self._action_spot):
             before = await self._hand_size()
-            await self.client.mouse_handler.click(int(r.x1 + w * fx), int(r.y1 + h * fy))
+            await ui.button_click(self.client, int(r.x1 + w * fx), int(r.y1 + h * fy))
             if before == 0 or await self._committed(before, timeout=1.5):
                 if self._action_spot != (fx, fy):
                     logger.info(f"Pass went through clicking at ({fx:.2f}, {fy:.2f}) of the button")
