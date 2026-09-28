@@ -104,3 +104,12 @@ def test_fight_needed_for_any_named_enemy():
     assert fight_needed(obj, ["Nirini Warrior"], street, False)
     warriors = "Defeat Nirini Warrior in Palace of Fire (2 of 3)"
     assert not fight_needed(warriors, ["Desert Golem"], street, False)
+
+
+def test_side_quests_are_finished_one_at_a_time():
+    from wiz101_auto.quest import choose_quest
+
+    main = QuestEntry(0, "Give 'em Another Round", mainline=True, goal="Defeat Akori Nirini")
+    tracked = QuestEntry(1, "So Many Nirini", active=True, world="The Oasis", goal="Talk To Zan'ne", hops=3)
+    other = QuestEntry(2, "Tool Time", world="Chamber of Fire", goal="Talk To Danforth", hops=1)
+    assert choose_quest([main, tracked, other], {"Give 'em Another Round"}) is tracked

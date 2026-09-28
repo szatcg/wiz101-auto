@@ -158,6 +158,12 @@ def choose_quest(
     order = order or {}
     available = [q for q in quests if q.name not in set_aside]
     main = [q for q in available if q.mainline or q.activity]
+    if not main:
+        # Filling in with side quests: finish the tracked one before picking
+        # another (flipping between them wastes the trips already made).
+        active = next((q for q in available if q.active), None)
+        if active:
+            return active
     quests = main or available or quests
     if not quests:
         return None
