@@ -236,7 +236,14 @@ async def _attach_builder(client) -> DeckBuilder:
             button = await _first_visible(window, name)
             if button:
                 logger.debug(f"clicking spellbook button {name!r} (attempt {attempt + 1})")
-                await client.mouse_handler.click_window(button)
+                if attempt == 1:
+                    # The left-shifted click missed (e.g. the book opened on the
+                    # settings page): try the button's exact center.
+                    from .ui import click_center
+
+                    await click_center(client, button)
+                else:
+                    await client.mouse_handler.click_window(button)
                 break
         end = loop.time() + 4
         while loop.time() < end and not spell_list:
