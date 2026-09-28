@@ -479,3 +479,15 @@ def test_super_strike_keeps_our_blade_for_the_real_hit():
     b.pips = 1
     b.cards[-1].castable = False
     assert decide(b).kind is ActionKind.PASS
+
+
+def test_discards_spare_super_strikes_but_keeps_one():
+    b = battle([super_strike(0), super_strike(1), myth_hit(2, pips=2)], [enemy("Gobbler", 900)],
+               my=_myth_me())
+    b.pips = 1
+    b.cards[-1].castable = False
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Super Strike"
+    b.cards = [c for c in b.cards if c is not a.card]
+    assert decide(b).card.name == "Super Strike"  # the last one is played, not binned
+    assert decide(b).kind is ActionKind.CAST

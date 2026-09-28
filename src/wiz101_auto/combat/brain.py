@@ -271,29 +271,36 @@ def _finish_in_reach(battle: Battle, rounds: int = 2) -> bool:
     return False
 
 
+KEEP_FREE_HITS = 1  # 0-pip hits (Super Strike) kept in hand; extra copies are discarded
+
+
 def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     """Off-school attack cards from gear (a starter wand's Fire Cat, Dark Sprite...)
-    only take hand slots our own spells and traps could fill."""
-    if not strat.discard_junk or not battle.me.school:
+    only take hand slots our own spells and traps could fill. Extra copies of a
+    0-pip hit go too (one stays for shields and finishing blows): discarding
+    draws the deck's stronger cards sooner."""
+    if not strat.discard_junk:
         return None
+    school = battle.me.school.lower()
     junk = [
         c for c in battle.cards
-        if c.item and c.is_damage and not c.treasure and c.school.lower() != battle.me.school.lower()
+        if school and c.item and c.is_damage and not c.treasure
+        and c.pip_cost > 0 and c.school.lower() != school
     ]
-    if not junk:
-        return None
     # Cheap hits finish off a nearly dead enemy without waiting rounds for pips:
     # keep a couple in hand, off-school gear cards included.
     cheap = [c for c in battle.cards if c.is_damage and not c.treasure and c.pip_cost <= 1]
     if len(cheap) <= KEEP_CHEAP_HITS:
         junk = [c for c in junk if c.pip_cost > 1]
-        if not junk:
-            return None
-    junk = [c for c in junk if c.pip_cost > 0]  # a free hit (Super Strike) is never junk
-    if not junk:
-        return None
-    card = min(junk, key=lambda c: c.base_damage())
-    return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+    if junk:
+        card = min(junk, key=lambda c: c.base_damage())
+        return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+    free = [c for c in battle.cards if c.pip_cost == 0 and c.is_damage and not c.treasure]
+    if len(free) > KEEP_FREE_HITS:
+        card = min(free, key=lambda c: c.base_damage())
+        why = f"spare 0-pip hit (keeping {KEEP_FREE_HITS}); drawing for stronger cards"
+        return Action(ActionKind.DISCARD, card, reason=why)
+    return None
 
 
 def _is_trapped(target: Combatant) -> bool:
