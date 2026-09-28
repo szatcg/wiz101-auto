@@ -12,6 +12,7 @@ to Ravenwood; each school's door is in Ravenwood; the professor stands inside.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 
 from loguru import logger
@@ -34,6 +35,7 @@ PAGE_DOWN = [*SELECTION, "PageControls", "PageDown"]
 REWARD = [*GUI, "wndSpellReward"]
 REWARD_CLOSE = [*REWARD, "btnBackground"]
 MAX_OPTIONS = 12
+RETRY_MINUTES = 10
 MAX_PAGES = 4
 
 
@@ -42,12 +44,12 @@ class School:
     interior: str
     door: XYZ  # in Ravenwood
     professor: str
-    spot: XYZ  # where the professor stands
+    spot: XYZ  # where a player stands to talk to the professor (the "Player Stand In")
 
 
 SCHOOLS = {
     "myth": School(
-        "WizardCity/Interiors/WC_SchoolMyth", XYZ(-3546.0, 3912.0, 2.0), "Cyrus Drake", XYZ(618.0, 38.0, 43.0)
+        "WizardCity/Interiors/WC_SchoolMyth", XYZ(-3546.0, 3912.0, 2.0), "Cyrus Drake", XYZ(648.0, 14.0, 73.0)
     ),
 }
 
@@ -99,6 +101,7 @@ class SpellTrainer:
         self.client = quester.client
         self.progression = progression
         self.schedule = sorted(schedule)
+        self._retry_at = 0.0  # after a failed trip, wait before the next
 
     def due(self, level: int) -> int | None:
         return next_training(level, self.progression.state.get("trained_level", 0), self.schedule)
@@ -108,11 +111,12 @@ class SpellTrainer:
         level = await self.client.stats.reference_level()
         target = self.due(level)
         school = SCHOOLS.get((self.progression.school or "").lower())
-        if target is None or school is None:
+        if target is None or school is None or time.monotonic() < self._retry_at:
             return False
         logger.info(f"level {level}: going to {school.professor} to learn new spells (level {target} spells)")
         if not await self._go_to_professor(school):
-            logger.warning(f"could not reach {school.professor}; will try again later")
+            logger.warning(f"could not reach {school.professor}; trying again in {RETRY_MINUTES} min")
+            self._retry_at = time.monotonic() + RETRY_MINUTES * 60
             return True
         learned = await self._train(level)
         self.progression.state["trained_level"] = target
@@ -145,10 +149,10 @@ class SpellTrainer:
         return await home_to_ravenwood(self.q)
 
     async def _talk_to(self, school: School) -> bool:
-        from .bossfarm import find_entity_named
-
-        spot = await find_entity_named(self.client, school.professor) or school.spot
-        await self.q.travel(spot)
+        # Not a lookup by name: "WC_StandIn_CyrusDrake_01" by the entrance
+        # matches too, and nothing happens there.
+        await self.client.teleport(school.spot)
+        await asyncio.sleep(1.0)
         for _ in range(3):
             if await ui.is_visible(self.client, GUI):
                 return True
