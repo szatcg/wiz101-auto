@@ -69,6 +69,7 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
+WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -274,7 +275,8 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
-        self._drop_hunt_for = ""  # a "Collect X" objective whose items drop from enemies
+        self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
+        self._last_wanted_scan = 0.0
         self.fighter = None  # set by the bot: its fight count tells won fights apart
         self._fights_seen = 0
         self._deaths_at_fight = 0
@@ -539,6 +541,18 @@ class Quester:
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
             await wait_for_loading(self.client, appear_timeout=5.0)
+
+    async def _pick_up_wanted(self) -> bool:
+        """Every few seconds, grab any wanted "Collect X" item in view (away from
+        enemies) for any quest in the book, even one set aside. True if it did."""
+        if not self._wanted_items or time.monotonic() - self._last_wanted_scan < WANTED_SCAN_SECONDS:
+            return False
+        self._last_wanted_scan = time.monotonic()
+        for item, quest in self._wanted_items.items():
+            if await self.collector.collect_once(item, self._press_collect):
+                logger.success(f"picked up {item!r} on the way (for {quest!r})")
+                return True
+        return False
 
     async def _note_defeats(self):
         """After a defeat, count it against the objective; the second one sets the
@@ -903,6 +917,9 @@ class Quester:
                     break
                 await asyncio.sleep(0.6)
             activities = {q.name for _, q in all_quests if q.activity}
+            self._wanted_items = {
+                collect_item_name(q.goal): q.name for _, q in all_quests if collect_item_name(q.goal)
+            }
             done = self.completions.update({q.name for _, q in all_quests})
             for name in done:
                 listed = self.quest_order.get(norm(name))
@@ -1040,16 +1057,23 @@ class Quester:
                     logger.info(f"found {item!r} near ({p[0]:.0f}, {p[1]:.0f})")
                     return True
             return True
-        # Already searched and no pickups anywhere: many "Collect X" items drop
-        # from enemies (Flame Gems from the Palace of Fire's Desert Golems). Fight
-        # the ones here, and don't flee those fights.
-        if await self.sprinter.get_mobs() and not await self.client.in_battle():
-            if self._drop_hunt_for != objective:
-                logger.info(f"no {item!r} lying around; they must drop from enemies here: fighting for them")
-                self._drop_hunt_for = objective
-            await self.pull_mob(objective)
+        # Searched the whole zone and nothing is lying around right now (they
+        # spawn over time, or sit in another zone): follow the next best quest,
+        # and pick these up whenever they come into view (see _pick_up_wanted).
+        quest = self._active_quest
+        if quest and self._stall_switched_for != objective:
+            self._stall_switched_for = objective
+            level = await self.client.stats.reference_level()
+            self.setbacks.set_quest_aside(quest, objective, level)
+            self.setbacks.save()
+            logger.info(
+                f"no {item!r} anywhere in this zone right now: setting {quest!r} aside; "
+                "will pick them up if they show up"
+            )
+            self._ranked_for = None
+            self._last_rank = -1e9
             return True
-        # No enemies either: let the quest marker (if any) guide us, else wait for respawns.
+        # Nothing else to do: let the quest marker (if any) guide us, else wait for respawns.
         if distance(await self.client.quest_position.position(), XYZ(0, 0, 0)) < 1:
             logger.debug(f"no {item!r} found; waiting for respawns")
             self.controller.allow_idle(15)
@@ -1068,8 +1092,6 @@ class Quester:
             zone = await self.client.zone_name() or ""
         except Exception:
             return False
-        if objective == self._drop_hunt_for:
-            return False  # hunting a "Collect X" drop: every fight here counts
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
         return not fight_needed(objective, names, zone, has_boss)
@@ -1156,6 +1178,8 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
+        if await self._pick_up_wanted():
+            return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
