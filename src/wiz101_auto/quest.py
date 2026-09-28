@@ -68,6 +68,7 @@ APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
+UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
@@ -236,6 +237,7 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._unreached: dict[tuple[str, str], int] = {}  # (objective, zone) -> failed approaches
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
         self._teleported = False  # a recall moved us: not a gate
@@ -1137,6 +1139,17 @@ class Quester:
             if not await self.client.in_battle():
                 await self.pull_mob()
             return
+
+        if dist >= INTERACT_RANGE and "interiors" in (zone or "").lower():
+            # In a dungeon, a marker we can't reach is usually behind a gate that
+            # opens once the enemies in front of it are beaten: go fight them.
+            key = (objective, zone)
+            self._unreached[key] = self._unreached.get(key, 0) + 1
+            if self._unreached[key] >= UNREACHED_BEFORE_FIGHT and await self.sprinter.get_mobs():
+                logger.info("can't reach the quest marker (a locked gate?); fighting nearby enemies")
+                self._unreached[key] = 0
+                await self.pull_mob()
+                return
 
         if dist < DOOR_RANGE and await self.client.zone_name() == zone:
             # Standing on the marker with nothing to interact with: it's most
