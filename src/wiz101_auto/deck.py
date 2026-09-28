@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import Keycode
@@ -591,6 +593,32 @@ async def _is_list_control(window) -> bool:
         return False
 
 
+DECK_FILE = Path("state") / "deck.json"
+
+
+def save_deck_counts(names: list[str], path: Path = DECK_FILE):
+    """The in-game deck as spell (template) name -> copies."""
+    try:
+        path.parent.mkdir(exist_ok=True)
+        counts = {n: names.count(n) for n in dict.fromkeys(names)}
+        path.write_text(json.dumps(counts, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def load_deck_counts(path: Path = DECK_FILE) -> dict[str, int]:
+    """The deck as last read; else the deck plan in state/progress.json."""
+    for f, key in ((path, None), (Path("state") / "progress.json", "deck")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            data = data.get(key, {}) if key else data
+            if data:
+                return {str(k): int(v) for k, v in data.items()}
+        except (OSError, ValueError, AttributeError):
+            continue
+    return {}
+
+
 async def _log_current_deck(client, builder, *, quiet: bool = False) -> list[str] | None:
     """Log and return the spell names in the current deck (None if unreadable)."""
     try:
@@ -614,6 +642,8 @@ async def _log_current_deck(client, builder, *, quiet: bool = False) -> list[str
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
     builder = await _attach_builder(client)
     deck_names = await _log_current_deck(client, builder)
+    if deck_names:
+        save_deck_counts(deck_names)  # the fighter plans with what's left of it
     known = await read_known_spells(builder)
     plan = plan_deck(known, school, policy)
     logger.info(f"known spells: {', '.join(s.name for s in known) or '(none)'}")

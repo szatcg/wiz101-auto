@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+from collections import Counter
 
 from loguru import logger
 from wizwalker.combat import CombatHandler
 
 from .. import ui
+from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
 from .brain import Strategy, decide, plan_fight
-from .model import ActionKind, EffectKind
+from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
@@ -52,6 +55,11 @@ def _ordered(spots: list, first) -> list:
     return [first, *[s for s in spots if s != first]] if first in spots else list(spots)
 
 
+def _deck_name(card) -> str:
+    """How the deck list names a card: its spell template ("Bloodbat")."""
+    return card.template_name or card.name
+
+
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0):
         super().__init__(client)
@@ -62,6 +70,9 @@ class Fighter(CombatHandler):
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
+        self._gone: Counter[str] = Counter()
+        self._deck: dict[str, int] = {}
+        self._card_info: dict[str, Card] = {}  # deck spell name -> a card seen in hand (for planning)
         self._card_click_x = 0.25  # the hit area sits left of the reported card rect
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
@@ -314,6 +325,7 @@ class Fighter(CombatHandler):
                 self._last_plan = plan
             battle.prismed = set(self._prismed)
             battle.summoned = self._summons
+            battle.upcoming = self._upcoming(battle)
             action = decide(battle, self.strategy, discards_left=discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
@@ -331,11 +343,13 @@ class Fighter(CombatHandler):
             live_card = snap.cards[action.card.index]
 
             if action.kind is ActionKind.ENCHANT:
+                self._gone[_deck_name(action.card)] += 1
                 await live_card.cast(snap.cards[action.target_card.index])
                 await asyncio.sleep(0.3)
                 continue
 
             if action.kind is ActionKind.DISCARD:
+                self._gone[_deck_name(action.card)] += 1
                 r = await live_card._spell_window.scale_to_client()
                 x = int(r.x1 + (r.x2 - r.x1) * self._card_click_x)
                 await self.client.mouse_handler.click(x, int((r.y1 + r.y2) / 2), right_click=True)
@@ -348,6 +362,7 @@ class Fighter(CombatHandler):
                 self._prismed.add(action.target.name)  # it stays on them: one per enemy
             if EffectKind.SUMMON in action.card.kinds:
                 self._summons += 1
+            self._gone[_deck_name(action.card)] += 1
             before = await self._hand_size()
             if not await self._cast_at(live_card, target, self._card_click_x):
                 return  # the round is over
@@ -371,10 +386,27 @@ class Fighter(CombatHandler):
         logger.warning("too many steps this round, passing")
         await self.pass_button()
 
+    def _upcoming(self, battle) -> list[Card]:
+        """Deck cards not yet drawn, cast or discarded this fight (the ones
+        still able to come), known from cards seen in hand before."""
+        in_hand: Counter[str] = Counter()
+        for c in battle.cards:
+            self._card_info.setdefault(_deck_name(c), c)
+            in_hand[_deck_name(c)] += 1
+        out = []
+        for name, copies in self._deck.items():
+            left = copies - self._gone[name] - in_hand[name]
+            info = self._card_info.get(name)
+            if left > 0 and info is not None:
+                out += [dataclasses.replace(info, index=-1, castable=True)] * left
+        return out
+
     async def handle_combat(self):
         self._unusable.clear()
         self._prismed: set[str] = set()
         self._summons = 0
+        self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
+        self._deck = load_deck_counts()
         self._judged_fight = False
         self._fleeing = False
         self._want_flee = False

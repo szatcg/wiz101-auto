@@ -144,6 +144,7 @@ class Battle:
     round: int = 0
     prismed: set[str] = field(default_factory=set)  # enemies we already cast a prism on this fight
     summoned: int = 0  # minions we summoned this fight
+    upcoming: list[Card] = field(default_factory=list)  # deck cards not drawn/played yet this fight
 
     @property
     def live_enemies(self) -> list[Combatant]:

@@ -331,7 +331,7 @@ def test_quick_fight_skips_the_minion_and_plans_trap_then_troll():
     b = battle([troll, summon, myth_trap], [enemy("Fire Elf Hunter", 250)])
     b.pips = 1
     plan = plan_fight(b)
-    assert plan.skip_summon and plan.rounds == 2 and "Myth Trap, then Troll" in plan.text
+    assert plan.skip_summon and plan.rounds == 2 and "Myth Trap > Troll" in plan.text
     assert decide(b).card.name == "Myth Trap"
     boss = battle([troll, summon, myth_trap], [enemy("Alicane", 480, boss=True)])
     assert not plan_fight(boss).skip_summon
@@ -367,7 +367,8 @@ def test_no_summon_when_the_boss_is_nearly_dead():
     summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
     bat = dmg_card(0, "Blood Bat", 100)
     b = battle([bat, summon], [enemy("Foulgaze", 550, boss=True)])
-    b.enemies[0].health = 180  # two Blood Bats
+    b.enemies[0].health = 180  # two Blood Bats: one in hand, one still in the deck
+    b.upcoming = [dmg_card(-1, "Blood Bat", 100)]
     b.pips = 1
     assert decide(b).card.name == "Blood Bat"
     b.enemies[0].health = 550
@@ -681,3 +682,24 @@ def test_super_strike_not_used_to_chip_through_buffs():
     b.pips = 1
     a = decide(b, discards_left=0)
     assert not (a.kind is ActionKind.CAST and a.card.name == "Super Strike")
+
+
+def test_plan_uses_real_pips_and_only_the_cards_there_are():
+    from wiz101_auto.combat.brain import plan_fight
+
+    troll = myth_hit(0, dmg=190, pips=2)
+    b = battle([troll], [enemy("Sand Stalker", 700)], my=_myth_me())
+    b.pips = 2
+    b.upcoming = [myth_hit(-1, dmg=190, pips=2)]  # the deck's other Troll
+    plan = plan_fight(b)
+    # Troll now, a pip a round, the second Troll after 2 more rounds: not "Troll x4"
+    assert plan.rounds == 99 or plan.rounds >= 3
+    assert "x4" not in plan.text
+
+
+def test_power_pip_counts_double_for_our_school():
+    from wiz101_auto.combat.brain import _pay
+
+    cyclops = myth_hit(0, dmg=295, pips=3)
+    assert _pay(cyclops, "myth", 1, 1) == (0, 0)  # 1 pip + a power pip (2) pays 3
+    assert _pay(cyclops, "myth", 1, 0) is None

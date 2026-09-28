@@ -554,38 +554,19 @@ class FightPlan:
     skip_summon: bool
 
 
+PLAN_ROUNDS = 6  # how far the fight estimate looks (with the deck's remaining cards)
+
+
 def _rounds_to_kill(battle: Battle, target: Combatant) -> tuple[int, str]:
-    """Fewest of our turns to kill `target` with the attacks in hand: now, trap
-    then hit, or repeated best hits (waiting a round for pips when needed)."""
-    me, pips = battle.me, battle.pips + battle.power_pips
-    attacks = [c for c in battle.cards if c.is_damage and not c.is_enchant and not c.treasure]
-    if not attacks:
-        return 99, "no attack in hand"
-    now = [c for c in attacks if c.castable]
-    for c in sorted(now, key=lambda c: c.pip_cost):
-        if hit_damage(c, me, target) >= target.health:
-            why = damage_breakdown(me, target, c)
-            return 1, f"{c.name} now (~{hit_damage(c, me, target):.0f}: {why})"
-    traps = [c for c in battle.cards if c.castable and EffectKind.TRAP in c.kinds and not c.is_enchant]
-    if traps and not _is_trapped(target):
-        trap = max(traps, key=lambda c: sum(e.value for e in c.effects))
-        boost = sum(e.value for e in trap.effects if e.kind is EffectKind.TRAP) / 100
-        planned = (f"planned:{trap.name}", trap.school.lower(), boost)
-        effects = target.incoming_effects
-        if not effects and target.incoming_boost:
-            effects = [("existing", "", target.incoming_boost)]
-        trapped = Combatant(**{**target.__dict__, "incoming_effects": [*effects, planned]})
-        for c in sorted(attacks, key=lambda c: c.pip_cost):
-            if c.pip_cost <= pips + 1 and hit_damage(c, me, trapped) >= target.health:
-                return 2, f"{trap.name}, then {c.name} (~{hit_damage(c, me, trapped):.0f})"
-    usable = [c for c in attacks if c.pip_cost <= pips + 1]
-    if not usable:
-        return 99, "no affordable attack"
-    best = max(usable, key=lambda c: expected_damage(c, me, target))
-    per_round = max(1.0, expected_damage(best, me, target))
-    wait = 0 if best.castable else 1
-    rounds = wait + -(-target.health // int(per_round))
-    return rounds, f"{best.name} x{rounds - wait} (~{per_round:.0f} each)"
+    """Fewest rounds to kill `target`: the cards in hand, then one card a
+    round from what's left of the deck (best first: the estimate when the
+    draws go well), a pip a round. 99 when nothing kills within PLAN_ROUNDS."""
+    draws = sorted(battle.upcoming, key=lambda c: -c.base_damage())
+    found = _kill_search(battle, target, PLAN_ROUNDS, draws)
+    if found is None:
+        return 99, f"no kill within {PLAN_ROUNDS} rounds with the cards left"
+    n, _spent, _action, steps, _used = found
+    return n, " > ".join(steps)
 
 
 def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
@@ -658,31 +639,60 @@ def _use_up(effects: list[tuple[str, str, float]], school: str) -> list[tuple[st
     return out
 
 
-def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD) -> Action | None:
-    """The first move of the quickest line that kills `target` with the cards
-    in hand: each round cast an attack, a 0-pip blade or trap, or pass; a pip
-    comes every round; blades and traps are spent by the hits they boost.
-    Fewest rounds first, then fewest pips. None if no line kills in time."""
-    me = battle.me
-    hand = [c for c in battle.cards if not c.is_enchant]
-    best: list = []  # [(rounds, pips spent), first action]
+def _pay(card: Card, school: str, normal: int, power: int) -> tuple[int, int] | None:
+    """Pips left after casting `card` (None if it can't be paid). A power pip
+    is worth 2 for spells of our own school, 1 for others."""
+    cost = card.pip_cost
+    if card.school.lower() == school:
+        while cost >= 2 and power:
+            cost, power = cost - 2, power - 1
+        if cost == 1 and normal == 0 and power:
+            cost, power = 0, power - 1
+        return (normal - cost, power) if normal >= cost else None
+    take = min(cost, normal)
+    cost, normal = cost - take, normal - take
+    return (normal, power - cost) if power >= cost else None
 
-    def search(depth, pips, used, out_fx, in_fx, hp, spent, first):
-        if best and (depth, spent) >= best[0] and depth >= best[0][0]:
+
+def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Card] = ()):
+    """The quickest line that kills `target` from here: cards in hand, plus
+    (with `draws`) one card from the rest of the deck arriving each later
+    round. Each round: cast an attack, a 0-pip blade or trap, or pass; one pip
+    comes per round (power pips are worth 2 for our school's spells; a new
+    one is used when it comes, as the plan is redone every round); every card
+    is used once; blades and traps are spent by the hits they boost. Fewest
+    rounds, then fewest pips. Returns (rounds, pips, first action, steps, used)
+    or None if nothing kills within `rounds`."""
+    me = battle.me
+    my_school = (me.school or "").lower()
+    pool = [c for c in battle.cards if not c.is_enchant] + list(draws)
+    in_hand = len(pool) - len(draws)
+    best: list = []
+
+    def arrived(i: int, depth: int) -> bool:
+        return i < in_hand or depth >= i - in_hand + 1
+
+    def search(depth, normal, power, used, out_fx, in_fx, hp, spent, first, steps):
+        if depth >= rounds or (best and (depth + 1, spent) > best[0][:2] and depth + 1 >= best[0][0]):
             return
-        if depth >= rounds:
-            return
-        options = []
-        for i, c in enumerate(hand):
-            if i in used or c.pip_cost > pips or (depth == 0 and not c.castable):
+        seen = set()
+        for i, c in enumerate(pool):
+            if i in used or not arrived(i, depth) or (depth == 0 and i < in_hand and not c.castable):
                 continue
             if c.is_damage:
-                options.append(("hit", i, c))
+                kind = "hit"
             elif c.pip_cost == 0 and EffectKind.TRAP in c.kinds:
-                options.append(("trap", i, c))
+                kind = "trap"
             elif c.pip_cost == 0 and EffectKind.BLADE in c.kinds:
-                options.append(("blade", i, c))
-        for kind, i, c in options:
+                kind = "blade"
+            else:
+                continue
+            if (kind, c.name) in seen:
+                continue  # copies play the same
+            paid = _pay(c, my_school, normal, power)
+            if paid is None:
+                continue
+            seen.add((kind, c.name))
             school = c.school.lower()
             act = first
             if kind == "hit":
@@ -691,16 +701,16 @@ def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD
                 attacker = Combatant(**{**me.__dict__, "outgoing_effects": out_fx})
                 victim = Combatant(**{**target.__dict__, "incoming_effects": in_fx, "health": hp})
                 dmg = hit_damage(c, attacker, victim)
+                step = f"{c.name} (~{dmg:.0f})"
                 if dmg >= hp:
                     key = (depth + 1, spent + c.pip_cost)
-                    if not best or key < best[0]:
-                        why = f"kills {target.name} in {depth + 1} round(s) (~{dmg:.0f} on the killing hit)"
-                        best[:] = [key, act, why, used | {i}]
+                    if not best or key < best[0][:2]:
+                        best[:] = [(depth + 1, spent + c.pip_cost), act, steps + [step], used | {i}, dmg]
                     continue
                 if c.pip_cost == 0 and (_use_up(out_fx, school) != out_fx or _use_up(in_fx, school) != in_fx):
                     continue  # a free chip hit would spend our blade/traps (Super Strike): only as the kill
-                search(depth + 1, pips - c.pip_cost + 1, used | {i},
-                       _use_up(out_fx, school), _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act)
+                search(depth + 1, paid[0] + 1, paid[1], used | {i}, _use_up(out_fx, school),
+                       _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act, steps + [step])
             else:
                 if act is None:
                     t = None if (kind == "blade" and c.target is not Target.ENEMY_SINGLE) else target
@@ -711,21 +721,33 @@ def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD
                 existing = out_fx if kind == "blade" else in_fx
                 same = next((k for k, sch, v in existing if sch == school and abs(v - value) < 0.005), None)
                 fx = (same or f"plan:{c.name}", school, value)  # a copy of one that's up doesn't stack
-                if kind == "trap":
-                    search(depth + 1, pips + 1, used | {i}, out_fx, in_fx + [fx], hp, spent, act)
-                else:
-                    search(depth + 1, pips + 1, used | {i}, out_fx + [fx], in_fx, hp, spent, act)
+                new_out = out_fx + [fx] if kind == "blade" else out_fx
+                new_in = in_fx + [fx] if kind == "trap" else in_fx
+                search(depth + 1, paid[0] + 1, paid[1], used | {i}, new_out, new_in, hp, spent, act,
+                       steps + [c.name])
         # pass: keep the pips
-        search(depth + 1, pips + 1, used, out_fx, in_fx, hp, spent,
-               first or Action(ActionKind.PASS, reason=""))
+        search(depth + 1, normal + 1, power, used, out_fx, in_fx, hp, spent,
+               first or Action(ActionKind.PASS, reason=""), steps + ["pass"])
 
-    search(0, battle.pips + battle.power_pips, frozenset(), list(me.outgoing_effects),
-           list(target.incoming_effects), target.health, 0, None)
+    search(0, battle.pips, battle.power_pips, frozenset(), list(me.outgoing_effects),
+           list(target.incoming_effects), target.health, 0, None, [])
     if not best:
         return None
-    action, why = best[1], best[2]
+    (n, spent), action, steps, used, _dmg = best
+    return n, spent, action, steps, {pool[i].index for i in used if i < in_hand}
+
+
+def fastest_kill(battle: Battle, target: Combatant, rounds: int = KILL_LOOKAHEAD) -> Action | None:
+    """The first move of the quickest line that kills `target` with the cards
+    in hand (draws aren't counted on: they may not come). None if none kills
+    within `rounds`."""
+    found = _kill_search(battle, target, rounds)
+    if found is None:
+        return None
+    n, _spent, action, steps, used = found
+    why = f"kills {target.name} in {n} round(s): {' > '.join(steps)}"
     action.reason = why if action.kind is not ActionKind.PASS else f"waiting: {why}"
-    action.plan_cards = {hand[i].index for i in best[3]}
+    action.plan_cards = used
     return action
 
 
