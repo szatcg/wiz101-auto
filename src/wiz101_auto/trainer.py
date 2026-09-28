@@ -63,6 +63,26 @@ def trainable(options: list[tuple[str, int]], level: int, known: set[str]) -> li
     return [name for name, lv in options if lv <= level and norm(name) not in known]
 
 
+async def go_home(client) -> bool:
+    """Press Go Home (usable any time, from any world): lands in the dorm."""
+    if not await ui.click_named(client, "GoHomeButton"):
+        return False
+    await asyncio.sleep(1.0)
+    await ui.confirm_modal(client)
+    await wait_for_loading(client, appear_timeout=6.0)
+    return await client.zone_name() == DORM
+
+
+async def home_to_ravenwood(q) -> bool:
+    """Go Home lands in the dorm, whose door opens onto Ravenwood."""
+    logger.info("using Go Home to get to Ravenwood")
+    if await q.client.zone_name() != DORM and not await go_home(q.client):
+        return False
+    await q.approach_and_walk(DORM_DOOR, DORM)
+    await wait_for_loading(q.client)
+    return await q.client.zone_name() == RAVENWOOD
+
+
 class SpellTrainer:
     def __init__(self, quester, progression, schedule: list[int]):
         self.q = quester
@@ -112,19 +132,7 @@ class SpellTrainer:
         return await self._talk_to(school)
 
     async def _home_to_ravenwood(self) -> bool:
-        """Go Home (usable any time, from any world) lands in the dorm, whose
-        door opens onto Ravenwood."""
-        logger.info("using Go Home to get to Ravenwood")
-        if not await ui.click_named(self.client, "GoHomeButton"):
-            return False
-        await asyncio.sleep(1.0)
-        await ui.confirm_modal(self.client)
-        await wait_for_loading(self.client, appear_timeout=6.0)
-        if await self.client.zone_name() != DORM:
-            return False
-        await self.q.approach_and_walk(DORM_DOOR, DORM)
-        await wait_for_loading(self.client)
-        return await self.client.zone_name() == RAVENWOOD
+        return await home_to_ravenwood(self.q)
 
     async def _talk_to(self, school: School) -> bool:
         from .bossfarm import find_entity_named

@@ -14,6 +14,7 @@ from wizwalker.extensions.wizsprinter import SprintyClient
 from .bossfarm import BossFarmer
 from .combat.fighter import Fighter
 from .config import Config
+from .dungeon_heal import DungeonHealer
 from .gear import GearManager
 from .progression import Progression
 from .quest import Quester
@@ -247,6 +248,7 @@ async def run(cfg: Config):
                 logger.info("gear checks are off (gear_checks: false)")
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
+            quester.healer = DungeonHealer(quester, cfg.upkeep)
             quester.fighter = fighter
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight

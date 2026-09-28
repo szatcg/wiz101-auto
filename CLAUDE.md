@@ -97,6 +97,7 @@ while the bot is stopped.
 | `cli.py`, `service.py` | commands; background start/stop/status/supervise |
 | `bot.py` | connects, runs the concurrent loops (combat, dialogue, quest, watchdog, status) |
 | `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
+| `dungeon_heal.py` | inside a dungeon and low: mark the spot, Go Home, heal (wisps/rest), Recall back |
 | `marks.py` | Mark/Recall decisions: mark before trips of 2+ zones, recall when mark + walk beats walking |
 | `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |

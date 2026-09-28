@@ -307,6 +307,8 @@ class Quester:
         self._teleported = False  # a recall moved us: not a gate
         self._mark: Mark | None = load_mark()  # where the game's Mark is (dungeon sigil or travel spot)
         self._recall_blocked_until = 0.0  # after a refused/failed travel recall
+        self.healer = None  # DungeonHealer, set by the bot
+        self._dungeon: tuple[str, str] | None = None  # (outside zone, first room) of the dungeon we're in
         self._recalled_for = ""  # objective a travel recall was used for (once each)
         self._bad_gates: set[tuple[str, str]] = set()
 
@@ -532,6 +534,7 @@ class Quester:
                 if await self.client.is_loading() or await self.client.zone_name() != zone:
                     await wait_for_loading(self.client)
                     logger.success("entered the dungeon")
+                    self._dungeon = (zone or "", await self.client.zone_name() or "")
                     self._sigil_failed_at = None
                     await self._remember_dungeon(zone, sigil)
                     return True
@@ -547,6 +550,9 @@ class Quester:
                     seen_box = text
                     waited = time.monotonic() - started
                     logger.warning(f"message box {waited:.0f}s into the sigil countdown: {text[:120]!r}")
+                if text and "about to enter a dungeon" in text.lower():
+                    # The dungeon notice waits for OK before the countdown goes on.
+                    await ui.press_modal_button(self.client, box, "centerButton")
                 await asyncio.sleep(0.5)
         finally:
             self.controller.end_idle()
@@ -576,6 +582,20 @@ class Quester:
         except Exception as exc:
             logger.debug(f"marking failed: {exc!r}")
             return False
+
+    async def _in_dungeon(self, zone: str) -> bool:
+        """Still inside the dungeon we entered by its sigil? Leaving it (its
+        outside zone, another world) ends that; a heal trip Recalls back first."""
+        if not self._dungeon:
+            entry = DungeonMemory.load().dungeons.get(zone)  # e.g. after a restart inside
+            if entry is None:
+                return False
+            self._dungeon = (entry.outside, zone)
+        outside, first_room = self._dungeon
+        if zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
+            self._dungeon = None
+            return False
+        return True
 
     def _keep_dungeon_mark(self, objective: str) -> bool:
         """The dungeon mark is still wanted: a defeat awaits a Recall, or we're
@@ -1429,6 +1449,8 @@ class Quester:
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
+        if self.healer and await self._in_dungeon(zone_now) and await self.healer.between_fights(zone_now):
+            return
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return
         if await self._recall_to_mark():
