@@ -404,6 +404,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 now_hp, now_mana = await health_mana(client)
                 if now_hp > hp or now_mana > mana:
                     continue
+            if trip and not travelled:
+                # Hunting remembered wisp spots around a zone full of enemies
+                # pulls fight after fight (the Hall of Champions' Sokkwi): heal
+                # from the hub and Recall back instead.
+                travelled = True
+                if await trip():
+                    return True
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
             if await visit_known_spot(client, cfg, zone, need):
@@ -420,10 +427,6 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 if await sweep_for_wisps(client, cfg):
                     continue
             poor_zone = wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
-            if trip and not travelled and poor_zone:
-                travelled = True
-                if await trip():
-                    return True
             if go_to_zone and not travelled and poor_zone:
                 # No wisps to be had here right now (e.g. the hub after a defeat):
                 # go heal where they spawn instead of waiting for respawns.
