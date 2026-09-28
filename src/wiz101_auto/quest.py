@@ -354,7 +354,12 @@ class Quester:
     async def _zone_changed(self, zone: str | None) -> bool:
         await wait_for_loading(self.client, appear_timeout=0.8)
         if await self.client.zone_name() != zone:
-            await self._clear_of_enemies()  # doors drop us wherever the game likes
+            # Doors drop us wherever the game likes, and the new zone's enemies
+            # take a moment to load: look a few times before moving on.
+            for _ in range(3):
+                if await self._clear_of_enemies() or await self.client.in_battle():
+                    break
+                await asyncio.sleep(0.8)
             return True
         return False
 
@@ -1255,6 +1260,7 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
+        await self._clear_of_enemies()  # a patrol walked up while we stood still
         if await self._pick_up_wanted():
             return
         await self._answer_dungeon_exit()
