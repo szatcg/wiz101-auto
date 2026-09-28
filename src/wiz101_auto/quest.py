@@ -795,7 +795,7 @@ class Quester:
         if time.monotonic() < self._recall_blocked_until:
             return False
         dest = objective_zone(objective)
-        if not recall_is_faster(zone, dest, self._mark, zone_hops):
+        if not recall_is_faster(zone, dest, self._mark, zone_hops, objective):
             return False
         if not await is_free(self.client):
             return False
@@ -1799,11 +1799,15 @@ class Quester:
                 self.controller.end_idle()
             self._ranked_for = objective
         zone = await self.client.zone_name()
+        # A new objective: Recall first if the mark gets us there sooner (the
+        # game keeps one mark: marking here first would lose it); else mark
+        # here before a long trip.
+        if objective and await self._recall_if_faster(objective, zone or ""):
+            await self._note_progress(objective, zone)
+            return
         if objective and self._last_progress[0] and objective != self._last_progress[0]:
             await self._travel_mark(objective, zone or "")
         await self._note_progress(objective, zone)
-        if objective and await self._recall_if_faster(objective, zone or ""):
-            return
         # Stalled on one objective: make sure we aren't wedged inside a building
         # or wall from a teleport (walking then does nothing).
         now = time.monotonic()

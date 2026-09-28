@@ -74,11 +74,18 @@ def should_travel_mark(
     return n is None or n >= MARK_MIN_HOPS
 
 
-def recall_is_faster(here: str, dest: str | None, mark: Mark | None, hops: Hops) -> bool:
+def recall_is_faster(
+    here: str, dest: str | None, mark: Mark | None, hops: Hops, objective: str | None = None
+) -> bool:
     """Recall to the mark, then walk on, beats walking from here to `dest`?
     With no known walking route from here (e.g. inside a building), only when
-    the mark is in the destination zone itself."""
-    if not mark or not dest or not mark.zone or mark.zone == here or dest == here:
+    the mark is in the destination zone itself. A mark placed while on this
+    very objective ("Talk To Zan'ne", marked in her building) is the place."""
+    if not mark or not mark.zone or mark.zone == here:
+        return False
+    if objective and mark.objective == objective:
+        return True
+    if not dest or dest == here:
         return False
     via = hops(mark.zone, dest)
     if via is None:

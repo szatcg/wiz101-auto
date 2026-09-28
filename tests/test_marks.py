@@ -49,3 +49,12 @@ def test_fight_marks_are_kept_like_dungeon_marks():
     fight = Mark("C", "Defeat Sand Stalkers in Grand Arena", "fight")
     assert not should_travel_mark("B", "Hub", hops, fight, True, set())
     assert should_travel_mark("B", "Hub", hops, fight, False, set())
+
+
+def test_mark_for_the_same_objective_is_the_place():
+    mark = Mark("Krokotopia/Interiors/KT_Library", "Talk To Zan'ne in The Oasis", "travel")
+    # the objective names the Oasis, but the mark was set while doing it (in her building)
+    assert recall_is_faster("Krokotopia/KT_Pyramid/KT_Chamber", "Krokotopia/KT_Hub", mark, hops,
+                            objective="Talk To Zan'ne in The Oasis")
+    assert not recall_is_faster("Krokotopia/Interiors/KT_Library", "Krokotopia/KT_Hub", mark, hops,
+                                objective="Talk To Zan'ne in The Oasis")  # already there
