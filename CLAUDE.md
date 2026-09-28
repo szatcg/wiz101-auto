@@ -121,9 +121,10 @@ read their source there when you need the memory API.
 
 ## Known gaps / open work
 
-- Clicks and display scaling: the bot is DPI-unaware, so on a monitor not at
-  100% the game reads the cursor offset by (real client origin - scaled
-  origin), e.g. (35, 24) px on the 125% left monitor. That broke thin buttons
+- Clicks and display scaling: WizWalker makes the bot DPI-aware but the game
+  isn't, so on a monitor not at 100% the game sees the cursor shifted by
+  (real client origin - scaled origin), e.g. 35px right, 24px down on the
+  125% left monitor. That broke thin buttons
   (Pass, Flee, Yes/No). `bot.dpi_click_offset` measures it per click and
   `_click_left_of_center` shifts every cursor position by it; windows are
   clicked at their center (the old 25%-of-width hack is gone).

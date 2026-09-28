@@ -74,33 +74,39 @@ async def connect(handler: ClientHandler):
     return client
 
 
-def dpi_click_offset(hwnd: int) -> tuple[int, int]:
-    """How far off the game sees our cursor, in pixels.
-
-    The bot runs DPI-unaware, so ClientToScreen hands WizWalker *scaled*
-    screen coordinates, while the game reads the cursor in real pixels. On a
-    monitor that isn't at 100% (the game sat on a 125% monitor left of a 100%
-    main one) its client origin differs between the two: (-2419, 96) scaled vs
-    (-2384, 120) real, so every click landed 35px left and 24px up. That
-    missed thin buttons (Pass, Flee, message-box Yes/No: 41px tall) and made
-    cards need a click "left of center". The correction is the real origin
-    minus the scaled one, measured per click (the window can move)."""
+def _client_origin(hwnd: int, awareness: int):
+    """The client area's top-left in screen coordinates as a thread with the
+    given DPI awareness context sees it (-1 unaware, -4 per-monitor v2)."""
     import ctypes
     from ctypes import wintypes
 
     user32 = ctypes.windll.user32
-    scaled = wintypes.POINT(0, 0)
-    user32.ClientToScreen(hwnd, ctypes.byref(scaled))
-    real = wintypes.POINT(0, 0)
+    pt = wintypes.POINT(0, 0)
+    old = user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(awareness))
     try:
-        old = user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))  # per-monitor aware v2
-        try:
-            user32.ClientToScreen(hwnd, ctypes.byref(real))
-        finally:
-            user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(old))
+        user32.ClientToScreen(hwnd, ctypes.byref(pt))
+    finally:
+        user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(old))
+    return pt.x, pt.y
+
+
+def dpi_click_offset(hwnd: int) -> tuple[int, int]:
+    """What to add to a client position so the game sees the click there.
+
+    WizWalker makes the bot DPI-aware, so the cursor position it writes is in
+    real pixels; the game is DPI-unaware and turns it back into client
+    coordinates with its *scaled* origin. On a monitor not at 100% (the game
+    sat on a 125% monitor left of a 100% main one) the two origins differ:
+    (-2384, 120) real vs (-2419, 96) scaled, so the game saw every click 35px
+    right and 24px down. That missed thin buttons (Pass, Flee, message-box
+    Yes/No: 41px tall) and made cards need a click "left of center". The fix is
+    the scaled origin minus the real one, measured per click (windows move)."""
+    try:
+        sx, sy = _client_origin(hwnd, -1)
+        rx, ry = _client_origin(hwnd, -4)
     except Exception:
         return 0, 0
-    return real.x - scaled.x, real.y - scaled.y
+    return sx - rx, sy - ry
 
 
 def _click_left_of_center(client):
