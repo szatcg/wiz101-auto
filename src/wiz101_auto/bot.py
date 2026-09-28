@@ -74,22 +74,59 @@ async def connect(handler: ClientHandler):
     return client
 
 
-CLICK_X = 0.25  # fraction of a window's width to click at
+def dpi_click_offset(hwnd: int) -> tuple[int, int]:
+    """How far off the game sees our cursor, in pixels.
+
+    The bot runs DPI-unaware, so ClientToScreen hands WizWalker *scaled*
+    screen coordinates, while the game reads the cursor in real pixels. On a
+    monitor that isn't at 100% (the game sat on a 125% monitor left of a 100%
+    main one) its client origin differs between the two: (-2419, 96) scaled vs
+    (-2384, 120) real, so every click landed 35px left and 24px up. That
+    missed thin buttons (Pass, Flee, message-box Yes/No: 41px tall) and made
+    cards need a click "left of center". The correction is the real origin
+    minus the scaled one, measured per click (the window can move)."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    scaled = wintypes.POINT(0, 0)
+    user32.ClientToScreen(hwnd, ctypes.byref(scaled))
+    real = wintypes.POINT(0, 0)
+    try:
+        old = user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))  # per-monitor aware v2
+        try:
+            user32.ClientToScreen(hwnd, ctypes.byref(real))
+        finally:
+            user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(old))
+    except Exception:
+        return 0, 0
+    return real.x - scaled.x, real.y - scaled.y
 
 
 def _click_left_of_center(client):
-    """On this client, UI hit areas sit left of the rects WizWalker computes: a
-    center click misses the leftmost hand card and the spellbook's All tab and
-    close button, while a click at 25% of the width lands. Route every
-    click_window (ours and WizWalker's) through that point."""
+    """Aim clicks where the game will see them: shift every cursor position by
+    the DPI offset (see dpi_click_offset), and click windows at their center."""
     mouse = client.mouse_handler
+    set_position = mouse.set_mouse_position
+    offset_logged: list = []
+
+    async def set_mouse_position(x, y, *args, **kwargs):
+        if x >= 0 and y >= 0:  # (-100, -100) parks the cursor outside the window
+            try:
+                dx, dy = dpi_click_offset(client.window_handle)
+            except Exception:
+                dx, dy = 0, 0
+            if (dx, dy) != (0, 0) and offset_logged != [(dx, dy)]:
+                offset_logged[:] = [(dx, dy)]
+                logger.info(f"correcting clicks by ({dx}, {dy}) px for display scaling")
+            x, y = x + dx, y + dy
+        return await set_position(x, y, *args, **kwargs)
 
     async def click_window(window, **kwargs):
         r = await window.scale_to_client()
-        x = int(r.x1 + (r.x2 - r.x1) * CLICK_X)
-        y = int((r.y1 + r.y2) / 2)
-        await mouse.click(x, y, **kwargs)
+        await mouse.click(int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2), **kwargs)
 
+    mouse.set_mouse_position = set_mouse_position
     mouse.click_window = click_window
 
 

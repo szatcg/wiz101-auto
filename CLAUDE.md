@@ -121,9 +121,12 @@ read their source there when you need the memory API.
 
 ## Known gaps / open work
 
-- UI hit areas sit left of the rects WizWalker computes; center clicks miss
-  some windows (leftmost hand card, spellbook All tab and close button).
-  `bot._click_left_of_center` routes every `click_window` to 25% of the width.
+- Clicks and display scaling: the bot is DPI-unaware, so on a monitor not at
+  100% the game reads the cursor offset by (real client origin - scaled
+  origin), e.g. (35, 24) px on the 125% left monitor. That broke thin buttons
+  (Pass, Flee, Yes/No). `bot.dpi_click_offset` measures it per click and
+  `_click_left_of_center` shifts every cursor position by it; windows are
+  clicked at their center (the old 25%-of-width hack is gone).
 - Spell lists: `SpellListControl` entries are 0x78 bytes, `DeckListControl`
   0x28 (layout picked by most spells found). Hands also hold gear item cards
   ("X - Starter Wand", Heartbeat). Rebuilds are skipped when the read looks
@@ -131,8 +134,6 @@ read their source there when you need the memory API.
   `add_by_name`) crashed the game twice, so `deck.auto_add` is off: missing cards
   are logged for adding by hand. The planner drops minions; the brain summons one (after urgent
   heals, before attacks) whenever none of ours is alive.
-- The game isn't DPI-aware: on a 125%-scaled monitor Windows stretches its
-  1760x990 render, which is likely why click hit areas are offset.
 - Prospector Zeke's "Go To <place> Smith in <place>" quests have no quest
   marker; `travel_data.py` routes through gates and to the known Zeke spot.
   Quest-text place names missing from `displayZones.txt` go in
