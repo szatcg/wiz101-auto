@@ -450,6 +450,11 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 logger.info(f"no wisps here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
                 return True
 
+        if close_enough(cfg, hp, mana):
+            # Nothing to pick up nearby, and resting regenerates little or
+            # nothing: this close to the threshold, questing on is better.
+            logger.info(f"nothing to heal with here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
+            return True
         if not rested:
             await move_to_safety(client)
             rested = True
@@ -458,11 +463,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         if elapsed > cfg.rest_max_minutes * 60:
             if not cfg.needs_recovery(hp, mana):
                 return True
-            controller.stop(
+            # Never end the session over it: carry on and heal at the next
+            # chance (wisps on the way, a heal trip, a level-up).
+            logger.warning(
                 f"could not recover (health {hp:.0%}, mana {mana:.0%}) within "
-                f"{cfg.rest_max_minutes:g} min: no potions and no safe wisps nearby"
+                f"{cfg.rest_max_minutes:g} min; carrying on"
             )
-            return False
+            return True
         if loop.time() - last_report > 60:
             logger.info(f"resting: health {hp:.0%}, mana {mana:.0%}; waiting for regeneration or wisps")
             last_report = loop.time()
