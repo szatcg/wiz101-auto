@@ -147,8 +147,17 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
     return (q.activity, -area, easy, position, -hops, q.active, q.mainline, q.reward)
 
 
+def quest_world(q: QuestEntry) -> str | None:
+    """The world ("Krokotopia") a quest's area is in, from the book's area name."""
+    zone = objective_zone(q.world) if q.world else None
+    return zone.split("/", 1)[0] if zone else None
+
+
 def choose_quest(
-    quests: list[QuestEntry], set_aside: set[str] = frozenset(), order: dict | None = None
+    quests: list[QuestEntry],
+    set_aside: set[str] = frozenset(),
+    order: dict | None = None,
+    world: str | None = None,
 ) -> QuestEntry | None:
     """Which quest to track. Only the main story (and spell/class quests, which
     teach spells) while one of those can be worked on; side quests only when
@@ -157,13 +166,24 @@ def choose_quest(
     earliest area, easy objectives first, listed quests in list order."""
     order = order or {}
     available = [q for q in quests if q.name not in set_aside]
-    main = [q for q in available if q.mainline or q.activity]
-    if not main:
-        # Filling in with side quests: finish the tracked one before picking
-        # another (flipping between them wastes the trips already made).
-        active = next((q for q in available if q.active), None)
+    # The main story: flagged in the book, spell/class quests, or on the quest list.
+    main = [q for q in available if q.mainline or q.activity or norm(q.name) in order]
+    if not main and available:
+        # Filling in with side quests while the main story waits for a level:
+        # stay in this world (no trips back to Wizard City), finish the tracked
+        # one before picking another, and prefer the biggest reward (experience).
+        here = [q for q in available if world and quest_world(q) == world] or available
+        active = next((q for q in here if q.active), None)
         if active:
             return active
+        return max(
+            here,
+            key=lambda q: (
+                q.reward,
+                bool(q.goal) and not is_combat_objective(q.goal),  # quick, no fight
+                -(UNKNOWN_HOPS if q.hops is None else q.hops),
+            ),
+        )
     quests = main or available or quests
     if not quests:
         return None
@@ -1047,7 +1067,9 @@ class Quester:
             if grinding and not self._grinding:
                 logger.warning("every quest is set aside: fighting for experience until the next level")
             self._grinding = grinding
-            chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order)
+            here = await self.client.zone_name() or ""
+            world = here.split("/", 1)[0] if here else None
+            chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities

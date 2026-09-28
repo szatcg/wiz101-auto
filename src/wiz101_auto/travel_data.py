@@ -114,6 +114,7 @@ def parse_spots(text: str) -> Spots:
 EXTRA_DISPLAY_ZONES = [
     ("the commons", "WizardCity/WC_Hub"),
     ("ravenwood", "WizardCity/WC_Ravenwood"),
+    ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
 ]
 
 

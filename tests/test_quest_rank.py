@@ -113,3 +113,14 @@ def test_side_quests_are_finished_one_at_a_time():
     tracked = QuestEntry(1, "So Many Nirini", active=True, world="The Oasis", goal="Talk To Zan'ne", hops=3)
     other = QuestEntry(2, "Tool Time", world="Chamber of Fire", goal="Talk To Danforth", hops=1)
     assert choose_quest([main, tracked, other], {"Give 'em Another Round"}) is tracked
+
+
+def test_side_quests_stay_in_this_world_and_prefer_bigger_rewards():
+    from wiz101_auto.quest import choose_quest
+
+    main = QuestEntry(0, "Give 'em Another Round", mainline=True, goal="Defeat Akori Nirini")
+    far = QuestEntry(1, "A Foul Decree", active=True, world="Colossus Boulevard", reward=500, hops=None)
+    small = QuestEntry(2, "Overdue Scrolls", world="The Oasis", reward=90, hops=1)
+    big = QuestEntry(3, "So Many Nirini", world="Palace of Fire", reward=250, hops=3)
+    pick = choose_quest([main, far, small, big], {"Give 'em Another Round"}, world="Krokotopia")
+    assert pick is big  # not the tracked Wizard City one; the bigger Krokotopia reward
