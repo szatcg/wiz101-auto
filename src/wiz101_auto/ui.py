@@ -187,7 +187,7 @@ MODAL_SPOTS = [(fx, fy) for fy in (0.5, 0.2, -0.3, -0.7, 0.8, 1.2) for fx in (0.
 _modal_spot: list = []  # [(fx, fy)] once learned
 
 
-async def press_modal_button(client, box, name: str) -> bool:
+async def press_modal_button(client, box, name: str, done=None) -> bool:
     """Click a visible message-box button until the box closes. Clicks right on
     the button's rect didn't register on the flee confirmation, so nearby spots
     are probed and the one that works is remembered (and logged)."""
@@ -211,7 +211,10 @@ async def press_modal_button(client, box, name: str) -> bool:
         for _ in range(10):
             await asyncio.sleep(0.3)
             try:
-                if not await box.is_visible():
+                # Look the box up afresh (a stale window object can still read
+                # as visible), and stop as soon as the caller's goal is met.
+                gone = await modal_box(client) is None
+                if gone or (done is not None and await done()):
                     if not _modal_spot or _modal_spot[0] != (fx, fy):
                         logger.info(f"message box button {name!r} works at ({fx:.2f}, {fy:.2f}) of its rect")
                         _modal_spot[:] = [(fx, fy)]

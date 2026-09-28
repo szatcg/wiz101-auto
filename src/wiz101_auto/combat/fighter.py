@@ -137,6 +137,9 @@ class Fighter(CombatHandler):
         except Exception as exc:
             logger.debug(f"could not remember bosses: {exc!r}")
 
+    async def _out_of_battle(self) -> bool:
+        return not await self.client.in_battle()
+
     async def _visible_named(self, name: str):
         for w in await self.client.root_window.get_windows_with_name(name):
             if await w.is_visible():
@@ -185,7 +188,9 @@ class Fighter(CombatHandler):
                     logger.debug(f"flee ({how}): message box {text[:80]!r}")
                 if box is not None and "flee" in text.lower():
                     _snapshot("state/flee_box.png")  # to see where its buttons really are
-                    if await ui.press_modal_button(self.client, box, "centerButton"):
+
+                    done = self._out_of_battle
+                    if await ui.press_modal_button(self.client, box, "centerButton", done=done):
                         logger.info(f"confirmed fleeing ({how})")
                         self._flee_method = how
                         if spot is not None:
@@ -268,7 +273,9 @@ class Fighter(CombatHandler):
                 if not self._judged_fight and self.unneeded_fight:
                     self._judged_fight = True
                     self._want_flee = await self.unneeded_fight(battle)
-                if self._want_flee and await ui.press_modal_button(self.client, box, "centerButton"):
+                if self._want_flee and await ui.press_modal_button(
+                    self.client, box, "centerButton", done=self._out_of_battle
+                ):
                     logger.info("confirmed fleeing (the confirmation was already open)")
                     return
             if await self.cancel_flee_box():
