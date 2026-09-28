@@ -43,11 +43,14 @@ from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .travel_data import (
     find_zone_gate,
     gate_behind,
+    gate_kind,
     gate_toward,
     hops_to_place,
     learn_gate,
     objective_zone,
+    press_x_gate,
     quest_spots,
+    ride_gate,
     zone_hops,
     zones_near,
 )
@@ -55,6 +58,7 @@ from .upkeep import (
     clear_popups,
     is_free,
     mob_positions,
+    move_to_safety,
     recover,
     scan_wisps,
     unstick,
@@ -65,6 +69,7 @@ from .upkeep import (
 from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
+EXPOSED_RADIUS = 1200.0  # standing still (menus, marking) this close to an enemy invites a fight
 BOUNCE_DISTANCE = 20.0
 WISP_SCAN_SECONDS = 30.0
 STATUS_EVERY_SECONDS = 20.0
@@ -536,12 +541,44 @@ class Quester:
                 return False
             pos, next_zone = gate
             logger.info(f"heading to {dest}: gate to {next_zone}")
+            kind = gate_kind(zone or "", next_zone)
+            if press_x_gate(kind):
+                # A boat, an NPC or a door that asks: stand there and press X.
+                if not await self._use_x_gate(pos, zone or "", next_zone, ride_gate(kind)):
+                    logger.warning(f"gate {zone} -> {next_zone} ({kind}) did not work; avoiding it")
+                    self._bad_gates.add((zone, next_zone))
+                await wait_for_loading(self.client)
+                continue
             await self.travel(pos)
             if await self.client.zone_name() == zone and not await self.approach_and_walk(pos, zone):
                 logger.warning(f"gate {zone} -> {next_zone} did not work; avoiding it")
                 self._bad_gates.add((zone, next_zone))
             await wait_for_loading(self.client)
         return await self.client.zone_name() == dest
+
+    async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
+        """Use a gate by pressing X at it (WizSprinter's xNoWait/xSkipRide
+        types). A ride (the Krokotopia boat) goes through a ride zone first,
+        where another X skips the ride. True once in `next_zone`."""
+        await self.client.teleport(pos)
+        await asyncio.sleep(1.5)  # a vendor stands by the boat: let the boat's prompt come up
+        for _leg in range(2 if ride else 1):
+            here = await self.client.zone_name()
+            pressed = False
+            for _ in range(12):
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    await self.client.send_key(Keycode.X, 0.1)
+                    pressed = True
+                    await asyncio.sleep(0.6)
+                    continue
+                if pressed or await self.client.zone_name() != here:
+                    break
+                await asyncio.sleep(0.5)
+            await wait_for_loading(self.client, appear_timeout=8.0)
+            self._teleported = True  # not a walk-through gate: don't learn it
+            if await self.client.zone_name() == next_zone:
+                return True
+        return await self.client.zone_name() == next_zone
 
     async def _sigil_at(self, target: XYZ) -> XYZ | None:
         """Position of a dungeon sigil ("Teleport Semi Circle") at the marker, if any."""
@@ -639,6 +676,8 @@ class Quester:
         try:
             objective = await self.objective() if objective is None else objective
             zone = await self.client.zone_name() or ""
+            if kind != "dungeon":  # a dungeon mark belongs on its sigil
+                await move_to_safety(self.client, EXPOSED_RADIUS, "before marking")
             if not await ui.click_named(self.client, "MarkButton"):
                 logger.debug("no Mark button to click")
                 return False
@@ -1677,6 +1716,8 @@ class Quester:
             self._last_rank = time.monotonic()
             self.controller.allow_idle(30)
             try:
+                # Reading the quest book stands still: not beside enemies.
+                await move_to_safety(self.client, EXPOSED_RADIUS, "before reading the quest book")
                 if await self.prioritize_quests():
                     await asyncio.sleep(1.0)
                     objective = await self.objective()

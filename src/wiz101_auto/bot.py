@@ -21,7 +21,7 @@ from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
 from .trainer import SpellTrainer
-from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, recover, scan_wisps
+from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, move_to_safety, recover, scan_wisps
 from .watchdog import Watchdog
 
 HOOK_TIMEOUT = 90
@@ -250,6 +250,7 @@ async def run(cfg: Config):
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             if cfg.gear_checks:
                 quester.gear = GearManager(client, progression.school or "")
+                quester.gear.before_check = lambda: move_to_safety(client, 1200.0, "before checking gear")
             else:
                 logger.info("gear checks are off (gear_checks: false)")
             if cfg.progression.enabled:

@@ -85,6 +85,28 @@ def parse_gates(text: str) -> Gates:
     return gates
 
 
+def parse_gate_kinds(text: str) -> dict[tuple[str, str], str]:
+    """(from_zone, to_zone) -> gate type from `gates_list.txt`: "standard" is
+    walked through; "xNoWait...", "dungeon" and "xSkipRide..." (boats) are
+    used by pressing X at the spot."""
+    kinds: dict[tuple[str, str], str] = {}
+    for line in text.splitlines():
+        parts = line.split(";")
+        if len(parts) == 6:
+            kinds.setdefault((parts[4], parts[5]), parts[0])
+    return kinds
+
+
+def press_x_gate(kind: str) -> bool:
+    """Gates used with the X key (an NPC, a boat, a door that asks), not walked into."""
+    return kind.startswith("x") or kind == "dungeon"
+
+
+def ride_gate(kind: str) -> bool:
+    """Gates that go through a ride zone first (a second X press skips the ride)."""
+    return "skipride" in kind.lower()
+
+
 def parse_display_zones(text: str) -> DisplayZones:
     """`displayZones.txt` lines `world;zone_id;display name` -> [(name, zone_id)], longest first."""
     zones = []
@@ -204,6 +226,16 @@ def _data() -> tuple[Gates, DisplayZones, Spots]:
         )
         _load_learned(_cache[0])
     return _cache
+
+
+_kinds: dict[tuple[str, str], str] | None = None
+
+
+def gate_kind(from_zone: str, to_zone: str) -> str:
+    global _kinds
+    if _kinds is None:
+        _kinds = parse_gate_kinds((_TRAVERSAL_DIR / "gates_list.txt").read_text())
+    return _kinds.get((from_zone, to_zone), "standard")
 
 
 def find_zone_gate(

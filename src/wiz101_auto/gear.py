@@ -180,6 +180,7 @@ class GearManager:
         self.school = school
         self._level: int | None = None
         self.memory = GearMemory()
+        self.before_check = None  # async callable: step away from enemies first (set by the bot)
         self._items: set[int] | None = None  # backpack item ids seen so far
         self._last_backpack_check = 0.0
 
@@ -369,6 +370,8 @@ class GearManager:
         names) just those against what's worn; otherwise every item the memory
         hasn't ruled out. Returns what changed."""
         logger.info(f"checking gear ({reason})")
+        if self.before_check:
+            await self.before_check()  # the check takes a while standing still
         if not await self._open():
             logger.warning("could not open the backpack to check gear")
             return []

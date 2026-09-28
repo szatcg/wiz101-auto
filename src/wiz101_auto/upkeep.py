@@ -280,20 +280,23 @@ async def unstick(client) -> bool:
         return False
 
 
-async def move_to_safety(client, safe_distance: float = 1500.0) -> bool:
-    """If a mob is close, teleport to the nearest spot with no mob around."""
+async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to rest") -> bool:
+    """If an enemy (or a fight going on) is close, teleport to the nearest
+    spot with none around: landmarks, or walkway points at floor height
+    (cameras and other path markers float off the walkable map)."""
+    from .collect import floor_points, path_points
+
     try:
         me = await client.body.position()
-        mobs = [await m.location() for m in await client.get_mobs()]
-        if all(p.distance(me) > safe_distance for p in mobs):
+        hazards = await mob_positions(client)
+        if all(math.dist(p, _pt(me)) > safe_distance for p in hazards):
             return False
-        # Only landmarks: any-entity spots include cameras and path markers
-        # floating off the walkable map.
-        candidates = away_from(await landmarks(client), [_pt(p) for p in mobs], safe_distance)
+        spots = await landmarks(client) + floor_points(await path_points(client), me.z)
+        candidates = away_from(spots, hazards, safe_distance)
         if not candidates:
             return False
         spot = min(candidates, key=lambda p: math.dist(p, _pt(me)))
-        logger.info("moving away from mobs to rest")
+        logger.info(f"enemies close by: moving somewhere clear {why}")
         await client.teleport(XYZ(*spot))
         await asyncio.sleep(1.0)
         return True
