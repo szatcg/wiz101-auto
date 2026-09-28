@@ -119,6 +119,9 @@ class BossFarmer:
                 return
             logger.info(f"run {self.runs + 1}: engaging {self.cfg.boss}")
             self._fought_this_visit = True
+            from .safe_teleport import allow_engage
+
+            allow_engage(self.client)
             await self.client.teleport(boss)
             await asyncio.sleep(2.0)
             return

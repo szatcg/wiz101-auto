@@ -38,6 +38,7 @@ from .dungeons import DungeonEntry, DungeonMemory
 from .marks import Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
+from .safe_teleport import allow_engage
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .travel_data import (
     find_zone_gate,
@@ -1479,6 +1480,7 @@ class Quester:
                     break
             if pos is not None:
                 logger.info(f"going after {target} for {objective!r}")
+                allow_engage(self.client)  # this teleport is meant to start the fight
                 await self.client.teleport(pos)
                 await asyncio.sleep(3.0)
                 if await self.client.in_battle():
@@ -1500,6 +1502,7 @@ class Quester:
             if await self.client.in_battle():
                 return
             try:
+                allow_engage(self.client)  # "any enemy will do": going onto one on purpose
                 await self.sprinter.tp_to_closest_mob()
             except Exception as exc:
                 logger.debug(f"no mob to pull: {exc}")
@@ -1545,6 +1548,7 @@ class Quester:
             pos = await find_entity_named(self.client, target)
             if pos is not None:
                 logger.info(f"found {target} near ({p[0]:.0f}, {p[1]:.0f}); going after it")
+                allow_engage(self.client)
                 await self.client.teleport(pos)
                 await asyncio.sleep(3.0)
                 return

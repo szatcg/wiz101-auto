@@ -72,6 +72,9 @@ async def connect(handler: ClientHandler):
             "as Administrator."
         ) from None
     logger.success("connected to the game")
+    from .safe_teleport import install
+
+    install(client)  # every teleport lands clear of enemies (unless meant to start a fight)
     _click_left_of_center(client)
     return client
 
