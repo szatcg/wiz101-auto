@@ -217,7 +217,14 @@ class GearManager:
             if score > best_score + 0.5:
                 best_name, best_score = name, score
         if best_name:
-            await self._equip_by_name(tab, best_name)
+            # Never leave the slot worse than we found it: equipping sometimes
+            # doesn't take, so check the score and try again.
+            for _ in range(3):
+                await self._equip_by_name(tab, best_name)
+                if await self._score() >= best_score - 0.5:
+                    break
+            else:
+                logger.warning(f"gear: could not put {best_name!r} back on ({tab[4:]}); check that slot")
         return best_name if best_name != current else None
 
     async def optimise(self, reason: str, tabs=SLOT_TABS) -> list[str]:

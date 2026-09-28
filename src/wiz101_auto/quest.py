@@ -446,6 +446,25 @@ class Quester:
         if learn_gate(zone, prev, gate):
             logger.info(f"learned a gate {zone} -> {prev} at ({gate.x:.0f}, {gate.y:.0f})")
 
+    async def _answer_dungeon_exit(self):
+        """Walking into a dungeon's exit asks "If you leave a Dungeon you will lose
+        all your progress...": leave when the objective is elsewhere (e.g. hand the
+        quest in outside), otherwise stay. Unanswered, it blocks all movement."""
+        box = await ui.modal_box(self.client)
+        if box is None:
+            return
+        text = (await ui.modal_text(box)).lower()
+        if "leave a dungeon" not in text and "leave this dungeon" not in text:
+            return
+        zone = await self.client.zone_name() or ""
+        objective = await self.objective()
+        target = objective_zone(objective)
+        leave = target is not None and target != zone
+        logger.info(f"dungeon exit prompt: {'leaving' if leave else 'staying'} (objective {objective!r})")
+        await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
+        if leave:
+            await wait_for_loading(self.client, appear_timeout=5.0)
+
     async def _note_defeats(self):
         """After a defeat, count it against the objective; the second one sets the
         quest aside for another questline (until a level-up or an hour passes)."""
@@ -1004,6 +1023,7 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
+        await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
         if self.upkeep and not await recover(self.client, self.upkeep, self.controller, self.go_to_zone):
             return

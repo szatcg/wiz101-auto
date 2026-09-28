@@ -169,6 +169,19 @@ async def close_chat(client) -> bool:
     return True
 
 
+async def press_modal_button(client, box, name: str) -> bool:
+    """Click a visible button of a message box at its exact center."""
+    for btn in await box.get_windows_with_name(name):
+        try:
+            if await btn.is_visible():
+                await click_center(client, btn)
+                await asyncio.sleep(0.5)
+                return True
+        except Exception:
+            continue
+    return False
+
+
 NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable")
 
 
