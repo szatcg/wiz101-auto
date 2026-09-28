@@ -376,6 +376,8 @@ class Quester:
         ux, uy = (dx / length, dy / length) if length > 1 else (1.0, 0.0)
         for back in APPROACH_DISTANCES:
             spot = XYZ(target.x + ux * back, target.y + uy * back, target.z)
+            if not await self._clear_spot(spot):
+                continue  # an enemy stands there: landing on it starts a fight
             before = await self._position()
             await self.client.teleport(spot)
             await asyncio.sleep(0.8)
@@ -742,7 +744,12 @@ class Quester:
             for i in range(8):
                 ang = i * math.pi / 4
                 p = XYZ(target.x + radius * math.cos(ang), target.y + radius * math.sin(ang), target.z)
-                if mobs and not clear_of(p, mobs, MOB_CLEARANCE):
+                # These spots are in this zone's coordinates: stop once a hop has
+                # carried us through the door, and check enemies fresh each time
+                # (they patrol; a stale list put the wizard on Desert Golems).
+                if await self.client.zone_name() != zone:
+                    return True
+                if avoid_mobs and not await self._clear_spot(p):
                     continue
                 await self.client.teleport(p)
                 await asyncio.sleep(0.5)
