@@ -156,6 +156,14 @@ def choose_quest(
     return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
+def defeat_target(objective: str) -> str | None:
+    """The enemy a "Defeat X in Place (0 of 2)" objective names, else None."""
+    m = re.match(r"^\s*defeat\s+(.+?)(?:\s+in\s+[^()]+)?(?:\s*\(\d+ of \d+\))?\s*$", objective, re.I)
+    if not m:
+        return None
+    return re.split(r"\s+and\s+", m.group(1), maxsplit=1)[0].strip() or None
+
+
 def is_combat_objective(objective: str) -> bool:
     """Objectives met by fighting: 'Defeat X', 'Summon Myth Minion', 'Cast ...'."""
     first = objective.strip().lower().split(" ", 1)[0]
@@ -955,8 +963,22 @@ class Quester:
         has_boss = any(e.is_boss for e in battle.enemies)
         return not fight_needed(objective, names, zone, has_boss)
 
-    async def pull_mob(self):
-        """For defeat objectives: teleport onto the closest mob to start a fight."""
+    async def pull_mob(self, objective: str = ""):
+        """For defeat objectives: teleport onto the enemy the objective names
+        ("Defeat Gobbler Gorger ..."), else the closest mob, to start a fight."""
+        target = defeat_target(objective)
+        if target:
+            from .bossfarm import find_entity_named
+
+            pos = await find_entity_named(self.client, target)
+            if pos is None and target.endswith("s"):
+                pos = await find_entity_named(self.client, target[:-1])  # "Lost Souls"
+            if pos is not None:
+                logger.info(f"going after {target} for {objective!r}")
+                await self.client.teleport(pos)
+                await asyncio.sleep(3.0)
+                if await self.client.in_battle():
+                    return
         for _ in range(3):
             if await self.client.in_battle():
                 return
@@ -1157,7 +1179,7 @@ class Quester:
 
         if is_combat_objective(objective):
             if not await self.client.in_battle():
-                await self.pull_mob()
+                await self.pull_mob(objective)
             return
 
         if dist >= INTERACT_RANGE and "interiors" in (zone or "").lower():

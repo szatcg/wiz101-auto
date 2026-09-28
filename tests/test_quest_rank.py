@@ -68,3 +68,13 @@ def test_fight_needed():
     assert fight_needed("Summon Myth Minion in Unicorn Way", ["Lost Soul"], street, False)
     assert fight_needed("Talk To Harold", ["Rotting Fodder"], street, True)  # bosses always count
     assert fight_needed("Talk To Harold", ["Rotting Fodder"], "WizardCity/Interiors/WC_Cyclops_T2", False)
+
+
+def test_defeat_target():
+    from wiz101_auto.quest import defeat_target
+
+    assert defeat_target("Defeat Gobbler Gorger in Colossus Boulevard (0 of 2)") == "Gobbler Gorger"
+    assert defeat_target("Defeat Lost Soul in Unicorn Way") == "Lost Soul"
+    two_part = "Defeat Scarlet Screamer and Collect Primary Coil in Triton Avenue (0 of 3)"
+    assert defeat_target(two_part) == "Scarlet Screamer"
+    assert defeat_target("Talk To Merle Ambrose in Commons") is None
