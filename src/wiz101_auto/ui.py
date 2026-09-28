@@ -150,36 +150,35 @@ async def _visible_named(root, name: str):
 
 
 async def close_chat(client) -> bool:
-    """If the chat box is open for typing, close it: while it is, every key the
-    bot sends (X, W, Q...) is typed into chat instead of reaching the game.
-    The typing box (WizardChatBox with chatEdit) is only visible then."""
+    """If the chat box is in typing mode, leave it: while it is, every key the bot
+    sends (X, W, Q...) is typed into chat instead of reaching the game. The chat
+    log window itself is often just open showing messages, which is harmless;
+    typing mode shows up as our own keystrokes piling up in the chat input."""
     box = await _visible_named(client.root_window, "WizardChatBox")
-    if box is None or await _visible_named(box, "chatEdit") is None:
+    if box is None:
         return False
-    logger.warning("the chat box is open for typing (keys would go into chat); closing it")
-    close = await _visible_named(box, "closeButton")
-    if close is not None:
-        await click_center(client, close)
-        await asyncio.sleep(0.4)
-    if await _visible_named(client.root_window, "WizardChatBox") is not None:
-        from wizwalker import Keycode
+    edit = await _visible_named(box, "chatEdit")
+    try:
+        typed = (await edit.maybe_text() or "").strip() if edit is not None else ""
+    except Exception:
+        typed = ""
+    if not typed:
+        return False
+    from wizwalker import Keycode
 
-        await client.send_key(Keycode.ESC, 0.1)
-        await asyncio.sleep(0.4)
+    logger.warning(f"the chat box is in typing mode ({typed[:20]!r} typed); leaving it")
+    await client.send_key(Keycode.ESC, 0.1)  # in typing mode, Esc cancels the input
+    await asyncio.sleep(0.4)
+    try:
+        still = (await edit.maybe_text() or "").strip()
+    except Exception:
+        still = ""
+    if still:
+        close = await _visible_named(box, "closeButton")
+        if close is not None:
+            await click_center(client, close)
+            await asyncio.sleep(0.4)
     return True
-
-
-async def press_modal_button(client, box, name: str) -> bool:
-    """Click a visible button of a message box at its exact center."""
-    for btn in await box.get_windows_with_name(name):
-        try:
-            if await btn.is_visible():
-                await click_center(client, btn)
-                await asyncio.sleep(0.5)
-                return True
-        except Exception:
-            continue
-    return False
 
 
 NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable")
