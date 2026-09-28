@@ -146,8 +146,12 @@ class Fighter(CombatHandler):
             if await done.is_visible():
                 for b in await done.get_windows_with_name("DefeatedPassButton"):
                     return await ui.click_center(self.client, b)
+        # Only a visible one: a hidden "Focus" earlier in the tree would take the
+        # click and the round would just time out (it looks like the bot froze).
         for b in await self.client.root_window.get_windows_with_name("Focus"):
-            return await ui.click_center(self.client, b)
+            if await b.is_visible():
+                return await ui.click_center(self.client, b)
+        logger.warning("no visible Pass button; the round will time out")
 
     async def handle_round(self):
         # One bad round (UI changing under us, a window gone) mustn't end the fight loop.
