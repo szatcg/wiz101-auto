@@ -64,6 +64,8 @@ QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
+WALK_STEP_SECONDS = 0.25  # walking into a door in short steps, checking the zone after each
+WALK_MAX_STEPS = 40
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
@@ -392,7 +394,21 @@ class Quester:
             return False
         beyond = XYZ(target.x + dx / length * overshoot, target.y + dy / length * overshoot, target.z)
         logger.debug(f"walking through objective ({length:.0f} units + {overshoot:.0f} overshoot)")
-        await self.client.goto(beyond.x, beyond.y)
+        # Walk in short steps and stop the moment the zone changes: one long
+        # key press kept walking on the far side of the door, straight into the
+        # Desert Golems at the Palace of Fire's entrance.
+        from wizwalker.utils import calculate_perfect_yaw
+
+        await self.client.body.write_yaw(calculate_perfect_yaw(pos, beyond))
+        last = pos
+        for _ in range(WALK_MAX_STEPS):
+            await self.client.send_key(Keycode.W, WALK_STEP_SECONDS)
+            if await self.client.zone_name() != zone or await self.client.is_loading():
+                break
+            now = await self._position()
+            if distance(now, beyond) < 60 or distance(now, last) < 5:
+                break  # there, or blocked by a wall
+            last = now
         return await self._zone_changed(zone)
 
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
