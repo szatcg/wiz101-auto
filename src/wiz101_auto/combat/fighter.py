@@ -111,20 +111,26 @@ class Fighter(CombatHandler):
         sure you want to flee? You will lose all your Mana..." (mana comes back
         quickly from wisps). True if the confirmation was answered."""
         self._fleeing = True
+        button = None
         for b in await self.client.root_window.get_windows_with_name("Flee"):
             if await b.is_visible():
-                await ui.click_center(self.client, b)
+                button = b
                 break
-        else:
+        if button is None:
             return False
-        for _ in range(10):
-            await asyncio.sleep(0.3)
-            box = await ui.modal_box(self.client)
-            if box is not None and "flee" in (await ui.modal_text(box)).lower():
-                if await ui.press_modal_button(self.client, box, "centerButton"):
-                    logger.info("confirmed fleeing")
-                    return True
-        logger.warning("flee confirmation didn't appear")
+        # The usual left-shifted click hits Flee (it's what opened the box in the
+        # old flee); the exact center is the fallback.
+        for click in (self.client.mouse_handler.click_window, lambda w: ui.click_center(self.client, w)):
+            await click(button)
+            for _ in range(12):
+                await asyncio.sleep(0.3)
+                box = await ui.modal_box(self.client)
+                if box is not None and "flee" in (await ui.modal_text(box)).lower():
+                    if await ui.press_modal_button(self.client, box, "centerButton"):
+                        logger.info("confirmed fleeing")
+                        return True
+        logger.warning("flee confirmation didn't appear; fighting instead")
+        self._fleeing = False
         return False
 
     async def cancel_flee_box(self) -> bool:
@@ -197,8 +203,9 @@ class Fighter(CombatHandler):
                 if await self.unneeded_fight(battle):
                     names = ", ".join(e.name for e in battle.enemies)
                     logger.info(f"fight with {names} isn't needed for the quest: fleeing")
-                    await self.flee()
-                    return
+                    if await self.flee():
+                        return
+                    continue  # the flee didn't go through: play this round instead
 
             plan = plan_fight(battle, self.strategy).text
             if plan != self._last_plan:
