@@ -178,8 +178,16 @@ def _has_minion(battle: Battle) -> bool:
     return any(a.is_minion and not a.is_dead and a.health > 0 for a in battle.allies)
 
 
+SUMMON_ROUNDS_ONE_ENEMY = 2  # with a single enemy, a minion only pays off from the opening rounds
+
+
 def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
-    if not strat.summon_minions or _has_minion(battle):
+    """A minion once per fight: early on it soaks hits and traps for us; later,
+    or a second one, costs all our pips when blade, trap and a big hit end it
+    sooner (Itennu Sokkwi: a second Troll Minion with one enemy left)."""
+    if not strat.summon_minions or _has_minion(battle) or battle.summoned >= 1:
+        return None
+    if len(battle.live_enemies) == 1 and battle.round > SUMMON_ROUNDS_ONE_ENEMY:
         return None
     summons = [c for c in _castable(battle.cards) if EffectKind.SUMMON in c.kinds]
     if not summons:
@@ -635,7 +643,7 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     return action
 
 
-KILL_LOOKAHEAD = 3  # rounds the kill search looks ahead
+KILL_LOOKAHEAD = 4  # rounds the kill search looks ahead (blade, trap, a pip, Cyclops)
 
 
 def _use_up(effects: list[tuple[str, str, float]], school: str) -> list[tuple[str, str, float]]:
@@ -867,6 +875,9 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
                 if chips:
                     junk = min(chips, key=lambda c: c.base_damage())
                     return Action(ActionKind.DISCARD, junk, reason="not part of the killing line; drawing")
+                dead = _discard_action(battle, strat)  # a full hand of dead cards blocks draws
+                if dead and dead.card and dead.card.index not in getattr(line, "plan_cards", set()):
+                    return dead
             return line
 
     skip_summon = plan_fight(battle, strat).skip_summon or _finish_in_reach(battle)

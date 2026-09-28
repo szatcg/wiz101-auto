@@ -54,3 +54,12 @@ def test_clear_spot_and_engage_teleports_go_straight_there():
     allow_engage(c)
     asyncio.run(c.teleport(XYZ(5000, 0, 0)))
     assert (c.landed[-1].x, c.landed[-1].y) == (5000, 0)
+
+
+def test_enemies_on_another_level_are_ignored():
+    from wiz101_auto.safe_teleport import same_level
+
+    platform = XYZ(0, 0, 500)
+    below = [XYZ(100, 0, 0), XYZ(200, 0, 480)]
+    kept = same_level(platform, below)
+    assert [(h.x, h.z) for h in kept] == [(200, 480)]

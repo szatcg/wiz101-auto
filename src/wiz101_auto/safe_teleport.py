@@ -27,6 +27,13 @@ LANDING_CLEARANCE = 700.0  # an enemy closer than this to the landing spot tends
 BLOCKED_TRIES = 3  # a destination with no clear spot around it: after this many skips, go anyway
 ARRIVAL_CLEARANCE = 550.0  # after landing: an enemy this close sends us straight back
 ARRIVAL_SETTLE = 0.35  # seconds for nearby entities to stream in after a jump
+OTHER_LEVEL = 300.0  # an enemy this far above/below is on another level (the arena floor below a platform)
+
+
+def same_level(spot, hazards: list) -> list:
+    """Hazards on the same level as `spot`: those far above or below it (under
+    an elevated platform) can't reach it."""
+    return [h for h in hazards if abs(h.z - spot.z) < OTHER_LEVEL]
 
 
 def teleport_aborted(client) -> bool:
@@ -62,7 +69,7 @@ def install(client):
             engaging = time.monotonic() < getattr(client, "_engage_until", 0.0)
             if engaging or await client.in_battle():
                 return await original(xyz, *args, **kwargs)
-            hazards = [XYZ(*m) for m in await mob_positions(client)]
+            hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)])
             start = await client.body.position()
             if clear_of(xyz, hazards, LANDING_CLEARANCE):
                 return await _arrive(xyz, start, args, kwargs)
@@ -98,7 +105,9 @@ def install(client):
             return result
         here = await client.body.position()
         near = [XYZ(*m) for m in await mob_positions(client)]
-        if not clear_of(here, near, ARRIVAL_CLEARANCE) and clear_of(start, near, ARRIVAL_CLEARANCE):
+        if not clear_of(here, same_level(here, near), ARRIVAL_CLEARANCE) and clear_of(
+            start, same_level(start, near), ARRIVAL_CLEARANCE
+        ):
             logger.info(f"enemies right by the landing at ({here.x:.0f}, {here.y:.0f}); jumping back")
             key = (round(dest.x / 100), round(dest.y / 100))
             blocked[key] = blocked.get(key, 0) + 1

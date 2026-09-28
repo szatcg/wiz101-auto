@@ -38,7 +38,7 @@ from .dungeons import DungeonEntry, DungeonMemory
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
-from .safe_teleport import allow_close_landing, allow_engage
+from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .travel_data import (
     find_zone_gate,
@@ -1090,6 +1090,10 @@ class Quester:
         if distance(await self._position(), start) > BOUNCE_DISTANCE:
             await self._clear_of_enemies()
             return True
+        if teleport_aborted(self.client):
+            # Held back (or jumped back) from enemies at the spot: walking there
+            # instead would run through them. Try again next step.
+            return False
 
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")

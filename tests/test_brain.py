@@ -649,3 +649,22 @@ def test_trap_first_when_that_kills_sooner():
     b.pips = 2
     a = decide(b)
     assert a.card.name == "Myth Trap"  # trap now, Troll next round kills; Troll now doesn't
+
+
+def minion_card(i):
+    return Card(i, "Troll Minion", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.SUMMON, Target.NONE, 1)])
+
+
+def test_one_minion_per_fight_and_not_late_against_one_enemy():
+    boss = enemy("Itennu Sokkwi", 590, boss=True)
+    cards = [minion_card(0), myth_hit(1, dmg=295, pips=3, castable=False)]
+    b = battle(cards, [boss])
+    b.pips, b.round = 1, 1
+    assert decide(b, discards_left=0).card.name == "Troll Minion"  # opening round: fine
+    b.summoned = 1
+    a = decide(b, discards_left=0)
+    assert not (a.card and a.card.name == "Troll Minion")
+    b.summoned, b.round = 0, 8
+    a = decide(b, discards_left=0)
+    assert not (a.card and a.card.name == "Troll Minion")  # one enemy left, late: set up and hit
