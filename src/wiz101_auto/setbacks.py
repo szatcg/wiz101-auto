@@ -22,6 +22,7 @@ class Setbacks:
     path: Path = Path("state") / "setbacks.json"
     defeats: dict[str, int] = field(default_factory=dict)  # objective -> defeats
     deferred: dict[str, dict] = field(default_factory=dict)  # quest -> {"level", "at", "objective"}
+    skipped: set[str] = field(default_factory=set)  # quests the bot can't do (no Quest Helper, PvP)
 
     @classmethod
     def load(cls, path: Path | None = None) -> Setbacks:
@@ -30,6 +31,7 @@ class Setbacks:
             raw = json.loads(s.path.read_text(encoding="utf-8"))
             s.defeats = dict(raw.get("defeats", {}))
             s.deferred = dict(raw.get("deferred", {}))
+            s.skipped = set(raw.get("skipped", []))
         except Exception:
             pass
         return s
@@ -37,7 +39,7 @@ class Setbacks:
     def save(self):
         try:
             self.path.parent.mkdir(exist_ok=True)
-            data = {"defeats": self.defeats, "deferred": self.deferred}
+            data = {"defeats": self.defeats, "deferred": self.deferred, "skipped": sorted(self.skipped)}
             self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
         except OSError:
             pass
@@ -63,4 +65,4 @@ class Setbacks:
         ]
         for q in done:
             del self.deferred[q]
-        return set(self.deferred)
+        return set(self.deferred) | self.skipped

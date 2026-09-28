@@ -27,3 +27,10 @@ def test_choose_quest_skips_a_set_aside_questline():
     assert choose_quest([stuck, other]) is stuck
     assert choose_quest([stuck, other], {"Throwing Nightshade"}) is other
     assert choose_quest([stuck], {"Throwing Nightshade"}) is stuck  # nothing else to do
+
+
+def test_skipped_quests_stay_skipped(tmp_path):
+    s = Setbacks(tmp_path / "s.json")
+    s.skipped.add("Advanced Combat")
+    s.save()
+    assert Setbacks.load(tmp_path / "s.json").set_aside(99, now=1e12) == {"Advanced Combat"}

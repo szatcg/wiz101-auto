@@ -783,6 +783,16 @@ class Quester:
             slot = [*info, "btnActivate"]
             await ui.click(self.client, slot)
             await asyncio.sleep(0.6)
+            box = await ui.modal_box(self.client)
+            if box and "quest helper is not allowed" in (await ui.modal_text(box)).lower():
+                # e.g. a Duel Arena (PvP) quest: nothing the bot can follow.
+                logger.warning(f"quest helper not allowed for {entry.name!r}; skipping that quest")
+                self.setbacks.skipped.add(entry.name)
+                self.setbacks.save()
+                await ui.dismiss_notice(self.client)
+                self._ranked_for = None
+                self._last_rank = -1e9
+                return False
             kind = "spell/activity" if entry.activity else "main story" if entry.mainline else "side"
             if entry.goal and not is_combat_objective(entry.goal):
                 kind += ", no fight"
