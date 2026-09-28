@@ -41,3 +41,12 @@ def test_a_stalled_quest_is_set_aside_until_a_level_up(tmp_path):
     s.set_quest_aside("Collecting Gems", "Collect Flame Gems in Palace of Fire (0 of 4)", 13, now=0)
     assert s.set_aside(13, now=60) == {"Collecting Gems"}
     assert s.set_aside(14, now=60) == set()
+
+
+def test_a_set_aside_main_quest_waits_for_a_level_up(tmp_path):
+    s = Setbacks(tmp_path / "s.json")
+    s.set_quest_aside("Payback", "Defeat Akori Nirini in Akori's Chamber", 14, now=0, main=True)
+    s.set_quest_aside("Collecting Gems", "Collect Flame Gems", 14, now=0)
+    later = DEFER_SECONDS + 10
+    assert s.set_aside(14, now=later) == {"Payback"}  # the side quest's hour is up
+    assert s.set_aside(15, now=later) == set()

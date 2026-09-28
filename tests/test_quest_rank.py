@@ -26,18 +26,19 @@ def test_combat_objectives():
     assert not is_combat_objective("Collect Cog in Triton Avenue (1 of 3)")
 
 
-def test_clears_the_earliest_area_first_easy_quests_first():
+def test_main_quests_only_side_quests_when_the_main_one_is_set_aside():
     from wiz101_auto.quest import choose_quest
 
-    tracked = QuestEntry(0, "Throwing Nightshade", mainline=True, active=True, world="Haunted Cave",
-                         goal="Defeat Lord Nightshade in Haunted Cave", hops=0)
-    unicorn_fight = QuestEntry(1, "Dreadful Assignment", world="Unicorn Way",
-                               goal="Defeat Lost Souls in Unicorn Way", hops=4)
-    unicorn_talk = QuestEntry(2, "Mail Call", world="Unicorn Way", goal="Talk To Private Stillson", hops=4)
-    assert choose_quest([tracked, unicorn_fight]) is unicorn_fight  # earlier area wins
-    assert choose_quest([tracked, unicorn_fight, unicorn_talk]) is unicorn_talk  # no fight first
+    main = QuestEntry(0, "Throwing Nightshade", mainline=True, active=True, world="Haunted Cave",
+                      goal="Defeat Lord Nightshade in Haunted Cave", hops=0)
+    side_fight = QuestEntry(1, "Dreadful Assignment", world="Unicorn Way",
+                            goal="Defeat Lost Souls in Unicorn Way", hops=4)
+    side_talk = QuestEntry(2, "Mail Call", world="Unicorn Way", goal="Talk To Private Stillson", hops=4)
+    assert choose_quest([main, side_fight, side_talk]) is main  # side quests are ignored
+    # Stuck on the main quest: side quests (earliest area, easy first) until a level-up.
+    assert choose_quest([main, side_fight, side_talk], {"Throwing Nightshade"}) is side_talk
     spell = QuestEntry(3, "Not So Welcome to Myth", activity=True, world="Triton Avenue", hops=2)
-    assert choose_quest([tracked, unicorn_talk, spell]) is spell
+    assert choose_quest([main, side_talk, spell]) is spell  # spell quests teach spells
 
 
 def test_hub_quests_count_as_the_current_area():

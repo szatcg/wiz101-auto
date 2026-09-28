@@ -147,11 +147,15 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
 def choose_quest(
     quests: list[QuestEntry], set_aside: set[str] = frozenset(), order: dict | None = None
 ) -> QuestEntry | None:
-    """Which quest to track: spell/class quests first, then clear the earliest
-    area's quests (the easy ones first, listed ones in list order). Quests set
-    aside (lost to twice) are skipped while anything else is available."""
+    """Which quest to track. Only the main story (and spell/class quests, which
+    teach spells) while one of those can be worked on; side quests only when
+    every main quest is set aside (e.g. a boss that keeps winning), to gain a
+    level before trying again. Within that pool: spell quests first, then the
+    earliest area, easy objectives first, listed quests in list order."""
     order = order or {}
-    quests = [q for q in quests if q.name not in set_aside] or quests
+    available = [q for q in quests if q.name not in set_aside]
+    main = [q for q in available if q.mainline or q.activity]
+    quests = main or available or quests
     if not quests:
         return None
     areas = [a for a in (_area_of(q, order) for q in quests) if a is not None]
@@ -275,6 +279,7 @@ class Quester:
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
+        self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
         self.fighter = None  # set by the bot: its fight count tells won fights apart
@@ -324,7 +329,7 @@ class Quester:
             quest = self._active_quest
             if quest:
                 level = await self.client.stats.reference_level()
-                self.setbacks.set_quest_aside(quest, objective, level)
+                self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
                 self.setbacks.save()
                 logger.warning(
                     f"no progress on {objective!r} for {waited / 60:.0f} min: setting {quest!r} aside "
@@ -567,7 +572,7 @@ class Quester:
             return
         level = await self.client.stats.reference_level()
         quest = self._active_quest
-        if self.setbacks.record_defeat(objective, quest, level):
+        if self.setbacks.record_defeat(objective, quest, level, main=quest in self._mainline):
             logger.warning(
                 f"lost {objective!r} twice: setting {quest!r} aside until level {level + 1} "
                 "(or an hour) and following another questline"
@@ -917,8 +922,10 @@ class Quester:
                     break
                 await asyncio.sleep(0.6)
             activities = {q.name for _, q in all_quests if q.activity}
-            self._wanted_items = {
-                collect_item_name(q.goal): q.name for _, q in all_quests if collect_item_name(q.goal)
+            self._wanted_items = {  # main-story/spell quests only: side quests are ignored
+                collect_item_name(q.goal): q.name
+                for _, q in all_quests
+                if collect_item_name(q.goal) and (q.mainline or q.activity)
             }
             done = self.completions.update({q.name for _, q in all_quests})
             for name in done:
@@ -933,6 +940,7 @@ class Quester:
             logger.debug(
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
+            self._mainline = {q.name for _, q in all_quests if q.mainline}
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
@@ -1067,7 +1075,7 @@ class Quester:
         if quest and self._stall_switched_for != objective:
             self._stall_switched_for = objective
             level = await self.client.stats.reference_level()
-            self.setbacks.set_quest_aside(quest, objective, level)
+            self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
             self.setbacks.save()
             logger.info(
                 f"no {item!r} anywhere in this zone right now: setting {quest!r} aside; "
