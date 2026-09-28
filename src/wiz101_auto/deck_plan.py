@@ -51,6 +51,10 @@ class DeckPolicy:
     capacity: int = 0  # 0 = let the game enforce its own limit
     exclude: list[str] = field(default_factory=list)
     include: dict[str, int] = field(default_factory=dict)  # always add these
+    # Adding goes through WizWalker's DeckBuilder.add_by_name, which crashed the
+    # game twice (Sep 27): off until that path is rebuilt. Missing cards are
+    # logged for adding by hand; removals (plain clicks) still happen.
+    auto_add: bool = False
 
 
 def attack_score(card: Card, my_school: str) -> float:

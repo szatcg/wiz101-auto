@@ -659,7 +659,12 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
     # Add only what's missing (new spells, extra copies). Never clear first: if
     # the add clicks fail, the deck must not end up empty.
     before = len(deck_names)
-    for name, copies in cards_to_add(plan.totals, deck_names):
+    missing = cards_to_add(plan.totals, deck_names)
+    if missing and not policy.auto_add:
+        wanted = ", ".join(f"{name} x{copies}" for name, copies in missing)
+        logger.warning(f"deck: please add by hand (automatic adding is off): {wanted}")
+        missing = []
+    for name, copies in missing:
         try:
             await builder.add_by_name(name, copies)
             logger.info(f"deck: adding {name} x{copies}")

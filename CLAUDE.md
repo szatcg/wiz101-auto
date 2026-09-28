@@ -127,8 +127,9 @@ read their source there when you need the memory API.
 - Spell lists: `SpellListControl` entries are 0x78 bytes, `DeckListControl`
   0x28 (layout picked by most spells found). Hands also hold gear item cards
   ("X - Starter Wand", Heartbeat). Rebuilds are skipped when the read looks
-  incomplete or the plan adds nothing; `add_by_name` clicks are still
-  unverified. The planner drops minions; the brain summons one (after urgent
+  incomplete or the plan adds nothing. Adding cards (WizWalker's
+  `add_by_name`) crashed the game twice, so `deck.auto_add` is off: missing cards
+  are logged for adding by hand. The planner drops minions; the brain summons one (after urgent
   heals, before attacks) whenever none of ours is alive.
 - The game isn't DPI-aware: on a 125%-scaled monitor Windows stretches its
   1760x990 render, which is likely why click hit areas are offset.
