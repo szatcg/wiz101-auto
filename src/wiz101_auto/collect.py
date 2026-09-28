@@ -237,6 +237,10 @@ class Collector:
 
         back = XYZ(me.x, me.y, me.z)
         await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
+        from .safe_teleport import teleport_aborted
+
+        if teleport_aborted(self.client):
+            return True  # enemies by the item: tried (it's skipped for a while), don't walk in
         await asyncio.sleep(0.8)
         await self.client.goto(spot.x, spot.y)
         await asyncio.sleep(0.3)
@@ -276,6 +280,10 @@ class Collector:
         from wizwalker import XYZ
 
         await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
+        from .safe_teleport import teleport_aborted
+
+        if teleport_aborted(self.client):
+            return True  # enemies by the item: tried (it's skipped for a while), don't walk in
         await asyncio.sleep(0.8)
         await self.client.goto(spot.x, spot.y)
         await asyncio.sleep(0.3)
