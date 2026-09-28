@@ -34,3 +34,10 @@ def test_skipped_quests_stay_skipped(tmp_path):
     s.skipped.add("Advanced Combat")
     s.save()
     assert Setbacks.load(tmp_path / "s.json").set_aside(99, now=1e12) == {"Advanced Combat"}
+
+
+def test_a_stalled_quest_is_set_aside_until_a_level_up(tmp_path):
+    s = Setbacks(tmp_path / "s.json")
+    s.set_quest_aside("Collecting Gems", "Collect Flame Gems in Palace of Fire (0 of 4)", 13, now=0)
+    assert s.set_aside(13, now=60) == {"Collecting Gems"}
+    assert s.set_aside(14, now=60) == set()

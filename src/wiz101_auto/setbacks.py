@@ -55,6 +55,11 @@ class Setbacks:
         self.deferred[quest] = {"level": level, "at": now, "objective": objective}
         return True
 
+    def set_quest_aside(self, quest: str, objective: str, level: int, now: float | None = None):
+        """Put `quest` aside now (e.g. no way to progress it), like two defeats do."""
+        now = time.time() if now is None else now
+        self.deferred[quest] = {"level": level, "at": now, "objective": objective}
+
     def set_aside(self, level: int, now: float | None = None) -> set[str]:
         """Quests still set aside; those whose time is up (a level gained, or
         DEFER_SECONDS passed) are released."""

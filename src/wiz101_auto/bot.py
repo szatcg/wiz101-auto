@@ -204,6 +204,7 @@ async def run(cfg: Config):
                 logger.info("gear checks are off (gear_checks: false)")
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
+            quester.fighter = fighter
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))

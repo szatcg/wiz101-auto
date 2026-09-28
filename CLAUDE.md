@@ -97,7 +97,7 @@ while the bot is stopped.
 | `cli.py`, `service.py` | commands; background start/stop/status/supervise |
 | `bot.py` | connects, runs the concurrent loops (combat, dialogue, quest, watchdog, status) |
 | `quest.py` | quest step: objective, travel (teleport, doors), interact, collect, defeat, quest switching |
-| `setbacks.py` | quests set aside after losing the same fight twice |
+| `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |
 | `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |
 | `collect.py` | "Collect X" objectives (entity name matching) |

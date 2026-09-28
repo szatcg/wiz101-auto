@@ -69,6 +69,7 @@ SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
+STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
@@ -273,6 +274,10 @@ class Quester:
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance
         self._drop_hunt_for = ""  # a "Collect X" objective whose items drop from enemies
+        self.fighter = None  # set by the bot: its fight count tells won fights apart
+        self._fights_seen = 0
+        self._deaths_at_fight = 0
+        self._stall_switched_for = ""  # objective whose quest was set aside for stalling
         self._unreached: dict[tuple[str, str], int] = {}  # (objective, zone) -> failed approaches
         self._zone_before = ""  # for learning gates on arrival
         self._deaths_before = 0
@@ -292,7 +297,33 @@ class Quester:
             self._last_progress = key
             self._last_progress_time = time.monotonic()
             self._attempts = 0
-        elif time.monotonic() - self._last_progress_time > self.cfg.stuck_minutes * 60:
+            return
+        # A won fight counts as progress (drop hunts take many fights per item).
+        fights = self.fighter.fights if self.fighter else 0
+        if fights != self._fights_seen:
+            won = self.controller.deaths == self._deaths_at_fight
+            self._fights_seen, self._deaths_at_fight = fights, self.controller.deaths
+            if won:
+                self._last_progress_time = time.monotonic()
+                return
+        waited = time.monotonic() - self._last_progress_time
+        if waited > STALL_SWITCH_SECONDS and self._stall_switched_for != objective:
+            # Stuck without a way forward: follow the next best quest instead of
+            # stalling; this one comes back after a level-up or an hour.
+            self._stall_switched_for = objective
+            quest = self._active_quest
+            if quest:
+                level = await self.client.stats.reference_level()
+                self.setbacks.set_quest_aside(quest, objective, level)
+                self.setbacks.save()
+                logger.warning(
+                    f"no progress on {objective!r} for {waited / 60:.0f} min: setting {quest!r} aside "
+                    "and following the next best quest"
+                )
+                self._ranked_for = None
+                self._last_rank = -1e9  # re-rank on this step
+            return
+        if waited > self.cfg.stuck_minutes * 60:
             self.controller.stop(f"no quest progress for {self.cfg.stuck_minutes} min on {objective!r}")
 
     # --- movement ------------------------------------------------------------
