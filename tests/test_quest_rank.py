@@ -124,3 +124,18 @@ def test_side_quests_stay_in_this_world_and_prefer_bigger_rewards():
     big = QuestEntry(3, "So Many Nirini", world="Palace of Fire", reward=250, hops=3)
     pick = choose_quest([main, far, small, big], {"Give 'em Another Round"}, world="Krokotopia")
     assert pick is big  # not the tracked Wizard City one; the bigger Krokotopia reward
+
+
+def test_a_dungeons_own_quest_comes_before_the_main_quest():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    zone = "Krokotopia/KT_Pyramid/KT_ThroneRoom"
+    zones = {"Throne Room of Fire": zone, "Palace of Fire": "Krokotopia/KT_Pyramid/KT_PalaceOfFire"}
+    quests = [
+        QuestEntry(0, "Into the Map Room", mainline=True, active=True, world="Throne Room of Fire"),
+        QuestEntry(1, "Collecting Gems", world="Palace of Fire"),
+        QuestEntry(2, "Serpent Staff", world="Throne Room of Fire"),
+    ]
+    assert dungeon_quest(quests, zone, zones.get).name == "Serpent Staff"
+    assert dungeon_quest(quests, zone, zones.get, {"Serpent Staff"}) is None
+    assert dungeon_quest(quests, "Krokotopia/KT_Hub", zones.get) is None

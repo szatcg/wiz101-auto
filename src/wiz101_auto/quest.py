@@ -206,6 +206,21 @@ def choose_quest(
     return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
+def dungeon_quest(
+    quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset()
+) -> QuestEntry | None:
+    """Inside a dungeon, a side quest set there (its book area is this dungeon,
+    e.g. one handed out on entering) comes before the main quest: the main
+    objective usually waits on it (a gate, a puzzle, an NPC to free)."""
+    local = [
+        q for q in quests
+        if not q.mainline and q.name not in set_aside and q.world and zone_of(q.world) == zone
+    ]
+    if not local:
+        return None
+    return next((q for q in local if q.active), local[0])
+
+
 EVADE_DISTANCE = 600.0  # an enemy this close to where we landed: move before it engages
 MOB_CLEARANCE = 700.0  # landing closer than this to an enemy tends to start a fight
 LANDING_RADII = (350.0, 600.0, 900.0, 1300.0, 1800.0)
@@ -1138,6 +1153,10 @@ class Quester:
             logger.debug(
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
+            for _, q in all_quests:
+                flags = "main" if q.mainline else "spell" if q.activity else "side"
+                tracked = ", tracked" if q.active else ""
+                logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.world!r}: {q.goal!r}")
             self._mainline = {q.name for _, q in all_quests if q.mainline}
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
@@ -1159,6 +1178,11 @@ class Quester:
                 # Track the main quest so its marker leads back into its world;
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
+            if await self._in_dungeon(here):
+                local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside)
+                if local and local is not chosen:
+                    logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
+                    chosen, self._grinding = local, False
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities
