@@ -138,10 +138,10 @@ def build_data(docs: Path = Path("docs")) -> dict:
 
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 (http.server API)
-        if self.path.startswith("/data.json"):
+        if self.path.split("?")[0].endswith("data.json"):
             body = json.dumps(build_data()).encode("utf-8")
             kind = "application/json"
-        elif self.path in ("/", "/index.html"):
+        elif self.path.split("?")[0] in ("/", "/index.html"):
             body = PAGE.read_bytes()
             kind = "text/html; charset=utf-8"
         else:
@@ -173,6 +173,9 @@ def serve(port: int = PORT, open_browser: bool = True):
             webbrowser.open(url)
         return
     server = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
+    from .pages import start_publisher
+
+    start_publisher()  # also keep the GitHub Pages copy up to date, if set up
     logger.info(f"dashboard at {url} (Ctrl+C to stop)")
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()

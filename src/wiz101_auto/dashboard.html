@@ -171,6 +171,8 @@
 </div>
 
 <script>
+const DATA_URL = "data.json";  // the published copy reads the repo's data branch instead
+const STALE_SECONDS = 600;  // older data than this: the bot (or the publisher) is offline
 let data = null;
 let openWorld = null;
 
@@ -181,9 +183,13 @@ const cleanTag = (t) => t.replace(/[^\x20-\x7E]/g, "×");
 function renderRibbon() {
   const s = data.status || {};
   const dot = document.getElementById("dot");
-  const fighting = data.running && s.in_battle;
-  dot.className = "dot " + (fighting ? "fight" : data.running ? "run" : "");
-  document.getElementById("state").textContent = fighting ? "In battle" : data.running ? "Questing" : "Bot stopped";
+  const age = Date.now() / 1000 - (data.updated || 0);
+  const live = data.running && age < STALE_SECONDS;
+  const fighting = live && s.in_battle;
+  dot.className = "dot " + (fighting ? "fight" : live ? "run" : "");
+  const ago = age < 3600 ? `${Math.round(age / 60)} min` : `${Math.round(age / 3600)} h`;
+  document.getElementById("state").textContent = fighting ? "In battle" : live ? "Questing"
+    : data.running ? `Offline · last update ${ago} ago` : "Bot stopped";
   document.getElementById("quest").textContent = data.current.quest || "No quest tracked";
   document.getElementById("objective").textContent = data.current.objective || "";
   const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
@@ -191,7 +197,8 @@ function renderRibbon() {
   document.getElementById("level").textContent = s.level ?? "–";
   document.getElementById("deaths").textContent = data.deaths ? data.deaths.total : "–";
   document.getElementById("deathsSession").textContent =
-    data.running && data.deaths ? `(${data.deaths.session} this session)` : "";
+    data.running && data.deaths && Date.now() / 1000 - data.updated < STALE_SECONDS
+      ? `(${data.deaths.session} this session)` : "";
   const [hp, max] = String(s.health || "0/0").split("/").map(Number);
   document.getElementById("hptext").textContent = max ? `Health ${hp} / ${max}` : "";
   document.getElementById("hpbar").style.width = max ? `${Math.round((100 * hp) / max)}%` : "0%";
@@ -282,7 +289,7 @@ function render() {
 
 async function poll() {
   try {
-    const r = await fetch("/data.json", { cache: "no-store" });
+    const r = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: "no-store" });
     data = await r.json();
     render();
   } catch (e) {
