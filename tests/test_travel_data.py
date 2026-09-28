@@ -145,3 +145,26 @@ def test_zones_around_skips_interiors():
     }
     assert zones_around("K/Hall", gates, 2) == ["K/Hall", "K/Entrance", "K/Streets"]
     assert zones_around("K/Hall", gates, 3)[-1] == "K/Far"
+
+
+def test_entity_map_merges_sightings_and_finds_nearest(tmp_path):
+    from wiz101_auto.entitymap import EntityMap
+
+    m = EntityMap(tmp_path / "e.json")
+    assert m.record("K/Hall", "Sokkwi Crusher", (0, 0, 0))
+    assert not m.record("K/Hall", "Sokkwi Crusher", (100, 0, 0))  # the same spot
+    assert m.record("K/Hall", "Sokkwi Crusher", (3000, 0, 0))
+    assert not m.record("K/Hall", "Basic Positional", (5, 5, 5))  # noise
+    spots = m.spots("K/Hall", lambda n: "sokkwi" in n.lower(), (2500, 0, 0))
+    assert spots[0][0] == 3000 and len(spots) == 2
+    m.save(force=True)
+    assert EntityMap(tmp_path / "e.json").zones["K/Hall"]["Sokkwi Crusher"]
+
+
+def test_door_memory(tmp_path):
+    from wiz101_auto.entitymap import DoorMemory
+
+    d = DoorMemory(tmp_path / "d.json")
+    d.record("K/Hub", (3697, 6190, -220), (3400, 6000, -220))
+    assert DoorMemory(tmp_path / "d.json").approach("K/Hub", (3700, 6200, -220)) == (3400, 6000, -220)
+    assert d.approach("K/Hub", (0, 0, 0)) is None

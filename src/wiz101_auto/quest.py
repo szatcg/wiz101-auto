@@ -29,12 +29,15 @@ from .collect import (
     collect_item_name,
     floor_points,
     landmarks,
+    matches_item,
     path_points,
     spread_points,
 )
 from .config import QuestConfig
 from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
+from .entitymap import DoorMemory, EntityMap
+from .entitymap import scan as scan_entities
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
@@ -103,6 +106,8 @@ SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+ENTITY_SCAN_SECONDS = 30.0  # how often to note what's around (for the entity map)
+KNOWN_SPOTS_FIRST = 6  # remembered spots tried before a zone sweep
 PRESS_X_TRIES = 4  # X presses at a prompt before moving on
 TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
@@ -393,6 +398,9 @@ class Quester:
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
         self._last_loot_scan = 0.0
+        self.entity_map = EntityMap()  # what was seen where (targeted searches)
+        self.doors = DoorMemory()  # where walking into a door worked
+        self._last_entity_scan = 0.0
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
         self._pin: str | None = None  # the player's picked quest (None: not read yet this session)
         self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
@@ -534,7 +542,11 @@ class Quester:
             if distance(now, beyond) < 60 or distance(now, last) < 5:
                 break  # there, or blocked by a wall
             last = now
-        return await self._zone_changed(zone)
+        if await self._zone_changed(zone):
+            if zone:
+                self.doors.record(zone, (target.x, target.y, target.z), (pos.x, pos.y, pos.z))
+            return True
+        return False
 
     async def _press_x_here(self, zone: str | None, adjust: bool = True) -> bool:
         """Use a "press X" prompt at this spot (a ladder, a door that asks),
@@ -1158,6 +1170,14 @@ class Quester:
             return await self._inch_toward(target)
         # Far from the marker with the teleport refused: it's a door (Zan'ne's
         # building in the Oasis), whatever the objective says: walk through it.
+        # A door walked through before: straight to where that walk started.
+        known_door = self.doors.approach(zone or "", (target.x, target.y, target.z))
+        if known_door is not None:
+            logger.info("a door walked through before: going to where that walk started")
+            await self.client.teleport(XYZ(*known_door))
+            await asyncio.sleep(0.8)
+            if await self._zone_changed(zone) or await self.walk_through(target, zone):
+                return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
         if await self.approach_and_walk(target, zone):
@@ -1554,6 +1574,21 @@ class Quester:
         if getattr(self, "_swept_for", None) != objective:
             self._swept_for = objective
             start = await self.client.body.position()
+            zone = await self.client.zone_name() or ""
+            known = self.entity_map.spots(zone, lambda n: matches_item(item, n), (start.x, start.y, start.z))
+            known = spread_points(known, (start.x, start.y, start.z), 800.0)[:KNOWN_SPOTS_FIRST]
+            if known:
+                logger.info(f"looking for {item!r} where it was seen before ({len(known)} spot(s))")
+            for p in known:
+                if not await is_free(self.client):
+                    return True
+                if not await self._clear_spot(XYZ(*p)):
+                    continue
+                await self.client.teleport(XYZ(p[0] + 200, p[1], p[2]))
+                await asyncio.sleep(1.0)
+                await scan_entities(self.client, zone, self.entity_map)
+                if await self.collector.collect_once(item, self._press_collect):
+                    return True
             points = sweep_points((start.x, start.y, start.z), [], 0)
             logger.info(f"searching the zone for {item!r} ({len(points)} spots)")
             for p in points:
@@ -1732,18 +1767,31 @@ class Quester:
         from .bossfarm import find_entity_named
 
         start = await self._position()
+        zone = await self.client.zone_name() or ""
+        want = _norm_name(target).removesuffix("s")
+        # Where it was seen before comes first (nearest first); then the sweep
+        # over ground those visits haven't covered.
+        here = (start.x, start.y, start.z)
+        known = self.entity_map.spots(zone, lambda n: bool(want) and want in _norm_name(n), here)
+        known = spread_points(known, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING / 2)[:KNOWN_SPOTS_FIRST]
         # Wanderers patrol the walkways: search along the path markers as well
         # as the named landmarks, so the whole zone gets covered.
         points = await self._landmarks() + floor_points(await path_points(self.client), start.z)
-        spots = spread_points(points, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING)
-        logger.info(f"no {target} in view; looking around the zone ({len(spots[:FAR_SWEEP_MAX])} spots)")
-        for p in spots[:FAR_SWEEP_MAX]:
+        sweep = [
+            p for p in spread_points(points, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING)
+            if all(math.dist(p[:2], k[:2]) > ENEMY_SWEEP_SPACING / 2 for k in known)
+        ]
+        spots = known + sweep[:FAR_SWEEP_MAX]
+        where = f"{len(known)} spot(s) it was seen at, then " if known else ""
+        logger.info(f"no {target} in view; looking at {where}{len(spots) - len(known)} spots around the zone")
+        for p in spots:
             if not await is_free(self.client):
                 return
             if not await self._clear_spot(XYZ(*p)):
                 continue
             await self.client.teleport(XYZ(*p))
             await asyncio.sleep(1.5)  # let nearby entities stream in
+            await scan_entities(self.client, zone, self.entity_map)
             pos = await find_entity_named(self.client, target)
             if pos is not None:
                 logger.info(f"found {target} near ({p[0]:.0f}, {p[1]:.0f}); going after it")
@@ -1808,6 +1856,9 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if time.monotonic() - self._last_entity_scan > ENTITY_SCAN_SECONDS:
+            self._last_entity_scan = time.monotonic()
+            await scan_entities(self.client, await self.client.zone_name() or "", self.entity_map)
         if time.monotonic() - self._last_wisp_scan > WISP_SCAN_SECONDS:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
