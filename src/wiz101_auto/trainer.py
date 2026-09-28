@@ -63,14 +63,24 @@ def trainable(options: list[tuple[str, int]], level: int, known: set[str]) -> li
     return [name for name, lv in options if lv <= level and norm(name) not in known]
 
 
+# The compass's teleport buttons: "GoHomeButton" goes to the current world's
+# hub (the Oasis in Krokotopia); "GotoDormButton" goes to the dorm.
+DORM_BUTTON = "GotoDormButton"
+
+
 async def go_home(client) -> bool:
-    """Press Go Home (usable any time, from any world): lands in the dorm."""
-    if not await ui.click_named(client, "GoHomeButton"):
+    """Press the dorm button (usable any time, from any world): lands in the dorm."""
+    if not await ui.click_named(client, DORM_BUTTON):
+        logger.warning("no dorm button to click")
         return False
     await asyncio.sleep(1.0)
     await ui.confirm_modal(client)
     await wait_for_loading(client, appear_timeout=6.0)
-    return await client.zone_name() == DORM
+    zone = await client.zone_name()
+    if zone != DORM:
+        logger.warning(f"the dorm button took us to {zone}, not the dorm")
+        return False
+    return True
 
 
 async def home_to_ravenwood(q) -> bool:
