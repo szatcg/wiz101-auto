@@ -118,17 +118,35 @@ class Fighter(CombatHandler):
                 break
         if button is None:
             return False
-        # The usual left-shifted click hits Flee (it's what opened the box in the
-        # old flee); the exact center is the fallback.
-        for click in (self.client.mouse_handler.click_window, lambda w: ui.click_center(self.client, w)):
-            await click(button)
+        try:
+            rect = await button.scale_to_client()
+            logger.debug(f"flee: Flee button at {rect}")
+        except Exception:
+            pass
+        # The usual left-shifted click, the exact center, then WizWalker's own flee
+        # (which opened the confirmation in the old version).
+        attempts = (
+            ("left-shifted click", lambda: self.client.mouse_handler.click_window(button)),
+            ("center click", lambda: ui.click_center(self.client, button)),
+            ("WizWalker flee_button", self.flee_button),
+        )
+        for how, click in attempts:
+            await click()
+            seen = ""
             for _ in range(12):
                 await asyncio.sleep(0.3)
                 box = await ui.modal_box(self.client)
-                if box is not None and "flee" in (await ui.modal_text(box)).lower():
+                text = (await ui.modal_text(box)) if box is not None else ""
+                if text and text != seen:
+                    seen = text
+                    logger.debug(f"flee ({how}): message box {text[:80]!r}")
+                if box is not None and "flee" in text.lower():
                     if await ui.press_modal_button(self.client, box, "centerButton"):
-                        logger.info("confirmed fleeing")
+                        logger.info(f"confirmed fleeing ({how})")
                         return True
+            logger.debug(f"flee ({how}): no confirmation")
+            if not await self.client.in_battle():
+                return True  # fled without asking
         logger.warning("flee confirmation didn't appear; fighting instead")
         self._fleeing = False
         return False
