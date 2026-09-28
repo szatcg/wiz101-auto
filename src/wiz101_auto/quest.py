@@ -103,6 +103,7 @@ SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
+TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
@@ -375,6 +376,7 @@ class Quester:
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
         self._last_wanted_scan = 0.0
         self._last_loot_scan = 0.0
+        self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
         self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
         self.fighter = None  # set by the bot: its fight count tells won fights apart
         self._fights_seen = 0
@@ -1393,8 +1395,19 @@ class Quester:
                 await asyncio.sleep(0.6)
             info = [*QUEST_LIST, f"wndQuestInfo{entry.slot}", "questInfoWindow", "wndQuestInfo"]
             slot = [*info, "btnActivate"]
-            await ui.click(self.client, slot)
-            await asyncio.sleep(0.6)
+            for attempt in range(TRACK_TRIES):
+                await ui.click(self.client, slot)
+                await asyncio.sleep(0.6)
+                if await ui.is_visible(self.client, [*info, "imgActiveQuest"]):
+                    break
+                if await ui.modal_box(self.client) is not None:
+                    break  # a message about it: handled below
+                logger.debug(f"tracking {entry.name!r} didn't take (try {attempt + 1}); clicking again")
+            else:
+                logger.warning(f"could not track {entry.name!r}; will try again at the next ranking")
+                self._ranked_for = None
+                self._last_rank = -1e9
+                return False
             box = await ui.modal_box(self.client)
             if box and "quest helper is not allowed" in (await ui.modal_text(box)).lower():
                 # e.g. a Duel Arena (PvP) quest: nothing the bot can follow.
@@ -1778,6 +1791,13 @@ class Quester:
                 return
 
         objective = await self.objective()
+        accepted = self.dialogue.accepted if self.dialogue else 0
+        if accepted != self._accepted_seen:
+            # A newly accepted quest gets tracked by the game (Harold's side
+            # quest took over from the main story): rank again now.
+            self._accepted_seen = accepted
+            self._ranked_for = None
+            self._last_rank = -1e9
         # The game may auto-track a quest we set aside (e.g. after handing one in):
         # re-rank at once rather than walking back to the fight we keep losing.
         set_aside_objectives = {d.get("objective") for d in self.setbacks.deferred.values()}

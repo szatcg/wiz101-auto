@@ -611,6 +611,7 @@ class DialoguePolicy:
 
     def __init__(self):
         self._accept_until = 0.0
+        self.accepted = 0  # quests accepted: the game tracks a new one, so the quester re-ranks
 
     def accept_offers_for(self, seconds: float = 30.0):
         self._accept_until = time.monotonic() + seconds
@@ -634,6 +635,8 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                     last_offer = text
                     if tries == 0:
                         logger.info(f"accepting quest: {text[:80]}")
+                        if policy is not None:
+                            policy.accepted += 1
                     # The offer's accept button doesn't always take the usual
                     # (left-shifted) click: cycle through other ways of pressing it.
                     # (Never Enter: it opens the chat box and swallows later keys.)
