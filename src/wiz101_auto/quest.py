@@ -1878,7 +1878,9 @@ class Quester:
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
             await self._mark_for_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
-        await self.travel(target, npc="talk" in objective.lower())
+        # An NPC here: inch toward it. Elsewhere the marker is a door on the way.
+        npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
+        await self.travel(target, npc=npc_here)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
