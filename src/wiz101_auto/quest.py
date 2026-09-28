@@ -1051,11 +1051,13 @@ class Quester:
                 return True
         return False
 
-    async def travel(self, target: XYZ, avoid_mobs: bool = True) -> bool:
+    async def travel(self, target: XYZ, avoid_mobs: bool = True, npc: bool = False) -> bool:
         """Get within interact range of `target`. Returns True on success.
 
         With `avoid_mobs`, a teleport never lands next to an enemy (that starts
-        an unplanned fight): it lands at the nearest clear spot and walks in."""
+        an unplanned fight): it lands at the nearest clear spot and walks in.
+        `npc`: the target is someone to talk to, not a door: never walk
+        "through" it; inch closer and look for the talk prompt instead."""
         start = await self._position()
         if distance(start, target) <= 5:
             return True
@@ -1090,11 +1092,15 @@ class Quester:
         if distance(await self._position(), start) > BOUNCE_DISTANCE:
             await self._clear_of_enemies()
             return True
+        if distance(await self._position(), target) < INTERACT_RANGE:
+            return True  # hardly moved because we were close already: not a rejection
         if teleport_aborted(self.client):
             # Held back (or jumped back) from enemies at the spot: walking there
             # instead would run through them. Try again next step.
             return False
 
+        if npc:
+            return await self._inch_toward(target)
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
         if await self.approach_and_walk(target, zone):
@@ -1120,6 +1126,27 @@ class Quester:
                     return True
         logger.debug("walking toward objective")
         await self.client.goto(target.x, target.y)
+        return distance(await self._position(), target) < INTERACT_RANGE
+
+    async def _inch_toward(self, target: XYZ, steps: int = 4, step: float = 150.0) -> bool:
+        """Short walks toward an NPC (one on a raised platform rejects a
+        teleport onto it), checking for the talk prompt after each: no long
+        runs past it into enemies."""
+        logger.info("teleport onto the NPC was rejected; inching closer")
+        for _ in range(steps):
+            if await ui.is_visible(self.client, ui.NPC_RANGE):
+                return True
+            here = await self._position()
+            gap = distance(here, target)
+            if gap < 60:
+                break
+            f = min(1.0, step / gap)
+            await self.client.goto(here.x + (target.x - here.x) * f, here.y + (target.y - here.y) * f)
+            await asyncio.sleep(0.6)
+            if not await is_free(self.client):
+                return True
+        if await ui.is_visible(self.client, ui.NPC_RANGE):
+            return True
         return distance(await self._position(), target) < INTERACT_RANGE
 
     # --- interaction ---------------------------------------------------------
@@ -1851,7 +1878,7 @@ class Quester:
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
             await self._mark_for_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
-        await self.travel(target)
+        await self.travel(target, npc="talk" in objective.lower())
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
