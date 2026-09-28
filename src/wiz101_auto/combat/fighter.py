@@ -125,12 +125,12 @@ class Fighter(CombatHandler):
         # left-shifted click on *Pass* is known to land on Flee (that's how the
         # bot used to flee by accident), so it goes first; then clicks on the
         # Flee window itself and WizWalker's own flee.
-        click = self.client.mouse_handler.click_window
+        shifted = self.client.mouse_handler.click_window
         attempts = []
         if pass_btn is not None:
-            attempts.append(("left-shifted click on Pass", lambda: click(pass_btn)))
+            attempts.append(("left-shifted click on Pass", lambda: shifted(pass_btn)))
         if flee_btn is not None:
-            attempts.append(("left-shifted click on Flee", lambda: click(flee_btn)))
+            attempts.append(("left-shifted click on Flee", lambda: shifted(flee_btn)))
             attempts.append(("center click on Flee", lambda: ui.click_center(self.client, flee_btn)))
         attempts.append(("WizWalker flee_button", self.flee_button))
         for how, click in attempts:
