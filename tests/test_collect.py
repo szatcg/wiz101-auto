@@ -37,3 +37,15 @@ def test_away_from_drops_points_near_mobs():
     from wiz101_auto.collect import away_from
 
     assert away_from([(0, 0, 0), (2000, 0, 0)], [(100, 0, 0)], 900) == [(2000, 0, 0)]
+
+
+def test_matches_item_by_the_objects_kind_word():
+    assert matches_item("Gemstones", "KT_Gem_Fire")
+    assert not matches_item("Firecat Whiskers", "KT_Gem_Fire")
+    assert not matches_item("Gemstones", "KT_WispHealth")
+
+
+def test_duel_circles_are_not_landmarks():
+    from wiz101_auto.collect import LANDMARK_NAMES
+
+    assert "duel circle" not in LANDMARK_NAMES

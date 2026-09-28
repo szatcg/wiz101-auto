@@ -119,10 +119,15 @@ async def scan_wisps(client) -> list:
 
 
 async def mob_positions(client) -> list[tuple[float, float, float]]:
+    """Places to keep clear of: enemies, and fights already going on (duel
+    circles: another player's fight pulls in whoever lands beside it)."""
+    from .collect import duel_circles
+
     try:
-        return [_pt(await m.location()) for m in await client.get_mobs()]
+        mobs = [_pt(await m.location()) for m in await client.get_mobs()]
     except Exception:
-        return []
+        mobs = []
+    return mobs + await duel_circles(client)
 
 
 UNREACHABLE_WISP_MINUTES = 15.0

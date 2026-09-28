@@ -48,6 +48,13 @@ def matches_item(item: str, *names: str) -> bool:
             continue
         if target in n:
             return True
+        # Object names use short words: "Gemstones" lie around as "KT_Gem_Fire".
+        # Only the object's kind (its first word after a zone prefix like
+        # "KT_") counts, so "Firecat Whiskers" doesn't match that gem's "Fire".
+        words = [_norm(w) for w in re.split(r"[_\-\s]+", name)]
+        words = [w for w in words if len(w) >= 3 and not w.isdigit()]
+        if words and target.startswith(words[0]):
+            return True
     return False
 
 
@@ -61,7 +68,29 @@ def spread_points(points: list[tuple[float, float, float]], start, spacing: floa
     return chosen
 
 
-LANDMARK_NAMES = ("player stand in", "duel circle")  # unnamed but always on walkable ground
+# Unnamed but always on walkable ground. Not duel circles: those are fights
+# (often another player's), and landing on one joins it.
+LANDMARK_NAMES = ("player stand in",)
+DUEL_CIRCLE = "duel circle"
+
+
+async def duel_circles(client) -> list[tuple[float, float, float]]:
+    """Fights going on in the zone (ours or other players'): walking or
+    teleporting into one joins it, and their enemies may not be listed as
+    mobs while they fight."""
+    out = []
+    try:
+        for e in await client.get_base_entity_list():
+            try:
+                template = await e.object_template()
+                if template and (await template.object_name() or "").lower() == DUEL_CIRCLE:
+                    pos = await e.location()
+                    out.append((pos.x, pos.y, pos.z))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
 
 
 async def landmarks(client) -> list[tuple[float, float, float]]:
@@ -194,7 +223,11 @@ class Collector:
         entities = [f[0] for f in found]
         safe = await self.client.find_safe_entities_from(entities, safe_distance=self.safe_distance)
         safe_ids = {id(e) for e in safe}
-        options = [f for f in found if id(f[0]) in safe_ids]
+        circles = await duel_circles(self.client)
+        options = [
+            f for f in found
+            if id(f[0]) in safe_ids and away_from([(f[2].x, f[2].y, f[2].z)], circles, self.safe_distance)
+        ]
         if not options:
             return False
         _e, gid, spot, name = min(options, key=lambda f: f[2].distance(me))
@@ -220,8 +253,12 @@ class Collector:
         safe = await self.client.find_safe_entities_from(entities, safe_distance=self.safe_distance)
         me = await self.client.body.position()
         now = time.monotonic()
+        circles = await duel_circles(self.client)
         options = []
         for e in safe:
+            loc = await e.location()
+            if not away_from([(loc.x, loc.y, loc.z)], circles, self.safe_distance):
+                continue  # beside a fight going on (another player's): walking in joins it
             try:
                 gid = await e.global_id_full()
             except Exception:
