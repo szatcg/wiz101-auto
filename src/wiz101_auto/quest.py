@@ -416,6 +416,10 @@ class Quester:
         self._deaths_before = deaths
         if "interiors" in (prev + zone).lower() or prev.split("/")[0] != zone.split("/")[0]:
             return
+        if gate_toward(zone, prev, self._bad_gates):
+            # Already reachable; and a travel may cross several zones in one step,
+            # so `prev` needn't even border this zone.
+            return
         pos = await self._position()
         gate = gate_behind(pos, await self.client.body.yaw())
         if learn_gate(zone, prev, gate):
