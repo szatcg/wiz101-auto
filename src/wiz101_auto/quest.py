@@ -38,7 +38,7 @@ from .dungeons import DungeonEntry, DungeonMemory
 from .marks import Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
-from .safe_teleport import allow_engage
+from .safe_teleport import allow_close_landing, allow_engage
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .travel_data import (
     find_zone_gate,
@@ -1804,6 +1804,8 @@ class Quester:
         # Always land clear of enemies: the marker of a "Defeat X" objective can
         # sit beside other mobs (a Desert Golem by the Nirini Warriors), and
         # pull_mob goes after the named enemy on purpose afterwards.
+        if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
+            allow_close_landing(self.client)  # enemies there are what we came for
         await self.travel(target)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival

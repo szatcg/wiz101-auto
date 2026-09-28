@@ -35,6 +35,12 @@ def teleport_aborted(client) -> bool:
     return bool(getattr(client, "_teleport_aborted", False))
 
 
+def allow_close_landing(client, seconds: float = 20.0):
+    """Going toward enemies we mean to fight ("Defeat X" here): still land
+    clear of them, but don't jump back when they turn out to be close."""
+    client._close_ok_until = time.monotonic() + seconds
+
+
 def allow_engage(client, seconds: float = 6.0):
     """The next teleports (for `seconds`) are meant to start a fight."""
     client._engage_until = time.monotonic() + seconds
@@ -85,6 +91,8 @@ def install(client):
         from .upkeep import mob_positions
 
         result = await original(dest, *args, **kwargs)
+        if time.monotonic() < getattr(client, "_close_ok_until", 0.0):
+            return result  # heading for a fight on purpose
         await asyncio.sleep(ARRIVAL_SETTLE)
         if await client.in_battle():
             return result
