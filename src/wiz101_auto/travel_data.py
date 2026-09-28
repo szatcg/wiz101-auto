@@ -115,6 +115,7 @@ EXTRA_DISPLAY_ZONES = [
     ("the commons", "WizardCity/WC_Hub"),
     ("ravenwood", "WizardCity/WC_Ravenwood"),
     ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
+    ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
 ]
 
 
