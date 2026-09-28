@@ -142,6 +142,7 @@ EXTRA_DISPLAY_ZONES = [
     ("throne room of fire", "Krokotopia/KT_Pyramid/KT_ThroneRoom"),  # not MooShu's "throne room"
     ("altar of kings", "Krokotopia/KT_Pyramid/KT_AltarOfKings"),  # the data says "altar of the kings"
     ("hall of champions", "Krokotopia/KT_Krokosphinx/KT_ChampHall"),  # the data says "hall of champion's"
+    ("wizard city library", "WizardCity/Interiors/WC_Library"),  # Harold Argleston (not in the data)
 ]
 
 
