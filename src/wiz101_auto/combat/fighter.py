@@ -25,6 +25,23 @@ def out_of_mana(battle) -> bool:
     return mana is not None and mana < LOW_MANA and not any(c.castable for c in battle.cards)
 
 
+_snapped: set[str] = set()
+
+
+def _snapshot(path: str):
+    """Save one screenshot per path per session (debugging UI positions)."""
+    if path in _snapped:
+        return
+    _snapped.add(path)
+    try:
+        from ..screenshot import save_screenshot
+
+        save_screenshot(path)
+        logger.info(f"saved {path}")
+    except Exception as exc:
+        logger.debug(f"screenshot failed: {exc!r}")
+
+
 # Spots (fraction of width, fraction of height) to try on the thin action-row
 # buttons (Pass, Flee); a negative height is just above the row.
 ACTION_SPOTS = [(fx, fy) for fy in (0.5, 0.2, -0.3, 0.8) for fx in (0.5, 0.3, 0.7)]  # never up into the cards
@@ -167,6 +184,7 @@ class Fighter(CombatHandler):
                     seen = text
                     logger.debug(f"flee ({how}): message box {text[:80]!r}")
                 if box is not None and "flee" in text.lower():
+                    _snapshot("state/flee_box.png")  # to see where its buttons really are
                     if await ui.press_modal_button(self.client, box, "centerButton"):
                         logger.info(f"confirmed fleeing ({how})")
                         self._flee_method = how
