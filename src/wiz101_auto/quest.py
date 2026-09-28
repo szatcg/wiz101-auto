@@ -70,6 +70,7 @@ from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
 DEFEAT_NO_MARK_SECONDS = 120.0  # right after a defeat the wizard stands in the hub: no heal marks
+NPC_INCH_RANGE = 1500.0  # a refused teleport this close to an NPC: step closer; farther off, it's a door
 EXPOSED_RADIUS = 1200.0  # standing still (menus, marking) this close to an enemy invites a fight
 BOUNCE_DISTANCE = 20.0
 WISP_SCAN_SECONDS = 30.0
@@ -1099,8 +1100,10 @@ class Quester:
             # instead would run through them. Try again next step.
             return False
 
-        if npc:
+        if npc and distance(await self._position(), target) < NPC_INCH_RANGE:
             return await self._inch_toward(target)
+        # Far from the marker with the teleport refused: it's a door (Zan'ne's
+        # building in the Oasis), whatever the objective says: walk through it.
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
         if await self.approach_and_walk(target, zone):
