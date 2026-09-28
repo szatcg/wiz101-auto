@@ -103,3 +103,64 @@ class CompletionTracker:
                     f.write(n + "\n")
         except OSError:
             pass
+
+
+# --- per-world lists and completion (for the dashboard) ------------------------
+
+WORLDS = (
+    "Wizard City", "Krokotopia", "Marleybone", "MooShu", "Dragonspyre", "Celestia", "Zafaria",
+    "Avalon", "Azteca", "Khrysalis", "Polaris", "Mirage", "Empyrea", "Karamelle", "Lemuria",
+    "Novus", "Wallaru", "Selenopolis",
+)
+WORLD_LISTS = Path("docs") / "quests"  # <World>.txt, same format as QuestList.txt
+
+
+def load_world_lists(docs: Path = Path("docs")) -> dict[str, list[ListedQuest]]:
+    """Quest lists per world: docs/QuestList.txt is Wizard City; docs/quests/
+    <World>.txt adds others (pasted from Spiral Tracker)."""
+    out: dict[str, list[ListedQuest]] = {}
+    try:
+        out["Wizard City"] = parse_quest_list((docs / "QuestList.txt").read_text(encoding="utf-8"))
+    except OSError:
+        pass
+    folder = docs / "quests"
+    if folder.is_dir():
+        for f in sorted(folder.glob("*.txt")):
+            try:
+                out[f.stem] = parse_quest_list(f.read_text(encoding="utf-8"))
+            except OSError:
+                continue
+    return out
+
+
+def load_completed(path: Path = COMPLETED_LOG) -> list[str]:
+    try:
+        return [ln.strip() for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    except OSError:
+        return []
+
+
+def quest_status(
+    listed: list[ListedQuest], completed: list[str], book: list[str], later_world_reached: bool
+) -> dict[str, str]:
+    """"done" / "active" / "todo" for each listed quest (by name). Done: logged
+    as completed; or, the lists being in story order, no longer in the quest
+    book while a later quest (or a later world) has been reached."""
+    done = {norm(n) for n in completed}
+    in_book = {norm(n) for n in book}
+    reached = -1  # position of the furthest quest known started or done
+    for i, q in enumerate(listed):
+        if norm(q.name) in done or norm(q.name) in in_book:
+            reached = i
+    if later_world_reached:
+        reached = len(listed)
+    out = {}
+    for i, q in enumerate(listed):
+        key = norm(q.name)
+        if key in in_book:
+            out[q.name] = "active"
+        elif key in done or i < reached:
+            out[q.name] = "done"
+        else:
+            out[q.name] = "todo"
+    return out

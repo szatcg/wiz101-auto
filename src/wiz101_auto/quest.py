@@ -12,10 +12,12 @@ Combat itself is handled concurrently by the Fighter task.
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
@@ -302,6 +304,28 @@ def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bo
 
 def distance(a: XYZ, b: XYZ) -> float:
     return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
+
+
+QUEST_BOOK_FILE = Path("state") / "quest_book.json"
+
+
+def _write_quest_book(quests: list[QuestEntry], chosen: QuestEntry | None, world: str | None):
+    """The quest book as last read, for the dashboard (state/quest_book.json)."""
+    try:
+        data = {
+            "time": time.time(),
+            "world": world or "",
+            "tracking": chosen.name if chosen else "",
+            "tracking_area": chosen.world if chosen else "",
+            "quests": [
+                {"name": q.name, "area": q.world, "main": q.mainline, "spell": q.activity, "goal": q.goal}
+                for q in quests
+            ],
+        }
+        QUEST_BOOK_FILE.parent.mkdir(exist_ok=True)
+        QUEST_BOOK_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError:
+        pass
 
 
 class Quester:
@@ -1231,6 +1255,7 @@ class Quester:
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
+            _write_quest_book([q for _, q in all_quests], chosen, world)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities

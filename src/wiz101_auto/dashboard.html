@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spiral Progress</title>
+<style>
+  :root {
+    --bg: #0e1020;
+    --panel: #171a33;
+    --panel-2: #1f2344;
+    --line: #2d3260;
+    --text: #e8e6f5;
+    --muted: #9a9cc0;
+    --gold: #f2c14e;
+    --gold-soft: rgba(242, 193, 78, 0.14);
+    --green: #5fd38d;
+    --blue: #6fa8ff;
+    --red: #ff6b6b;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, #262a5a 0%, var(--bg) 60%);
+    background-color: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 48px; }
+
+  /* ribbon: what the bot is doing now */
+  .ribbon {
+    position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(90deg, #3b2a6e, #23285a 60%, #1b3a5e);
+    border-bottom: 2px solid var(--gold);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+  .ribbon .wrap {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center;
+    padding-top: 12px; padding-bottom: 12px;
+  }
+  .state { display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--muted); }
+  .dot.run { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .dot.fight { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .now { min-width: 0; }
+  .now .quest { font-size: 18px; font-weight: 700; color: var(--gold); overflow-wrap: anywhere; }
+  .now .objective { color: var(--text); overflow-wrap: anywhere; }
+  .now .where { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .vitals { text-align: right; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .vitals b { color: var(--text); font-size: 16px; }
+  .hp { width: 160px; height: 8px; border-radius: 4px; background: #3a1d2a; margin: 6px 0 0 auto; overflow: hidden; }
+  .hp > div { height: 100%; background: linear-gradient(90deg, #e44d6a, #ff8a7a); }
+
+  h1 { font-size: 26px; margin: 28px 0 4px; letter-spacing: 0.3px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .overall {
+    display: flex; gap: 24px; flex-wrap: wrap; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 20px;
+  }
+  .overall .big { font-size: 34px; font-weight: 800; color: var(--gold); }
+  .overall .bar { flex: 1; min-width: 200px; }
+
+  .bar { height: 10px; border-radius: 6px; background: #0b0d1c; overflow: hidden; border: 1px solid var(--line); }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #c99a2e, var(--gold)); transition: width 0.6s; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px; cursor: pointer; transition: transform 0.12s, border-color 0.12s;
+    text-align: left; color: inherit; font: inherit;
+  }
+  .card:hover { transform: translateY(-2px); border-color: #4b5196; }
+  .card.current { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset, 0 0 22px var(--gold-soft); }
+  .card.open { background: var(--panel-2); }
+  .card.locked { opacity: 0.55; }
+  .card .name { font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+  .card .pct { font-size: 24px; font-weight: 800; margin: 6px 0; }
+  .card .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); }
+
+  .detail {
+    margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .detail h2 { margin: 0 0 4px; font-size: 20px; }
+  .area { margin-top: 18px; }
+  .area-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 6px; }
+  .area-head .bar { width: 160px; height: 6px; }
+  .q {
+    display: grid; grid-template-columns: 26px 34px 1fr; gap: 6px; align-items: start;
+    padding: 7px 8px; border-radius: 8px;
+  }
+  .q:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+  .q.done .qname { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(154, 156, 192, 0.5); }
+  .q.active { background: rgba(111, 168, 255, 0.10); }
+  .q .num { color: var(--muted); font-size: 13px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+  .tag { font-size: 10.5px; padding: 1px 6px; border-radius: 4px; background: #262a50; color: #b9bce0; letter-spacing: 0.3px; }
+  .tag.BOSS { background: #4a1f2e; color: #ffb0b0; }
+  .tag.INSTANCE { background: #2a2250; color: #c7b6ff; }
+  .tag.SIDE { background: #1f3a33; color: #9be3c0; }
+  .icon { font-size: 15px; }
+  .empty { color: var(--muted); }
+  code { background: #0b0d1c; padding: 1px 6px; border-radius: 5px; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .box h3 { margin: 0 0 8px; font-size: 15px; color: var(--gold); }
+  .box ul { margin: 0; padding-left: 18px; }
+  .box li { margin: 3px 0; overflow-wrap: anywhere; }
+  .box li small { color: var(--muted); }
+
+  @media (max-width: 720px) {
+    .ribbon .wrap { grid-template-columns: 1fr; }
+    .vitals { text-align: left; }
+    .hp { margin-left: 0; }
+    .cols { grid-template-columns: 1fr; }
+    .area-head .bar { width: 90px; }
+  }
+</style>
+</head>
+<body>
+<div class="ribbon">
+  <div class="wrap">
+    <div class="state"><span class="dot" id="dot"></span><span id="state">connecting…</span></div>
+    <div class="now">
+      <div class="quest" id="quest">—</div>
+      <div class="objective" id="objective"></div>
+      <div class="where" id="where"></div>
+    </div>
+    <div class="vitals">
+      <div>Level <b id="level">–</b></div>
+      <div id="hptext"></div>
+      <div class="hp"><div id="hpbar" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>Spiral Progress</h1>
+  <p class="sub">Story quests completed per world. Updates every few seconds while the bot runs.</p>
+
+  <div class="overall">
+    <div><div class="big" id="overallPct">0%</div><div class="empty" id="overallText"></div></div>
+    <div class="bar"><div id="overallBar" style="width:0%"></div></div>
+  </div>
+
+  <div class="grid" id="worlds"></div>
+  <div id="detail"></div>
+
+  <div class="cols">
+    <div class="box"><h3>Quest book</h3><ul id="book"></ul></div>
+    <div class="box"><h3>Recently completed</h3><ul id="recent"></ul></div>
+  </div>
+</div>
+
+<script>
+let data = null;
+let openWorld = null;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const tagClass = (t) => t.startsWith("SIDE") ? "SIDE" : t.replace(/[^A-Z]/g, "");
+const cleanTag = (t) => t.replace(/[^\x20-\x7E]/g, "×");
+
+function renderRibbon() {
+  const s = data.status || {};
+  const dot = document.getElementById("dot");
+  const fighting = data.running && s.in_battle;
+  dot.className = "dot " + (fighting ? "fight" : data.running ? "run" : "");
+  document.getElementById("state").textContent = fighting ? "In battle" : data.running ? "Questing" : "Bot stopped";
+  document.getElementById("quest").textContent = data.current.quest || "No quest tracked";
+  document.getElementById("objective").textContent = data.current.objective || "";
+  const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
+  document.getElementById("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
+  document.getElementById("level").textContent = s.level ?? "–";
+  const [hp, max] = String(s.health || "0/0").split("/").map(Number);
+  document.getElementById("hptext").textContent = max ? `Health ${hp} / ${max}` : "";
+  document.getElementById("hpbar").style.width = max ? `${Math.round((100 * hp) / max)}%` : "0%";
+}
+
+function renderWorlds() {
+  const listed = data.worlds.filter((w) => w.has_list);
+  const total = listed.reduce((n, w) => n + w.total, 0);
+  const done = listed.reduce((n, w) => n + w.done, 0);
+  const pct = total ? Math.round((100 * done) / total) : 0;
+  document.getElementById("overallPct").textContent = `${pct}%`;
+  document.getElementById("overallText").textContent = `${done} of ${total} listed quests`;
+  document.getElementById("overallBar").style.width = `${pct}%`;
+
+  if (openWorld === null) openWorld = (data.worlds.find((w) => w.current) || data.worlds[0]).name;
+  document.getElementById("worlds").innerHTML = data.worlds.map((w) => {
+    const cls = ["card", w.current ? "current" : "", w.name === openWorld ? "open" : "", !w.reached && !w.done ? "locked" : ""].join(" ");
+    const meta = w.has_list ? `${w.done} / ${w.total} quests` : (w.reached ? "no quest list yet" : "not reached");
+    return `<button class="${cls}" data-world="${esc(w.name)}">
+      <div class="name"><span>${esc(w.name)}</span>${w.current ? '<span class="badge">here</span>' : ""}</div>
+      <div class="pct">${w.pct}%</div>
+      <div class="bar"><div style="width:${w.pct}%"></div></div>
+      <div class="meta">${meta}</div>
+    </button>`;
+  }).join("");
+  document.querySelectorAll(".card").forEach((el) => el.addEventListener("click", () => {
+    openWorld = el.dataset.world;
+    render();
+  }));
+}
+
+function renderDetail() {
+  const w = data.worlds.find((x) => x.name === openWorld);
+  const el = document.getElementById("detail");
+  if (!w) { el.innerHTML = ""; return; }
+  if (!w.has_list) {
+    el.innerHTML = `<div class="detail"><h2>${esc(w.name)}</h2>
+      <p class="empty">No quest list for ${esc(w.name)} yet. Paste its list from Spiral Tracker into
+      <code>docs/quests/${esc(w.name)}.txt</code> (same format as <code>docs/QuestList.txt</code>) and it shows up here.</p></div>`;
+    return;
+  }
+  const icon = { done: "✅", active: "🔷", todo: "⬜" };
+  el.innerHTML = `<div class="detail"><h2>${esc(w.name)} — ${w.pct}%</h2>
+    <div class="empty">${w.done} of ${w.total} quests done</div>
+    ${w.areas.map((a) => {
+      const p = a.total ? Math.round((100 * a.done) / a.total) : 0;
+      return `<div class="area">
+        <div class="area-head"><strong>${esc(a.name)}</strong>
+          <span class="empty">${a.done}/${a.total} <span class="bar" style="display:inline-block;vertical-align:middle"><div style="width:${p}%"></div></span></span></div>
+        ${a.quests.map((q) => `<div class="q ${q.status}">
+          <span class="icon" title="${q.status}">${icon[q.status]}</span>
+          <span class="num">${q.index}.</span>
+          <div><div class="qname">${esc(q.name)}</div>
+            <div class="tags">${q.tags.map((t) => `<span class="tag ${tagClass(t)}">${esc(cleanTag(t))}</span>`).join("")}</div></div>
+        </div>`).join("")}
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderLists() {
+  const tracking = data.current.quest;
+  document.getElementById("book").innerHTML = data.book.length
+    ? data.book.map((q) => `<li>${q.name === tracking ? "<b>" + esc(q.name) + "</b>" : esc(q.name)}
+        <small>${q.main ? "main" : q.spell ? "spell" : "side"}${q.area ? " · " + esc(q.area) : ""}</small></li>`).join("")
+    : '<li class="empty">not read yet</li>';
+  document.getElementById("recent").innerHTML = data.recent.length
+    ? data.recent.map((n) => `<li>${esc(n)}</li>`).join("")
+    : '<li class="empty">none yet</li>';
+}
+
+function render() {
+  if (!data) return;
+  renderRibbon();
+  renderWorlds();
+  renderDetail();
+  renderLists();
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/data.json", { cache: "no-store" });
+    data = await r.json();
+    render();
+  } catch (e) {
+    document.getElementById("state").textContent = "dashboard server not running";
+    document.getElementById("dot").className = "dot";
+  }
+}
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>

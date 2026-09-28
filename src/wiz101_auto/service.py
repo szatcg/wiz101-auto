@@ -106,6 +106,7 @@ def start(config: str, supervise: bool) -> int:
         f"started (PID {proc.pid}{', supervised' if supervise else ''}). Use 'status', 'logs -f' or 'stop'."
     )
     open_watch_window()
+    open_dashboard()
     return 0
 
 
@@ -129,6 +130,27 @@ def open_watch_window() -> None:
         print(f"live log window opened (PID {proc.pid}); close it any time, `watch` reopens it.")
     except OSError as exc:
         print(f"could not open the live log window: {exc}")
+
+
+def open_dashboard() -> None:
+    """Serve the progress dashboard in the background (unless it already is)
+    and open it in the browser once."""
+    from .dashboard import PORT, is_serving
+
+    if is_serving(PORT):
+        return
+    try:
+        flags = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
+        subprocess.Popen(
+            [_python(), "-m", "wiz101_auto", "dashboard"],
+            creationflags=flags,
+            cwd=os.getcwd(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print(f"progress dashboard: http://127.0.0.1:{PORT}/")
+    except OSError as exc:
+        print(f"could not start the dashboard: {exc}")
 
 
 def stop(timeout: float = 30.0) -> int:

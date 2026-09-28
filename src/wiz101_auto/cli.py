@@ -123,6 +123,9 @@ def main(argv: list[str] | None = None):
     rec_p.add_argument("--minutes", type=float, default=15.0)
     sub.add_parser("explore", help="save nearby NPCs/doors/mobs and their positions for this zone")
     sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
+    dash_p = sub.add_parser("dashboard", help="serve the progress dashboard at http://127.0.0.1:8101/")
+    dash_p.add_argument("--port", type=int, default=8101)
+    dash_p.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
     shot_p = sub.add_parser("screenshot", help="save the game window as a PNG (works while the bot runs)")
     shot_p.add_argument("-o", "--output", default="state/screenshot.png")
 
@@ -169,6 +172,11 @@ def main(argv: list[str] | None = None):
         asyncio.run(inspect(show_windows=args.windows))
         return
 
+    if args.command == "dashboard":
+        from .dashboard import serve
+
+        serve(args.port, open_browser=not args.no_browser)
+        return
     if args.command == "watch":
         _watch(ACTIVITY_LOG)
         return

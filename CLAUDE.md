@@ -19,6 +19,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | Command | Use |
 |---|---|
 | `start [--supervise]` | start in the background (also opens the live log window if none is open); `--supervise` auto-restarts after crashes |
+| `dashboard` | progress dashboard at http://127.0.0.1:8101/ (world completion %, current quest ribbon); `start` launches it |
 | `stop` | clean stop (unhooks the game); force-kills only after 30s |
 | `restart [--supervise]` | stop + start |
 | `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |
@@ -82,6 +83,8 @@ while the bot is stopped.
 | `state/mark.json` | where the game's Mark is: a dungeon sigil (Recall after a defeat) or a travel mark (Recall when nearer the next objective than walking) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
+| `state/quest_book.json` | the quest book at the last ranking (for the dashboard) |
+| `docs/quests/<World>.txt` | quest lists for worlds after Wizard City (Spiral Tracker format), shown on the dashboard |
 | `state/bot.out` | stdout/stderr of the background process (crash tracebacks) |
 | `state/bot.pid`, `state/stop.request` | service bookkeeping |
 | `state/progress.json` | level, known spells, last deck plan |

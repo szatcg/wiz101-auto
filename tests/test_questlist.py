@@ -49,3 +49,12 @@ def test_completion_needs_two_readings(tmp_path):
     assert (tmp_path / "done.txt").read_text(encoding="utf-8") == "B\n"
     assert t.update({"A", "B2"}) == []  # C missing once only
     assert t.update({"A", "C"}) == []  # C came back: not completed
+
+
+def test_quest_status_story_order():
+    from wiz101_auto.questlist import ListedQuest, quest_status
+
+    listed = [ListedQuest(i + 1, n, "Area") for i, n in enumerate(["A", "B", "C", "D"])]
+    st = quest_status(listed, completed=["A"], book=["C"], later_world_reached=False)
+    assert st == {"A": "done", "B": "done", "C": "active", "D": "todo"}
+    assert set(quest_status(listed, [], [], True).values()) == {"done"}
