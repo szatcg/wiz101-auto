@@ -572,3 +572,23 @@ def test_prism_kept_while_an_enemy_is_unknown():
     b = battle(cards, [enemy("Mystery", 900)])  # no school, no resist read
     b.pips = 2
     assert decide(b).kind is ActionKind.PASS
+
+
+def test_weak_hit_does_not_waste_blade_and_trap():
+    bat = dmg_card(0, "Blood Bat", 90, pips=1)
+    bat.school = "myth"
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    stalker = enemy("Sand Stalker", 435, trap_count=1, incoming_effects=[("spell:2", "myth", 0.4)])
+    b = battle([bat, myth_hit(1, pips=3, castable=False)], [stalker], my=bladed)
+    b.pips = 2
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Blood Bat"
+    assert decide(b, discards_left=0).kind is ActionKind.PASS
+
+
+def test_weak_hit_still_finishes_an_enemy():
+    bat = dmg_card(0, "Blood Bat", 90, pips=1)
+    bat.school = "myth"
+    bladed = me(blade_count=1, outgoing_effects=[("spell:1", "myth", 0.35)])
+    b = battle([bat], [enemy("Sand Stalker", 100)], my=bladed)
+    assert decide(b).card.name == "Blood Bat"

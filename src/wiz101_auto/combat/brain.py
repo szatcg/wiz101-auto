@@ -628,6 +628,18 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     return action
 
 
+WEAK_HIT_SHARE = 0.5  # a hit under this share of the target's health doesn't deserve our blade/trap
+
+
+def _buffed_for(battle: Battle, card: Card, target: Combatant) -> bool:
+    """Would this hit use up a blade of ours or a trap on the target?"""
+    school = card.school.lower()
+    return bool(
+        _matching(battle.me.outgoing_effects, school, shields=False)
+        or _matching(target.incoming_effects, school, shields=False)
+    )
+
+
 FREE_HIT_SPARE_TRAPS = 3  # an enemy with this many traps can lose one to a 0-pip hit
 
 
@@ -780,6 +792,26 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
             and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips
         ):
             return Action(ActionKind.PASS, reason=f"holding {card.name} until {focus.name} is trapped")
+
+        # Blades and traps are spent by the next hit of their school. A weak hit
+        # (Blood Bat: ~136 into a 435 hp Sand Stalker) wastes them: bin weak
+        # cards to draw a Troll or Cyclops, or wait, until pips pile up.
+        if (
+            card.pip_cost > 0
+            and dmg < focus.health * WEAK_HIT_SHARE
+            and _buffed_for(battle, card, focus)
+            and battle.pips + battle.power_pips < strat.hold_big_hit_until_pips + 1
+        ):
+            weak = [
+                c for c in battle.cards
+                if c.is_damage and not c.treasure and c.pip_cost > 0
+                and expected_damage(c, battle.me, focus) < focus.health * WEAK_HIT_SHARE
+            ]
+            if discards_left > 0 and weak:
+                junk = min(weak, key=lambda c: c.base_damage())
+                why = f"too weak to spend the blade/trap on {focus.name}; drawing for a bigger hit"
+                return Action(ActionKind.DISCARD, junk, reason=why)
+            return Action(ActionKind.PASS, reason=f"keeping the blade/trap for a bigger hit than {card.name}")
 
         stronger = _stronger_next_round(battle, focus, dmg, strat)
         if stronger:
