@@ -696,20 +696,27 @@ class Quester:
             logger.debug(f"marking failed: {exc!r}")
             return False
 
-    async def _heal_trip(self, force: bool = False) -> bool:
-        """Recovery found nothing here: when the objective keeps us in this
-        zone (a fight in progress, a pickup here), heal from the hub and
-        Recall back instead of walking out and back through the gates.
-        `force`: resting here gave nothing at all, so go anyway."""
+    async def _heal_mark(self) -> bool:
+        """Before healing: mark the spot, to Recall back after healing from
+        the hub. Not while a dungeon mark waits for its Recall (a defeat)."""
+        if not self.healer or self._recall_pending:
+            return False
+        return await self._mark_here("room")
+
+    async def _heal_trip(self, force: bool = False, marked: bool = False) -> bool:
+        """This zone lacks what recovery needs: heal from the hub and Recall
+        back instead of walking out and back through the gates. Goes when the
+        spot is marked already, the objective keeps us here, or `force`
+        (resting here gave nothing at all)."""
         if not self.healer:
             return False
         zone = await self.client.zone_name() or ""
         objective = await self.objective()
         dest = objective_zone(objective) if objective else None
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
-        if not zone or not (coming_back or force):
+        if not zone or not (marked or coming_back or force):
             return False
-        return await self.healer.trip(zone, f"no wisps here for {objective!r}")
+        return await self.healer.trip(zone, f"not enough wisps here for {objective!r}", mark=not marked)
 
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
@@ -1668,7 +1675,8 @@ class Quester:
         if self.healer and await self._in_dungeon(zone_now) and await self.healer.between_fights(zone_now):
             return
         if self.upkeep and not await recover(
-            self.client, self.upkeep, self.controller, self.go_to_zone, trip=self._heal_trip
+            self.client, self.upkeep, self.controller, self.go_to_zone,
+            trip=self._heal_trip, mark=self._heal_mark,
         ):
             return
         if await self._recall_to_mark():

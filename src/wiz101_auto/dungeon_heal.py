@@ -52,14 +52,16 @@ class DungeonHealer:
             return False
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
-    async def trip(self, zone: str, why: str) -> bool:
-        """Mark here, heal from the hub, Recall back. True if it went."""
+    async def trip(self, zone: str, why: str, mark: bool = True) -> bool:
+        """Mark here (unless marked already), heal from the hub, Recall back.
+        True if it went."""
         if self._busy:
             return False  # recover() inside the trip must not start another
-        logger.info(f"{why}: marking this spot and going to the hub to heal")
-        if not await self.q._mark_here("room"):
+        logger.info(f"{why}: going to the hub to heal, then back by Recall")
+        if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")
             return False
+        zone = self.q._mark.zone if self.q._mark else zone
         self._busy = True
         self.q.controller.allow_idle(TRIP_MINUTES * 60)
         started = time.monotonic()

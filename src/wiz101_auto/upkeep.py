@@ -383,10 +383,14 @@ def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
     return frozenset(need or BOTH)
 
 
-async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=None) -> bool:
-    """Make sure the wizard is healthy before engaging anything. `trip`, if
-    given, is tried before walking to another zone for wisps: a heal trip that
-    comes back here by Recall (True if it went).
+async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=None, mark=None) -> bool:
+    """Make sure the wizard is healthy before engaging anything.
+
+    With `mark` (async, True if it marked the spot): mark first, then heal in
+    this zone (wisps in view, remembered spots, a sweep) and teleport back to
+    where it started. If this zone lacks what is needed (no health wisps, or
+    mana still short), `trip(marked=..., force=...)` heals from the world hub
+    and Recalls to the mark (True if it went).
 
     Returns True when it's fine to carry on questing, False if something
     (a fight, dialogue, loading) interrupted the recovery.
@@ -399,6 +403,15 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         return True  # already found nothing here; the quest is walking us out
     _leaving_interior.clear()
     logger.info(f"health {hp:.0%}, mana {mana:.0%}: recovering before going on")
+    marked = bool(mark and await mark())
+    start_pos = await client.body.position()
+
+    async def back_to_start():
+        """Healed in this zone: go back to where healing began."""
+        here = await client.body.position()
+        if await client.zone_name() == zone_now and math.dist(_pt(start_pos), _pt(here)) > 400:
+            await client.teleport(start_pos)
+            await asyncio.sleep(0.5)
 
     loop = asyncio.get_running_loop()
     started = loop.time()
@@ -406,6 +419,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     rested = False
     rest_start: tuple[float, float, float] | None = None  # (when, hp, mana) resting began
     moved_on = False  # already left a zone that gave nothing
+    tripped = False  # tried a heal trip through the hub
     travelled = False
     fruitless = 0  # remembered spots visited in a row without gaining anything
     swept: set[str] = set()
@@ -416,6 +430,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         hp, mana = await health_mana(client)
         if cfg.recovered(hp, mana):
             logger.success(f"recovered to {hp:.0%} health, {mana:.0%} mana")
+            await back_to_start()
             return True
 
         low = hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio
@@ -432,13 +447,6 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 now_hp, now_mana = await health_mana(client)
                 if now_hp > hp or now_mana > mana:
                     continue
-            if trip and not travelled:
-                # Hunting remembered wisp spots around a zone full of enemies
-                # pulls fight after fight (the Hall of Champions' Sokkwi): heal
-                # from the hub and Recall back instead.
-                travelled = True
-                if await trip():
-                    return True
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
             if await visit_known_spot(client, cfg, zone, need):
@@ -455,6 +463,12 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 if await sweep_for_wisps(client, cfg):
                     continue
             poor_zone = wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
+            if trip and not tripped and poor_zone:
+                # This zone lacks what is needed (health wisps, or mana after
+                # healing here): the world hub, then Recall to the mark.
+                tripped = True
+                if await trip(marked=marked):
+                    return True
             if go_to_zone and not travelled and poor_zone:
                 # No wisps to be had here right now (e.g. the hub after a defeat):
                 # go heal where they spawn instead of waiting for respawns.
@@ -476,12 +490,14 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # Nothing to be had around here and we're nearly there: waiting for
                 # regeneration costs minutes that questing puts to better use.
                 logger.info(f"no wisps here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
+                await back_to_start()
                 return True
 
         if close_enough(cfg, hp, mana):
             # Nothing to pick up nearby, and resting regenerates little or
             # nothing: this close to the threshold, questing on is better.
             logger.info(f"nothing to heal with here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
+            await back_to_start()
             return True
         if not rested:
             await move_to_safety(client)
@@ -497,7 +513,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 moved_on = True
                 waited = f"{REST_PROBE_SECONDS:.0f}s"
                 logger.info(f"nothing recovered in {waited} in {zone}; going somewhere to heal")
-                if trip and await trip(force=True):
+                if trip and await trip(force=True, marked=marked):
                     return True
                 dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
                                       avoid=barren_zones())
