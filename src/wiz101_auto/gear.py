@@ -11,9 +11,11 @@ a new item lands in the backpack (only that item's slot).
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import Keycode
@@ -44,6 +46,10 @@ SLOT_WORDS = {
     "Tab_Amulet": ("amulet", "necklace", "pendant", "talisman", "locket"),
     "Tab_Ring": ("ring", "band"),
 }
+
+
+def norm_item(name: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", name.lower())
 
 
 def item_slot(texts: list[str]) -> str | None:
@@ -112,11 +118,55 @@ async def read_stats(client, school: str) -> StatSnapshot:
     )
 
 
+GEAR_MEMORY = Path("state") / "gear.json"
+
+
+class GearMemory:
+    """What each backpack item turned out to be, per slot tab, so a check only
+    tries items that could be better: "worse" items (beaten by what's worn, and
+    gear only gets better with level) are never tried again; "locked" ones
+    (couldn't be worn: level or school) are retried after a level-up."""
+
+    def __init__(self, path: Path = GEAR_MEMORY):
+        self.path = path
+        self.worse: dict[str, set[str]] = {}
+        self.locked: dict[str, set[str]] = {}
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            self.worse = {t: set(v) for t, v in raw.get("worse", {}).items()}
+            self.locked = {t: set(v) for t, v in raw.get("locked", {}).items()}
+        except Exception:
+            pass
+
+    def save(self):
+        try:
+            self.path.parent.mkdir(exist_ok=True)
+            data = {
+                "worse": {t: sorted(v) for t, v in self.worse.items()},
+                "locked": {t: sorted(v) for t, v in self.locked.items()},
+            }
+            self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        except OSError:
+            pass
+
+    def candidates(self, tab: str, names: list[str], level_up: bool) -> list[str]:
+        """Items worth trying on: never judged, plus level-locked ones after a level-up."""
+        worse, locked = self.worse.get(tab, set()), self.locked.get(tab, set())
+        return [n for n in names if n not in worse and (level_up or n not in locked)]
+
+    def mark(self, tab: str, name: str, verdict: str):
+        for kind in (self.worse, self.locked):
+            kind.setdefault(tab, set()).discard(name)
+        if verdict in ("worse", "locked"):
+            getattr(self, verdict).setdefault(tab, set()).add(name)
+
+
 class GearManager:
     def __init__(self, client, school: str):
         self.client = client
         self.school = school
         self._level: int | None = None
+        self.memory = GearMemory()
         self._items: set[int] | None = None  # backpack item ids seen so far
         self._last_backpack_check = 0.0
 
@@ -210,7 +260,11 @@ class GearManager:
                 break
         return False
 
-    async def _optimise_slot(self, tab: str) -> str | None:
+    async def _optimise_slot(
+        self, tab: str, only: set[str] | None = None, level_up: bool = False
+    ) -> str | None:
+        """Try on the items that could beat what's worn: `only` (new items) if
+        given, else those the memory hasn't ruled out. Keeps the best."""
         if not await ui.is_visible(self.client, PAGE) and not await self._open():
             return None  # something closed the backpack (e.g. the stall watchdog)
         if not await ui.is_visible(self.client, [*PAGE, "ButtonLayout", tab]):
@@ -219,18 +273,30 @@ class GearManager:
         if not items:
             return None
         current = next((n for n, e in items if e), None)
+        others = [n for n, e in items if not e]
+        if only is not None:
+            to_try = [n for n in others if norm_item(n) in {norm_item(o) for o in only}]
+        else:
+            to_try = self.memory.candidates(tab, others, level_up)
+        if not to_try:
+            return None
+        logger.debug(f"gear: {tab[4:]}: trying {to_try} against {current!r}")
         # An empty slot loses to any item that can actually be worn.
         best_name, best_score = current, (await self._score() if current else float("-inf"))
-        for name, equipped in items:
-            if equipped:
-                continue
+        for name in to_try:
             if not await self._equip_by_name(tab, name):
                 logger.debug(f"gear: {tab[4:]} {name!r} can't be worn (level or school)")
+                self.memory.mark(tab, name, "locked")
                 continue
             score = await self._score()
             logger.debug(f"gear: {tab[4:]} {name!r} scores {score:.0f} (best {best_score:.0f})")
             if score > best_score + 0.5:
+                if best_name:
+                    self.memory.mark(tab, best_name, "worse")
                 best_name, best_score = name, score
+            else:
+                self.memory.mark(tab, name, "worse")
+        self.memory.save()
         if best_name:
             # Never leave the slot worse than we found it: equipping sometimes
             # doesn't take, so check the score and try again.
@@ -244,8 +310,12 @@ class GearManager:
                 logger.warning(f"gear: could not put {best_name!r} back on ({tab[4:]}); check that slot")
         return best_name if best_name != current else None
 
-    async def optimise(self, reason: str, tabs=SLOT_TABS) -> list[str]:
-        """Equip the best item in each of `tabs` (every slot by default). Returns what changed."""
+    async def optimise(
+        self, reason: str, tabs=SLOT_TABS, only: dict | None = None, level_up: bool = False
+    ) -> list[str]:
+        """Equip the best item in each of `tabs`: for new items (`only`: tab ->
+        names) just those against what's worn; otherwise every item the memory
+        hasn't ruled out. Returns what changed."""
         logger.info(f"checking gear ({reason})")
         if not await self._open():
             logger.warning("could not open the backpack to check gear")
@@ -254,7 +324,8 @@ class GearManager:
         try:
             for tab in tabs:
                 try:
-                    new = await self._optimise_slot(tab)
+                    names = only.get(tab) if only is not None else None
+                    new = await self._optimise_slot(tab, names, level_up)
                 except Exception as exc:
                     logger.debug(f"gear: {tab} failed: {exc!r}")
                     continue
@@ -292,32 +363,32 @@ class GearManager:
                 continue
         return items
 
-    async def _new_items_tabs(self) -> tuple[set[str], list[str]]:
+    async def _new_items_tabs(self) -> dict[str, set[str]]:
         """Slots of items that appeared in the backpack since the last look (and
         their names). The first look only takes a snapshot."""
         items = await self._backpack()
         if not items:
-            return set(), []
+            return {}
         new = [] if self._items is None else [texts for gid, texts in items.items() if gid not in self._items]
         self._items = set(items)
-        tabs, names = set(), []
+        by_tab: dict[str, set[str]] = {}
         for texts in new:
             tab = item_slot(texts)
             name = texts[-1] if len(texts) > 3 else texts[0]
             logger.info(f"new item: {name!r} -> {tab[4:] if tab else 'not gear'} ({' | '.join(texts[:3])})")
             if tab:
-                tabs.add(tab)
-                names.append(name)
-        return tabs, names
+                by_tab.setdefault(tab, set()).add(name)
+        return by_tab
 
     async def tick(self):
-        """Call while the wizard is free. After a level-up (new level requirements
-        are met) every slot is re-checked; when a new item shows up in the backpack
-        only its slot is. Startups don't re-check."""
+        """Call while the wizard is free. A new item is tried against what's worn
+        in its slot only. After a level-up, items that couldn't be worn before
+        (and any never tried) are tried; ones already beaten are not. Startups
+        don't check."""
         level = await self.client.stats.reference_level()
         if self._level is not None and level > self._level:
             self._level = level
-            await self.optimise(f"level {level}")
+            await self.optimise(f"level {level}", level_up=True)
             self._items = None  # re-snapshot: swapped-out items land in the backpack
             return
         self._level = level
@@ -325,11 +396,12 @@ class GearManager:
             return
         self._last_backpack_check = time.monotonic()
         try:
-            tabs, names = await self._new_items_tabs()
+            new = await self._new_items_tabs()
         except Exception as exc:
             logger.debug(f"backpack read failed: {exc!r}")
             return
-        if tabs:
-            order = [t for t in SLOT_TABS if t in tabs]
-            await self.optimise(f"new {', '.join(names)}", order)
+        if new:
+            order = [t for t in SLOT_TABS if t in new]
+            names = sorted(n for v in new.values() for n in v)
+            await self.optimise(f"new {', '.join(names)}", order, only=new)
             self._items = None  # re-snapshot: swapped-out items land in the backpack

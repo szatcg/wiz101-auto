@@ -13,7 +13,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFEATS_TO_DEFER = 2
+DEFEATS_TO_DEFER = 2  # side quests
+MAIN_DEFEATS_TO_DEFER = 5  # main-story objectives: fights have variance, keep trying
 DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
 
 
@@ -50,7 +51,7 @@ class Setbacks:
         """Count a defeat on `objective`. True when its quest is now set aside."""
         n = self.defeats.get(objective, 0) + 1
         self.defeats[objective] = n
-        if n < DEFEATS_TO_DEFER or not quest:
+        if n < (MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER) or not quest:
             return False
         self.defeats.pop(objective, None)  # a fresh count when we come back
         now = time.time() if now is None else now

@@ -28,3 +28,25 @@ def test_item_slot_from_template_strings():
     assert item_slot(["", "", "", "Ring of Resolve"]) == "Tab_Ring"
     assert item_slot(["", "", "", "Bandit's Boots"]) == "Tab_Shoes"  # "bandit" isn't a band
     assert item_slot(["HS_Chair_Wooden", "Housing", ""]) is None
+
+
+def test_gear_memory_skips_beaten_items_and_retries_locked_on_level_up(tmp_path):
+    from wiz101_auto.gear import GearMemory
+
+    m = GearMemory(tmp_path / "gear.json")
+    m.mark("Tab_Hat", "Soft Hood", "worse")
+    m.mark("Tab_Hat", "Alicane's Cowl", "locked")
+    m.save()
+    m = GearMemory(tmp_path / "gear.json")
+    names = ["Soft Hood", "Alicane's Cowl", "Brand New Helm"]
+    assert m.candidates("Tab_Hat", names, level_up=False) == ["Brand New Helm"]
+    assert m.candidates("Tab_Hat", names, level_up=True) == ["Alicane's Cowl", "Brand New Helm"]
+
+
+def test_main_quests_get_five_tries(tmp_path):
+    from wiz101_auto.setbacks import Setbacks
+
+    s = Setbacks(tmp_path / "s.json")
+    boss = "Defeat Akori Nirini in Akori's Chamber"
+    assert not any(s.record_defeat(boss, "Payback", 14, now=0, main=True) for _ in range(4))
+    assert s.record_defeat(boss, "Payback", 14, now=0, main=True)  # the fifth loss

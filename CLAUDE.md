@@ -107,7 +107,7 @@ while the bot is stopped.
 | `watchdog.py` | 15 s stall detection and escalating recovery |
 | `combat/brain.py`, `combat/model.py` | pure turn logic (unit tested) |
 | `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
-| `gear.py` | on level-up (every slot) or a new backpack item (just its slot), tries each item and keeps the best by the wizard's real stats |
+| `gear.py` | new backpack item: tries just it against what is worn; level-up: retries items that could not be worn before. `state/gear.json` remembers items already beaten (never retried) |
 | `trainer.py` | trips to the school professor (Go Home, dorm door, school door) at `progression.train_levels`; trains new spells |
 | `bossfarm.py`, `dungeons.py` | `mode: boss` (`boss_farm.boss`, `until_item`, `max_runs`): repeat a learned dungeon boss |
 | `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |
