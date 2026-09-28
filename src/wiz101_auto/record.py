@@ -35,8 +35,14 @@ async def record(client, seconds: float = 900.0) -> Path:
     note(f"start in {zone} at ({pos.x:.0f}, {pos.y:.0f}, {pos.z:.0f})")
     last_pos, last_npc, trainer_saved = pos, "", False
     end = time.monotonic() + seconds
+    from .service import STOP_FILE
+
+    STOP_FILE.unlink(missing_ok=True)
     while time.monotonic() < end:
         await asyncio.sleep(0.3)
+        if STOP_FILE.exists():  # `wiz101-auto stop` ends the recording cleanly
+            STOP_FILE.unlink(missing_ok=True)
+            break
         try:
             if await client.is_loading():
                 continue
