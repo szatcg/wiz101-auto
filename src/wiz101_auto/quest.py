@@ -318,6 +318,22 @@ def distance(a: XYZ, b: XYZ) -> float:
 
 
 QUEST_BOOK_FILE = Path("state") / "quest_book.json"
+PIN_FILE = Path("state") / "quest_pin.json"
+
+
+def load_pin() -> str:
+    try:
+        return json.loads(PIN_FILE.read_text(encoding="utf-8")).get("quest", "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def save_pin(name: str):
+    try:
+        PIN_FILE.parent.mkdir(exist_ok=True)
+        PIN_FILE.write_text(json.dumps({"quest": name}), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _write_quest_book(quests: list[QuestEntry], chosen: QuestEntry | None, world: str | None):
@@ -377,6 +393,7 @@ class Quester:
         self._last_wanted_scan = 0.0
         self._last_loot_scan = 0.0
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
+        self._pin: str | None = None  # the player's picked quest (None: not read yet this session)
         self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
         self.fighter = None  # set by the bot: its fight count tells won fights apart
         self._fights_seen = 0
@@ -1374,6 +1391,7 @@ class Quester:
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
+            chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside)
             _write_quest_book([q for _, q in all_quests], chosen, world)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
@@ -1427,6 +1445,27 @@ class Quester:
             return True
         finally:
             await self._close_quest_book()
+
+    def _apply_pin(self, quests: list[QuestEntry], chosen, set_aside: set[str]):
+        """The player's pick wins: a pinned quest (state/quest_pin.json, or the
+        main-story quest tracked when the bot starts) is followed while it's in
+        the book and not set aside (a boss won 5 times, no progress for 5 min)."""
+        if self._pin is None:  # first ranking this session: the player's current pick
+            active = next((q for q in quests if q.active), None)
+            self._pin = load_pin() or (active.name if active and active.mainline else "")
+            if self._pin:
+                logger.info(f"following the quest you picked: {self._pin!r}")
+                save_pin(self._pin)
+        if not self._pin:
+            return chosen
+        pinned = next((q for q in quests if q.name == self._pin), None)
+        if pinned is None or pinned.name in set_aside:
+            why = "done" if pinned is None else "set aside"
+            logger.info(f"your pick {self._pin!r} is {why}; choosing quests again")
+            self._pin = ""
+            save_pin("")
+            return chosen
+        return pinned
 
     async def switch_quest(self) -> bool:
         """Track the next quest in the quest book. True if the objective changed."""

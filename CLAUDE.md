@@ -23,6 +23,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | (stream) | http://127.0.0.1:8101/stream: a 1920x1080 stream layout (transparent 1440x810 game window at 20,20; sidebar stats; the bot's thoughts feed and battle card from activity.log via /thoughts.json) |
 | (overlay) | http://127.0.0.1:8101/overlay: a transparent stream overlay for an OBS Browser Source (quest, objective, world/arc %, deaths, level, health) |
 | `publish-setup owner/repo` | one-time: publish the dashboard on GitHub Pages (public repo; the dashboard server then pushes data every 2 min). Live: https://szatcg.github.io/wizzbot-tracker/ |
+| `pin "Quest"` / `pin` | follow that quest until it's done or set aside / unpin (the main-story quest tracked at start is pinned too; `state/quest_pin.json`) |
 | `stop` | clean stop (unhooks the game); force-kills only after 30s |
 | `restart [--supervise]` | stop + start |
 | `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |

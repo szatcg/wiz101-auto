@@ -125,6 +125,8 @@ def main(argv: list[str] | None = None):
     sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
     pub_p = sub.add_parser("publish-setup", help="publish the dashboard on GitHub Pages (public repo)")
     pub_p.add_argument("repo", help="owner/name, e.g. szatcg/wizzbot-tracker")
+    pin_p = sub.add_parser("pin", help="follow this quest until it's done or set aside (no name: unpin)")
+    pin_p.add_argument("quest", nargs="?", default="")
     dash_p = sub.add_parser("dashboard", help="serve the progress dashboard at http://127.0.0.1:8101/")
     dash_p.add_argument("--port", type=int, default=8101)
     dash_p.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
@@ -174,6 +176,12 @@ def main(argv: list[str] | None = None):
         asyncio.run(inspect(show_windows=args.windows))
         return
 
+    if args.command == "pin":
+        from .quest import save_pin
+
+        save_pin(args.quest)
+        print(f"pinned: {args.quest!r} (takes effect at the bot's next start)" if args.quest else "unpinned")
+        return
     if args.command == "publish-setup":
         from .pages import setup
 
