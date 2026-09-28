@@ -634,6 +634,10 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         )
         return known, plan
     removals = cards_to_remove(plan.totals, deck_names)
+    if removals and not policy.auto_remove:
+        extra = ", ".join(f"{name} x{copies}" for name, copies in removals)
+        logger.info(f"deck: the plan would drop {extra}; leaving your deck as it is (auto_remove is off)")
+        removals = []
     if not plan_adds_cards(plan.totals, deck_names) and not removals:
         logger.info("deck already matches the plan; leaving it alone")
         return known, plan

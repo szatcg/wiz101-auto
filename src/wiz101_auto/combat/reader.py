@@ -144,7 +144,13 @@ async def read_effects(effect, depth: int = 0) -> list[Effect]:
         rounds = await effect.num_rounds()
     except Exception:
         pass
-    return [map_effect(effect_type.name, target.name, param, rounds)]
+    mapped = map_effect(effect_type.name, target.name, param, rounds)
+    try:
+        school = (await effect.string_damage_type() or "").strip().lower()
+        mapped.school = "" if school in _ALL_SCHOOLS else school
+    except Exception:
+        pass
+    return [mapped]
 
 
 async def _is_item(card) -> bool:

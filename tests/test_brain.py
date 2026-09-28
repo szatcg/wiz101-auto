@@ -520,3 +520,46 @@ def test_duplicate_blade_only_after_new_effects_when_passing():
     b.cards = [mythblade(0), myth_hit(2, pips=3, castable=False)]
     a = decide(b)
     assert a.card.name == "Mythblade" and "copy" in a.reason
+
+
+def ether_shield(i):
+    shields = [Effect(EffectKind.SHIELD, Target.ALLY_SINGLE, -70, school="life"),
+               Effect(EffectKind.SHIELD, Target.ALLY_SINGLE, -70, school="death")]
+    return Card(i, "Ether Shield", school="myth", pip_cost=0, effects=shields)
+
+
+def myth_prism(i):
+    return Card(i, "Myth Prism", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+
+
+def test_ether_shield_against_a_death_enemy_instead_of_passing():
+    b = battle([ether_shield(0), myth_hit(1, pips=3, castable=False)], [enemy("Mummy", 900, school="death")])
+    b.pips = 2
+    a = decide(b)
+    assert a.card.name == "Ether Shield" and "death" in a.reason
+
+
+def test_ether_shield_not_twice_and_discarded_when_useless():
+    shielded = me(incoming_effects=[("spell:9", "death", -0.7)])
+    b = battle([ether_shield(0), myth_hit(1, pips=3, castable=False)], [enemy("Mummy", 900, school="death")],
+               my=shielded)
+    b.pips = 2
+    assert decide(b).kind is ActionKind.PASS
+    cards = [ether_shield(0), myth_hit(1, pips=3, castable=False)]
+    fire = battle(cards, [enemy("Guard", 900, school="fire")], my=_myth_me())
+    fire.pips = 2
+    a = decide(fire)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Ether Shield"
+
+
+def test_prism_only_on_an_enemy_weak_to_the_other_school():
+    cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
+    b = battle(cards, [enemy("Myth Troll", 900, school="myth")])
+    b.pips = 2
+    a = decide(b)
+    assert a.card.name == "Myth Prism" and a.target.name == "Myth Troll"
+    cards = [myth_prism(0), myth_hit(1, pips=3, castable=False)]
+    neutral = battle(cards, [enemy("Guard", 900, school="fire")])
+    neutral.pips = 2
+    assert decide(neutral).kind is ActionKind.PASS

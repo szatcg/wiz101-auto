@@ -27,7 +27,7 @@ def test_keeps_cheapest_attack_and_best_others():
     expected = {"Blood Bat", "Troll", "Cyclops", "Earthquake", "Mythblade", "Myth Trap", "Myth Shield"}
     assert set(plan.totals) == expected
     assert "Troll Minion" not in plan.totals  # combat brain can't use minions yet
-    assert plan.totals["Mythblade"] == 2 and plan.totals["Myth Shield"] == 1
+    assert plan.totals["Mythblade"] == 3 and plan.totals["Myth Shield"] == 2
 
 
 def test_limits_distinct_attacks():

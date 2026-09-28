@@ -43,9 +43,9 @@ class DeckPolicy:
     attack_spells: int = 4  # distinct attack spells to carry
     attack_copies: int = 4
     heal_copies: int = 3
-    blade_copies: int = 2
-    trap_copies: int = 2
-    shield_copies: int = 1
+    blade_copies: int = 3  # 0-pip blades/traps are played instead of passing
+    trap_copies: int = 3
+    shield_copies: int = 2
     minion_copies: int = 3  # of the newest minion only
     core_copies: int = 2
     capacity: int = 0  # 0 = let the game enforce its own limit
@@ -55,6 +55,10 @@ class DeckPolicy:
     # game twice (Sep 27): off until that path is rebuilt. Missing cards are
     # logged for adding by hand; removals (plain clicks) still happen.
     auto_add: bool = False
+    # Removals clicked away cards the player chose (a Myth Prism, a third
+    # trap/blade) on Sep 28: the deck is the player's; differences are logged.
+    auto_remove: bool = False
+    prism_copies: int = 1
 
 
 def attack_score(card: Card, my_school: str) -> float:
@@ -91,6 +95,8 @@ def _role(card: Card) -> str | None:
         return "shield"
     if EffectKind.SUMMON in kinds:
         return "minion"
+    if "prism" in card.name.lower():
+        return "prism"  # converts a school to its opposite (the brain uses it on weak targets)
     return None  # utility, unknown: the combat brain can't use them yet
 
 
@@ -103,7 +109,7 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
             by_name.setdefault(s.name, s)
     pool = list(by_name.values())
 
-    role_names = ("attack", "heal", "blade", "trap", "shield", "minion")
+    role_names = ("attack", "heal", "blade", "trap", "shield", "minion", "prism")
     roles: dict[str, list[SpellInfo]] = {r: [] for r in role_names}
     for s in pool:
         r = _role(s.card)
@@ -136,6 +142,7 @@ def plan_deck(spells: list[SpellInfo], my_school: str, policy: DeckPolicy | None
         (best("trap", value), policy.trap_copies),
         (best("shield", lambda s: -value(s)), policy.shield_copies),
         (best("minion", lambda s: minion_rank(s.card.name)), policy.minion_copies),
+        (best("prism", value), policy.prism_copies),
     ]
 
     targets: dict[str, int] = {}

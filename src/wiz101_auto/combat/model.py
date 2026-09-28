@@ -48,6 +48,7 @@ class Effect:
     target: Target
     value: float = 0.0  # damage/heal amount, or percent for blades/traps/shields
     rounds: int = 0
+    school: str = ""  # lower case school a blade/trap/shield applies to ("" = every school)
 
 
 @dataclass

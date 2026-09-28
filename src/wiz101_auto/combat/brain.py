@@ -295,6 +295,13 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     if junk:
         card = min(junk, key=lambda c: c.base_damage())
         return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+    useless = [
+        c for c in battle.cards
+        if not c.treasure and not c.is_enchant and EffectKind.SHIELD in c.kinds
+        and _shield_useless(c, battle.live_enemies)
+    ]
+    if useless:
+        return Action(ActionKind.DISCARD, useless[0], reason="shield for schools none of these enemies use")
     free = [c for c in battle.cards if c.pip_cost == 0 and c.is_damage and not c.treasure]
     if len(free) > KEEP_FREE_HITS:
         card = min(free, key=lambda c: c.base_damage())
@@ -382,11 +389,87 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
     return None
 
 
+def _shield_schools(card: Card) -> set[str]:
+    """Schools a shield card blocks ("" = every school)."""
+    return {e.school for e in card.effects if e.kind is EffectKind.SHIELD}
+
+
+def _shield_fits(card: Card, enemies: list[Combatant]) -> bool:
+    """A shield worth having against these enemies: it blocks every school, or
+    the school of an enemy here (Ether Shield: life and death enemies)."""
+    schools = _shield_schools(card)
+    return "" in schools or any(e.school and e.school in schools for e in enemies)
+
+
+def _shield_useless(card: Card, enemies: list[Combatant]) -> bool:
+    """A school shield none of these enemies can hit through (their schools
+    all known and none it blocks): dead weight in the hand."""
+    schools = _shield_schools(card)
+    return (
+        bool(schools) and "" not in schools and bool(enemies)
+        and all(e.school for e in enemies) and not any(e.school in schools for e in enemies)
+    )
+
+
+def _relevant_shield(battle: Battle) -> Action | None:
+    """A 0-pip school shield against an enemy of that school (Ether Shield vs
+    a death or life enemy), unless one blocking that school is already up."""
+    me = battle.me
+    for card in _castable(battle.cards):
+        if card.pip_cost or card.is_enchant or EffectKind.SHIELD not in card.kinds:
+            continue
+        schools = _shield_schools(card) - {""}
+        foes = [e for e in battle.live_enemies if e.school in schools]
+        if not foes:
+            continue
+        if any(v < 0 and (sch in schools or not sch) for _k, sch, v in me.incoming_effects):
+            continue  # already shielded against them
+        target = me if card.target is Target.ALLY_SINGLE else None
+        why = f"shield against {foes[0].name} ({foes[0].school})"
+        return Action(ActionKind.CAST, card, target, reason=why)
+    return None
+
+
+PRISM_GAIN = 1.25  # the converted school must hit this much harder to be worth a prism
+
+
+def _is_prism(card: Card) -> bool:
+    return "prism" in card.name.lower() and not card.is_damage
+
+
+def _prism_action(battle: Battle) -> Action | None:
+    """A prism (Myth Prism: myth -> storm) on an enemy that takes much more
+    from the converted school (a myth enemy resists myth and is weak to
+    storm), when we have hits of that school for it."""
+    me = battle.me
+    for card in _castable(battle.cards):
+        if not _is_prism(card) or card.pip_cost:
+            continue
+        src = card.school.lower()
+        dst = OPPOSITE.get(src)
+        if not dst or not any(c.is_damage and c.school.lower() == src for c in battle.cards):
+            continue
+        best, best_gain = None, PRISM_GAIN
+        for t in battle.live_enemies:
+            before = school_multiplier(Card(0, "", school=src), me, t)
+            after = school_multiplier(Card(0, "", school=dst), me, t)
+            gain = after / max(0.01, before)
+            if gain >= best_gain and t.health > 150:
+                best, best_gain = t, gain
+        if best:
+            why = f"{dst} hits {best.name} x{best_gain:.2f} harder than {src}"
+            return Action(ActionKind.CAST, card, best, reason=why)
+    return None
+
+
 def _shield_action(battle: Battle, strat: Strategy) -> Action | None:
     me = battle.me
     if me.health_ratio >= strat.shield_threshold or me.shield_count >= 2:
         return None
-    shields = [c for c in _castable(battle.cards) if EffectKind.SHIELD in c.kinds and not c.is_enchant]
+    shields = [
+        c for c in _castable(battle.cards)
+        if EffectKind.SHIELD in c.kinds and not c.is_enchant and _shield_fits(c, battle.live_enemies)
+    ]
     if not shields:
         return None
     card = shields[0]
@@ -586,8 +669,9 @@ def _free_hit(battle: Battle, shields_only: bool = False) -> Action | None:
 
 def _break_shield(battle: Battle) -> Action | None:
     """Before setting up a trap or blade: a 0-pip hit that removes an enemy's
-    shield, so the trap and the real hit aren't wasted against it."""
-    return _free_hit(battle, shields_only=True)
+    shield, so the trap and the real hit aren't wasted against it; or a prism
+    that turns our hits to the school the target is weak to."""
+    return _free_hit(battle, shields_only=True) or _prism_action(battle)
 
 
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
@@ -597,7 +681,13 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     strat = strat or Strategy()
     action = _decide(battle, strat, discards_left=discards_left)
     if action.kind is ActionKind.PASS and battle.live_enemies:
-        free = _free_hit(battle, shields_only=True) or _free_setup(battle, strat) or _free_hit(battle)
+        free = (
+            _free_hit(battle, shields_only=True)
+            or _relevant_shield(battle)
+            or _prism_action(battle)
+            or _free_setup(battle, strat)
+            or _free_hit(battle)
+        )
         if free:
             return free
     return action
