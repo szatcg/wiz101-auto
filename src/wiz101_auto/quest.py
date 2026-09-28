@@ -602,6 +602,8 @@ class Quester:
             save_mark(self._mark)
             if kind == "dungeon":
                 logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
+            elif kind == "room":
+                logger.info(f"marked this spot in {zone} (Recall back here after healing)")
             else:
                 logger.info(f"marked this spot in {zone} before a long trip (Recall when it's on the way)")
             return True
