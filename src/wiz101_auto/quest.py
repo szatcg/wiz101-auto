@@ -2488,14 +2488,16 @@ class Quester:
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
         self.controller.allow_idle(TEAM_WAIT_TICK + 10)
         zone = await self.client.zone_name() or ""
+        if self._mate_seen is None or self._mate_seen[0] != zone:
+            self._mate_seen = (zone, me, time.monotonic())  # just arrived: look around first
         if mates:
             mate = min(mates, key=lambda m: distance(m, me))
             self._mate_seen = (zone, mate, time.monotonic())
-        elif self._mate_seen is None or time.monotonic() - self._mate_seen[2] > TEAM_LOST_AFTER:
+        elif time.monotonic() - self._mate_seen[2] > TEAM_LOST_AFTER:
             # The team went on (another room): through the door nearest where
             # a teammate was last seen, else on toward the quest marker (never
             # starting a fight on the way).
-            if self._mate_seen and self._mate_seen[0] == zone:
+            if self._mate_seen[0] == zone:
                 last = self._mate_seen[1]
                 doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
                 for door in sorted(doors, key=lambda d: distance(d, last)):
