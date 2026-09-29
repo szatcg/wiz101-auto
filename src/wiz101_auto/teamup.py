@@ -126,6 +126,12 @@ def team_fight_at(circles, mates):
     return None
 
 
+async def queued(client) -> bool:
+    """Already in the Team Up queue: the badge by the friends button says
+    Waiting (and the sigil then shows no TEAM UP!, only Resume)."""
+    return (await ui.named_text(client, "txtTeamUp")).strip().lower() == "waiting"
+
+
 async def _fill_form(client) -> bool:
     """Tick Farming and a minimum team size of 4 on the Team Up form, then
     press its TEAM UP!. True if the form was there."""
@@ -200,9 +206,14 @@ async def team_up(quester, dungeon: str) -> str:
     await _dump(client, "sigil")
     # The form may still be open from before (a restart): fill that one in.
     form_done = await _fill_form(client)
+    if not form_done and await queued(client):
+        logger.info("team up: already in the queue (Waiting); waiting on")
+        form_done = True
     if not form_done and not await _click(client, TEAM_UP_WORDS, "sigil"):
-        logger.warning("team up: no TEAM UP! button on the sigil; windows saved to state/teamup_sigil.txt")
-        return "none"
+        # The sigil shows only Resume while we're queued (after a restart the
+        # Waiting badge wasn't always readable): wait for the team to take us.
+        logger.info("team up: no TEAM UP! button on the sigil (already queued?); waiting on")
+        form_done = True
     await _dump(client, "window")
     quester.controller.allow_idle(TEAM_UP_WAIT + 60)
     try:
