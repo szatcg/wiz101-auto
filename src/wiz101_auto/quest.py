@@ -105,6 +105,7 @@ FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one ob
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
+ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most hourly
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
@@ -487,6 +488,7 @@ class Quester:
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
+        self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
         self._main_world: str | None = None  # the world the main quest is in (side quests stay there)
@@ -565,6 +567,8 @@ class Quester:
                     f"no progress on {objective!r} for {waited / 60:.0f} min: setting {quest!r} aside "
                     "and following the next best quest"
                 )
+                if quest in self._mainline:
+                    self._alert_main_stuck(quest, f"no progress on {objective!r} for {waited / 60:.0f} min")
                 self._ranked_for = None
                 self._last_rank = -1e9  # re-rank on this step
             return
@@ -1127,6 +1131,16 @@ class Quester:
         # the first outdoor zone there with enemies (before its dungeon) is used.
         return False
 
+    def _alert_main_stuck(self, quest: str, why: str):
+        """The main quest can't go on for now: an ALERT line (activity.log) that
+        the operator's watcher turns into a phone notification. The bot keeps
+        going (side quests, experience); once per quest an hour."""
+        now = time.monotonic()
+        if now - self._alerted.get(quest, -1e9) < ALERT_REPEAT_SECONDS:
+            return
+        self._alerted[quest] = now
+        logger.warning(f"ALERT: main quest {quest!r} stuck: {why}; doing side quests meanwhile")
+
     async def _set_current_aside(
         self, objective: str, retry_after: float | None = STUCK_RETRY_SECONDS
     ) -> bool:
@@ -1141,6 +1155,8 @@ class Quester:
             quest, objective, level, main=quest in self._mainline, retry_after=retry_after
         )
         self.setbacks.save()
+        if quest in self._mainline:
+            self._alert_main_stuck(quest, f"no way to {objective!r} found")
         self._ranked_for = None
         self._last_rank = -1e9
         return True
@@ -1167,6 +1183,8 @@ class Quester:
                 f"lost {objective!r} {tries} times: setting {quest!r} aside until {until}; "
                 "doing other quests meanwhile"
             )
+            if main:
+                self._alert_main_stuck(quest, f"lost {objective!r} {tries} times")
             self._recall_pending = False  # no point recalling to it now
             self._retire_dungeon_mark()
             self._ranked_for = None
@@ -1625,6 +1643,8 @@ class Quester:
             grinding = chosen is None and bool(all_quests)
             if grinding and not self._grinding:
                 logger.warning(f"nothing to do in {world}: fighting there for experience until a level-up")
+                for q in main_quests:
+                    self._alert_main_stuck(q.name, f"nothing left to do in {world}; grinding for a level")
             self._grinding = grinding
             if grinding and main_quests:
                 # Track the main quest so its marker leads back into its world;
