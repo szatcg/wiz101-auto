@@ -730,6 +730,10 @@ class Quester:
             if not await ui.is_visible(self.client, ui.NPC_RANGE):
                 continue
             prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+            if "talk" in prompt:
+                # Someone beside the door (Marla Stinger at the Death school):
+                # a ladder or door never says "talk"; don't start her dialogue.
+                continue
             entering = "to enter" in prompt
             if entering:
                 # A dungeon sigil (the Hyde Park safehouses): ONE press starts
