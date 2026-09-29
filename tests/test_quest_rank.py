@@ -179,7 +179,7 @@ def test_nearby_side_errand_comes_before_the_main_quest():
     mb = "Marleybone"
     turn_in.world = "Regent's Square"
     assert errand_detour([main, turn_in, far, fight, unknown], main, world=mb) is turn_in
-    assert errand_detour([main, far, fight, unknown], main, world=mb) is unknown  # no known route: in reach
+    assert errand_detour([main, far, fight, unknown], main, world=mb) is None  # no known route: skipped
     assert errand_detour([main, far, fight], main, world=mb) is None
     assert errand_detour([main, turn_in], main, {"Lost Hat"}, world=mb) is None
     # a side quest back in an earlier world isn't worth the trip

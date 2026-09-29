@@ -267,10 +267,10 @@ def choose_quest(
 ERRAND_VERBS = (
     "talk", "speak", "go", "use", "find", "explore", "visit", "read", "locate", "return", "deliver",
 )
-ERRAND_MAX_HOPS = 3  # gates away at most: a detour, not a trip
-# The book's area names ("Regent's Square Hat Shop") often have no known route:
-# in the main quest's world such an errand counts as this far.
-ERRAND_UNKNOWN_HOPS = ERRAND_MAX_HOPS
+ERRAND_MAX_HOPS = 1  # this zone or the next: a detour, not a trip
+# An errand with no known route ('Mail Call' in a Post Office) could be far:
+# never worth leaving the main quest for.
+ERRAND_UNKNOWN_HOPS = 99
 
 
 def is_errand(goal: str) -> bool:
