@@ -17,6 +17,7 @@ import time
 from loguru import logger
 
 from . import ui
+from .dungeons import DungeonMemory
 from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading
 
@@ -26,18 +27,33 @@ TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 3
 # The compass's teleport buttons: "GoHomeButton" goes to the current world's
 # hub (the Oasis in Krokotopia); "GotoDormButton" goes to the dorm.
 HUB_BUTTON = "GoHomeButton"
+DORM_BUTTON = "GotoDormButton"
 
 
-async def go_to_hub(client) -> bool:
-    """Teleport to the current world's hub. True if the zone changed."""
+async def _press(client, button: str) -> bool:
     before = await client.zone_name()
-    if not await ui.click_named(client, HUB_BUTTON):
-        logger.warning("no hub button to click")
+    if not await ui.click_named(client, button):
         return False
     await asyncio.sleep(1.0)
     await ui.confirm_modal(client)
     await wait_for_loading(client, appear_timeout=6.0)
     return await client.zone_name() != before
+
+
+async def go_to_hub(client) -> bool:
+    """Teleport to the current world's hub. True if the zone changed. The
+    button doesn't always take the first time (in Counterweight East it
+    didn't): press it again, else go by the dorm and on to the hub."""
+    for _ in range(2):
+        if await _press(client, HUB_BUTTON):
+            return True
+        await asyncio.sleep(2.0)
+    if await _press(client, DORM_BUTTON):
+        logger.info("the hub button didn't work; went by the dorm")
+        await asyncio.sleep(2.0)
+        await _press(client, HUB_BUTTON)
+        return True
+    return False
 
 
 class DungeonHealer:
@@ -78,8 +94,14 @@ class DungeonHealer:
         if zone.split("/")[-1].endswith("_Hub"):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
         m = self.q._mark
-        if m and m.kind in RETURN_KINDS and self.q._keep_dungeon_mark(await self.q.objective()):
-            mark = False  # a dungeon/fight mark for this objective waits: Recall to it
+        here = await self.client.zone_name() or ""
+        inside = bool(m and m.zone == here)
+        if inside and m.kind in RETURN_KINDS and self.q._keep_dungeon_mark(await self.q.objective()):
+            mark = False  # marked beside this dungeon's boss already: Recall to it
+        elif not inside and here in DungeonMemory.load().dungeons:
+            mark = True
+        # (A mark outside, on the entrance sigil, would bring us back to the
+        # start of the dungeon: mark this spot inside instead.)
         logger.info(f"{why}: going to the hub to heal, then back by Recall")
         if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")
