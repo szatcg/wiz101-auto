@@ -3153,6 +3153,17 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
                 heal_now = False  # only mana a little low: not worth leaving the dungeon
+        if heal_now and is_team_up_zone(zone_now):
+            # With a team: never leave (Recall can't bring us back in alone).
+            # Stay with them; a potion when low is all the healing here.
+            heal_now = False
+            if self.upkeep:
+                hp, mana = await health_mana(self.client)
+                low = hp < self.upkeep.potion_health_ratio or mana < self.upkeep.potion_mana_ratio
+                if self.upkeep.use_potions and low and await self.client.stats.potion_charge() >= 1.0:
+                    logger.info(f"drinking a potion (hp {hp:.0%}, mana {mana:.0%}); staying with the team")
+                    await ui.click(self.client, ui.POTION_BUTTON)
+                    await asyncio.sleep(1.5)
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
         if heal_now and self.healer and in_dungeon and await self.healer.between_fights(zone_now):
