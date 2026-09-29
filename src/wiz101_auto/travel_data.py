@@ -145,6 +145,7 @@ EXTRA_DISPLAY_ZONES = [
     ("wizard city library", "WizardCity/Interiors/WC_Library"),  # Harold Argleston (not in the data)
     ("djeserit family tomb", "Krokotopia/KT_Tomb/KT_DjeseritTomb"),  # the data says "djeserit tomb"
     ("ahnic family tomb", "Krokotopia/KT_Tomb/KT_AhnicTomb"),  # the data says "ahnic tomb"
+    ("karanahn palace", "Krokotopia/KT_Tomb/KT_KaranahnPalace"),  # not in the data
 ]
 
 

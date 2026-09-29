@@ -883,7 +883,9 @@ class Quester:
     async def _recall_if_faster(self, objective: str, zone: str) -> bool:
         """Recall to the mark when that plus the walk from it beats walking to
         the objective's zone from here. True if we recalled."""
-        if not self._mark or self._mark.kind != "travel" or self._recalled_for == objective:
+        # Travel marks and heal marks (a spot in a dungeon left to heal) both
+        # take us back; fight and dungeon marks have their own Recall rules.
+        if not self._mark or self._mark.kind not in ("travel", "room") or self._recalled_for == objective:
             return False
         if time.monotonic() < self._recall_blocked_until:
             return False
@@ -2200,7 +2202,8 @@ class Quester:
         # sit beside other mobs (a Desert Golem by the Nirini Warriors), and
         # pull_mob goes after the named enemy on purpose afterwards.
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
-            await self._mark_for_fight(objective, zone or "")
+            if objective_zone(objective) == zone:  # an unknown place: no mark (it went in the Oasis)
+                await self._mark_for_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
         # An NPC here: inch toward it. Elsewhere the marker is a door on the way.
         npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
