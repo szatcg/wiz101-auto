@@ -92,6 +92,7 @@ RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objectiv
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
+USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
@@ -2142,6 +2143,32 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _use_named_object(self, objective: str) -> bool:
+        """'Use X': teleport beside the object named X (its own height), nudge
+        until the X prompt shows and press it. True if it tried."""
+        from .puzzles import use_target
+
+        name = use_target(objective)
+        if not name:
+            return False
+        pos = await self._npc_named(name)  # exact name, not an enemy
+        if pos is None:
+            return False
+        me = await self._position()
+        if distance(me, pos) > USE_OBJECT_RANGE:
+            logger.info(f"going right up to the {name}")
+        for dx, dy in ((0, -90), (0, 90), (-90, 0), (90, 0), (60, 60), (-60, -60)):
+            await self.client.teleport(XYZ(pos.x + dx, pos.y + dy, pos.z))
+            await asyncio.sleep(0.6)
+            for nudge in (None, (Keycode.W, 0.15), (Keycode.S, 0.15)):
+                if nudge:
+                    await self.client.send_key(*nudge)
+                    await asyncio.sleep(0.2)
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    return await self.interact(objective) or True
+        logger.info(f"no prompt at the {name}")
+        return False
+
     async def _talk_to_npc_near(self, spot: XYZ, objective: str) -> bool:
         """Walk up to a named NPC (not an enemy) within NPC_NEAR_MARKER of
         `spot` and talk, once per objective. True if it talked."""
@@ -2658,6 +2685,10 @@ class Quester:
             if objective_zone(objective) == zone:  # an unknown place: no mark (it went in the Oasis)
                 await self._mark_for_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
+        # "Use Charging Lever": go right up to the object itself, at its own
+        # height (on a raised ledge the marker's approach never got the prompt).
+        if await self._use_named_object(objective):
+            return
         # An NPC here: inch toward it. Elsewhere the marker is a door on the way.
         npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
         if npc_here and await self._talk_means_fight(objective):
