@@ -356,6 +356,17 @@ def barren_zones(now: float | None = None) -> set[str]:
     return {z for z, t in _barren.items() if now - t < BARREN_SECONDS}
 
 
+def _dungeon_zones() -> set[str]:
+    """Zones of learned dungeons (their rooms), never a place to go heal."""
+    try:
+        from .dungeons import DungeonMemory
+
+        mem = DungeonMemory.load()
+        return set(mem.dungeons) | set(mem.bosses.values())
+    except Exception:
+        return set()
+
+
 def best_wisp_zone(
     current_zone: str,
     spots: dict | None = None,
@@ -387,7 +398,12 @@ def best_wisp_zone(
         return 99 if n is None else n
 
     zones = sorted(((reach(z), -n, z) for n, z in same_world if n >= 3))
+    dungeons = _dungeon_zones()
     for _, _, z in zones:
+        # Never walk into a dungeon for its wisps: that skipped the Team Up
+        # check and took the wizard into Mount Olympus alone.
+        if z in dungeons or "/interiors/" in z.lower():
+            continue
         if z != current_zone and z not in avoid and not z.split("/")[-1].endswith("_Hub"):
             return z
     if in_world:

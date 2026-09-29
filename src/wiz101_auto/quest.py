@@ -47,7 +47,7 @@ from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_DUNGEONS
+from .teamup import TEAM_UP_DUNGEONS, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -801,6 +801,9 @@ class Quester:
 
     async def go_to_zone(self, dest: str, max_hops: int = 6) -> bool:
         """Walk the known gates to `dest`. True once there."""
+        if is_team_up_zone(dest) and not is_team_up_zone(await self.client.zone_name() or ""):
+            logger.info(f"not walking into {dest} alone (team-only dungeon)")
+            return False
         for _ in range(max_hops):
             zone = await self.client.zone_name()
             if zone == dest:
@@ -1397,6 +1400,10 @@ class Quester:
 
     async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
         """Press Recall and wait to arrive in `marked_zone`. True if we did."""
+        if is_team_up_zone(marked_zone) and not is_team_up_zone(await self.client.zone_name() or ""):
+            # Recalling into a team-only dungeon means going in alone.
+            logger.info(f"not recalling into {marked_zone} alone (team-only dungeon)")
+            return False
         self.controller.allow_idle(40)
         try:
             for attempt in range(2):

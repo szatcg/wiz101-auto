@@ -6,6 +6,7 @@ import asyncio
 import dataclasses
 import time
 from collections import Counter
+from pathlib import Path
 
 from loguru import logger
 from wizwalker.combat import CombatHandler
@@ -60,6 +61,8 @@ def _deck_name(card) -> str:
     """How the deck list names a card: its spell template ("Bloodbat")."""
     return card.template_name or card.name
 
+
+FLEE_FILE = Path("state") / "flee.request"  # created by the user: flee this fight
 
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0):
@@ -290,6 +293,16 @@ class Fighter(CombatHandler):
             for c in battle.cards:
                 if c.name in self._unusable:
                     c.castable = False
+
+            if FLEE_FILE.exists():
+                # The user asked (state/flee.request): flee whatever the rules say.
+                if not self._flee_tried_this_round:
+                    self._flee_tried_this_round = True
+                    logger.warning("flee requested (state/flee.request): fleeing")
+                    if await self._flee():
+                        self.fled = True
+                        FLEE_FILE.unlink(missing_ok=True)
+                        return
 
             if self.flee_below and battle.me.health_ratio < self.flee_below:
                 logger.warning(f"health {battle.me.health}/{battle.me.max_health}: fleeing")

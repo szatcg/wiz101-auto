@@ -23,7 +23,16 @@ from .relog import _find_button
 from .upkeep import wait_for_loading
 
 TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus"}
+# Every zone of those dungeons (their rooms are separate interiors).
+TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_")
 TEAM_UP_WORDS = ("team up!", "team up")
+
+
+def is_team_up_zone(zone: str) -> bool:
+    """A room of a dungeon that is only entered with a team."""
+    return zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES)
+
+
 CONFIRM_WORDS = ("team up", "join", "join team", "find team", "search", "yes", "ok", "go", "accept", "ready")
 TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
 
