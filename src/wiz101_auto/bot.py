@@ -212,7 +212,7 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
         await asyncio.sleep(5)
 
 
-STUCK_TIMEOUTS_BEFORE_RELOG = 8  # quest steps failing in a row on WizWalker's should_update
+STUCK_TIMEOUTS_BEFORE_RELOG = 3  # quest steps failing in a row on WizWalker's should_update
 
 
 async def quest_loop(quester: Quester, controller: Controller):

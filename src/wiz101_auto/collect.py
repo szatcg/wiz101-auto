@@ -74,6 +74,7 @@ def spread_points(points: list[tuple[float, float, float]], start, spacing: floa
 # (often another player's), and landing on one joins it.
 LANDMARK_NAMES = ("player stand in",)
 DUEL_CIRCLE = "duel circle"
+CIRCLE_EXTRA = 350.0  # pick-ups keep this much further from a duel circle than from an enemy
 
 
 async def duel_circles(client) -> list[tuple[float, float, float]]:
@@ -233,7 +234,8 @@ class Collector:
         circles = await duel_circles(self.client)
         options = [
             f for f in found
-            if id(f[0]) in safe_ids and away_from([(f[2].x, f[2].y, f[2].z)], circles, self.safe_distance)
+            if id(f[0]) in safe_ids
+            and away_from([(f[2].x, f[2].y, f[2].z)], circles, self.safe_distance + CIRCLE_EXTRA)
         ]
         if not options:
             return False
@@ -309,7 +311,7 @@ class Collector:
         options = []
         for e in safe:
             loc = await e.location()
-            if not away_from([(loc.x, loc.y, loc.z)], circles, self.safe_distance):
+            if not away_from([(loc.x, loc.y, loc.z)], circles, self.safe_distance + CIRCLE_EXTRA):
                 continue  # beside a fight going on (another player's): walking in joins it
             try:
                 gid = await e.global_id_full()

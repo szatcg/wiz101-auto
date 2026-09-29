@@ -18,11 +18,13 @@ wizard came from, before it engages.
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 
 from loguru import logger
 from wizwalker import XYZ
 
+DUEL_CIRCLE_RING = 350.0  # a duel circle's seats: hazards on this ring around its center
 LANDING_CLEARANCE = 700.0  # an enemy closer than this to the landing spot tends to start a fight
 BLOCKED_TRIES = 3  # a destination with no clear spot around it: after this many skips, go anyway
 ARRIVAL_CLEARANCE = 550.0  # after landing: an enemy this close sends us straight back
@@ -69,7 +71,18 @@ def install(client):
             engaging = time.monotonic() < getattr(client, "_engage_until", 0.0)
             if engaging or await client.in_battle():
                 return await original(xyz, *args, **kwargs)
-            hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)])
+            from .collect import duel_circles
+
+            ring = []
+            for cx, cy, cz in await duel_circles(client):
+                # Joining a duel circle whose boss hasn't spawned is a "battle"
+                # with 0 opponents that never plays out (Counterweight East):
+                # a circle reaches further than one enemy, so keep off its edge.
+                ring += [
+                    XYZ(cx + DUEL_CIRCLE_RING * math.cos(a), cy + DUEL_CIRCLE_RING * math.sin(a), cz)
+                    for a in (i * math.pi / 4 for i in range(8))
+                ]
+            hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)] + ring)
             start = await client.body.position()
             if clear_of(xyz, hazards, LANDING_CLEARANCE):
                 return await _arrive(xyz, start, args, kwargs)
