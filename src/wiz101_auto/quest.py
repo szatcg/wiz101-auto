@@ -2289,13 +2289,17 @@ class Quester:
     async def _landmarks(self) -> list[tuple[float, float, float]]:
         return await landmarks(self.client)
 
+    async def _in_any_dungeon(self, zone: str) -> bool:
+        return (
+            is_team_up_zone(zone) or "/interiors/" in zone.lower()
+            or zone in DungeonMemory.load().dungeons or await self._in_dungeon(zone)
+        )
+
     async def may_flee(self) -> bool:
-        """Fleeing in a dungeon throws us out and resets it: only with a mark in
-        that same dungeon to Recall back to."""
-        zone = await self.client.zone_name() or ""
-        if not (await self._in_dungeon(zone) or zone in DungeonMemory.load().dungeons):
-            return True
-        return bool(self._mark and self._mark.zone == zone)
+        """Never in a dungeon: fleeing throws us out and its progress is lost
+        (a mark there didn't help: it fled Mount Olympus and lost the team).
+        Only the user's state/flee.request still flees there."""
+        return not await self._in_any_dungeon(await self.client.zone_name() or "")
 
     async def unneeded_fight(self, battle) -> bool:
         """True if the fight that just started isn't needed for the tracked quest."""
@@ -2305,6 +2309,8 @@ class Quester:
             zone = await self.client.zone_name() or ""
         except Exception:
             return False
+        if await self._in_any_dungeon(zone):
+            return False  # every fight in a dungeon is fought (fleeing loses it)
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
