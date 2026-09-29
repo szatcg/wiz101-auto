@@ -98,6 +98,7 @@ RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
 GUARD_RANGE = 1500.0  # enemies this close to a lever are its guards: fought before pulling it
 FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different floors
+LEVER_WAIT = 30.0  # after each lever pulled in a dungeon (a counterweight on its way)
 BOSS_SPAWN_WAIT = 30.0  # after the last lever, before walking up to the boss
 NEAR_START = 2500.0  # already this close to where the walk up starts: walk from here
 FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
@@ -2237,6 +2238,21 @@ class Quester:
             return True
         return False
 
+    async def _after_pull(self, objective: str):
+        """After pulling a lever in a dungeon, stand still while what it moves
+        gets there (Counterweight East: the counterweight must reach the top
+        before Sprockets spawns)."""
+        if not objective.strip().lower().startswith("pull"):
+            return
+        if not await self._in_dungeon(await self.client.zone_name() or ""):
+            return
+        logger.info(f"pulled it; waiting {LEVER_WAIT:.0f}s for it to take effect")
+        self.controller.allow_idle(LEVER_WAIT + 10)
+        try:
+            await asyncio.sleep(LEVER_WAIT)
+        finally:
+            self.controller.end_idle()
+
     async def _use_named_object(self, objective: str) -> bool:
         """'Use X': teleport beside the object named X (its own height), nudge
         until the X prompt shows and press it. True if it tried."""
@@ -2261,7 +2277,9 @@ class Quester:
                     await self.client.send_key(*nudge)
                     await asyncio.sleep(0.2)
                 if await ui.is_visible(self.client, ui.NPC_RANGE):
-                    return await self.interact(objective) or True
+                    await self.interact(objective)
+                    await self._after_pull(objective)
+                    return True
         logger.info(f"no prompt at the {name}")
         return False
 
