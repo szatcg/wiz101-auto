@@ -1164,7 +1164,7 @@ class Quester:
         if time.monotonic() < self._recall_blocked_until:
             return False
         dest = objective_zone(objective)
-        if dest == zone or await self._in_dungeon(zone):
+        if dest == zone or is_team_up_zone(zone) or await self._in_dungeon(zone):
             # Already there, or inside a dungeon (a Recall out resets it: it
             # left Counterweight East right after its last lever).
             return False

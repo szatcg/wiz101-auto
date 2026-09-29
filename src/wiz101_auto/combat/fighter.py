@@ -139,12 +139,32 @@ class Fighter(CombatHandler):
             await self.client.mouse_handler.click(x, y)
             if target is not None:
                 await asyncio.sleep(1.0)
-                await self.client.mouse_handler.click_window(await target.get_health_text_window())
+                await self.client.mouse_handler.click_window(await self._target_window(target))
         except (ValueError, AttributeError) as exc:
             # The round ended (or the target died) while we were clicking.
             logger.debug(f"cast click failed: {exc!r}")
             return False
         return True
+
+    async def _target_window(self, target):
+        """Where to click to pick `target`: its health text, else its name, else
+        its whole nameplate. In a 4-player fight our own nameplate had no
+        Health child, so a Mythblade on ourselves never got its target."""
+        try:
+            return await target.get_health_text_window()
+        except ValueError:
+            pass
+        try:
+            w = await target.get_name_text_window()
+            logger.debug("targeting by the name window (no health window)")
+            return w
+        except ValueError:
+            pass
+        control = getattr(target, "_combatant_control", None)
+        if control is None:
+            raise ValueError("no window to click for the target")
+        logger.debug("targeting by the nameplate (no health or name window)")
+        return control
 
     async def _remember_bosses(self, battle):
         """Bosses fought inside a dungeon: remember which dungeon (for boss farming)."""
