@@ -1746,13 +1746,19 @@ class Quester:
             self._mainline = {q.name for _, q in all_quests if q.mainline}
             names = {q.name for _, q in all_quests}
             if self._pin_new_from is not None and complete:
-                new = sorted(names - self._pin_new_from)
+                # Class/spell quests first, then main story ('Mything Persons'
+                # over an old side quest a short read had missed).
+                new = [q for _, q in all_quests if q.name not in self._pin_new_from]
+                new.sort(key=lambda q: (not q.activity, not q.mainline))
                 if new:
-                    self._pin = new[0]
+                    self._pin = new[0].name
                     save_pin(self._pin)
-                    logger.success(f"new quest from the visit: {new[0]!r}; following it")
+                    others = ", ".join(repr(q.name) for q in new[1:])
+                    logger.success(f"new quest from the visit: {new[0].name!r}; following it"
+                                   + (f" (also new: {others})" if others else ""))
                 self._pin_new_from = None
-            self._book_names = names
+            if complete:
+                self._book_names = names  # only a full read says what's in the book
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
             # picked up again at the next level), never a trip to another world.
