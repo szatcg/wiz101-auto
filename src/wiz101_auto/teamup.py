@@ -28,9 +28,10 @@ TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_")
 # How quest steps name those dungeons ("Defeat Zeus Sky Father in Mount Olympus").
 TEAM_UP_NAMES = ("mount olympus",)
 TEAM_UP_WORDS = ("team up!", "team up")
-# Queue with Team Up, or only wait on the sigil for players to gather there
-# (the user's choice for now: the queue took us in with teams that then left).
-USE_QUEUE = False
+# Queue with Team Up too (besides watching the sigil for a party gathering;
+# a party on the sigil wins: the Team Up screen is closed to go in with them).
+USE_QUEUE = True
+REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
 
@@ -110,6 +111,9 @@ async def _join_party_on_sigil(client, zone: str, center, last_press: list[float
     if on < PARTY_ON_SIGIL:
         return False
     last_press[0] = time.monotonic()
+    # The sigil's party beats the queue: close the Team Up screen first.
+    if await close_stray_forms(client) or await close_events_window(client):
+        logger.info("team up: closed the Team Up screen to join the players on the sigil")
     logger.info(f"team up: {on} players on the sigil; pressing X to go in with them "
                 f"(waiting {SIGIL_COUNTDOWN_WAIT:.0f}s)")
     await client.send_key(Keycode.X, 0.1)
@@ -289,10 +293,17 @@ async def team_up(quester, dungeon: str) -> str:
         center = await sigil_center(client, await client.body.position())
         last_press = [0.0]
         last_player = time.monotonic()
+        last_requeue = time.monotonic()
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
             if await _join_party_on_sigil(client, zone, center, last_press):
                 return "in"
+            if USE_QUEUE and time.monotonic() - last_requeue > REQUEUE_EVERY:
+                # Not queued (a cooldown showed "TEAM UP! IN 05:51"): once the
+                # sigil offers TEAM UP! again, queue.
+                last_requeue = time.monotonic()
+                if await _click(client, ("team up!",), "sigil") and await _fill_form(client):
+                    logger.info("team up: queued again")
             mates = await teammates(client, await client.body.position())
             if any(m.distance(center) < SIGIL_AREA for m in mates):
                 last_player = time.monotonic()

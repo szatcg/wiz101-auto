@@ -47,7 +47,7 @@ from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, USE_QUEUE, is_team_up_zone
+from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -951,12 +951,8 @@ class Quester:
                 self._dungeon = (zone or "", await self.client.zone_name() or "")
                 self._sigil_failed_at = None
                 return True
-            if outcome == "switched" or not USE_QUEUE:
-                # Another realm, or waiting on the sigil for players (no queue):
-                # back on the sigil and wait again; never set the quest aside.
-                return False
-            logger.warning(f"no team for {dungeon}; not going in alone, setting this quest aside for now")
-            await self._set_current_aside(await self.objective())
+            # Another realm, or no team yet: back on the sigil and wait again
+            # (the user wants this dungeon); never set it aside, never go in alone.
             return False
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
