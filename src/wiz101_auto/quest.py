@@ -41,6 +41,7 @@ from .dungeon_heal import DUNGEON_MANA_TRIP
 from .dungeons import DungeonEntry, DungeonMemory
 from .entitymap import DoorMemory, EntityMap
 from .entitymap import scan as scan_entities
+from .farm import Farm
 from .givers import QuestGivers
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
@@ -564,6 +565,8 @@ class Quester:
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
+        self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave after its chest
+        self._chests_checked: set[str] = set()  # team dungeon rooms already checked for a boss chest
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -1262,6 +1265,9 @@ class Quester:
             await self.collector.loot_boss_chest(self._press_collect)
         except Exception as exc:
             logger.debug(f"boss chest looting failed: {exc!r}")
+        farm = Farm.load()
+        if farm.active and farm.ends_run(self.fighter.last_boss_names):
+            self._farm_run_done = True
         return True
 
     async def _dorm_to_wizard_city(self) -> bool:
@@ -2469,6 +2475,24 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _farm_trip(self, zone: str) -> bool:
+        """Farming a dungeon: go to its sigil and in with a team. True if it acted."""
+        farm = Farm.load()
+        if not farm.active:
+            return False
+        entry = DungeonMemory.load().dungeons.get(farm.dungeon)
+        if entry is None:
+            logger.warning(f"farming {farm.name}: its sigil isn't learned yet; questing instead")
+            return False
+        self._last_progress_time = time.monotonic()  # farming isn't a stalled quest
+        if zone != entry.outside:
+            logger.info(f"farming {farm.name}: going to {entry.outside}")
+            await self.go_to_zone(entry.outside)
+            return True
+        logger.info(f"farming {farm.name} (run {farm.runs + 1}): to the sigil")
+        await self._enter_by_sigil(XYZ(*entry.sigil), zone)
+        return True
+
     async def _team_step(self) -> bool:
         """With a team (a Team Up dungeon): never start a fight. Join the ones
         teammates start (walk into their circle); on a fight step, stay with
@@ -2527,8 +2551,11 @@ class Quester:
         # pick-ups); a quest from elsewhere would walk away from the team.
         here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
         fight_step = is_combat_objective(objective or "") or self._step_is_fight
-        if here and not fight_step and talk_target(objective or ""):
-            return False  # a talk counts for each player: do it (it's one teleport)
+        farming = Farm.load().active
+        if not farming and not fight_step and talk_target(objective or ""):
+            # A talk counts for each player: do it, wherever in the dungeon
+            # ("Talk To Silenus in Garden Of Hesperides" after Zeus).
+            return False
         # Anything else not a fight (collect tokens, use things) counts for the
         # whole team: leave it to the others and stay with them.
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
@@ -2537,7 +2564,7 @@ class Quester:
         # we walk in once a player is in it). A marker with no circle near it
         # is a door or passage: normal travel goes through it.
         marker = await self.client.quest_position.position()
-        if here and fight_step and distance(marker, XYZ(0, 0, 0)) > 1:
+        if here and fight_step and not farming and distance(marker, XYZ(0, 0, 0)) > 1:
             d = distance(me, marker)
             at_fight = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR]
             if d > TEAM_APPROACH or (at_fight and d > TEAM_STANDOFF + 400):
@@ -2561,6 +2588,7 @@ class Quester:
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
         elif mates:
             mate = min(mates, key=lambda m: distance(m, me))
+            self._mate_seen = (await self.client.zone_name() or "", mate, time.monotonic(), True)
             if distance(mate, me) > TEAM_FOLLOW:
                 logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
                             "not starting fights")
@@ -2568,12 +2596,34 @@ class Quester:
                 length = math.hypot(dx, dy) or 1.0
                 await self.client.teleport(XYZ(mate.x + dx / length * TEAM_BEHIND,
                                                mate.y + dy / length * TEAM_BEHIND, mate.z))
+        elif await self._after_team_through_door():
+            return True
         self.controller.allow_idle(TEAM_WAIT_TICK + 10)
         try:
             await asyncio.sleep(TEAM_WAIT_TICK)
         finally:
             self.controller.end_idle()
         return True
+
+    async def _after_team_through_door(self) -> bool:
+        """No teammate in sight for TEAM_LOST_AFTER, one last seen here: they
+        went on to the next room. Take the door nearest where they were (each
+        door once). True if it went."""
+        zone = await self.client.zone_name() or ""
+        seen = self._mate_seen
+        if not seen or seen[0] != zone or not seen[3] or time.monotonic() - seen[2] < TEAM_LOST_AFTER:
+            return False
+        last = seen[1]
+        doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
+        for door in sorted(doors, key=lambda d: distance(d, last)):
+            key = (zone, round(door.x / 100), round(door.y / 100))
+            if key in self._mate_doors:
+                continue
+            self._mate_doors.add(key)
+            logger.info(f"the team went on; following them through the door at ({door.x:.0f}, {door.y:.0f})")
+            await self.approach_and_walk(door, zone)
+            return True
+        return False
 
     async def _walk_into_circle(self, marker: XYZ) -> bool:
         """Land CIRCLE_WALK_FROM away from the duel circle nearest the marker
@@ -3166,17 +3216,37 @@ class Quester:
         zone_now = await self.client.zone_name() or ""
         if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
             await self._clear_of_enemies()
-        # With a team, no detours for pick-ups (it teleported all over Mount
-        # Olympus): the team's shared objectives are left to the others.
+        # A boss's chest is each player's own loot (Zeus' Chest: the farm's
+        # point): open it, team or not.
+        if await self._loot_after_boss():
+            return
+        if is_team_up_zone(zone_now) and zone_now not in self._chests_checked:
+            # A boss chest already standing in this room (a restart after Zeus
+            # lost the "just won a boss fight" moment): open it once.
+            self._chests_checked.add(zone_now)
+            try:
+                if await self.collector.loot_boss_chest(self._press_collect, wait=1.0, max_range=3000.0):
+                    return
+            except Exception as exc:
+                logger.debug(f"chest check failed: {exc!r}")
+        # With a team, no other detours for pick-ups (it teleported all over
+        # Mount Olympus): the team's shared objectives are left to the others.
         if not is_team_up_zone(zone_now):
-            if await self._loot_after_boss():
-                return
             if await self._pick_up_wanted():
                 return
             if await self._pick_up_loot():
                 return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
+        if self._farm_run_done and is_team_up_zone(zone_now):
+            from .dungeon_heal import go_to_hub
+
+            self._farm_run_done = False
+            Farm.load().record_run()
+            logger.info("farm run done; leaving for the next one")
+            self._team_alone_since = None
+            await go_to_hub(self.client)
+            return
         if is_team_up_zone(zone_now):
             if await self._team_step():
                 return
@@ -3224,6 +3294,8 @@ class Quester:
         # (Recall, NPC visits, grinding, gear checks, training trips); the quest
         # step itself still runs (returning here stood still while the team left).
         team = is_team_up_zone(zone_now)
+        if not team and await self._farm_trip(zone_now):
+            return
         if not team and await self._recall_to_mark():
             return
         # Quests beat grinding for experience: ask the NPCs around first (the

@@ -127,6 +127,12 @@ def main(argv: list[str] | None = None):
     sub.add_parser("watch", help="follow activity.log live: what the bot is planning and doing")
     pub_p = sub.add_parser("publish-setup", help="publish the dashboard on GitHub Pages (public repo)")
     pub_p.add_argument("repo", help="owner/name, e.g. szatcg/wizzbot-tracker")
+    farm_p = sub.add_parser("farm", help="farm a group dungeon with a team (--stop ends it)")
+    farm_p.add_argument("--stop", action="store_true")
+    farm_p.add_argument("--dungeon", default=None, help="zone id of the dungeon's first room")
+    farm_p.add_argument("--name", default=None)
+    farm_p.add_argument("--boss", default=None, help="the boss whose defeat ends a run")
+    farm_p.add_argument("--reset", action="store_true", help="set the run count back to 0")
     pin_p = sub.add_parser("pin", help="follow this quest until it's done or set aside (no name: unpin)")
     pin_p.add_argument("quest", nargs="?", default="")
     dash_p = sub.add_parser("dashboard", help="serve the progress dashboard at http://127.0.0.1:8101/")
@@ -203,6 +209,20 @@ def main(argv: list[str] | None = None):
         asyncio.run(inspect(show_windows=args.windows))
         return
 
+    if args.command == "farm":
+        from .farm import Farm
+
+        farm = Farm.load()
+        farm.active = not args.stop
+        farm.dungeon = args.dungeon or farm.dungeon
+        farm.name = args.name or farm.name
+        farm.final_boss = args.boss or farm.final_boss
+        if args.reset:
+            farm.runs = 0
+        farm.save()
+        state = "on" if farm.active else "off"
+        print(f"farming {farm.name}: {state} ({farm.runs} runs so far; a run ends on {farm.final_boss})")
+        return 0
     if args.command == "pin":
         from .quest import save_pin
 

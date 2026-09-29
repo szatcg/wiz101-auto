@@ -60,6 +60,7 @@
   </div>
   <div class="quest" id="quest">—</div>
   <div class="objective" id="objective"></div>
+  <div class="objective" id="farm" style="display:none"></div>
   <div class="row"><span class="name" id="worldName">World</span><div class="bar"><div id="worldBar" style="width:0%"></div></div><span class="pct" id="worldPct">0%</span></div>
   <div class="row"><span class="name" id="arcName">Arc</span><div class="bar"><div id="arcBar" style="width:0%"></div></div><span class="pct" id="arcPct">0%</span></div>
   <div class="row"><span class="name" id="hpText">Health</span><div class="bar hp"><div id="hpBar" style="width:0%"></div></div><span class="pct" id="hpPct"></span></div>
@@ -79,6 +80,10 @@ function render(d) {
   const world = d.worlds.find((w) => w.current) || null;
   set("deaths", d.deaths ? d.deaths.total : "–");
   set("quest", d.current.quest || "—");
+  const farm = s.farm;
+  const farmEl = document.getElementById("farm");
+  farmEl.style.display = farm ? "" : "none";
+  if (farm) farmEl.textContent = `🏛 ${farm.dungeon} runs: ${farm.runs}${farm.active ? " (farming)" : ""}`;
   set("objective", d.current.grinding ? "Grinding for experience (no quest to do right now)" : (d.current.objective || ""));
   if (world) {
     set("worldName", `${world.name}${world.deaths ? "  💀" + world.deaths : ""}`);

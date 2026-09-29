@@ -199,6 +199,11 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
             info["read_error"] = repr(exc)
         info.update(fights=fighter.fights, deaths=controller.deaths)
         info["deaths_total"] = lifetime.load().get("deaths", 0)
+        from .farm import Farm
+
+        farm = Farm.load()
+        if farm.active or farm.runs:
+            info["farm"] = {"dungeon": farm.name, "runs": farm.runs, "active": farm.active}
         if quester:
             info.update(
                 objective=quester._last_progress[0],

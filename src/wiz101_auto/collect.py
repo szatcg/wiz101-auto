@@ -178,6 +178,50 @@ def away_from(points: list, mobs: list, safe_distance: float) -> list:
     return [p for p in points if clear(p)]
 
 
+async def _text_windows(window, depth: int = 0) -> list:
+    out = []
+    try:
+        if depth and not await window.is_visible():
+            return out
+        text = await window.maybe_text() or ""
+        if text.strip():
+            out.append((text, window))
+    except Exception:
+        return out
+    if depth < 14:
+        for child in await window.children():
+            out += await _text_windows(child, depth + 1)
+    return out
+
+
+async def choose_free_chest(client) -> bool:
+    """A boss chest offers ways to open it (free, or paid with Crowns or a
+    key): pick the free one. The window isn't mapped yet: it's saved to
+    state/chest_window.txt, and the option is found by the word "free"."""
+    import re
+    from pathlib import Path
+
+    from . import ui
+
+    try:
+        lines = await ui.dump_tree(client.root_window, max_depth=12)
+        Path("state").mkdir(exist_ok=True)
+        Path("state/chest_window.txt").write_text("\n".join(lines), encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    for text, w in await _text_windows(client.root_window):
+        plain = re.sub(r"<[^>]+>", "", text).strip().lower()
+        if re.search(r"\bfree\b", plain):
+            logger.info(f"chest: choosing the free option ({plain[:60]!r})")
+            await ui.click_center(client, w)
+            await asyncio.sleep(1.5)
+            box = await ui.modal_box(client)
+            if box is not None and "crown" not in (await ui.modal_text(box)).lower():
+                await ui.press_modal_button(client, box, "centerButton")
+            return True
+    return False
+
+
 class Collector:
     def __init__(self, client, safe_distance: float = 700.0):
         self.client = client
@@ -297,6 +341,7 @@ class Collector:
         await asyncio.sleep(0.3)
         await press_interact()
         await asyncio.sleep(1.5)
+        await choose_free_chest(self.client)
         await self.client.teleport(back)
         return True
 
