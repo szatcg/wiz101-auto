@@ -116,6 +116,8 @@ TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
+CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
+AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
 TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
@@ -1302,6 +1304,13 @@ class Quester:
             return False
         zone = await self.client.zone_name() or ""
         target = objective_zone(await self.objective())
+        farm = Farm.load()
+        if farm.active and farm.dungeon.startswith("Aquila/"):
+            # Aquila isn't on the Spiral Map (it's the Cyclops Lane prompt).
+            logger.info("on the Spiral Map while farming Aquila: leaving the map")
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
+            return True
         if target and target.split("/", 1)[0] == zone.split("/", 1)[0]:
             # The quest is in this world (walked in on the way to a side quest
             # elsewhere, then the class quest was picked again): stay.
@@ -2497,12 +2506,19 @@ class Quester:
 
             logger.info("to Aquila: by the dorm button to Wizard City, then the World Tree")
             return await go_home(self.client)
-        if zone == RAVENWOOD:
-            door = await self._entity_named_like(("bartlebymouth",)) or XYZ(*BARTLEBY_MOUTH)
-            logger.info(f"to Aquila: into the World Tree (Bartleby's mouth, ({door.x:.0f}, {door.y:.0f}))")
-            if await self.approach_and_walk(door, zone):
-                self._world_tree_zone = await self.client.zone_name() or ""
-                logger.info(f"to Aquila: inside the World Tree ({self._world_tree_zone})")
+        if zone == CYCLOPS_LANE:
+            # The way to Aquila: a "press X" prompt at the far end of Cyclops
+            # Lane (how the wizard first went, following Silenus's marker).
+            portal = XYZ(*AQUILA_PORTAL)
+            logger.info(f"to Aquila: to the prompt in Cyclops Lane at ({portal.x:.0f}, {portal.y:.0f})")
+            await self.approach_and_walk(portal, zone)
+            if await self.client.zone_name() == zone:
+                await self._press_x_here(zone)
+                await asyncio.sleep(2.0)
+                await wait_for_loading(self.client)
+            now = await self.client.zone_name() or ""
+            if now.startswith("Aquila/"):
+                logger.success(f"to Aquila: arrived ({now})")
             return True
         if zone == self._world_tree_zone:
             await self._dump_entities("state/world_tree_entities.txt")
@@ -2521,8 +2537,13 @@ class Quester:
             await asyncio.sleep(2.0)
             await wait_for_loading(self.client)
             return True
-        logger.info("to Aquila: walking to Ravenwood for the World Tree")
-        return await self.go_to_zone(RAVENWOOD)
+        from .trainer import DORM, DORM_DOOR
+
+        if zone == DORM:
+            logger.info("to Aquila: out of the dorm onto Ravenwood")
+            return await self.approach_and_walk(DORM_DOOR, DORM)
+        logger.info("to Aquila: walking to Cyclops Lane")
+        return await self.go_to_zone(CYCLOPS_LANE)
 
     async def _entities_named_like(self, words: tuple[str, ...]) -> list[XYZ]:
         out = []
