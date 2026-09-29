@@ -1171,8 +1171,10 @@ class Quester:
         self._recall_pending = bool(self._mark and self._mark.kind in RETURN_KINDS)
         self._last_defeat = time.monotonic()
         objective = await self.objective()
-        if not is_combat_objective(objective):
+        if not objective:
             return
+        # Every loss counts, not only on "Defeat X": "Talk To Willie Marks" is
+        # a boss fight too.
         level = await self.client.stats.reference_level()
         quest = self._active_quest
         main = quest in self._mainline
