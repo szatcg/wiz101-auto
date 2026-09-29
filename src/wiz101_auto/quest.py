@@ -95,6 +95,7 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
+FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
@@ -2182,18 +2183,39 @@ class Quester:
         if not near:
             return False
         circle = min(near, key=lambda c: distance(c, marker))
-        here = await self._position()
-        dx, dy = here.x - circle.x, here.y - circle.y
-        length = math.hypot(dx, dy) or 1.0
-        back = CIRCLE_WALK_FROM / length
-        start = XYZ(circle.x + dx * back, circle.y + dy * back, circle.z)
-        logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
+        zone = await self.client.zone_name() or ""
+        below = self._floor_below(zone, circle)
+        if below is not None:
+            # The boss spawns when the wizard walks up the last staircase
+            # (Sprockets, Counterweight East): start on the floor below and walk.
+            start = below
+            logger.info(f"the fight is on a duel circle up a floor: starting below it at "
+                        f"({start.x:.0f}, {start.y:.0f}, {start.z:.0f}) and walking up")
+        else:
+            here = await self._position()
+            dx, dy = here.x - circle.x, here.y - circle.y
+            length = math.hypot(dx, dy) or 1.0
+            back = CIRCLE_WALK_FROM / length
+            start = XYZ(circle.x + dx * back, circle.y + dy * back, circle.z)
+            logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
         await self.client.teleport(start)
         await asyncio.sleep(0.8)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
         await asyncio.sleep(3.0)
         return True
+
+    def _floor_below(self, zone: str, spot: XYZ) -> XYZ | None:
+        """The nearest known spot on the floor under `spot` (between 300 and
+        FLOOR_BELOW_MAX lower), to walk up from."""
+        found = self.entity_map.spots(zone, lambda _n: True, (spot.x, spot.y, spot.z))
+        lower = [p for p in found if 300 < spot.z - p[2] < FLOOR_BELOW_MAX]
+        if not lower:
+            return None
+        top = max(p[2] for p in lower)  # the floor right under it
+        same = [p for p in lower if abs(p[2] - top) < 150]
+        best = min(same, key=lambda p: math.dist(p[:2], (spot.x, spot.y)))
+        return XYZ(*best)
 
     async def _talk_to_npc_near(self, spot: XYZ, objective: str) -> bool:
         """Walk up to a named NPC (not an enemy) within NPC_NEAR_MARKER of
