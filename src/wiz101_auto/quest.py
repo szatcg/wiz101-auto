@@ -111,6 +111,7 @@ CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
 APPROACH_TRIES = 8  # approach spots tried around a door
+NPC_SEARCH_DEPTH = 2  # doors from the quest's zone, then the doors behind those
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
@@ -537,6 +538,7 @@ class Quester:
         self._pin_new_from: set[str] | None = None  # after a visit: pin a quest not in this set
         self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
         self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
+        self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
@@ -1202,6 +1204,15 @@ class Quester:
         the map was open."""
         if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             return False
+        zone = await self.client.zone_name() or ""
+        target = objective_zone(await self.objective())
+        if target and target.split("/", 1)[0] == zone.split("/", 1)[0]:
+            # The quest is in this world (walked in on the way to a side quest
+            # elsewhere, then the class quest was picked again): stay.
+            logger.info("on the Spiral Map, but the quest is in this world: leaving the map")
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
+            return True
         logger.info("on the Spiral Map: going to the world the quest leads to")
         for _ in range(5):
             if not await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT):
@@ -2493,6 +2504,57 @@ class Quester:
         best = min(same, key=lambda p: math.dist(p[:2], (spot.x, spot.y)))
         return XYZ(*best)
 
+    async def _doors_here(self, zone: str) -> list[XYZ]:
+        """Ways out of this zone: gates from the travel data and learned ones,
+        and door/gate objects in the zone's entity list."""
+        from .travel_data import _data
+
+        found = [pos for pos, _to in _data()[0].get(zone, [])]
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                name = (await t.object_name() or "").lower() if t else ""
+                if any(w in name for w in ("door", "gate", "portal", "entrance")) and "collision" not in name:
+                    found.append(await e.location())
+            except Exception:
+                continue
+        out: list[XYZ] = []
+        for p in found:  # one per doorway
+            if all(distance(p, q) > 300 for q in out):
+                out.append(p)
+        return out
+
+    async def _search_doors_for(self, name: str, objective: str) -> bool:
+        """X isn't where the quest said: walk through the doors around there,
+        looking for X behind each; from the zones they lead to, their doors
+        too (one layer deeper), then back to try the next. True if it acted."""
+        zone = await self.client.zone_name() or ""
+        st = self._npc_search.setdefault(objective, {"home": zone, "visited": set(), "depth": {zone: 0}})
+        depth = st["depth"].setdefault(zone, NPC_SEARCH_DEPTH)
+        marker = await self.client.quest_position.position()
+        anchor = marker if distance(marker, XYZ(0, 0, 0)) > 1 else await self._position()
+        if depth < NPC_SEARCH_DEPTH:
+            for door in sorted(await self._doors_here(zone), key=lambda d: distance(d, anchor)):
+                key = (zone, round(door.x / 100), round(door.y / 100))
+                if key in st["visited"]:
+                    continue
+                st["visited"].add(key)
+                logger.info(f"{name} isn't in {zone}: looking behind the door at "
+                            f"({door.x:.0f}, {door.y:.0f})")
+                if await self.approach_and_walk(door, zone):
+                    new = await self.client.zone_name() or ""
+                    st["depth"].setdefault(new, depth + 1)
+                    return True
+        if zone != st["home"]:
+            back = st["home"] if depth <= 1 else None
+            logger.info(f"no {name} behind these doors; going back")
+            if back and await self.go_to_zone(back):
+                return True
+            # One layer in: back out the way we came (the arrival gate is learned).
+            prev = next((z for z, d in st["depth"].items() if d == depth - 1), st["home"])
+            return await self.go_to_zone(prev)
+        return False
+
     async def _talk_to_named(self, objective: str) -> bool:
         """Walk up to the NPC a Talk To objective names (exact name, not an
         enemy) and talk; a few tries per objective. True if it went."""
@@ -3135,7 +3197,11 @@ class Quester:
 
         # "Talk To Baxter" and Baxter is in this zone: go to him by name, not
         # through the marker as if it were a door.
-        if npc_here and await self._talk_to_named(objective):
+        searching = objective in self._npc_search
+        if (npc_here or searching) and await self._talk_to_named(objective):
+            return
+        who = talk_target(objective)
+        if searching and who and await self._search_doors_for(who, objective):
             return
         # At the marker with no prompt, and someone standing right there
         # ("Return to Platform Assemble Parts": Grunk by the platform): talk.
@@ -3151,3 +3217,6 @@ class Quester:
             # it was rejected: nothing handled it.)
             if await self.walk_through(target, zone) or await self._walk_in_from_around(target, zone):
                 logger.info("walked through a door")
+            elif wrong_talker and talk_target(objective):
+                # The marker's door didn't open to X: search the doors around.
+                await self._search_doors_for(talk_target(objective), objective)
