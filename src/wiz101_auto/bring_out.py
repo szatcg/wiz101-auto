@@ -58,6 +58,17 @@ class BringOut:
         self._switched: set[tuple[str, str]] = set()
         self._boss_visited: set[tuple[str, str]] = set()
 
+    async def _boss_here(self):
+        """A boss among the loaded enemies, or None."""
+        try:
+            for mob in await self.client.get_mobs():
+                t = await mob.fetch_npc_behavior_template()
+                if t is not None and (await t.mob_title()).name == "boss":
+                    return mob
+        except Exception:
+            pass
+        return None
+
     async def _ready_for_boss(self) -> bool:
         """Full health before a boss: heal right here (wisps, rest) if not.
         True when ready. (It walked into two Clockwork Warriors at 49%.)"""
@@ -116,7 +127,8 @@ class BringOut:
                 if key in done or not display:
                     continue
                 d = math.dist((pos.x, pos.y), (me.x, me.y))
-                if is_pickup(display) and not is_switch(display):
+                enemy = await e.global_id_full() in mobs
+                if is_pickup(display) and not is_switch(display) and not enemy:
                     pickups.append((d, key, display, pos))
                 elif await e.global_id_full() not in mobs and is_named_npc(
                     obj, display, await e.list_behavior_names()
@@ -149,22 +161,14 @@ class BringOut:
                 return True
         return False
 
-    async def step(self, objective: str, zone: str, name: str) -> bool:
+    async def step(self, objective: str, zone: str, name: str, fight: bool = False) -> bool:
         """One thing toward bringing `name` out. True if it acted."""
         from .puzzles import find_switches, solve_by_trying
 
         key = (objective, zone)
         done = self._done.setdefault(key, set())
-        boss = None
-        try:
-            for mob in await self.client.get_mobs():
-                t = await mob.fetch_npc_behavior_template()
-                if t is not None and (await t.mob_title()).name == "boss":
-                    boss = mob
-                    break
-        except Exception:
-            boss = None
-        if boss is None and key not in self._boss_visited:
+        boss = None if fight else await self._boss_here()  # bringing out a boss: none to beat first
+        if not fight and boss is None and key not in self._boss_visited:
             spot = self._remembered_boss(zone)
             if spot is not None:
                 # Enemies only load near the wizard: go where this dungeon's boss

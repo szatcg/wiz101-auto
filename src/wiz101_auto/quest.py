@@ -93,6 +93,7 @@ RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objectiv
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
+RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -1031,7 +1032,9 @@ class Quester:
         the objective's zone from here. True if we recalled."""
         # Travel marks and heal marks (a spot in a dungeon left to heal) both
         # take us back; fight and dungeon marks have their own Recall rules.
-        if not self._mark or self._mark.kind not in ("travel", "room") or self._recalled_for == objective:
+        # (A dungeon entrance mark too: back to Counterweight East's sigil in
+        # one Recall instead of walking over from the Ironworks.)
+        if not self._mark or self._mark.kind not in RECALL_KINDS or self._recalled_for == objective:
             return False
         if time.monotonic() < self._recall_blocked_until:
             return False
@@ -2354,6 +2357,13 @@ class Quester:
                 # A boss fought on a duel circle (Sprockets in Counterweight
                 # East): teleporting near it half-joins the circle and freezes
                 # the wizard; land well clear and walk into it instead.
+                # Inside a dungeon the boss may only come out once the place is
+                # worked through (Counterweight East: talk to Gus, use the
+                # Counterweight Levers): talk, pick up, try the switches first.
+                if await self._in_dungeon(zone_now) and await self.bring_out.step(
+                    objective, zone_now, target, fight=True
+                ):
+                    return
                 if self._may_try(objective, zone_now, "walk_circle") and await self._walk_into_circle(marker):
                     return
                 # A boss that isn't there yet usually appears when the wizard
