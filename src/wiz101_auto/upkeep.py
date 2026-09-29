@@ -421,6 +421,30 @@ def close_enough(cfg: UpkeepConfig, hp: float, mana: float) -> bool:
     return hp >= cfg.min_health_to_fight - CLOSE_ENOUGH and mana >= cfg.min_mana_to_fight - CLOSE_ENOUGH
 
 
+async def heal_in_room(client, cfg: UpkeepConfig, rounds: int = 4) -> bool:
+    """Heal from this room's wisps only (in view, then its learned spawn
+    points), never going anywhere else: a team dungeon, where leaving means
+    losing the team. True if it gained anything."""
+    zone = await client.zone_name() or ""
+    hp0, mana0 = await health_mana(client)
+    for _ in range(rounds):
+        hp, mana = await health_mana(client)
+        if not cfg.needs_recovery(hp, mana):
+            break
+        took = await collect_wisps(client, cfg)
+        if not took and not await visit_known_spot(client, cfg, zone, needed_wisps(cfg, hp, mana)):
+            break
+        await asyncio.sleep(0.5)
+        if await client.zone_name() != zone:
+            break
+    hp, mana = await health_mana(client)
+    if hp > hp0 or mana > mana0:
+        logger.info(f"healed from this room's wisps: {hp0:.0%} -> {hp:.0%} health, "
+                    f"{mana0:.0%} -> {mana:.0%} mana")
+        return True
+    return False
+
+
 def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
     """Which wisp kinds recovery still needs."""
     need = set()

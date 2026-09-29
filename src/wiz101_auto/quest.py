@@ -64,6 +64,7 @@ from .travel_data import (
 )
 from .upkeep import (
     clear_popups,
+    heal_in_room,
     health_mana,
     is_free,
     mob_positions,
@@ -114,6 +115,7 @@ TEAM_FOLLOW = 900.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 3.0  # seconds between looks for a teammate's fight
 TEAM_LOST_AFTER = 20.0  # no teammate in sight this long: go after them
+TEAM_ALONE_AFTER = 90.0  # none at all this long: we're alone; leave and queue again
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
@@ -554,7 +556,9 @@ class Quester:
         self._pin_new_from: set[str] | None = None  # after a visit: pin a quest not in this set
         self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
         self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
-        self._mate_seen: tuple[str, XYZ, float] | None = None  # (zone, where, when) a teammate was last seen
+        # (zone, where, when, really seen) a teammate was last seen; False = our arrival spot
+        self._mate_seen: tuple[str, XYZ, float, bool] | None = None
+        self._team_alone_since: float | None = None  # in a team dungeon with no teammate in sight since
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -1209,7 +1213,9 @@ class Quester:
         zone = await self.client.zone_name() or ""
         objective = await self.objective()
         target = objective_zone(objective)
-        if target is not None:
+        if is_team_up_zone(zone):
+            leave = False  # never leave a team dungeon
+        elif target is not None:
             leave = target != zone
         else:
             # A place we can't map ("Talk To Sergeant Steeg in Knight's Court",
@@ -2464,6 +2470,19 @@ class Quester:
 
         me = await self._position()
         mates = await teammates(self.client, me)
+        now = time.monotonic()
+        if mates or self._team_alone_since is None:
+            self._team_alone_since = now
+        elif now - self._team_alone_since > TEAM_ALONE_AFTER:
+            # Nobody with us: leave by the world hub button and queue for a new team.
+            from .dungeon_heal import go_to_hub
+
+            logger.warning(f"alone in the team dungeon for {TEAM_ALONE_AFTER:.0f}s; "
+                           "leaving to wait for a new team")
+            self._team_alone_since = None
+            self._mate_seen = None
+            await go_to_hub(self.client)
+            return True
         circles = sorted((XYZ(*c) for c in await duel_circles(self.client)), key=lambda c: distance(c, me))
         fight = team_fight_at(circles, mates)
         if fight is None and mates:
@@ -2498,29 +2517,27 @@ class Quester:
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
         self.controller.allow_idle(TEAM_WAIT_TICK + 10)
         zone = await self.client.zone_name() or ""
+        now = time.monotonic()
         if self._mate_seen is None or self._mate_seen[0] != zone:
-            self._mate_seen = (zone, me, time.monotonic())  # just arrived: look around first
+            self._mate_seen = (zone, me, now, False)  # just arrived: look around first
         if mates:
             mate = min(mates, key=lambda m: distance(m, me))
-            self._mate_seen = (zone, mate, time.monotonic())
-        elif time.monotonic() - self._mate_seen[2] > TEAM_LOST_AFTER:
+            self._mate_seen = (zone, mate, now, True)
+        elif now - self._mate_seen[2] > TEAM_LOST_AFTER and self._mate_seen[3]:
             # The team went on (another room): through the door nearest where
-            # a teammate was last seen, else on toward the quest marker (never
-            # starting a fight on the way).
-            if self._mate_seen[0] == zone:
-                last = self._mate_seen[1]
-                doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
-                for door in sorted(doors, key=lambda d: distance(d, last)):
-                    key = (zone, round(door.x / 100), round(door.y / 100))
-                    if key in self._mate_doors:
-                        continue
-                    self._mate_doors.add(key)
-                    logger.info(f"lost the team; following them through the door at "
-                                f"({door.x:.0f}, {door.y:.0f})")
-                    await self.approach_and_walk(door, zone)
-                    return True
-            logger.debug("lost the team; heading on toward the quest marker")
-            return False
+            # a teammate was last seen. Never on alone toward the marker: that
+            # landed beside Apollo and started his fight solo.
+            last = self._mate_seen[1]
+            doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
+            for door in sorted(doors, key=lambda d: distance(d, last)):
+                key = (zone, round(door.x / 100), round(door.y / 100))
+                if key in self._mate_doors:
+                    continue
+                self._mate_doors.add(key)
+                logger.info(f"lost the team; following them through the door at "
+                            f"({door.x:.0f}, {door.y:.0f})")
+                await self.approach_and_walk(door, zone)
+                return True
         try:
             if not mates:
                 logger.debug("no teammate in sight; waiting for the team to start a fight")
@@ -3137,8 +3154,11 @@ class Quester:
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
-        if is_team_up_zone(zone_now) and await self._team_step():
-            return
+        if is_team_up_zone(zone_now):
+            if await self._team_step():
+                return
+        else:
+            self._team_alone_since = None
         # After a defeat by a boss we marked beside: go back first and heal
         # there (Katzenstein's Lab), not slowly out in the hub.
         fight_mark = bool(self._mark and self._mark.kind == "fight")
@@ -3155,8 +3175,11 @@ class Quester:
                 heal_now = False  # only mana a little low: not worth leaving the dungeon
         if heal_now and is_team_up_zone(zone_now):
             # With a team: never leave (Recall can't bring us back in alone).
-            # Stay with them; a potion when low is all the healing here.
+            # Heal from this room's wisps (the first room has them, and rooms
+            # after a battle), else a potion when low; stay with the team.
             heal_now = False
+            if self.upkeep and await heal_in_room(self.client, self.upkeep):
+                return
             if self.upkeep:
                 hp, mana = await health_mana(self.client)
                 low = hp < self.upkeep.potion_health_ratio or mana < self.upkeep.potion_mana_ratio
@@ -3173,6 +3196,8 @@ class Quester:
             trip=self._heal_trip, mark=self._heal_mark,
         ):
             return
+        if is_team_up_zone(zone_now):
+            return  # nothing else here may leave the dungeon (Recall, grinding, trips)
         if await self._recall_to_mark():
             return
         # Quests beat grinding for experience: ask the NPCs around first (the
