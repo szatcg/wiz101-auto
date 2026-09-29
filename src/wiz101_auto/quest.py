@@ -991,6 +991,20 @@ class Quester:
             logger.debug(f"boss chest looting failed: {exc!r}")
         return True
 
+    async def _leave_spiral_map(self) -> bool:
+        """Walking into a world gate (not pressing X at it) opens the Spiral
+        Map with the quest's world already ticked: press Go To World. True if
+        the map was open."""
+        if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+            return False
+        logger.info("on the Spiral Map: going to the world the quest leads to")
+        for _ in range(5):
+            if not await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT):
+                break
+            await asyncio.sleep(0.5)
+        await wait_for_loading(self.client)
+        return True
+
     async def _pick_up_wanted(self) -> bool:
         """Every few seconds, grab any wanted "Collect X" item in view (away from
         enemies) for any quest in the book, even one set aside. True if it did."""
@@ -2059,6 +2073,8 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if await self._leave_spiral_map():
+            return
         if time.monotonic() - self._last_entity_scan > ENTITY_SCAN_SECONDS:
             self._last_entity_scan = time.monotonic()
             await scan_entities(self.client, await self.client.zone_name() or "", self.entity_map)
