@@ -122,13 +122,12 @@ class QuestGivers:
         me = await self.client.body.position()
         back = XYZ(me.x, me.y, me.z)
         logger.info(f"asking {name} for quests ({_d:.0f} away)")
-        dx, dy = me.x - pos.x, me.y - pos.y
-        length = math.hypot(dx, dy) or 1.0
-        await self.client.teleport(XYZ(pos.x + dx / length * 200, pos.y + dy / length * 200, pos.z))
-        await asyncio.sleep(0.6)
-        await self.client.goto(pos.x + dx / length * 80, pos.y + dy / length * 80)
+        # The quester's approach (teleport near, inch in on foot until the talk
+        # prompt shows): landing 200 short left the Marleybone hub's quest
+        # givers out of range ("no talk prompt").
+        await self.q.travel(pos, npc=True)
         await asyncio.sleep(0.3)
-        for nudge in (None, (Keycode.S, 0.2), (Keycode.W, 0.3)):
+        for nudge in (None, (Keycode.S, 0.2), (Keycode.W, 0.3), (Keycode.W, 0.3)):
             if nudge:
                 await self.client.send_key(*nudge)
                 await asyncio.sleep(0.2)
