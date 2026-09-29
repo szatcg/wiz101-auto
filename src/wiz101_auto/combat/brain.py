@@ -394,6 +394,7 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+GROUP_SUMMON_ROUNDS = 2  # against a group, the minion comes in these first rounds
 AOE_SAVE_HEALTH = 0.5  # above this, pips go to the hit-all spell rather than a single kill
 
 
@@ -494,6 +495,16 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         setup = _setup_action(battle, strat, _aoe_trap_target(battle, coming))
         if setup and setup.card is not None and setup.card.pip_cost == 0:
             return setup
+        # Pips to spare beyond what the frog will need: use them on a hit
+        # (it passed three rounds on 4+3P pips against the Klaw brothers).
+        have = battle.pips + 2 * battle.power_pips
+        spare = [c for c in _castable(battle.cards) if c.is_damage and have - c.pip_cost >= coming.pip_cost]
+        if spare:
+            best = _best_attack(Battle(**{**battle.__dict__, "cards": spare}), strat)
+            if best:
+                card, target, _ = best
+                why = f"spare pips; {coming.name} still affordable after"
+                return Action(ActionKind.CAST, card, target, reason=why)
         return Action(ActionKind.PASS, reason=f"saving pips for {coming.name} (still in the deck)")
     card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
@@ -1172,6 +1183,13 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         dig = _dig_for_setup(battle, strat)
         if dig:
             return dig
+
+    # A group: the minion first (turn 1), then blades/traps, then the hit-all
+    # spell (it came only in round 10 against the Klaw brothers).
+    if len(battle.live_enemies) >= AOE_MIN_ENEMIES and battle.round <= GROUP_SUMMON_ROUNDS:
+        summon = _summon_action(battle, strat)
+        if summon:
+            return summon
 
     # Several enemies: buff up and clear them all with one hit-all spell.
     aoe = _aoe_plan(battle, strat)

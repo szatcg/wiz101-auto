@@ -953,3 +953,22 @@ def test_plan_prefers_the_frog_kill_that_also_hits_the_boss():
     b = battle([cyclops, frog], [firegut, kettle], my=_myth_me())
     b.pips = 4
     assert "Humongofrog" in plan_fight(b).text.split("|")[0]  # Kettlehead's line
+
+
+def test_group_fight_summons_first():
+    summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
+    b = battle([summon, _myth(blade_card(2)), _frog(castable=False)], [enemy("A", 800), enemy("B", 1200)],
+               my=_myth_me())
+    b.round = 1
+    assert decide(b).card.name == "Troll Minion"
+
+
+def test_spare_pips_hit_while_frog_is_still_in_the_deck():
+    cyclops = _myth(dmg_card(0, "Cyclops", 400, pips=3))
+    b = battle([cyclops], [enemy("A", 800), enemy("B", 1200)], my=_myth_me())
+    b.pips, b.power_pips, b.round = 4, 3, 6
+    b.upcoming = [_frog()]
+    a = decide(b)
+    assert a.card is not None and a.card.name == "Cyclops"
+    b.pips, b.power_pips = 3, 0
+    assert decide(b, discards_left=0).kind is ActionKind.PASS  # a Cyclops now leaves nothing for the frog

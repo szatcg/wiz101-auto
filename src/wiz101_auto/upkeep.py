@@ -562,9 +562,16 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             await asyncio.sleep(WISP_RESPAWN_WAIT / 2)
             continue
         if not rested:
-            await move_to_safety(client, REST_SAFE_DISTANCE)
-            rested = True
-            rest_start = (loop.time(), hp, mana)
+            # No resting for slow regeneration (the player's rule): wisps only.
+            # Go where they are; nowhere known: carry on and heal at the next.
+            dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
+                                  avoid=barren_zones(), hops=hops_from_hub)
+            if dest and dest != zone and go_to_zone and await go_to_zone(dest):
+                logger.info(f"went to {dest} for wisps")
+                continue
+            logger.info(f"no wisps to heal with ({hp:.0%} health, {mana:.0%} mana); carrying on")
+            await back_to_start()
+            return True
         elif rest_start and loop.time() - rest_start[0] > REST_PROBE_SECONDS and not moved_on:
             gained = hp - rest_start[1] >= 0.01 or mana - rest_start[2] >= 0.01
             if not gained:
