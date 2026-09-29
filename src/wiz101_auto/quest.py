@@ -3135,9 +3135,11 @@ class Quester:
             return
         # At the marker with no prompt, and someone standing right there
         # ("Return to Platform Assemble Parts": Grunk by the platform): talk.
-        if dist < INTERACT_RANGE and await self._talk_to_npc_near(target, objective):
+        if dist < INTERACT_RANGE and not wrong_talker and await self._talk_to_npc_near(target, objective):
             return
-        doorish = dist < DOOR_RANGE or ("talk" not in objective.lower() and dist < INTERACT_RANGE)
+        doorish = dist < DOOR_RANGE or (
+            ("talk" not in objective.lower() or wrong_talker) and dist < INTERACT_RANGE
+        )
         if doorish and await self.client.zone_name() == zone:
             # At (or near) the marker with nothing to interact with: it's most
             # likely a door or zone exit, which needs walking into. (The Post
