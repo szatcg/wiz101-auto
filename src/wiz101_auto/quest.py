@@ -983,10 +983,21 @@ class Quester:
         return True
 
     def _keep_dungeon_mark(self, objective: str) -> bool:
-        """The dungeon mark is still wanted: a defeat awaits a Recall, or we're
-        still on the objective it was set for."""
+        """The dungeon mark is still wanted: a defeat awaits a Recall, we're
+        still on the objective it was set for, or the objective is still in
+        that dungeon (Katzenstein's Lab: talk to Grunk, collect the crates...).
+        Until the dungeon is done, nothing marks over it."""
         m = self._mark
-        return bool(m and m.kind in RETURN_KINDS and (self._recall_pending or m.objective == objective))
+        if not m or m.kind not in RETURN_KINDS:
+            return False
+        if self._recall_pending or m.objective == objective:
+            return True
+        target = objective_zone(objective)
+        mem = DungeonMemory.load()
+        if m.zone in mem.dungeons:  # a mark inside the dungeon (beside its boss)
+            return target == m.zone
+        entry = mem.dungeons.get(target or "")  # the entrance mark, outside on the sigil
+        return entry is not None and entry.outside == m.zone
 
     def _retire_dungeon_mark(self):
         """The dungeon mark has served (or can't any more); the game still holds

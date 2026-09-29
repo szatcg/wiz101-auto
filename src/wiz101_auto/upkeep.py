@@ -315,6 +315,7 @@ WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geometry
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
+REST_SAFE_DISTANCE = 2000.0  # resting spot: no enemy (or duel circle) this close
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 # Interiors recovery gave up on (walk out on the quest path instead).
 _leaving_interior: set[str] = set()
@@ -526,7 +527,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             await back_to_start()
             return True
         if not rested:
-            await move_to_safety(client)
+            await move_to_safety(client, REST_SAFE_DISTANCE)
             rested = True
             rest_start = (loop.time(), hp, mana)
         elif rest_start and loop.time() - rest_start[0] > REST_PROBE_SECONDS and not moved_on:
