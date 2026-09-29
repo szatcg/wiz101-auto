@@ -2466,6 +2466,16 @@ class Quester:
         mates = await teammates(self.client, me)
         circles = sorted((XYZ(*c) for c in await duel_circles(self.client)), key=lambda c: distance(c, me))
         fight = team_fight_at(circles, mates)
+        if fight is None and mates:
+            # No duel circle listed there: a teammate beside an enemy is fighting it.
+            mobs = []
+            for mob in await self.sprinter.get_mobs():
+                try:
+                    mobs.append(await mob.location())
+                except Exception:
+                    continue
+            fight = team_fight_at(sorted(mobs, key=lambda m: distance(m, me)), mates)
+        logger.debug(f"team: {len(mates)} teammate(s), {len(circles)} circle(s), fight at {fight}")
         if fight is not None:
             logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
             if distance(me, fight) > TEAM_JOIN_FROM * 1.5:

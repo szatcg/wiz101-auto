@@ -50,7 +50,8 @@ SIGIL_COUNTDOWN_WAIT = 15.0
 SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
 NO_PLAYERS_SWITCH = 5 * 60  # nobody near the sigil this long while queued: switch realm
 SIGIL_AREA = 1500.0  # "near the sigil": players around here may be coming to go in
-IN_FIGHT_RANGE = 450.0  # a player this near a duel circle is in its fight
+IN_FIGHT_RANGE = 900.0  # a player this near a duel circle (or an enemy) is in its fight
+# (Apollo's arena: the team stood ~500+ from the circle's center, fighting)
 ME_RANGE = 60.0  # a Player Object this near us is our own wizard
 
 
