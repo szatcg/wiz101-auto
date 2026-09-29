@@ -332,6 +332,7 @@ WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geometry
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
+REST_WORLDS = {"Aquila"}  # no easily reached wisps: resting (regeneration) is allowed here
 WISP_RESPAWN_WAIT = 15.0  # empty wisp spots in a wisp zone: wait this long, then go round again
 REST_SAFE_DISTANCE = 2000.0  # resting spot: no enemy (or duel circle) this close
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
@@ -561,6 +562,11 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             # Wisps beat resting: wait for the next ones to come off cooldown.
             await asyncio.sleep(WISP_RESPAWN_WAIT / 2)
             continue
+        if not rested and zone.split("/", 1)[0] in REST_WORLDS:
+            # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.
+            await move_to_safety(client, REST_SAFE_DISTANCE)
+            rested = True
+            rest_start = (loop.time(), hp, mana)
         if not rested:
             # No resting for slow regeneration (the player's rule): wisps only.
             # Go where they are; nowhere known: carry on and heal at the next.
