@@ -108,6 +108,7 @@ FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
 ENTITY_SCAN_SECONDS = 30.0  # how often to note what's around (for the entity map)
 KNOWN_SPOTS_FIRST = 6  # remembered spots tried before a zone sweep
+MARKER_WAY_RANGE = 600.0  # at a fight's marker with the enemy absent: look for an X prompt there
 PUZZLE_NEAR = 2000.0  # this close to the marker with its 'Use X' missing: a switch puzzle
 PRESS_X_TRIES = 4  # X presses at a prompt before moving on
 TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
@@ -1744,6 +1745,16 @@ class Quester:
                 where = objective_zone(objective)
                 if where and where != await self.client.zone_name():
                     return  # "... in Hall of Champions": not here; the quest marker leads there
+                # At the marker with the enemy nowhere in the zone: the marker is
+                # the way to it (a teleporter like the Djeserit tomb's "To the
+                # Sarcophagus", a door): use its X prompt first.
+                marker = await self.client.quest_position.position()
+                at_marker = distance(await self._position(), marker) < MARKER_WAY_RANGE
+                if distance(marker, XYZ(0, 0, 0)) > 1 and at_marker:
+                    if await self._press_x_here(await self.client.zone_name(), adjust=True):
+                        return
+                    if not await is_free(self.client):
+                        return
                 # A boss that isn't there yet usually appears when the wizard
                 # walks into its spot (the marker); a teleport doesn't set that off.
                 if await self._walk_onto_marker():
