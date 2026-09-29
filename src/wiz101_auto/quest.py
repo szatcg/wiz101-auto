@@ -126,7 +126,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
-TEAM_ALONE_AFTER = 300.0  # no teammate ever seen in here this long (not come in with one): alone
+TEAM_ALONE_AFTER = 90.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
@@ -969,7 +969,6 @@ class Quester:
             await self._mark_here()
             outcome = await team_up(self, dungeon)
             if outcome == "in":
-                self._team_with_us = True  # came in with a team (or the sigil's party)
                 self._dungeon = (zone or "", await self.client.zone_name() or "")
                 self._sigil_failed_at = None
                 return True
@@ -2647,6 +2646,18 @@ class Quester:
             self._mate_seen = None
             await go_to_hub(self.client)
             return True
+        if not self._team_with_us:
+            # No teammate seen in here yet: do nothing on our own (players on
+            # the sigil who didn't come in left it alone; it then walked into
+            # Apollo's fight following the dungeon quest).
+            logger.debug("no teammate seen in this dungeon yet; waiting")
+            self._last_progress_time = now
+            self.controller.allow_idle(TEAM_WAIT_TICK + 10)
+            try:
+                await asyncio.sleep(TEAM_WAIT_TICK)
+            finally:
+                self.controller.end_idle()
+            return True
         circles = sorted((XYZ(*c) for c in await duel_circles(self.client)), key=lambda c: distance(c, me))
         fight = team_fight_at(circles, mates)
         if fight is None and mates:
@@ -2693,6 +2704,15 @@ class Quester:
         if here and fight_step and not farming and distance(marker, XYZ(0, 0, 0)) > 1:
             d = distance(me, marker)
             at_fight = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR]
+            if not at_fight:
+                # No duel circle listed (Apollo's room): enemies by the marker are the fight.
+                for mob in await self.sprinter.get_mobs():
+                    try:
+                        pos = await mob.location()
+                    except Exception:
+                        continue
+                    if distance(pos, marker) < TEAM_CIRCLE_NEAR:
+                        at_fight.append(pos)
             if d > TEAM_APPROACH or (at_fight and d > TEAM_STANDOFF + 400):
                 dx, dy = me.x - marker.x, me.y - marker.y
                 length = math.hypot(dx, dy) or 1.0

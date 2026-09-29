@@ -49,7 +49,7 @@ TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
 # Players gathering on the sigil to go in: with this many others on it, press
 # X and stand still through the countdown to go in with them.
 PARTY_ON_SIGIL = 2
-SIGIL_RADIUS = 450.0  # a player this near the sigil's center is standing on it
+SIGIL_RADIUS = 300.0  # a player this near the sigil's center is standing on it
 SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
 SIGIL_COUNTDOWN_WAIT = 15.0
 SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
