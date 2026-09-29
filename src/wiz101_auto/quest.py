@@ -1830,7 +1830,9 @@ class Quester:
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
-            if not self._grinding and not await self._in_dungeon(here):
+            # No errand detours while a quest is pinned: the player picked it
+            # (quick Marleybone errands chained ahead of the Myth class quest).
+            if not self._grinding and not self._pin and not await self._in_dungeon(here):
                 errand = errand_detour([q for _, q in all_quests], chosen, set_aside, world)
                 if errand:
                     if not errand.active:
