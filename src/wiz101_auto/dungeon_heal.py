@@ -96,7 +96,10 @@ class DungeonHealer:
             took = (time.monotonic() - started) / 60
             logger.info(f"healed to {hp:.0%} health, {mana:.0%} mana in {took:.0f} min; recalling back")
             if not await self.q._recall(zone, "the marked spot"):
-                logger.warning("could not recall back; the quest marker leads there")
+                # (A fight started while leaving: try again after it.)
+                logger.warning("could not recall back; will try again when free")
+                self.q._recall_blocked_until = 0.0
+                self.q._recalled_for = ""
         finally:
             self._busy = False
             self.q.controller.end_idle()

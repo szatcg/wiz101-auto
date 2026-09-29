@@ -543,6 +543,10 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                # The book's fight icon was for the old step (Katzenstein); the
+                # next ranking reads the new one. A stale flag sent the bot out
+                # of the lab to heal before talking to Grunk.
+                self._step_is_fight = False
             self._last_progress = key
             self._last_progress_time = time.monotonic()
             self._attempts = 0
@@ -923,6 +927,10 @@ class Quester:
             return False  # just respawned in the hub: a mark here is useless
         if self._mark and self._mark.kind in RETURN_KINDS and self._keep_dungeon_mark(await self.objective()):
             return True  # a fight/dungeon mark for this objective waits: heal trips Recall to it
+        if self._mark and self._mark.zone != zone and self._mark.zone in DungeonMemory.load().dungeons:
+            # The mark is inside a dungeon we left to heal (Katzenstein's Lab):
+            # never mark over it out here; Recall back to it.
+            return True
         if await self._fight_mark_here():
             return True  # the fight mark does the job: healing Recalls back to it
         return await self._mark_here("room")
@@ -955,6 +963,8 @@ class Quester:
         # the trip Recalls to it instead. An old one (Willie Marks's, done) is
         # replaced by a mark here.
         keep = await self._fight_mark_here() or self._keep_dungeon_mark(objective or "")
+        if self._mark and self._mark.zone != zone and self._mark.zone in DungeonMemory.load().dungeons:
+            keep = True  # a spot inside a dungeon we're out of: keep it, Recall to it
         why = f"not enough wisps here for {objective!r}"
         return await self.healer.trip(zone, why, mark=not (marked or keep))
 
