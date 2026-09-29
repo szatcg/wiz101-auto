@@ -206,9 +206,9 @@ function renderRibbon() {
   document.getElementById("quest").textContent = data.current.quest || "No quest tracked";
   const obj = data.current.objective || "";
   const secs = data.current.objective_age_s;
-  const age = secs == null ? "" : secs < 90 ? "just now" : secs < 5400 ? `for ${Math.round(secs / 60)} min` : `for ${(secs / 3600).toFixed(1)} h`;
+  const stepAge = secs == null ? "" : secs < 90 ? "just now" : secs < 5400 ? `for ${Math.round(secs / 60)} min` : `for ${(secs / 3600).toFixed(1)} h`;
   document.getElementById("objective").innerHTML = obj
-    ? `<span class="lbl">Current step</span>${esc(obj)}${age ? `<span class="age">(${age})</span>` : ""}` : "";
+    ? `<span class="lbl">Current step</span>${esc(obj)}${stepAge ? `<span class="age">(${stepAge})</span>` : ""}` : "";
   const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
   document.getElementById("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
   document.getElementById("level").textContent = s.level ?? "–";
