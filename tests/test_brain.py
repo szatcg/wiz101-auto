@@ -395,7 +395,7 @@ def test_keeps_two_cheap_hits_instead_of_discarding_them():
     imp.school, imp.item = "Fire", True
     troll = dmg_card(2, "Troll", 190, pips=2)
     troll.school = "Myth"
-    b = battle([fire_cat, imp, troll], [enemy("Golem", 400)], my=myth_me)
+    b = battle([fire_cat, imp, troll], [enemy("Golem", 300)], my=myth_me)
     b.pips = 0
     assert decide(b).kind is not ActionKind.DISCARD  # only 2 cheap hits: keep both
     thunder = dmg_card(3, "Thunder Snake", 75)
@@ -742,3 +742,12 @@ def test_ether_golem_preferred_against_death_enemies_when_equal():
     assert fastest_kill(b, b.enemies[0]).card.name == "Ether Golem"  # the other pixie still hits
     b.enemies = pixies[:1]
     assert fastest_kill(b, b.enemies[0]).card.name == "Cyclops"  # the last one: its shield would be wasted
+
+
+def test_keeps_a_gear_card_the_plan_needs():
+    hit = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 90)]
+    elf = Card(0, "Fire Elf", school="Fire", pip_cost=2, item=True, effects=hit)
+    troll = dmg_card(1, "Troll", 190, pips=2)
+    troll.school = "Myth"
+    b = battle([elf, troll], [enemy("Krokopatra", 250, boss=True)], my=_myth_me())
+    assert decide(b).kind is not ActionKind.DISCARD  # Troll + Fire Elf is the kill

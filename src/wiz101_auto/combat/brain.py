@@ -25,7 +25,7 @@ Damage counts blades, traps, shields, weaknesses and school resistances.
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..deck_plan import minion_rank
 from .model import (
@@ -317,6 +317,8 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     cheap = [c for c in battle.cards if c.is_damage and not c.treasure and c.pip_cost <= 1]
     if len(cheap) <= KEEP_CHEAP_HITS:
         junk = [c for c in junk if c.pip_cost > 1]
+    # Never one the fight plan needs (Fire Elf finishing Krokopatra).
+    junk = [c for c in junk if not _plan_needs(battle, c)]
     if junk:
         card = min(junk, key=lambda c: c.base_damage())
         return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
@@ -583,6 +585,12 @@ def _rounds_to_kill(battle: Battle, target: Combatant) -> tuple[int, str]:
         return 99, f"no kill within {PLAN_ROUNDS} rounds with the cards left"
     n, _spent, _action, steps, _used = found
     return n, " > ".join(steps)
+
+
+def _plan_needs(battle: Battle, card: Card) -> bool:
+    """Would the fight take longer without `card` (discarded now)?"""
+    without = replace(battle, cards=[c for c in battle.cards if c is not card])
+    return any(_rounds_to_kill(without, e)[0] > _rounds_to_kill(battle, e)[0] for e in battle.live_enemies)
 
 
 def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
