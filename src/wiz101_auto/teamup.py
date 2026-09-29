@@ -28,6 +28,10 @@ TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_")
 # How quest steps name those dungeons ("Defeat Zeus Sky Father in Mount Olympus").
 TEAM_UP_NAMES = ("mount olympus",)
 TEAM_UP_WORDS = ("team up!", "team up")
+# Queue with Team Up, or only wait on the sigil for players to gather there
+# (the user's choice for now: the queue took us in with teams that then left).
+USE_QUEUE = False
+CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
 
 def is_team_up_zone(zone: str) -> bool:
@@ -132,7 +136,51 @@ def team_fight_at(circles, mates):
 async def queued(client) -> bool:
     """Already in the Team Up queue: the badge by the friends button says
     Waiting (and the sigil then shows no TEAM UP!, only Resume)."""
-    return (await ui.named_text(client, "txtTeamUp")).strip().lower() == "waiting"
+    badge = await ui._visible_named(client.root_window, "btnTeamUp")
+    if badge is None:
+        return False  # (its text keeps saying Waiting while hidden)
+    return "waiting" in ui._TAGS.sub("", await ui.named_text(client, "txtTeamUp")).lower()
+
+
+async def close_events_window(client) -> bool:
+    """The events window (Fall Scroll of Fortune...) that a press on the
+    Waiting badge's spot opened: close it."""
+    close = await ui._visible_named(client.root_window, "CloseClassProjectLaunchButton")
+    if close is None:
+        return False
+    logger.info("team up: closing the events window")
+    await ui.click_center(client, close)
+    await asyncio.sleep(1.0)
+    return True
+
+
+async def cancel_queue(client) -> bool:
+    """Leave the Team Up queue: press the Waiting badge and say yes to what
+    it asks. True once no longer queued."""
+    if not await queued(client):
+        return True
+    badge = await ui._visible_named(client.root_window, "btnTeamUp")
+    if badge is None:
+        logger.warning("team up: queued but no Waiting badge to press")
+        return False
+    logger.info("team up: leaving the queue (pressing the Waiting badge)")
+    await ui.click_center(client, badge)
+    await asyncio.sleep(1.5)
+    await _dump(client, "cancel")
+    if await close_events_window(client):
+        return not await queued(client)
+    box = await ui.modal_box(client)
+    if box is not None:
+        logger.info(f"team up: the game asks: {(await ui.modal_text(box))[:120]!r}; yes")
+        await ui.press_modal_button(client, box, "centerButton")
+    else:
+        await _click(client, CANCEL_WORDS, "cancel")
+    await asyncio.sleep(1.5)
+    if await queued(client):
+        logger.warning("team up: still queued; windows saved to state/teamup_cancel.txt")
+        return False
+    logger.success("team up: left the queue")
+    return True
 
 
 async def _fill_form(client) -> bool:
@@ -207,8 +255,15 @@ async def team_up(quester, dungeon: str) -> str:
     client = quester.client
     zone = await client.zone_name()
     await _dump(client, "sigil")
+    if not USE_QUEUE:
+        # No queue: wait on the sigil for players to gather (and go in with them).
+        await close_stray_forms(client)
+        # (No cancel_queue here: the Waiting badge's spot is the events button
+        # when not queued, and pressing it opened the events window.)
+        await close_events_window(client)
+        logger.info("team up: waiting on the sigil for players to gather (not queueing)")
     # The form may still be open from before (a restart): fill that one in.
-    form_done = await _fill_form(client)
+    form_done = not USE_QUEUE or await _fill_form(client)
     if not form_done and await queued(client):
         logger.info("team up: already in the queue (Waiting); waiting on")
         form_done = True

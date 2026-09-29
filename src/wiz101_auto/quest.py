@@ -47,7 +47,7 @@ from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
+from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, USE_QUEUE, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -115,7 +115,7 @@ TEAM_FOLLOW = 900.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 3.0  # seconds between looks for a teammate's fight
 TEAM_LOST_AFTER = 20.0  # no teammate in sight this long: go after them
-TEAM_ALONE_AFTER = 90.0  # none at all this long: we're alone; leave and queue again
+TEAM_ALONE_AFTER = 300.0  # no teammate ever seen in here this long (not come in with one): alone
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
@@ -558,7 +558,8 @@ class Quester:
         self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
         # (zone, where, when, really seen) a teammate was last seen; False = our arrival spot
         self._mate_seen: tuple[str, XYZ, float, bool] | None = None
-        self._team_alone_since: float | None = None  # in a team dungeon with no teammate in sight since
+        self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
+        self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -946,11 +947,14 @@ class Quester:
             await self._mark_here()
             outcome = await team_up(self, dungeon)
             if outcome == "in":
+                self._team_with_us = True  # came in with a team (or the sigil's party)
                 self._dungeon = (zone or "", await self.client.zone_name() or "")
                 self._sigil_failed_at = None
                 return True
-            if outcome == "switched":
-                return False  # another realm: back on the sigil, queue again
+            if outcome == "switched" or not USE_QUEUE:
+                # Another realm, or waiting on the sigil for players (no queue):
+                # back on the sigil and wait again; never set the quest aside.
+                return False
             logger.warning(f"no team for {dungeon}; not going in alone, setting this quest aside for now")
             await self._set_current_aside(await self.objective())
             return False
@@ -2471,9 +2475,13 @@ class Quester:
         me = await self._position()
         mates = await teammates(self.client, me)
         now = time.monotonic()
-        if mates or self._team_alone_since is None:
+        if mates:
+            self._team_with_us = True  # seen one in here: we have a team
+        if self._team_alone_since is None:
             self._team_alone_since = now
-        elif now - self._team_alone_since > TEAM_ALONE_AFTER:
+        elif not self._team_with_us and now - self._team_alone_since > TEAM_ALONE_AFTER:
+            # Only when no teammate has been seen in here at all (and we didn't
+            # come in with one): out of sight in another room isn't alone.
             # Nobody with us: leave by the world hub button and queue for a new team.
             from .dungeon_heal import go_to_hub
 
@@ -3159,6 +3167,7 @@ class Quester:
                 return
         else:
             self._team_alone_since = None
+            self._team_with_us = False
         # After a defeat by a boss we marked beside: go back first and heal
         # there (Katzenstein's Lab), not slowly out in the hub.
         fight_mark = bool(self._mark and self._mark.kind == "fight")
