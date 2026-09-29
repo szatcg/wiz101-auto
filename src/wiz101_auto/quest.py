@@ -380,6 +380,15 @@ def talk_target(objective: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+_OPERATE = re.compile(r"^\s*(?:use|pull|push|press|activate|turn|flip)\s+(.+?)(?:\s+in\s+.+)?\s*$", re.I)
+
+
+def operate_target(objective: str) -> str | None:
+    """The object a "Use/Pull/Press X in Place" objective names."""
+    m = _OPERATE.match(objective or "")
+    return m.group(1).strip() if m else None
+
+
 def is_hub(zone: str) -> bool:
     """A world's hub (the Oasis, the Commons...): "Krokotopia/KT_Hub"."""
     return zone.split("/")[-1].endswith("_Hub")
@@ -2152,12 +2161,14 @@ class Quester:
     async def _use_named_object(self, objective: str) -> bool:
         """'Use X': teleport beside the object named X (its own height), nudge
         until the X prompt shows and press it. True if it tried."""
-        from .puzzles import use_target
-
-        name = use_target(objective)
+        name = operate_target(objective)
         if not name:
             return False
-        pos = await self._npc_named(name)  # exact name, not an enemy
+        # Several with that name (a Counterweight Lever on every floor): the
+        # one at the quest marker is this step's.
+        marker = await self.client.quest_position.position()
+        near = marker if distance(marker, XYZ(0, 0, 0)) > 1 else await self._position()
+        pos = await self._npc_named(name, near=near)  # exact name, not an enemy
         if pos is None:
             return False
         me = await self._position()
@@ -2264,9 +2275,10 @@ class Quester:
             await self.interact(objective)
         return True
 
-    async def _npc_named(self, name: str):
+    async def _npc_named(self, name: str, near: XYZ | None = None):
         """Position of an entity named exactly `name` that isn't an enemy
-        ('Clockwork', not the 'Clockwork Warrior' mobs), or None."""
+        ('Clockwork', not the 'Clockwork Warrior' mobs), or None; with `near`,
+        the one closest to it."""
         from .names import lang_name
 
         want = _norm_name(name)
@@ -2274,6 +2286,7 @@ class Quester:
             mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
         except Exception:
             mobs = set()
+        found: list[XYZ] = []
         for e in await self.client.get_base_entity_list():
             try:
                 t = await e.object_template()
@@ -2282,10 +2295,13 @@ class Quester:
                     continue
                 if await e.global_id_full() in mobs:
                     continue
-                return await e.location()
+                pos = await e.location()
+                if near is None:
+                    return pos
+                found.append(pos)
             except Exception:
                 continue
-        return None
+        return min(found, key=lambda q: distance(q, near)) if found else None
 
     async def _named_enemy_here(self, objective: str) -> bool:
         """Is the enemy the objective names (Defeat X, or Talk To an enemy) in this zone?"""

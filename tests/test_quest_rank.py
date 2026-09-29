@@ -220,3 +220,11 @@ def test_main_story_beats_an_earlier_listed_side_quest():
         "weirdscience": ListedQuest(45, "Weird Science", "Lab"),
     }
     assert choose_quest([side, main], order=order, world="Marleybone") is main
+
+
+def test_operate_target():
+    from wiz101_auto.quest import operate_target
+
+    assert operate_target("Pull Counterweight Lever in Counterweight East") == "Counterweight Lever"
+    assert operate_target("Use Charging Lever in Katzenstein's Lab") == "Charging Lever"
+    assert operate_target("Talk To Gus") is None
