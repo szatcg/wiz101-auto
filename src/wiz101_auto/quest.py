@@ -1620,7 +1620,7 @@ class Quester:
                 errand = errand_detour([q for _, q in all_quests], chosen, set_aside, world)
                 if errand:
                     if not errand.active:
-                        logger.info(f"quick errand first: {errand.name!r} ({errand.goal}), "
+                        logger.info(f"quick errand first: {errand.name!r} ({errand.goal or errand.target}), "
                                     f"then back to {chosen.name!r}")
                     chosen = errand
             _write_quest_book([q for _, q in all_quests], chosen, world)
