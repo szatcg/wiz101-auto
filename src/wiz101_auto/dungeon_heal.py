@@ -63,6 +63,11 @@ class DungeonHealer:
         low = hp < self.cfg.min_health_to_fight or mana < DUNGEON_MANA_TRIP
         if not low or not await is_free(self.client):
             return False
+        m = self.q._mark
+        if m and m.kind == "fight" and m.zone == zone:
+            # Marked beside the boss: heal here (wisps, rest), don't leave.
+            await recover(self.client, self.cfg, self.q.controller)
+            return True
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
     async def trip(self, zone: str, why: str, mark: bool = True) -> bool:

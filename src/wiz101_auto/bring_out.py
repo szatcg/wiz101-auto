@@ -57,6 +57,30 @@ class BringOut:
         self._switched: set[tuple[str, str]] = set()
         self._boss_visited: set[tuple[str, str]] = set()
 
+    async def _ready_for_boss(self) -> bool:
+        """Full health before a boss: heal right here (wisps, rest) if not.
+        True when ready. (It walked into two Clockwork Warriors at 49%.)"""
+        from .upkeep import health_mana, recover
+
+        cfg = self.q.upkeep
+        if cfg is None:
+            return True
+        hp, mana = await health_mana(self.client)
+        if hp >= cfg.min_health_to_fight:
+            return True
+        logger.info(f"healing here to {cfg.min_health_to_fight:.0%} before the boss (at {hp:.0%})")
+        await recover(self.client, cfg, self.q.controller)  # on the spot: no trips out of the dungeon
+        return False
+
+    async def _mark_for_boss(self, objective: str):
+        """Mark next to the boss (once per objective), so a defeat is a Recall
+        straight back here instead of the locked doors again."""
+        m = self.q._mark
+        zone = await self.client.zone_name() or ""
+        if m and m.kind == "fight" and m.zone == zone and m.objective == objective:
+            return
+        await self.q._mark_here("fight", objective=objective)
+
     def _remembered_boss(self, zone: str):
         """(name, spot) of a boss known to be in this dungeon, from where it was seen."""
         from .dungeons import DungeonMemory
@@ -144,6 +168,8 @@ class BringOut:
             if spot is not None:
                 # Enemies only load near the wizard: go where this dungeon's boss
                 # was seen (Dr. Von Katzenstein, past two locked doors).
+                if not await self._ready_for_boss():
+                    return True
                 self._boss_visited.add(key)
                 name_, pos = spot
                 logger.info(f"{name} isn't here yet; going to where {name_} was seen to beat them first")
@@ -159,6 +185,9 @@ class BringOut:
         if kind is None:
             return False
         if kind == "boss":
+            if not await self._ready_for_boss():
+                return True
+            await self._mark_for_boss(objective)
             logger.info(f"{name} isn't here yet; beating the boss in this room first")
             from .safe_teleport import allow_engage
 

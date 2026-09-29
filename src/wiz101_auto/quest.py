@@ -2410,6 +2410,11 @@ class Quester:
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
+        # After a defeat by a boss we marked beside: go back first and heal
+        # there (Katzenstein's Lab), not slowly out in the hub.
+        fight_mark = bool(self._mark and self._mark.kind == "fight")
+        if self._recall_pending and fight_mark and await self._recall_to_mark():
+            return
         in_dungeon = await self._in_dungeon(zone_now)
         # In a dungeon, leaving to heal resets it: first do everything that
         # needs no fight (the talk after beating Willie Marks), and heal only
