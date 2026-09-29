@@ -60,6 +60,7 @@ from .travel_data import (
 )
 from .upkeep import (
     clear_popups,
+    health_mana,
     is_free,
     mob_positions,
     move_to_safety,
@@ -2015,6 +2016,12 @@ class Quester:
         self._fled[key] = self._fled.get(key, 0) + 1
         if self._fled[key] > FLEES_BEFORE_FIGHTING:
             who = ', '.join(sorted(set(names)))
+            hp, mana = await health_mana(self.client)
+            if self.upkeep and self.upkeep.needs_recovery(hp, mana):
+                # Fighting through at 0 mana (the O'Leary Nappers) only loses.
+                logger.info(f"fled {who} {self._fled[key] - 1} times here, but at {hp:.0%} health, "
+                            f"{mana:.0%} mana: fleeing again")
+                return True
             logger.info(f"fled {who} {self._fled[key] - 1} times here; fighting through")
             return False
         return True
@@ -2257,8 +2264,6 @@ class Quester:
             await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
         await self._note_defeats()
-        if self._grinding and await self._grind():
-            return
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).
         zone_now = await self.client.zone_name() or ""
@@ -2287,6 +2292,10 @@ class Quester:
         ):
             return
         if await self._recall_to_mark():
+            return
+        # Grinding comes after healing: right after a defeat it went looking for
+        # fights at 0 mana and a third of its health.
+        if self._grinding and await self._grind():
             return
         if not self._grinding and await self.givers.ask_nearby():
             return

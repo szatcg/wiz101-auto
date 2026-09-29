@@ -311,7 +311,14 @@ class Fighter(CombatHandler):
             battle.upcoming = self._upcoming(battle)
             battle.deck_known = bool(self._deck)
             if out_of_mana(battle):
-                logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: passing")
+                # Nothing castable without mana: passing until defeated loses
+                # anyway; fleeing keeps our health.
+                if not self._flee_tried_this_round:
+                    self._flee_tried_this_round = True
+                    logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: fleeing")
+                    if await self.flee():
+                        return
+                logger.warning("could not flee; passing")
                 await self.pass_button()
                 return
 
