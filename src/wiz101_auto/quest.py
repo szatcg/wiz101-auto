@@ -1198,6 +1198,21 @@ class Quester:
             logger.debug(f"boss chest looting failed: {exc!r}")
         return True
 
+    async def _dorm_to_wizard_city(self) -> bool:
+        """The objective is in Wizard City and we're in another world: the dorm
+        button lands in Wizard City at once (the world gate route looped in
+        Marleybone's station). True if it went."""
+        zone = await self.client.zone_name() or ""
+        target = objective_zone(await self.objective())
+        if not target or not target.startswith("WizardCity/") or zone.startswith("WizardCity/"):
+            return False
+        if not await is_free(self.client) or await self._in_dungeon(zone):
+            return False
+        from .trainer import go_home
+
+        logger.info(f"the quest is in Wizard City ({target}); going by the dorm button")
+        return await go_home(self.client)
+
     async def _leave_spiral_map(self) -> bool:
         """Walking into a world gate (not pressing X at it) opens the Spiral
         Map with the quest's world already ticked: press Go To World. True if
@@ -2936,6 +2951,8 @@ class Quester:
             return
         await clear_popups(self.client)
         if await self._leave_spiral_map():
+            return
+        if await self._dorm_to_wizard_city():
             return
         if time.monotonic() - self._last_entity_scan > ENTITY_SCAN_SECONDS:
             self._last_entity_scan = time.monotonic()

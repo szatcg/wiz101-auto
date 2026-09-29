@@ -26,7 +26,8 @@ from wizwalker import XYZ
 
 OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
 GROUND_HEIGHT = 400.0  # ground points at about the destination's height count
-MIN_GROUND_POINTS = 6  # judge only with enough of the zone known
+MIN_GROUND_POINTS = 25  # judge only with enough of the zone known
+MAX_SNAP = 1600.0  # never move a landing further than this
 FIGHT_STARTING = 30.0  # seconds after heading into a fight in which a circle holds us
 ON_CIRCLE = 700.0  # this close to a duel circle's center: on it (no teleporting off)
 DUEL_CIRCLE_RING = 350.0  # a duel circle's seats: hazards on this ring around its center
@@ -106,9 +107,10 @@ def install(client):
                 # Off the map (the clouds past the Commons' edge, where walking
                 # does nothing): land on the nearest known ground instead.
                 ground = [g for g in await ground_of(xyz) if abs(g[2] - xyz.z) < GROUND_HEIGHT]
-                if len(ground) >= MIN_GROUND_POINTS and all(
-                    math.dist((xyz.x, xyz.y), g[:2]) > OFF_MAP for g in ground
-                ):
+                nearest = min((math.dist((xyz.x, xyz.y), g[:2]) for g in ground), default=0.0)
+                # Only with the zone well known, and only a short move: in a
+                # sparsely known zone it moved landings 2000 away.
+                if len(ground) >= MIN_GROUND_POINTS and OFF_MAP < nearest < MAX_SNAP:
                     g = min(ground, key=lambda q: math.dist((xyz.x, xyz.y), q[:2]))
                     logger.info(f"({xyz.x:.0f}, {xyz.y:.0f}) looks off the map; landing on known ground "
                                 f"at ({g[0]:.0f}, {g[1]:.0f})")
