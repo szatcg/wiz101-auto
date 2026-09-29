@@ -189,7 +189,8 @@ def _area_of(q: QuestEntry, order: dict) -> int | None:
 
 
 def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) -> tuple:
-    """Higher is better. Spell quests make the wizard stronger; then the earliest
+    """Higher is better. Spell quests make the wizard stronger; then the main
+    story (the book's flag); then the earliest
     area is cleared first; within an area, quests without a fight (talk, go to,
     collect) are quick experience; quests from docs/QuestList.txt go in list
     order; nearer beats farther; the tracked quest wins ties so the bot doesn't
@@ -201,7 +202,9 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
     easy = bool(q.goal) and not is_combat_objective(q.goal)
     listed = order.get(norm(q.name))
     position = -listed.index if listed else -10_000
-    return (q.activity, -area, easy, position, -hops, q.active, q.mainline, q.reward)
+    # The book's main-story flag beats list order: a side quest on the Spiral
+    # Tracker list ('No Entry') was followed ahead of 'Weird Science'.
+    return (q.activity, q.mainline, -area, easy, position, -hops, q.active, q.reward)
 
 
 def quest_world(q: QuestEntry) -> str | None:

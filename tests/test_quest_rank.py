@@ -207,3 +207,16 @@ def test_talk_target():
     assert talk_target("Talk To Willie Marks in Willie's Clocktower") == "Willie Marks"
     assert talk_target("Talk To Ms. Conrail") == "Ms. Conrail"
     assert talk_target("Defeat Willie Marks") is None
+
+
+def test_main_story_beats_an_earlier_listed_side_quest():
+    from wiz101_auto.quest import QuestEntry, choose_quest
+    from wiz101_auto.questlist import ListedQuest
+
+    main = QuestEntry(0, "Weird Science", mainline=True, zone="Marleybone")
+    side = QuestEntry(1, "No Entry", zone="Marleybone", active=True)
+    order = {
+        "noentry": ListedQuest(40, "No Entry", "Ironworks"),
+        "weirdscience": ListedQuest(45, "Weird Science", "Lab"),
+    }
+    assert choose_quest([side, main], order=order, world="Marleybone") is main
