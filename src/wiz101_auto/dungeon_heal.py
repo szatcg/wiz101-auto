@@ -20,6 +20,7 @@ from . import ui
 from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading
 
+DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
 TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 30 minutes
 # The compass's teleport buttons: "GoHomeButton" goes to the current world's
 # hub (the Oasis in Krokotopia); "GotoDormButton" goes to the dorm.
@@ -52,6 +53,9 @@ class DungeonHealer:
     async def between_fights(self, zone: str) -> bool:
         """Inside a dungeon and in need of recovery: heal outside and come
         back. True if it acted this step."""
+        fighter = self.q.fighter
+        if fighter and time.monotonic() - fighter.combat_ended_at < DEFEAT_SETTLE_SECONDS:
+            return False  # a lost fight registers as a defeat a moment after it ends
         hp, mana = await health_mana(self.client)
         if not self.cfg.needs_recovery(hp, mana) or not await is_free(self.client):
             return False

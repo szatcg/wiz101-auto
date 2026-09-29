@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import time
 from collections import Counter
 
 from loguru import logger
@@ -68,6 +69,7 @@ class Fighter(CombatHandler):
         self.flee_below = flee_below
         self.fights = 0
         self.boss_fights = 0  # fights that had a boss in them (a loot chest may spawn after)
+        self.combat_ended_at = 0.0  # monotonic time the last fight ended
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
@@ -420,6 +422,7 @@ class Fighter(CombatHandler):
         self._had_boss = False
         await super().handle_combat()
         self.fights += 1
+        self.combat_ended_at = time.monotonic()
         if self._had_boss:
             self.boss_fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")

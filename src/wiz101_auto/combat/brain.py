@@ -44,9 +44,8 @@ from .model import (
 class Strategy:
     heal_threshold: float = 0.35  # heal self below this health ratio
     boss_heal_threshold: float = 0.45  # bosses hit harder: heal a little sooner
-    # A cast that ends the fight wins over healing above this; one that kills
-    # at least one enemy (one fewer attacker) above partial_kill_health.
-    critical_health: float = 0.2
+    # A cast that ends the fight always wins over healing; one that kills at
+    # least one enemy (one fewer attacker) does above this health.
     partial_kill_health: float = 0.25
     ally_heal_threshold: float = 0.35
     shield_threshold: float = 0.6  # shield self below this if no heal is available
@@ -1007,9 +1006,7 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     kill = _kill_action(battle)
     heal = _best_heal(battle, strat)
     if kill and _kills_all(battle, kill):
-        if heal and battle.me.health_ratio < strat.critical_health:
-            return heal
-        return kill
+        return kill  # ending the fight beats any heal, however low we are
 
     if heal:
         # Removing an attacker beats a 2-pip heal unless we're about to fall.

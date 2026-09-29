@@ -197,13 +197,12 @@ def test_finishing_the_last_enemy_beats_healing_and_summoning():
     assert action.card.name == "Blood Bat" and action.reason.startswith("finish")
 
 
-def test_low_health_heals_before_finishing_the_last_enemy():
-    # A Desert Golem killed the wizard at 267/815 while it cast Troll for the kill:
-    # the enemy can act first, and spells fizzle. Low on health, heal first.
+def test_finishing_the_last_enemy_beats_healing_even_when_low():
+    # Ending the fight is worth more than a heal, however low we are.
     hand = [dmg_card(0, "Troll", 400, pips=2), heal_card(1, "Pixie", 400)]
-    b = battle(hand, [enemy("Desert Golem", 395)], my=me(hp=90))  # under critical_health
+    b = battle(hand, [enemy("Desert Golem", 395)], my=me(hp=40))
     b.pips = 2
-    assert decide(b).card.name == "Pixie"
+    assert decide(b).card.name == "Troll"
 
 
 def test_kill_counts_traps_and_ignores_accuracy():
