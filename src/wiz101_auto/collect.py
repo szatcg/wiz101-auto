@@ -9,6 +9,7 @@ auto-collect.
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 import time
 
@@ -339,3 +340,44 @@ class Collector:
         await asyncio.sleep(0.3)
         await press_interact()
         return True
+
+
+ROUTE_STEP = 550.0  # walkway points this close (and ROUTE_RISE in height) are linked
+ROUTE_RISE = 300.0
+
+
+def walk_route(points: list, start, goal, step: float = ROUTE_STEP, rise: float = ROUTE_RISE) -> list:
+    """Waypoints from `start` to `goal` over the zone's walkway points: the
+    shortest chain of points each within `step` of the next and at most `rise`
+    higher or lower (so a staircase is climbed a few steps at a time, not
+    through the floor above). [] when no chain links them."""
+    import heapq
+
+    nodes = [tuple(start), *[tuple(p) for p in points], tuple(goal)]
+    n = len(nodes)
+
+    def linked(a, b) -> bool:
+        return abs(a[2] - b[2]) <= rise and math.dist(a[:2], b[:2]) <= step
+
+    dist = {0: 0.0}
+    prev: dict[int, int] = {}
+    heap = [(0.0, 0)]
+    while heap:
+        d, i = heapq.heappop(heap)
+        if i == n - 1:
+            break
+        if d > dist.get(i, float("inf")):
+            continue
+        for j in range(n):
+            if j != i and linked(nodes[i], nodes[j]):
+                nd = d + math.dist(nodes[i], nodes[j])
+                if nd < dist.get(j, float("inf")):
+                    dist[j], prev[j] = nd, i
+                    heapq.heappush(heap, (nd, j))
+    if n - 1 not in dist:
+        return []
+    route, i = [], n - 1
+    while i != 0:
+        route.append(nodes[i])
+        i = prev[i]
+    return route[::-1]

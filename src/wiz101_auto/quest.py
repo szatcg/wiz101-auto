@@ -2229,10 +2229,36 @@ class Quester:
             logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
         await self.client.teleport(start)
         await asyncio.sleep(0.8)
+        if below is not None:
+            await self._walk_route_to(circle, zone)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
         await self._hold_for_fight()
         return True
+
+    async def _walk_route_to(self, goal: XYZ, zone: str):
+        """Walk (never teleport) to `goal` along the zone's walkway points, so
+        stairs are climbed the way a player does (Sprockets spawns partway up
+        the last staircase). Falls back to nothing when no route links up."""
+        from .collect import walk_route
+
+        here = await self._position()
+        points = await path_points(self.client) + await self._landmarks()
+        points += self.entity_map.spots(zone, lambda _n: True, (here.x, here.y, here.z))
+        route = walk_route(points, (here.x, here.y, here.z), (goal.x, goal.y, goal.z))
+        if not route:
+            logger.info("no walkway route up to the fight; walking straight at it")
+            return
+        logger.info(f"walking up to the fight along {len(route)} walkway point(s)")
+        for x, y, z in route[:-1]:  # the last one is the circle itself
+            if await self.client.in_battle():
+                return
+            await self.client.goto(x, y)
+            await asyncio.sleep(0.2)
+            pos = await self._position()
+            if math.dist((pos.x, pos.y), (x, y)) > 250:
+                logger.debug(f"walkway point ({x:.0f}, {y:.0f}, {z:.0f}) not reached "
+                             f"(at {pos.x:.0f}, {pos.y:.0f})")
 
     async def _hold_for_fight(self) -> bool:
         """Just walked into a fight's circle: stand still while it starts. A
