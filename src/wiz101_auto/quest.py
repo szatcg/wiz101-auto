@@ -133,7 +133,7 @@ ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most ho
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
-APPROACH_LIMITS = {"marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2}
+APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2}
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -3058,10 +3058,20 @@ class Quester:
             return  # a fight or dialogue started on arrival
 
         dist = distance(await self.client.body.position(), target)
-        if dist < INTERACT_RANGE and await self.interact(objective):
+        # A Talk To whose person isn't out here (Dworgyn, inside a building in
+        # Nightside): after two talks at the marker (someone else answered),
+        # the marker is a door; stop talking and go through it.
+        talk_marker = "talk" in objective.lower()
+        wrong_talker = (
+            talk_marker and dist < INTERACT_RANGE and not self._may_try(objective, zone or "", "talk_marker")
+            and talk_target(objective) and await self._npc_named(talk_target(objective)) is None
+        )
+        if wrong_talker:
+            logger.info(f"{talk_target(objective)} isn't out here; the marker must be a door")
+        if dist < INTERACT_RANGE and not wrong_talker and await self.interact(objective):
             await self._count_attempt()
             return
-        if dist < INTERACT_RANGE and "talk" in objective.lower():
+        if dist < INTERACT_RANGE and talk_marker and not wrong_talker:
             # NPC prompts appear on walking into range, not on teleporting there.
             await self.client.send_key(Keycode.S, 0.3)
             await self.client.send_key(Keycode.W, 0.3)
