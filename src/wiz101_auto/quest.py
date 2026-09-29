@@ -109,6 +109,10 @@ NEAR_START = 2500.0  # already this close to where the walk up starts: walk from
 FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
+TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the circle, walk in
+TEAM_FOLLOW = 900.0  # farther than this from the nearest teammate: catch up
+TEAM_BEHIND = 250.0  # ... landing this far behind them
+TEAM_WAIT_TICK = 3.0  # seconds between looks for a teammate's fight
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
 APPROACH_TRIES = 8  # approach spots tried around a door
@@ -2433,6 +2437,54 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _team_step(self) -> bool:
+        """With a team (a Team Up dungeon): never start a fight. Join the ones
+        teammates start (walk into their circle); on a fight step, stay with
+        the nearest teammate meanwhile. Other steps (talks, pick-ups) go on
+        as usual. True if it acted."""
+        from .collect import duel_circles
+        from .safe_teleport import allow_engage
+        from .teamup import team_fight_at, teammates
+
+        me = await self._position()
+        mates = await teammates(self.client, me)
+        circles = sorted((XYZ(*c) for c in await duel_circles(self.client)), key=lambda c: distance(c, me))
+        fight = team_fight_at(circles, mates)
+        if fight is not None:
+            logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
+            if distance(me, fight) > TEAM_JOIN_FROM * 1.5:
+                dx, dy = me.x - fight.x, me.y - fight.y
+                length = math.hypot(dx, dy) or 1.0
+                await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,
+                                               fight.y + dy / length * TEAM_JOIN_FROM, fight.z))
+                await asyncio.sleep(0.8)
+            allow_engage(self.client)
+            await self.client.goto(fight.x, fight.y)
+            await self._hold_for_fight()
+            self._last_progress_time = time.monotonic()
+            return True
+        objective = await self.objective()
+        if not (is_combat_objective(objective or "") or self._step_is_fight):
+            return False
+        self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
+        self.controller.allow_idle(TEAM_WAIT_TICK + 10)
+        try:
+            if not mates:
+                logger.debug("no teammate in sight; waiting for the team to start a fight")
+            else:
+                mate = min(mates, key=lambda m: distance(m, me))
+                if distance(mate, me) > TEAM_FOLLOW:
+                    logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
+                                "not starting fights")
+                    dx, dy = me.x - mate.x, me.y - mate.y
+                    length = math.hypot(dx, dy) or 1.0
+                    await self.client.teleport(XYZ(mate.x + dx / length * TEAM_BEHIND,
+                                                   mate.y + dy / length * TEAM_BEHIND, mate.z))
+            await asyncio.sleep(TEAM_WAIT_TICK)
+        finally:
+            self.controller.end_idle()
+        return True
+
     async def _walk_into_circle(self, marker: XYZ) -> bool:
         """Land CIRCLE_WALK_FROM away from the duel circle nearest the marker
         and walk into it (the way a player starts a fight). True if it went."""
@@ -3030,6 +3082,8 @@ class Quester:
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
+        if is_team_up_zone(zone_now) and await self._team_step():
+            return
         # After a defeat by a boss we marked beside: go back first and heal
         # there (Katzenstein's Lab), not slowly out in the hub.
         fight_mark = bool(self._mark and self._mark.kind == "fight")
@@ -3264,7 +3318,11 @@ class Quester:
             # the enemies in front of it are beaten: go fight them.
             key = (objective, zone)
             self._unreached[key] = self._unreached.get(key, 0) + 1
-            if self._unreached[key] >= UNREACHED_BEFORE_FIGHT and await self.sprinter.get_mobs():
+            if (
+                self._unreached[key] >= UNREACHED_BEFORE_FIGHT
+                and not is_team_up_zone(zone or "")  # with a team, the team starts fights
+                and await self.sprinter.get_mobs()
+            ):
                 logger.info("can't reach the quest marker (a locked gate?); fighting nearby enemies")
                 self._unreached[key] = 0
                 await self.pull_mob()

@@ -20,3 +20,14 @@ def test_team_up_zones():
     assert is_team_up_zone("Aquila/AQ_Z01_MountOlympus")
     assert is_team_up_zone("Aquila/Interiors/AQ_Z01_Apollo_Room")
     assert not is_team_up_zone("Aquila/AQ_Z00_Hub")
+
+
+def test_team_fight_is_a_circle_with_a_teammate_in_it():
+    from wizwalker import XYZ
+
+    from wiz101_auto.teamup import team_fight_at
+
+    circles = [XYZ(0, 0, 0), XYZ(3000, 0, 0)]
+    assert team_fight_at(circles, [XYZ(3100, 50, 0)]) is circles[1]
+    assert team_fight_at(circles, [XYZ(1500, 0, 0)]) is None  # nobody in a circle
+    assert team_fight_at(circles, []) is None
