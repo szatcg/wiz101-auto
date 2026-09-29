@@ -136,6 +136,10 @@ class QuestEntry:
     world: str = ""  # area shown in the book, e.g. "Triton Avenue"
     hops: int | None = None  # gate hops from where the wizard is (None = unknown)
     goal: str = ""  # current objective shown in the book, e.g. "Talk To Private Stillson"
+    zone: str = ""  # the book's world name for the area, e.g. "Marleybone"
+    target: str = ""  # the step's target as the book shows it ("Ms. Conrail"), no verb
+    fight: bool = False  # the book shows the encounter icon: this step is a fight
+    counted: bool = False  # the step has a counter ("0 of 3"): collect/defeat several
 
 
 UNKNOWN_HOPS = 5  # an area we can't route to counts as fairly far
@@ -192,7 +196,14 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
 def quest_world(q: QuestEntry) -> str | None:
     """The world ("Krokotopia") a quest's area is in, from the book's area name."""
     zone = objective_zone(q.world) if q.world else None
-    return zone.split("/", 1)[0] if zone else None
+    if zone:
+        return zone.split("/", 1)[0]
+    return q.zone.replace(" ", "") or None
+
+
+def same_world(a: str | None, b: str | None) -> bool:
+    """World ids and the book's names differ in spaces/case ("WizardCity", "Wizard City")."""
+    return bool(a and b) and a.replace(" ", "").lower() == b.replace(" ", "").lower()
 
 
 def choose_quest(
@@ -251,6 +262,18 @@ def is_errand(goal: str) -> bool:
     return bool(words) and words[0] in ERRAND_VERBS and not is_combat_objective(goal)
 
 
+def quest_is_errand(q: QuestEntry) -> bool:
+    """The quest's current step needs no fight: a worded goal ("Talk To X")
+    judged by its verb, "Complete" (just hand it in), or the book's bare
+    target ("Ms. Conrail") with no encounter icon and no counter."""
+    goal = (q.goal or "").strip()
+    if goal.lower() == "complete":
+        return True
+    if goal:
+        return is_errand(goal)
+    return bool(q.target) and not q.fight and not q.counted
+
+
 def errand_detour(
     quests: list[QuestEntry], chosen: QuestEntry | None, set_aside: set[str] = frozenset(),
     world: str | None = None, max_hops: int = ERRAND_MAX_HOPS,
@@ -264,8 +287,8 @@ def errand_detour(
     options = [
         q for q in quests
         if q is not chosen and not q.mainline and not q.activity and q.name not in set_aside
-        and is_errand(q.goal) and q.hops is not None and q.hops <= max_hops
-        and quest_world(q) == world
+        and quest_is_errand(q) and q.hops is not None and q.hops <= max_hops
+        and same_world(quest_world(q), world)
     ]
     if not options:
         return None
@@ -1481,6 +1504,7 @@ class Quester:
             reward = await ui.text_at(self.client, reward_path)
             world = (await ui.text_at(self.client, [*base, "txtWorld"])).strip()
             goal = (await ui.text_at(self.client, [*base, "txtGoal"])).strip()
+            target = (await ui.text_at(self.client, [*base, "txtGoalObjective1"])).strip()
             if not self._book_dumped and i == 0:
                 # The goal text came back empty for most quests: save the
                 # slot's layout once to find where it lives.
@@ -1497,6 +1521,10 @@ class Quester:
                     name=name,
                     world=world,
                     goal=goal,
+                    zone=(await ui.text_at(self.client, [*base, "txtZone"])).strip(),
+                    target=target,
+                    fight=await ui.is_visible(self.client, [*base, "imgEncounter"]),
+                    counted=await ui.is_visible(self.client, [*base, "txtGoalCounter"]),
                     hops=hops_to_place(zone, world) if world else None,
                     activity=await ui.is_visible(self.client, [*base, "imgActivityQuestType"]),
                     mainline=await ui.is_visible(self.client, [*base, "LeftMainline"]),
@@ -1549,7 +1577,9 @@ class Quester:
             for _, q in all_quests:
                 flags = "main" if q.mainline else "spell" if q.activity else "side"
                 tracked = ", tracked" if q.active else ""
-                logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.world!r}: {q.goal!r}")
+                step = f"{q.goal or q.target!r}{' (fight)' if q.fight else ''}"
+                step += " (counted)" if q.counted else ""
+                logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.zone}/{q.world!r} {q.hops} hops: {step}")
             self._mainline = {q.name for _, q in all_quests if q.mainline}
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be

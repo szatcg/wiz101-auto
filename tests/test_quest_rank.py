@@ -184,3 +184,17 @@ def test_nearby_side_errand_comes_before_the_main_quest():
     # a side quest back in an earlier world isn't worth the trip
     old = QuestEntry(5, "Thirst Day", world="The Oasis", goal="Talk To Someone", hops=1)
     assert errand_detour([main, old], main, world=mb) is None
+
+
+def test_book_steps_without_verbs():
+    from wiz101_auto.quest import QuestEntry, errand_detour, quest_is_errand
+
+    talk = QuestEntry(1, "Back Up for Bones", zone="Marleybone", world="Hyde Park", target="Ms. Conrail",
+                      hops=1)
+    fight = QuestEntry(2, "Rats", zone="Marleybone", target="Rat Thief", fight=True, hops=0)
+    collect = QuestEntry(3, "Bones", zone="Marleybone", target="Bone", counted=True, hops=0)
+    done = QuestEntry(4, "Advanced Combat", zone="Wizard City", goal="Complete", hops=1)
+    assert quest_is_errand(talk) and quest_is_errand(done)
+    assert not quest_is_errand(fight) and not quest_is_errand(collect)
+    main = QuestEntry(0, "Not So Fast...", mainline=True, active=True, zone="Marleybone", fight=True)
+    assert errand_detour([main, talk, fight, collect, done], main, world="Marleybone") is talk
