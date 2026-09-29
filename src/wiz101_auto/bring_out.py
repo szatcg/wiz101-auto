@@ -27,6 +27,7 @@ from . import ui
 from .givers import is_named_npc
 from .puzzles import is_switch
 
+BOSS_MARK_DISTANCE = 700.0  # land (and mark) this far short of a remembered boss
 PICKUP_WORDS = ("crate", "box", "part", "gear", "cog", "spring", "bolt", "piece")
 _PICKUP = re.compile(r"\b(" + "|".join(PICKUP_WORDS) + r")s?\b", re.IGNORECASE)
 
@@ -173,11 +174,17 @@ class BringOut:
                 self._boss_visited.add(key)
                 name_, pos = spot
                 logger.info(f"{name} isn't here yet; going to where {name_} was seen to beat them first")
-                from .safe_teleport import allow_close_landing
-
-                allow_close_landing(self.client)
-                await self.client.teleport(XYZ(*pos))
+                # Land short of the boss (landing on it starts the fight at
+                # once), mark there, and the next step walks into the fight.
+                me = await self.client.body.position()
+                dx, dy = me.x - pos[0], me.y - pos[1]
+                length = math.hypot(dx, dy) or 1.0
+                back = BOSS_MARK_DISTANCE / length
+                short = XYZ(pos[0] + dx * back, pos[1] + dy * back, pos[2])
+                await self.client.teleport(short)
                 await asyncio.sleep(1.5)
+                if not await self.client.in_battle():
+                    await self._mark_for_boss(objective)
                 return True
         pickups, npcs = await self._scan(done)
         switches = await find_switches(self.client)
