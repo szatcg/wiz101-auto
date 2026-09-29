@@ -46,6 +46,8 @@ SIGIL_RADIUS = 450.0  # a player this near the sigil's center is standing on it
 SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
 SIGIL_COUNTDOWN_WAIT = 15.0
 SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
+NO_PLAYERS_SWITCH = 5 * 60  # nobody near the sigil this long while queued: switch realm
+SIGIL_AREA = 1500.0  # "near the sigil": players around here may be coming to go in
 IN_FIGHT_RANGE = 450.0  # a player this near a duel circle is in its fight
 ME_RANGE = 60.0  # a Player Object this near us is our own wizard
 
@@ -188,10 +190,11 @@ async def _click(client, words, stage: str) -> bool:
     return True
 
 
-async def team_up(quester, dungeon: str) -> bool:
+async def team_up(quester, dungeon: str) -> str:
     """On the dungeon's sigil (prompt showing): press TEAM UP!, confirm what
-    the game asks, and wait for a team to form and take us in. True once in
-    the dungeon."""
+    the game asks, and wait for a team to form and take us in. "in" once in
+    the dungeon, "switched" after moving to another realm (nobody around for
+    NO_PLAYERS_SWITCH: queue again there), "none" with no team."""
     client = quester.client
     zone = await client.zone_name()
     await _dump(client, "sigil")
@@ -199,7 +202,7 @@ async def team_up(quester, dungeon: str) -> bool:
     form_done = await _fill_form(client)
     if not form_done and not await _click(client, TEAM_UP_WORDS, "sigil"):
         logger.warning("team up: no TEAM UP! button on the sigil; windows saved to state/teamup_sigil.txt")
-        return False
+        return "none"
     await _dump(client, "window")
     quester.controller.allow_idle(TEAM_UP_WAIT + 60)
     try:
@@ -216,14 +219,26 @@ async def team_up(quester, dungeon: str) -> bool:
         last_report = started
         center = await sigil_center(client, await client.body.position())
         last_press = [0.0]
+        last_player = time.monotonic()
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
             if await _join_party_on_sigil(client, zone, center, last_press):
-                return True
+                return "in"
+            mates = await teammates(client, await client.body.position())
+            if any(m.distance(center) < SIGIL_AREA for m in mates):
+                last_player = time.monotonic()
+            elif time.monotonic() - last_player > NO_PLAYERS_SWITCH:
+                from .realm import switch_realm
+
+                logger.info(f"team up: no other players near the sigil for {NO_PLAYERS_SWITCH // 60} min; "
+                            "switching realm")
+                if await switch_realm(client):
+                    return "switched"
+                last_player = time.monotonic()  # it didn't work: wait another spell
             if await client.is_loading() or await client.zone_name() != zone:
                 await wait_for_loading(client)
                 logger.success(f"team up: in {await client.zone_name()} with a team")
-                return True
+                return "in"
             box = await ui.modal_box(client)
             if box is not None:
                 text = (await ui.modal_text(box)).lower()
@@ -237,6 +252,6 @@ async def team_up(quester, dungeon: str) -> bool:
                 logger.info(f"team up: still waiting ({(time.monotonic() - started) / 60:.0f} min)")
             await asyncio.sleep(2.0)
         logger.warning(f"team up: no team within {TEAM_UP_WAIT // 60} min")
-        return False
+        return "none"
     finally:
         quester.controller.end_idle()

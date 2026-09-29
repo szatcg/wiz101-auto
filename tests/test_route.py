@@ -41,3 +41,14 @@ def test_players_on_sigil():
     sigil = XYZ(0, 0, 0)
     assert players_on_sigil(sigil, [XYZ(100, 50, 0), XYZ(-200, 0, 0), XYZ(2000, 0, 0)]) == 2
     assert players_on_sigil(sigil, []) == 0
+
+
+def test_realm_names_and_rotation():
+    from wiz101_auto.realm import next_realm, realm_names
+
+    texts = ["Realms", "Ambrose", "Cooper", "Go To Realm", "Ambrose", "Close", "12:04", "Dworgyn"]
+    names = realm_names(texts)
+    assert names == ["Ambrose", "Cooper", "Dworgyn"]
+    assert next_realm(names, ["Ambrose"]) == "Cooper"
+    assert next_realm(names, names) == "Ambrose"  # all tried: start over
+    assert next_realm([], []) is None

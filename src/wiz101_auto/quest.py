@@ -927,10 +927,13 @@ class Quester:
             from .teamup import team_up
 
             await self._mark_here()
-            if await team_up(self, dungeon):
+            outcome = await team_up(self, dungeon)
+            if outcome == "in":
                 self._dungeon = (zone or "", await self.client.zone_name() or "")
                 self._sigil_failed_at = None
                 return True
+            if outcome == "switched":
+                return False  # another realm: back on the sigil, queue again
             logger.warning(f"no team for {dungeon}; not going in alone, setting this quest aside for now")
             await self._set_current_aside(await self.objective())
             return False
