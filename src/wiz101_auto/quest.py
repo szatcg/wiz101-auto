@@ -100,7 +100,9 @@ STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) i
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
-APPROACH_LIMITS = {"marker_x": 2, "teleporter": 3, "sweep": 2, "inch": 2}
+APPROACH_LIMITS = {"marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2}
+WALK_LEG = 1500.0  # walking toward a far marker, a look for the target after each leg
+WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 RECALL_RETRY_SECONDS = 600.0  # after a travel recall fails (cooldown, refused), walk for a while
 MARKER_WALK_RANGE = 800.0  # this close to the marker with the named enemy missing: walk onto it
@@ -1705,6 +1707,32 @@ class Quester:
         self._attempts_at = {k: v for k, v in self._attempts_at.items() if k[0] != objective}
         return await self._set_current_aside(objective)
 
+    async def _walk_toward(self, marker: XYZ, target: str) -> bool:
+        """Walk toward a far marker in legs, looking for `target` after each
+        (it loads once we're near); a leg blocked by a wall is hopped with a
+        short teleport further on. True if it came into view (or a fight
+        started on the way)."""
+        from .bossfarm import find_entity_named
+
+        logger.info(f"walking toward the quest marker to find {target}")
+        for _ in range(WALK_LEGS):
+            here = await self._position()
+            gap = distance(here, marker)
+            if gap < INTERACT_RANGE:
+                break
+            f = min(1.0, WALK_LEG / gap)
+            step = XYZ(here.x + (marker.x - here.x) * f, here.y + (marker.y - here.y) * f, here.z)
+            await self.client.goto(step.x, step.y)
+            if not await is_free(self.client):
+                return True
+            if distance(await self._position(), here) < WALK_LEG / 4:
+                await self.client.teleport(step)  # blocked: hop past it (landing checked for enemies)
+                await asyncio.sleep(0.6)
+            if await find_entity_named(self.client, target) is not None:
+                logger.info(f"{target} is in view")
+                return True
+        return False
+
     async def _use_zone_teleporter(self, objective: str) -> bool:
         """Take the next untried in-zone teleporter (an object labelled "To
         ...", like the Djeserit tomb's "To the Sarcophagus") toward a far quest
@@ -1821,6 +1849,11 @@ class Quester:
                     if await self._press_x_here(zone_now, adjust=True):
                         return
                     if not await is_free(self.client):
+                        return
+                # Far from the marker: walk toward it (enemies only load nearby;
+                # King Shemet was 26000 away, easy to reach on foot).
+                if not at_marker and self._may_try(objective, zone_now, "walk"):
+                    if await self._walk_toward(marker, target):
                         return
                 # Far from an unreachable marker: an in-zone teleporter ("To the
                 # Sarcophagus") is the way over to it.
