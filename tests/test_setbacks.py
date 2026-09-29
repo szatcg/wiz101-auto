@@ -50,3 +50,12 @@ def test_a_set_aside_main_quest_waits_for_a_level_up(tmp_path):
     later = DEFER_SECONDS + 10
     assert s.set_aside(14, now=later) == {"Payback"}  # the side quest's hour is up
     assert s.set_aside(15, now=later) == set()
+
+
+def test_stuck_main_quest_comes_back_after_its_retry_time(tmp_path):
+    from wiz101_auto.setbacks import Setbacks
+
+    s = Setbacks(tmp_path / "s.json")
+    s.set_quest_aside("De-Cipher the Djeserits", "Defeat King Shemet", 20, now=0, main=True, retry_after=1800)
+    assert "De-Cipher the Djeserits" in s.set_aside(20, now=1000)
+    assert "De-Cipher the Djeserits" not in s.set_aside(20, now=2000)

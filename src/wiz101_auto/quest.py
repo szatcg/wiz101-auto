@@ -96,7 +96,11 @@ UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before f
 FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one objective, fight
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
-STALL_SWITCH_SECONDS = 300.0  # no objective change and no won fight: follow another quest
+STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
+STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
+# Attempts at one approach (per objective and zone) before it's skipped for
+# the next one; when every approach is used up the quest is set aside.
+APPROACH_LIMITS = {"marker_x": 2, "teleporter": 3, "sweep": 2, "inch": 2}
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 RECALL_RETRY_SECONDS = 600.0  # after a travel recall fails (cooldown, refused), walk for a while
 MARKER_WALK_RANGE = 800.0  # this close to the marker with the named enemy missing: walk onto it
@@ -403,7 +407,9 @@ class Quester:
         self.entity_map = EntityMap()  # what was seen where (targeted searches)
         self.doors = DoorMemory()  # where walking into a door worked
         self._last_entity_scan = 0.0
+        self._attempts_at: dict[tuple[str, str, str], int] = {}  # (objective, zone, approach) -> tries
         self._puzzles_tried: set[tuple[str, str]] = set()  # (objective, zone) switch puzzles tried
+        self._teleporters_tried: dict[tuple[str, str], set[str]] = {}  # (objective, zone) -> labels
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
         self._pin: str | None = None  # the player's picked quest (None: not read yet this session)
         self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
@@ -459,7 +465,9 @@ class Quester:
             quest = self._active_quest
             if quest:
                 level = await self.client.stats.reference_level()
-                self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
+                self.setbacks.set_quest_aside(
+                    quest, objective, level, main=quest in self._mainline, retry_after=STUCK_RETRY_SECONDS
+                )
                 self.setbacks.save()
                 logger.warning(
                     f"no progress on {objective!r} for {waited / 60:.0f} min: setting {quest!r} aside "
@@ -966,7 +974,9 @@ class Quester:
         # the first outdoor zone there with enemies (before its dungeon) is used.
         return False
 
-    async def _set_current_aside(self, objective: str) -> bool:
+    async def _set_current_aside(
+        self, objective: str, retry_after: float | None = STUCK_RETRY_SECONDS
+    ) -> bool:
         """Set the tracked quest aside now (it can't be progressed from here) and
         re-rank, so the next best quest is followed. Just tracking the next quest
         in the book let ranking pick the same one again."""
@@ -974,7 +984,9 @@ class Quester:
         if not quest:
             return await self.switch_quest()
         level = await self.client.stats.reference_level()
-        self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline)
+        self.setbacks.set_quest_aside(
+            quest, objective, level, main=quest in self._mainline, retry_after=retry_after
+        )
         self.setbacks.save()
         self._ranked_for = None
         self._last_rank = -1e9
@@ -1169,7 +1181,11 @@ class Quester:
             # instead would run through them. Try again next step.
             return False
 
-        if npc and distance(await self._position(), target) < NPC_INCH_RANGE:
+        objective = self._last_progress[0] or ""
+        if (
+            npc and distance(await self._position(), target) < NPC_INCH_RANGE
+            and self._may_try(objective, zone or "", "inch")
+        ):
             return await self._inch_toward(target)
         # Far from the marker with the teleport refused: it's a door (Zan'ne's
         # building in the Oasis), whatever the objective says: walk through it.
@@ -1675,6 +1691,54 @@ class Quester:
                 return True
         return False
 
+    def _may_try(self, objective: str, zone: str, approach: str) -> bool:
+        """Count a try at `approach`; False once it has had its APPROACH_LIMITS
+        tries for this objective here (so the next approach gets its turn)."""
+        key = (objective, zone, approach)
+        self._attempts_at[key] = self._attempts_at.get(key, 0) + 1
+        return self._attempts_at[key] <= APPROACH_LIMITS.get(approach, 3)
+
+    async def _all_approaches_used(self, objective: str, what: str) -> bool:
+        """Every approach failed: set the quest aside now instead of looping.
+        True if it did."""
+        logger.warning(f"tried every way to {what} for {objective!r}; setting this quest aside for now")
+        self._attempts_at = {k: v for k, v in self._attempts_at.items() if k[0] != objective}
+        return await self._set_current_aside(objective)
+
+    async def _use_zone_teleporter(self, objective: str) -> bool:
+        """Take the next untried in-zone teleporter (an object labelled "To
+        ...", like the Djeserit tomb's "To the Sarcophagus") toward a far quest
+        marker. True if it used one."""
+        from .names import lang_name
+
+        zone = await self.client.zone_name() or ""
+        tried = self._teleporters_tried.setdefault((objective, zone), set())
+        here = await self._position()
+        options = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else None
+                label = await lang_name(self.client, code) if code else ""
+                if not label.lower().startswith("to ") or label in tried:
+                    continue
+                pos = await e.location()
+                options.append((distance(pos, here), label, pos))
+            except Exception:
+                continue
+        if not options:
+            return False
+        _d, label, pos = min(options, key=lambda o: o[0])
+        tried.add(label)
+        logger.info(f"the quest marker is out of reach: taking the {label!r} teleporter")
+        dx, dy = here.x - pos.x, here.y - pos.y
+        length = math.hypot(dx, dy) or 1.0
+        await self.client.teleport(XYZ(pos.x + dx / length * 200, pos.y + dy / length * 200, pos.z))
+        await asyncio.sleep(0.8)
+        await self.client.goto(pos.x, pos.y)
+        await self._press_x_here(zone, adjust=True)
+        return True
+
     async def _try_switch_puzzle(self, objective: str, zone: str) -> bool:
         """'Use X' where X should be but isn't (a chest that appears when the
         room's switches are right): try every switch combination, once per
@@ -1749,11 +1813,19 @@ class Quester:
                 # the way to it (a teleporter like the Djeserit tomb's "To the
                 # Sarcophagus", a door): use its X prompt first.
                 marker = await self.client.quest_position.position()
+                zone_now = await self.client.zone_name() or ""
                 at_marker = distance(await self._position(), marker) < MARKER_WAY_RANGE
-                if distance(marker, XYZ(0, 0, 0)) > 1 and at_marker:
-                    if await self._press_x_here(await self.client.zone_name(), adjust=True):
+                if distance(marker, XYZ(0, 0, 0)) > 1 and at_marker and self._may_try(
+                    objective, zone_now, "marker_x"
+                ):
+                    if await self._press_x_here(zone_now, adjust=True):
                         return
                     if not await is_free(self.client):
+                        return
+                # Far from an unreachable marker: an in-zone teleporter ("To the
+                # Sarcophagus") is the way over to it.
+                if not at_marker and self._may_try(objective, zone_now, "teleporter"):
+                    if await self._use_zone_teleporter(objective):
                         return
                 # A boss that isn't there yet usually appears when the wizard
                 # walks into its spot (the marker); a teleport doesn't set that off.
@@ -1761,8 +1833,11 @@ class Quester:
                     return
                 # Fighting whatever is closest (Gobbler Scavengers instead of
                 # Munchers) costs time and risk for nothing: look around the zone
-                # for the named enemy; the stall rule moves on if none turns up.
-                await self._look_for(target)
+                # for the named enemy, twice at most; then move on.
+                if self._may_try(objective, zone_now, "sweep"):
+                    await self._look_for(target)
+                else:
+                    await self._all_approaches_used(objective, f"find {target}")
                 return
         for _ in range(3):
             if await self.client.in_battle():

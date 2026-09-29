@@ -59,13 +59,17 @@ class Setbacks:
         return True
 
     def set_quest_aside(
-        self, quest: str, objective: str, level: int, now: float | None = None, main: bool = False
+        self, quest: str, objective: str, level: int, now: float | None = None, main: bool = False,
+        retry_after: float | None = None,
     ):
         """Put `quest` aside now (e.g. no way to progress it), like two defeats do.
         A main-story quest comes back only with a level-up (side quests fill in
-        until then); others also after DEFER_SECONDS."""
+        until then); others also after DEFER_SECONDS. `retry_after`: stuck
+        rather than beaten, so try again after that many seconds anyway."""
         now = time.time() if now is None else now
         self.deferred[quest] = {"level": level, "at": now, "objective": objective, "main": main}
+        if retry_after is not None:
+            self.deferred[quest]["until"] = now + retry_after
 
     def set_aside(self, level: int, now: float | None = None) -> set[str]:
         """Quests still set aside; those whose time is up (a level gained, or
@@ -73,7 +77,9 @@ class Setbacks:
         now = time.time() if now is None else now
         done = [
             q for q, d in self.deferred.items()
-            if level > d.get("level", 0) or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
+            if level > d.get("level", 0)
+            or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
+            or ("until" in d and now > d["until"])
         ]
         for q in done:
             del self.deferred[q]
