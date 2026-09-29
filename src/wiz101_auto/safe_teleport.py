@@ -24,6 +24,8 @@ import time
 from loguru import logger
 from wizwalker import XYZ
 
+FIGHT_STARTING = 30.0  # seconds after heading into a fight in which a circle holds us
+ON_CIRCLE = 700.0  # this close to a duel circle's center: on it (no teleporting off)
 DUEL_CIRCLE_RING = 350.0  # a duel circle's seats: hazards on this ring around its center
 LANDING_CLEARANCE = 700.0  # an enemy closer than this to the landing spot tends to start a fight
 BLOCKED_TRIES = 3  # a destination with no clear spot around it: after this many skips, go anyway
@@ -53,6 +55,7 @@ def allow_close_landing(client, seconds: float = 20.0):
 def allow_engage(client, seconds: float = 6.0):
     """The next teleports (for `seconds`) are meant to start a fight."""
     client._engage_until = time.monotonic() + seconds
+    client._engaged_at = time.monotonic()
 
 
 def install(client):
@@ -71,6 +74,18 @@ def install(client):
             engaging = time.monotonic() < getattr(client, "_engage_until", 0.0)
             if engaging or await client.in_battle():
                 return await original(xyz, *args, **kwargs)
+            from .collect import duel_circles
+
+            me = await client.body.position()
+            fight_starting = time.monotonic() - getattr(client, "_engaged_at", -1e9) < FIGHT_STARTING
+            if fight_starting and any(
+                math.dist((me.x, me.y), c[:2]) < ON_CIRCLE for c in await duel_circles(client)
+            ):
+                # On a fight's circle whose battle hasn't shown yet (a boss's
+                # entrance): moving now breaks it into a 0-opponent limbo.
+                logger.info("standing on a duel circle; not teleporting while its fight may be starting")
+                client._teleport_aborted = True
+                return None
             from .collect import duel_circles
 
             ring = []

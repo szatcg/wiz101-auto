@@ -96,6 +96,7 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
+FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -2230,8 +2231,25 @@ class Quester:
         await asyncio.sleep(0.8)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
-        await asyncio.sleep(3.0)
+        await self._hold_for_fight()
         return True
+
+    async def _hold_for_fight(self) -> bool:
+        """Just walked into a fight's circle: stand still while it starts. A
+        boss's entrance (Sprockets) plays out before the game says 'in battle';
+        teleporting away meanwhile left a 'battle' with 0 opponents that froze
+        the wizard. True once the fight is on."""
+        self.controller.allow_idle(FIGHT_START_WAIT + 10)
+        try:
+            deadline = time.monotonic() + FIGHT_START_WAIT
+            while time.monotonic() < deadline:
+                if await self.client.in_battle():
+                    return True
+                await asyncio.sleep(1.0)  # the dialogue loop advances any cutscene talk
+            logger.info(f"no fight started within {FIGHT_START_WAIT:.0f}s of walking in")
+            return False
+        finally:
+            self.controller.end_idle()
 
     def _floor_below(self, zone: str, spot: XYZ) -> XYZ | None:
         """The nearest known spot on the floor under `spot` (between 300 and
@@ -2500,6 +2518,8 @@ class Quester:
                     await asyncio.sleep(0.8)
                     allow_engage(self.client)
                     await self.client.goto(pos.x, pos.y)
+                    await self._hold_for_fight()
+                    return
                 else:
                     allow_engage(self.client)
                     await self.client.teleport(pos)
