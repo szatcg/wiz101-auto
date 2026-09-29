@@ -55,7 +55,7 @@ class UpkeepConfig:
 class SafetyConfig:
     stop_key: str = "ctrl+shift+q"
     pause_key: str = "ctrl+shift+p"
-    max_hours: float = 4.0
+    max_hours: float = 0.0  # 0 = no limit: run until stopped
     mouseless: bool = True  # clicks through a memory hook so your real mouse stays free
     stall_seconds: float = 15.0  # nothing changes for this long -> escalating recovery (0 = off)
     battle_stall_seconds: float = 120.0
