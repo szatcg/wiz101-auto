@@ -882,3 +882,31 @@ def test_keeps_a_hit_that_finishes_someone_while_digging():
     b.pips = 0
     b.upcoming = [_frog()]
     assert decide(b).kind is not ActionKind.DISCARD
+
+
+def test_never_discards_the_damage_the_fight_needs():
+    troll = _myth(dmg_card(0, "Troll", 190, pips=2))
+    cyclops = _myth(dmg_card(1, "Cyclops", 290, pips=3))
+    foes = [enemy("Shakes", 880, boss=True), enemy("Bruiser", 625)]
+    b = battle([troll, cyclops], foes, my=_myth_me())
+    b.pips = 1
+    b.upcoming = [_myth(blade_card(5)), _frog(), *[_myth(trap_card(6 + i)) for i in range(4)]]
+    b.deck_known = True
+    assert decide(b).kind is not ActionKind.DISCARD  # ~480 + frog is far short of 1505 hp
+
+
+def test_no_discards_with_the_deck_nearly_empty():
+    b = battle([dmg_card(0, "Fire Cat", 80), dmg_card(1, "Fire Cat", 80)], [enemy("Rat", 60)])
+    b.upcoming, b.deck_known = [trap_card(3)], True
+    from wiz101_auto.combat.brain import can_spare
+
+    assert not can_spare(b, b.cards[0])
+
+
+def test_out_of_attacks():
+    from wiz101_auto.combat.brain import out_of_attacks
+
+    b = battle([heal_card(0, "Pixie", 400)], [enemy("Shakes", 468, boss=True)])
+    assert out_of_attacks(b)
+    b.upcoming = [dmg_card(1, "Troll", 190, pips=2)]
+    assert not out_of_attacks(b)

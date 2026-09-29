@@ -1026,12 +1026,56 @@ def _break_shield(battle: Battle) -> Action | None:
     return _free_hit(battle, shields_only=True) or _prism_action(battle)
 
 
+DAMAGE_RESERVE = 1.5  # damage left in hand + deck must cover the enemies' health this many times
+MIN_DECK_LEFT = 5  # below this many cards still to draw, nothing is discarded
+
+
+def _damage_left(battle: Battle, without: Card | None = None) -> float:
+    """Expected damage of every attack card still ours this fight (hand and
+    deck), on the toughest enemy; hit-all spells count once per enemy."""
+    enemies = battle.live_enemies
+    if not enemies:
+        return 0.0
+    focus = max(enemies, key=lambda e: e.health)
+    total = 0.0
+    for c in [*battle.cards, *battle.upcoming]:
+        if c is without or not c.is_damage:
+            continue
+        hits = len(enemies) if c.is_aoe else 1
+        total += expected_damage(c, battle.me, focus) * hits
+    return total
+
+
+def can_spare(battle: Battle, card: Card) -> bool:
+    """Discarding `card` still leaves enough to win: the deck isn't nearly
+    empty, and (for an attack) the damage left covers the enemies' health
+    with room to spare. Against Shakes O'Leary 8 discards (Troll, two
+    Cyclops...) left nothing to cast from round 18 on."""
+    if not battle.deck_known:
+        return True  # nothing to judge by
+    if len(battle.upcoming) < MIN_DECK_LEFT:
+        return False
+    if not card.is_damage:
+        return True
+    need = sum(e.health for e in battle.live_enemies) * DAMAGE_RESERVE
+    return _damage_left(battle, without=card) >= need
+
+
+def out_of_attacks(battle: Battle) -> bool:
+    """No attack card in hand or still to draw, enemies still up: the fight
+    can't be won from here."""
+    return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
     """The action for this step. Instead of a pass (saving pips, holding a hit)
     a 0-pip card is played, since it costs nothing we're saving: a hit that
     breaks an enemy's shield, else a blade or trap, else a harmless hit."""
     strat = strat or Strategy()
     action = _decide(battle, strat, discards_left=discards_left)
+    if action.kind is ActionKind.DISCARD and action.card is not None and not can_spare(battle, action.card):
+        # Keep the cards the fight will need: decide again without discarding.
+        action = _decide(battle, strat, discards_left=0)
     if action.kind is ActionKind.PASS and battle.live_enemies:
         free = (
             _free_hit(battle, shields_only=True)

@@ -13,7 +13,7 @@ from wizwalker.combat import CombatHandler
 from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
-from .brain import Strategy, decide, plan_fight, predicted_damage
+from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage
 from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
@@ -300,10 +300,20 @@ class Fighter(CombatHandler):
             if await ui.dismiss_notice(self.client):
                 continue
 
+            battle.upcoming = self._upcoming(battle)
+            battle.deck_known = bool(self._deck)
             if out_of_mana(battle):
                 logger.warning(f"out of mana ({battle.me.mana}) and nothing castable: passing")
                 await self.pass_button()
                 return
+
+            if battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round:
+                # Passing until we die (Shakes O'Leary healed back up) loses
+                # the fight anyway; fleeing keeps our health for the retry.
+                self._flee_tried_this_round = True
+                logger.warning("no attack cards left in hand or deck: fleeing to try again")
+                if await self.flee():
+                    return
 
             if not self._judged_fight:
                 self._had_boss = self._had_boss or any(e.is_boss for e in battle.enemies)
@@ -330,7 +340,6 @@ class Fighter(CombatHandler):
                 self._last_plan = plan
             battle.prismed = set(self._prismed)
             battle.summoned = self._summons
-            battle.upcoming = self._upcoming(battle)
             action = decide(battle, self.strategy, discards_left=discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
