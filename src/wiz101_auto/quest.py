@@ -96,6 +96,9 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
+GUARD_RANGE = 1500.0  # enemies this close to a lever are its guards: fought before pulling it
+FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different floors
+BOSS_SPAWN_WAIT = 20.0  # after the dungeon is cleared, before walking up to the boss
 FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
@@ -520,6 +523,7 @@ class Quester:
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
         self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
+        self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
@@ -2173,6 +2177,64 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _fight_guards(self, spot: XYZ, what: str) -> bool:
+        """Enemies within GUARD_RANGE of `spot` (a lever): fight the nearest
+        first. Skipping a floor's fights can keep a dungeon's boss from
+        spawning (Sprockets). True if it went into a fight."""
+        circles = await self._duel_circles(await self.client.zone_name() or "")
+        for mob in await self.client.get_mobs():
+            try:
+                pos = await mob.location()
+            except Exception:
+                continue
+            if distance(pos, spot) > GUARD_RANGE:
+                continue
+            if any(math.dist((pos.x, pos.y), c[:2]) < CIRCLE_KEEP_AWAY for c in circles):
+                continue  # the boss's own circle: not now
+            logger.info(f"enemies guard the {what}: fighting them first")
+            allow_engage(self.client)
+            await self.client.teleport(pos)
+            await asyncio.sleep(3.0)
+            return True
+        return False
+
+    async def _clear_dungeon(self, objective: str, zone: str) -> bool:
+        """Before a boss that won't spawn: fight every enemy group left in the
+        dungeon (off the boss's circle), floor by floor. True if it acted;
+        False once a full pass found nobody."""
+        circles = await self._duel_circles(zone)
+
+        def off_circle(p) -> bool:
+            return all(math.dist(p[:2], c[:2]) >= CIRCLE_KEEP_AWAY for c in circles)
+
+        for mob in await self.client.get_mobs():
+            try:
+                pos = await mob.location()
+            except Exception:
+                continue
+            if off_circle((pos.x, pos.y, pos.z)):
+                logger.info("clearing the dungeon before its boss: fighting the enemies here")
+                allow_engage(self.client)
+                await self.client.teleport(pos)
+                await asyncio.sleep(3.0)
+                return True
+        # Enemies load only nearby: visit each floor seen in this dungeon once.
+        seen = [p for p in self.entity_map.spots(zone, lambda _n: True, (0.0, 0.0, 0.0)) if off_circle(p)]
+        floors: dict[int, tuple] = {}
+        for p in seen:
+            floors.setdefault(round(p[2] / FLOOR_HEIGHT_STEP), p)
+        visited = self._floors_cleared.setdefault((objective, zone), set())
+        for level in sorted(floors):
+            if level in visited:
+                continue
+            visited.add(level)
+            spot = floors[level]
+            logger.info(f"clearing the dungeon: checking the floor at height {spot[2]:.0f} for enemies")
+            await self.client.teleport(XYZ(*spot))
+            await asyncio.sleep(1.5)
+            return True
+        return False
+
     async def _use_named_object(self, objective: str) -> bool:
         """'Use X': teleport beside the object named X (its own height), nudge
         until the X prompt shows and press it. True if it tried."""
@@ -2186,6 +2248,9 @@ class Quester:
         pos = await self._npc_named(name, near=near)  # exact name, not an enemy
         if pos is None:
             return False
+        zone = await self.client.zone_name() or ""
+        if await self._in_dungeon(zone) and await self._fight_guards(pos, name):
+            return True
         me = await self._position()
         if distance(me, pos) > USE_OBJECT_RANGE:
             logger.info(f"going right up to the {name}")
@@ -2230,6 +2295,13 @@ class Quester:
         await self.client.teleport(start)
         await asyncio.sleep(0.8)
         if below is not None:
+            # Give the boss a moment to spawn after the last lever, then walk.
+            logger.info(f"waiting {BOSS_SPAWN_WAIT:.0f}s for the boss to spawn before walking up")
+            self.controller.allow_idle(BOSS_SPAWN_WAIT + 10)
+            try:
+                await asyncio.sleep(BOSS_SPAWN_WAIT)
+            finally:
+                self.controller.end_idle()
             await self._walk_route_to(circle, zone)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
@@ -2437,6 +2509,8 @@ class Quester:
                 if await self._in_dungeon(zone_now) and await self.bring_out.step(
                     objective, zone_now, target, fight=True
                 ):
+                    return
+                if await self._in_dungeon(zone_now) and await self._clear_dungeon(objective, zone_now):
                     return
                 if self._may_try(objective, zone_now, "walk_circle") and await self._walk_into_circle(marker):
                     return
