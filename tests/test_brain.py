@@ -794,3 +794,37 @@ def test_humongofrog_that_kills_everyone_goes_at_once():
     b.pips = 4
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.card.name == "Humongofrog"
+
+
+def _myth(card):
+    card.school = "Myth"
+    return card
+
+
+def test_digs_for_blades_and_the_frog_against_a_group():
+    troll = _myth(dmg_card(0, "Troll", 190, pips=2))
+    cyclops = _myth(dmg_card(1, "Cyclops", 290, pips=3))
+    b = battle([troll, cyclops], [enemy("Midnighter", 560), enemy("Hooligan", 525)], my=_myth_me())
+    b.upcoming = [_myth(blade_card(5)), _frog()]
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Troll"
+    assert "blade" in a.reason
+    assert decide(b, discards_left=0).kind is not ActionKind.DISCARD
+
+
+def test_keeps_its_best_hit_against_one_enemy_while_digging():
+    troll = _myth(dmg_card(0, "Troll", 190, pips=2))
+    cyclops = _myth(dmg_card(1, "Cyclops", 290, pips=3))
+    b = battle([troll, cyclops], [enemy("Midnighter", 900)], my=_myth_me())
+    b.upcoming = [_myth(trap_card(5))]
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Troll"
+    b.cards.remove(troll)
+    assert decide(b).kind is not ActionKind.DISCARD  # Cyclops, the last hit, stays
+
+
+def test_no_digging_once_blades_and_traps_are_in_hand():
+    troll = _myth(dmg_card(0, "Troll", 190, pips=2))
+    b = battle([troll, _myth(blade_card(1)), _myth(trap_card(2))], [enemy("Midnighter", 900)], my=_myth_me())
+    b.upcoming = [_myth(blade_card(5)), _myth(trap_card(6))]
+    assert decide(b).kind is not ActionKind.DISCARD

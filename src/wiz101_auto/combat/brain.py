@@ -363,6 +363,48 @@ def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | Non
 AOE_MIN_ENEMIES = 2  # a hit-all spell (Humongofrog) is the plan from this many enemies
 
 
+def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
+    """Blades and traps win fights; a Troll or Cyclops without them doesn't.
+    While a blade or trap slot is open and one is still in the deck (and
+    none in hand), or against a group while the hit-all spell is still to
+    come, discard single-target hits to draw them. Against one enemy the
+    best hit stays in hand; against a group none has to."""
+    enemies = battle.live_enemies
+    if not enemies:
+        return None
+    me = battle.me
+    focus = max(enemies, key=lambda e: e.health)
+    upcoming = battle.upcoming
+
+    def in_hand(kind: EffectKind) -> bool:
+        return any(kind in c.kinds and not c.is_enchant for c in battle.cards)
+
+    def to_come(kind: EffectKind) -> bool:
+        return any(kind in c.kinds and not c.is_enchant for c in upcoming)
+
+    want = []
+    if me.blade_count < strat.max_blades and not in_hand(EffectKind.BLADE) and to_come(EffectKind.BLADE):
+        want.append("blade")
+    if focus.trap_count < strat.max_traps and not in_hand(EffectKind.TRAP) and to_come(EffectKind.TRAP):
+        want.append("trap")
+    group = len(enemies) >= AOE_MIN_ENEMIES
+    frog_in_hand = any(c.is_aoe and c.is_damage for c in battle.cards)
+    if group and not frog_in_hand and any(c.is_aoe and c.is_damage for c in upcoming):
+        want.append("hit-all spell")
+    if not want:
+        return None
+    singles = [c for c in battle.cards if c.is_damage and not c.is_aoe]
+    if not group:
+        if len(singles) < 2:
+            return None
+        best = max(singles, key=lambda c: expected_damage(c, me, focus))
+        singles = [c for c in singles if c is not best]
+    if not singles:
+        return None
+    card = min(singles, key=lambda c: expected_damage(c, me, focus))
+    return Action(ActionKind.DISCARD, card, reason=f"digging for a {' / '.join(want)}")
+
+
 def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
     """Several enemies and a hit-all spell in hand (Humongofrog): blade
     ourselves, trap the enemies, then one hit clears the board. Pips are
@@ -965,6 +1007,13 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         junk = _junk_discard(battle, strat)
         if junk:
             return junk
+
+    # Blades and traps (and the hit-all spell against groups) matter more than
+    # another single hit: dig for them.
+    if discards_left > 0:
+        dig = _dig_for_setup(battle, strat)
+        if dig:
+            return dig
 
     # Several enemies: buff up and clear them all with one hit-all spell.
     aoe = _aoe_plan(battle, strat)
