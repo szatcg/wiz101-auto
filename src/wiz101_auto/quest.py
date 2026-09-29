@@ -122,6 +122,7 @@ BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World T
 TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
+TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
@@ -369,6 +370,8 @@ def dungeon_quest(
 
     def named_here(area: str) -> bool:  # "Mount Olympus" in "Aquila/AQ_Z01_MountOlympus"
         key = area.replace(" ", "").replace("'", "").lower()
+        if is_team_up_zone(zone) and area.strip().lower() in TEAM_UP_NAMES:
+            return True  # any room of it (Aquila/Interiors/AQ_Z01_Apollo_Room)
         return len(key) > 4 and key in zone.replace("_", "").lower()
 
     # Set aside or not: we're in its dungeon now, which is what it waited on
@@ -571,6 +574,7 @@ class Quester:
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
+        self._team_ranked = -1e9  # last quest-book read inside a team dungeon
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
@@ -2673,7 +2677,7 @@ class Quester:
         # pick-ups); a quest from elsewhere would walk away from the team.
         here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
         fight_step = is_combat_objective(objective or "") or self._step_is_fight
-        farming = Farm.load().active
+        farming = Farm.load().active and not here  # the dungeon's own quest (given on entering) is followed
         if not farming and not fight_step and talk_target(objective or ""):
             # A talk counts for each player: do it, wherever in the dungeon
             # ("Talk To Silenus in Garden Of Hesperides" after Zeus).
@@ -3400,9 +3404,21 @@ class Quester:
             await go_to_hub(self.client)
             return
         if is_team_up_zone(zone_now):
+            if time.monotonic() - self._team_ranked > TEAM_RERANK_SECONDS:
+                # The dungeon hands out its quest on entering: track it (its
+                # marker leads room to room; the team step ends the step before
+                # the usual ranking further down).
+                self._team_ranked = time.monotonic()
+                self.controller.allow_idle(30)
+                try:
+                    await self.prioritize_quests()
+                finally:
+                    self.controller.end_idle()
+                self._ranked_for = await self.objective()
             if await self._team_step():
                 return
         else:
+            self._team_ranked = -1e9
             self._team_alone_since = None
             self._team_with_us = False
         # After a defeat by a boss we marked beside: go back first and heal

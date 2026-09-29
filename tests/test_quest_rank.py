@@ -247,3 +247,11 @@ def test_a_dungeon_quest_named_like_the_zone_id():
     clouds = QuestEntry(1, "Into the Clouds", world="Mount Olympus")
     got = dungeon_quest([main, clouds], "Aquila/AQ_Z01_MountOlympus", lambda a: None, {"Into the Clouds"})
     assert got is clouds
+
+
+def test_a_team_dungeons_quest_counts_in_every_room():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    main = QuestEntry(0, "Stolen Away", mainline=True, world="Counterweight East")
+    run = QuestEntry(1, "Wisdom and Grace", world="Mount Olympus")
+    assert dungeon_quest([main, run], "Aquila/Interiors/AQ_Z01_Apollo_Room", lambda a: None) is run
