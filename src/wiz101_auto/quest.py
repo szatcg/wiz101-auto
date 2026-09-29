@@ -2279,6 +2279,20 @@ class Quester:
             logger.warning(f"gate {zone} -> {dest_zone} did not work; avoiding it")
             self._bad_gates.add((zone, dest_zone))
         target_zone = objective_zone(objective)
+        entry = DungeonMemory.load().dungeons.get(target_zone or "")
+        if entry is not None and target_zone != zone:
+            # A dungeon learned before (Katzenstein's Lab, off Scotland Yard
+            # Roof): its outside zone, then in by the sigil.
+            if zone != entry.outside:
+                logger.info(f"no quest marker for {objective!r}; heading to {entry.outside} for its dungeon")
+                if await self.go_to_zone(entry.outside) or await self.client.zone_name() != zone:
+                    return True
+            else:
+                sigil = XYZ(*entry.sigil)
+                logger.info(f"no quest marker for {objective!r}; entering its dungeon by the sigil")
+                await self.travel(sigil)
+                await self._enter_by_sigil(sigil, zone)
+                return True
         if target_zone not in (None, zone) and gate_toward(zone, target_zone, self._bad_gates):
             # Not next door: go there through the known gates, several hops if needed.
             logger.info(f"no quest marker for {objective!r}; heading to {target_zone}")
@@ -2320,8 +2334,10 @@ class Quester:
                 await self.interact(objective)
                 return True
             # Nowhere to be seen (Clockwork in Katzenstein's Lab: beat the
-            # doctor, bring Grunk the crates, pull his levers): work the room.
-            if await self.bring_out.step(objective, zone, name):
+            # doctor, bring Grunk the crates, pull his levers): work the room,
+            # but only there (it talked to NPCs in the Marleybone hub).
+            here = target_zone == zone or (target_zone is None and await self._in_dungeon(zone))
+            if here and await self.bring_out.step(objective, zone, name):
                 return True
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
