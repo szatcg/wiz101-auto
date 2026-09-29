@@ -98,7 +98,8 @@ RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
 GUARD_RANGE = 1500.0  # enemies this close to a lever are its guards: fought before pulling it
 FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different floors
-BOSS_SPAWN_WAIT = 20.0  # after the dungeon is cleared, before walking up to the boss
+BOSS_SPAWN_WAIT = 30.0  # after the last lever, before walking up to the boss
+NEAR_START = 2500.0  # already this close to where the walk up starts: walk from here
 FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
@@ -524,6 +525,7 @@ class Quester:
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
         self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
         self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
+        self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
@@ -2248,9 +2250,6 @@ class Quester:
         pos = await self._npc_named(name, near=near)  # exact name, not an enemy
         if pos is None:
             return False
-        zone = await self.client.zone_name() or ""
-        if await self._in_dungeon(zone) and await self._fight_guards(pos, name):
-            return True
         me = await self._position()
         if distance(me, pos) > USE_OBJECT_RANGE:
             logger.info(f"going right up to the {name}")
@@ -2292,16 +2291,26 @@ class Quester:
             back = CIRCLE_WALK_FROM / length
             start = XYZ(circle.x + dx * back, circle.y + dy * back, circle.z)
             logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
-        await self.client.teleport(start)
-        await asyncio.sleep(0.8)
-        if below is not None:
-            # Give the boss a moment to spawn after the last lever, then walk.
-            logger.info(f"waiting {BOSS_SPAWN_WAIT:.0f}s for the boss to spawn before walking up")
+        key = (self._last_progress[0] or "", zone)
+        if key not in self._boss_waited:
+            # Right after the last lever: give the boss time to spawn, standing
+            # where we are, before going anywhere near its circle.
+            self._boss_waited.add(key)
+            logger.info(f"waiting {BOSS_SPAWN_WAIT:.0f}s for the boss to spawn before walking to it")
             self.controller.allow_idle(BOSS_SPAWN_WAIT + 10)
             try:
                 await asyncio.sleep(BOSS_SPAWN_WAIT)
             finally:
                 self.controller.end_idle()
+            from .bossfarm import find_entity_named
+
+            target = defeat_target(self._last_progress[0] or "")
+            if target and await find_entity_named(self.client, target) is not None:
+                return True  # it's there now: the next step goes after it
+        if below is None or distance(await self._position(), start) > NEAR_START:
+            await self.client.teleport(start)
+            await asyncio.sleep(0.8)
+        if below is not None:
             await self._walk_route_to(circle, zone)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
@@ -2509,8 +2518,6 @@ class Quester:
                 if await self._in_dungeon(zone_now) and await self.bring_out.step(
                     objective, zone_now, target, fight=True
                 ):
-                    return
-                if await self._in_dungeon(zone_now) and await self._clear_dungeon(objective, zone_now):
                     return
                 if self._may_try(objective, zone_now, "walk_circle") and await self._walk_into_circle(marker):
                     return
