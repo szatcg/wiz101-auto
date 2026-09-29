@@ -1702,12 +1702,14 @@ class Quester:
                 # Track the main quest so its marker leads back into its world;
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
+            chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside)
             if await self._in_dungeon(here):
+                # After the pin: the dungeon's own quest ('The Right Combination')
+                # opens the way to the pinned one ('Weird Science') in there.
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside)
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
-            chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside)
             if not self._grinding and not await self._in_dungeon(here):
                 errand = errand_detour([q for _, q in all_quests], chosen, set_aside, world)
                 if errand:
@@ -2059,6 +2061,8 @@ class Quester:
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
             return False
+        if await self._in_dungeon(zone):
+            return False  # fleeing in a dungeon throws us out of it (Katzenstein's Lab)
         # Fleeing the same enemies again and again on one objective means they
         # stand in the way (Desert Golems on the road to Akori's Chamber): fight.
         key = (objective, frozenset(names))
@@ -2107,6 +2111,29 @@ class Quester:
         await self.client.teleport(await mob.location())
         await asyncio.sleep(3.0)
         return True
+
+    async def _npc_named(self, name: str):
+        """Position of an entity named exactly `name` that isn't an enemy
+        ('Clockwork', not the 'Clockwork Warrior' mobs), or None."""
+        from .names import lang_name
+
+        want = _norm_name(name)
+        try:
+            mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
+        except Exception:
+            mobs = set()
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else ""
+                if not code or _norm_name(await lang_name(self.client, code)) != want:
+                    continue
+                if await e.global_id_full() in mobs:
+                    continue
+                return await e.location()
+            except Exception:
+                continue
+        return None
 
     async def _named_enemy_here(self, objective: str) -> bool:
         """Is the enemy the objective names (Defeat X, or Talk To an enemy) in this zone?"""
@@ -2317,9 +2344,7 @@ class Quester:
         # Clockwork around here and walk up to him.
         name = talk_target(objective)
         if name:
-            from .bossfarm import find_entity_named
-
-            pos = await find_entity_named(self.client, name)
+            pos = await self._npc_named(name)
             if pos is not None:
                 logger.info(f"no quest marker for {objective!r}; {name} is here: going to talk")
                 await self.controller.checkpoint()
