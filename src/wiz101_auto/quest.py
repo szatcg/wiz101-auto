@@ -101,7 +101,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2}
-WALK_LEG = 1500.0  # walking toward a far marker, a look for the target after each leg
+WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
 RECALL_RETRY_SECONDS = 600.0  # after a travel recall fails (cooldown, refused), walk for a while
@@ -410,6 +410,7 @@ class Quester:
         self.doors = DoorMemory()  # where walking into a door worked
         self._last_entity_scan = 0.0
         self._attempts_at: dict[tuple[str, str, str], int] = {}  # (objective, zone, approach) -> tries
+        self._swept_spots: dict[tuple[str, str], list] = {}  # (objective, zone) -> sweep spots visited
         self._puzzles_tried: set[tuple[str, str]] = set()  # (objective, zone) switch puzzles tried
         self._teleporters_tried: dict[tuple[str, str], set[str]] = {}  # (objective, zone) -> labels
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
@@ -1708,26 +1709,37 @@ class Quester:
         return await self._set_current_aside(objective)
 
     async def _walk_toward(self, marker: XYZ, target: str) -> bool:
-        """Walk toward a far marker in legs, looking for `target` after each
-        (it loads once we're near); a leg blocked by a wall is hopped with a
-        short teleport further on. True if it came into view (or a fight
-        started on the way)."""
+        """Teleport toward a far marker in hops of WALK_LEG (enemies load only
+        near the wizard: King Shemet was 26000 away), looking for `target`
+        after each. Every landing is checked for enemies (safe_teleport); a hop
+        the game refuses is tried 30 degrees to either side. Walking there ran
+        into fights. True if it came into view (or a fight started)."""
         from .bossfarm import find_entity_named
 
-        logger.info(f"walking toward the quest marker to find {target}")
+        logger.info(f"teleporting toward the quest marker to find {target}")
         for _ in range(WALK_LEGS):
             here = await self._position()
             gap = distance(here, marker)
             if gap < INTERACT_RANGE:
                 break
-            f = min(1.0, WALK_LEG / gap)
-            step = XYZ(here.x + (marker.x - here.x) * f, here.y + (marker.y - here.y) * f, here.z)
-            await self.client.goto(step.x, step.y)
-            if not await is_free(self.client):
-                return True
-            if distance(await self._position(), here) < WALK_LEG / 4:
-                await self.client.teleport(step)  # blocked: hop past it (landing checked for enemies)
+            base = math.atan2(marker.y - here.y, marker.x - here.x)
+            leg = min(WALK_LEG, gap)
+            moved = False
+            for turn in (0.0, math.pi / 6, -math.pi / 6):
+                a = base + turn
+                z = marker.z if leg == gap else here.z
+                hop = XYZ(here.x + math.cos(a) * leg, here.y + math.sin(a) * leg, z)
+                await self.client.teleport(hop)
                 await asyncio.sleep(0.6)
+                if not await is_free(self.client):
+                    return True
+                if distance(await self._position(), here) > leg / 3:
+                    moved = True
+                    break
+            if not moved:
+                logger.info("no way on toward the marker from here")
+                return False
+            await asyncio.sleep(0.6)  # let what's around load
             if await find_entity_named(self.client, target) is not None:
                 logger.info(f"{target} is in view")
                 return True
@@ -1921,12 +1933,16 @@ class Quester:
             p for p in spread_points(points, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING)
             if all(math.dist(p[:2], k[:2]) > ENEMY_SWEEP_SPACING / 2 for k in known)
         ]
-        spots = known + sweep[:FAR_SWEEP_MAX]
+        visited = self._swept_spots.setdefault((self._last_progress[0] or "", zone), [])
+        fresh = [p for p in sweep if all(math.dist(p[:2], v[:2]) > ENEMY_SWEEP_SPACING / 2 for v in visited)]
+        spots = [k for k in known if k not in visited] + fresh[:FAR_SWEEP_MAX]
         where = f"{len(known)} spot(s) it was seen at, then " if known else ""
-        logger.info(f"no {target} in view; looking at {where}{len(spots) - len(known)} spots around the zone")
+        n_new = len(fresh[:FAR_SWEEP_MAX])
+        logger.info(f"no {target} in view; looking at {where}{n_new} new spots around the zone")
         for p in spots:
             if not await is_free(self.client):
                 return
+            visited.append(p)
             if not await self._clear_spot(XYZ(*p)):
                 continue
             await self.client.teleport(XYZ(*p))
