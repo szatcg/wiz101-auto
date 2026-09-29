@@ -192,7 +192,10 @@ class BringOut:
                 return True
         pickups, npcs = await self._scan(done)
         switches = await find_switches(self.client)
-        kind = next_kind(boss is not None, len(pickups), len(npcs), key in self._switched or not switches)
+        # For a boss that won't spawn, no blind lever flipping: the dungeon's
+        # own quest names each lever (Counterweight East), flips undo them.
+        no_switching = key in self._switched or not switches or fight
+        kind = next_kind(boss is not None, len(pickups), len(npcs), no_switching)
         if kind is None:
             return False
         if kind == "boss":

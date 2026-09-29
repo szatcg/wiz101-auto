@@ -139,6 +139,7 @@ EXTRA_DISPLAY_ZONES = [
     ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
     ("katzenstein's lab", "Marleybone/MB_ScotlandYard/MB_KatzLab"),  # a dungeon off Scotland Yard Roof
     ("knight's court", "Marleybone/MB_ScotlandYard/MB_KnightsCourt"),
+    ("counterweight east", "Marleybone/MB_BigBen/MB_CounterweightEast"),  # a dungeon off the Museum
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
     ("throne room of fire", "Krokotopia/KT_Pyramid/KT_ThroneRoom"),  # not MooShu's "throne room"

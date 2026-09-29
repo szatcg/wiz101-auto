@@ -228,3 +228,12 @@ def test_operate_target():
     assert operate_target("Pull Counterweight Lever in Counterweight East") == "Counterweight Lever"
     assert operate_target("Use Charging Lever in Katzenstein's Lab") == "Charging Lever"
     assert operate_target("Talk To Gus") is None
+
+
+def test_dungeon_quest_with_an_unmapped_area_shares_the_main_quests():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    main = QuestEntry(0, "Stolen Away", mainline=True, world="Some Unmapped Tower")
+    side = QuestEntry(1, "Counterweight Madness", world="Some Unmapped Tower")
+    other = QuestEntry(2, "Elsewhere", world="Another Unmapped Place")
+    assert dungeon_quest([main, other, side], "X/Tower", lambda a: None) is side

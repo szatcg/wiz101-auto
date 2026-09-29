@@ -329,9 +329,13 @@ def dungeon_quest(
     """Inside a dungeon, a side quest set there (its book area is this dungeon,
     e.g. one handed out on entering) comes before the main quest: the main
     objective usually waits on it (a gate, a puzzle, an NPC to free)."""
+    # A book area we can't map ("Counterweight East") still counts when the
+    # main quest's area is the same one: that's the dungeon we're in.
+    main_areas = {q.world for q in quests if q.mainline and q.world and zone_of(q.world) is None}
     local = [
         q for q in quests
-        if not q.mainline and q.name not in set_aside and q.world and zone_of(q.world) == zone
+        if not q.mainline and q.name not in set_aside and q.world
+        and (zone_of(q.world) == zone or (zone_of(q.world) is None and q.world in main_areas))
     ]
     if not local:
         return None
