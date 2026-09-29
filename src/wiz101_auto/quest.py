@@ -108,6 +108,7 @@ FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FAR_SWEEP_MAX = 25
 ENTITY_SCAN_SECONDS = 30.0  # how often to note what's around (for the entity map)
 KNOWN_SPOTS_FIRST = 6  # remembered spots tried before a zone sweep
+PUZZLE_NEAR = 2000.0  # this close to the marker with its 'Use X' missing: a switch puzzle
 PRESS_X_TRIES = 4  # X presses at a prompt before moving on
 TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
@@ -401,6 +402,7 @@ class Quester:
         self.entity_map = EntityMap()  # what was seen where (targeted searches)
         self.doors = DoorMemory()  # where walking into a door worked
         self._last_entity_scan = 0.0
+        self._puzzles_tried: set[tuple[str, str]] = set()  # (objective, zone) switch puzzles tried
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
         self._pin: str | None = None  # the player's picked quest (None: not read yet this session)
         self._zones_searched: dict[str, set[str]] = {}  # collect objective -> zones swept for it
@@ -1672,6 +1674,25 @@ class Quester:
                 return True
         return False
 
+    async def _try_switch_puzzle(self, objective: str, zone: str) -> bool:
+        """'Use X' where X should be but isn't (a chest that appears when the
+        room's switches are right): try every switch combination, once per
+        objective and room. True if it tried."""
+        from .bossfarm import find_entity_named
+        from .puzzles import solve_by_trying, use_target
+
+        target = use_target(objective)
+        if not target or (objective, zone) in self._puzzles_tried:
+            return False
+        marker = await self.client.quest_position.position()
+        if distance(marker, XYZ(0, 0, 0)) < 1 or distance(await self._position(), marker) > PUZZLE_NEAR:
+            return False  # not there yet
+        if await find_entity_named(self.client, target) is not None:
+            return False
+        self._puzzles_tried.add((objective, zone))
+        await solve_by_trying(self, objective)
+        return True
+
     async def _landmarks(self) -> list[tuple[float, float, float]]:
         return await landmarks(self.client)
 
@@ -1973,6 +1994,9 @@ class Quester:
             if not await self.services.choose(objective):
                 await self.services.close()
             await asyncio.sleep(2.0)
+            return
+
+        if await self._try_switch_puzzle(objective, zone or ""):
             return
 
         item = collect_item_name(objective)

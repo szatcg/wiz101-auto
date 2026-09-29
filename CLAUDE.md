@@ -110,6 +110,7 @@ while the bot is stopped.
 | `dungeon_heal.py` | heal trips: low in a dungeon, or no wisps near an objective in this zone: mark, world hub button, heal nearby, Recall back |
 | `safe_teleport.py` | wraps `client.teleport`: re-reads enemies and duel circles before every jump and lands clear of them; `allow_engage` for teleports meant to start a fight |
 | `entitymap.py` | what was seen where (state/entity_map.json) and where door walks worked (state/doors.json): searches visit known spots first |
+| `puzzles.py` | switch puzzles ("Use X" with X hidden until the right obelisks/braziers are lit): flips the room's switches through every combination (Gray code) until X appears |
 | `marks.py` | Mark/Recall decisions: mark before trips of 2+ zones, recall when mark + walk beats walking |
 | `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |
