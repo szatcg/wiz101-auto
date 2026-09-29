@@ -146,9 +146,9 @@ class Fighter(CombatHandler):
         """Bosses fought inside a dungeon: remember which dungeon (for boss farming)."""
         try:
             zone = await self.client.zone_name() or ""
-            if "interiors" not in zone.lower():
-                return
             mem = DungeonMemory.load()
+            if "interiors" not in zone.lower() and zone not in mem.dungeons:
+                return  # (Katzenstein's Lab is a dungeon without "Interiors" in its name)
             for e in battle.enemies:
                 if e.is_boss and mem.record_boss(e.name, zone):
                     logger.info(f"remembered boss {e.name} in {zone}")

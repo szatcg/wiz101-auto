@@ -55,12 +55,29 @@ class BringOut:
         self.client = quester.client
         self._done: dict[tuple[str, str], set] = {}  # (objective, zone) -> entity keys handled
         self._switched: set[tuple[str, str]] = set()
+        self._boss_visited: set[tuple[str, str]] = set()
+
+    def _remembered_boss(self, zone: str):
+        """(name, spot) of a boss known to be in this dungeon, from where it was seen."""
+        from .dungeons import DungeonMemory
+
+        names = [b for b, z in DungeonMemory.load().bosses.items() if z == zone]
+        emap = getattr(self.q, "entity_map", None)
+        for n in names:
+            spots = emap.spots(zone, lambda s, n=n: s == n, (0.0, 0.0, 0.0)) if emap else []
+            if spots:
+                return n, spots[0]
+        return None
 
     async def _scan(self, done: set):
         from .names import lang_name
 
         me = await self.client.body.position()
         pickups, npcs = [], []
+        try:
+            mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
+        except Exception:
+            mobs = set()
         for e in await self.client.get_base_entity_list():
             try:
                 t = await e.object_template()
@@ -76,7 +93,9 @@ class BringOut:
                 d = math.dist((pos.x, pos.y), (me.x, me.y))
                 if is_pickup(display) and not is_switch(display):
                     pickups.append((d, key, display, pos))
-                elif is_named_npc(obj, display, await e.list_behavior_names()):
+                elif await e.global_id_full() not in mobs and is_named_npc(
+                    obj, display, await e.list_behavior_names()
+                ):
                     npcs.append((d, key, display, pos))
             except Exception:
                 continue
@@ -120,6 +139,20 @@ class BringOut:
                     break
         except Exception:
             boss = None
+        if boss is None and key not in self._boss_visited:
+            spot = self._remembered_boss(zone)
+            if spot is not None:
+                # Enemies only load near the wizard: go where this dungeon's boss
+                # was seen (Dr. Von Katzenstein, past two locked doors).
+                self._boss_visited.add(key)
+                name_, pos = spot
+                logger.info(f"{name} isn't here yet; going to where {name_} was seen to beat them first")
+                from .safe_teleport import allow_close_landing
+
+                allow_close_landing(self.client)
+                await self.client.teleport(XYZ(*pos))
+                await asyncio.sleep(1.5)
+                return True
         pickups, npcs = await self._scan(done)
         switches = await find_switches(self.client)
         kind = next_kind(boss is not None, len(pickups), len(npcs), key in self._switched or not switches)
