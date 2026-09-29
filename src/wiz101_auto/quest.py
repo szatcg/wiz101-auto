@@ -93,6 +93,8 @@ RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objectiv
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
+CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
+CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
@@ -2169,6 +2171,30 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _walk_into_circle(self, marker: XYZ) -> bool:
+        """Land CIRCLE_WALK_FROM away from the duel circle nearest the marker
+        and walk into it (the way a player starts a fight). True if it went."""
+        from .collect import duel_circles
+        from .safe_teleport import allow_engage
+
+        circles = [XYZ(*c) for c in await duel_circles(self.client)]
+        near = [c for c in circles if distance(c, marker) < CIRCLE_NEAR_MARKER]
+        if not near:
+            return False
+        circle = min(near, key=lambda c: distance(c, marker))
+        here = await self._position()
+        dx, dy = here.x - circle.x, here.y - circle.y
+        length = math.hypot(dx, dy) or 1.0
+        back = CIRCLE_WALK_FROM / length
+        start = XYZ(circle.x + dx * back, circle.y + dy * back, circle.z)
+        logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
+        await self.client.teleport(start)
+        await asyncio.sleep(0.8)
+        allow_engage(self.client)
+        await self.client.goto(circle.x, circle.y)
+        await asyncio.sleep(3.0)
+        return True
+
     async def _talk_to_npc_near(self, spot: XYZ, objective: str) -> bool:
         """Walk up to a named NPC (not an enemy) within NPC_NEAR_MARKER of
         `spot` and talk, once per objective. True if it talked."""
@@ -2303,6 +2329,11 @@ class Quester:
                 if not at_marker and self._may_try(objective, zone_now, "teleporter"):
                     if await self._use_zone_teleporter(objective):
                         return
+                # A boss fought on a duel circle (Sprockets in Counterweight
+                # East): teleporting near it half-joins the circle and freezes
+                # the wizard; land well clear and walk into it instead.
+                if self._may_try(objective, zone_now, "walk_circle") and await self._walk_into_circle(marker):
+                    return
                 # A boss that isn't there yet usually appears when the wizard
                 # walks into its spot (the marker); a teleport doesn't set that off.
                 if await self._walk_onto_marker():
