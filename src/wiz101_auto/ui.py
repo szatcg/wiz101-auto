@@ -40,6 +40,8 @@ ENDORSE_CLOSE = [*ENDORSEMENT, "CloseEndorsementWindowButton"]
 TRAINER_EXIT = ["WorldView", "NPCTrainingGUI", "TrainingSelection", "Exit"]
 
 # Menus that NPC interactions can leave open; closed after every interaction.
+# "Select a game to play" (the minigame picker a minigame sign opens)
+MINIGAME_EXIT = ["WorldView", "mainwindow", "exit"]
 CLOSE_BUTTONS = [
     ["WorldView", "shopGUI", "buyWindow", "exit"],
     ["WorldView", "ShoppingPetSnackWindow", "buyWindow", "exit"],

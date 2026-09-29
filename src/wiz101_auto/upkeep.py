@@ -559,6 +559,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             logger.info(f"resting: health {hp:.0%}, mana {mana:.0%}; waiting for regeneration or wisps")
             last_report = loop.time()
         controller.allow_idle(10)
+        await clear_popups(client)  # e.g. the minigame picker, opened by walking past its sign
         await asyncio.sleep(5)
 
 
@@ -618,6 +619,9 @@ async def clear_popups(client):
         if await ui.is_visible(client, ui.ENDORSEMENT):
             await ui.click(client, ui.ENDORSE_CLOSE)
     await ui.click(client, ui.CANCEL_CHEST_REROLL)
+    if await ui.is_visible(client, ui.MINIGAME_EXIT):
+        logger.info("closing the minigame picker")
+        await ui.click(client, ui.MINIGAME_EXIT)
     if await ui.is_visible(client, ui.MISSING_AREA_RETRY):
         await ui.click(client, ui.MISSING_AREA_RETRY)
 
