@@ -301,6 +301,7 @@ async def run(cfg: Config):
             quester.fighter = fighter
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight
+            fighter.may_flee = quester.may_flee
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
         watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):

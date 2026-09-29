@@ -71,6 +71,7 @@ class Fighter(CombatHandler):
         self.boss_fights = 0  # fights that had a boss in them (a loot chest may spawn after)
         self.combat_ended_at = 0.0  # monotonic time the last fight ended
         self.fled = False  # the last fight ended by fleeing (not a defeat)
+        self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
@@ -166,7 +167,11 @@ class Fighter(CombatHandler):
 
     async def flee(self) -> bool:
         """Flee (see _flee); remembers that this fight ended by fleeing, which
-        also moves the wizard away but isn't a defeat."""
+        also moves the wizard away but isn't a defeat. `may_flee` (set by the
+        quester) can forbid it: fleeing in a dungeon resets it."""
+        if self.may_flee is not None and not await self.may_flee():
+            logger.info("not fleeing: in a dungeon with no mark to return to; fighting on")
+            return False
         fled = await self._flee()
         self.fled = self.fled or fled
         return fled

@@ -2139,6 +2139,14 @@ class Quester:
     async def _landmarks(self) -> list[tuple[float, float, float]]:
         return await landmarks(self.client)
 
+    async def may_flee(self) -> bool:
+        """Fleeing in a dungeon throws us out and resets it: only with a mark in
+        that same dungeon to Recall back to."""
+        zone = await self.client.zone_name() or ""
+        if not (await self._in_dungeon(zone) or zone in DungeonMemory.load().dungeons):
+            return True
+        return bool(self._mark and self._mark.zone == zone)
+
     async def unneeded_fight(self, battle) -> bool:
         """True if the fight that just started isn't needed for the tracked quest."""
         try:
@@ -2151,8 +2159,7 @@ class Quester:
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
             return False
-        if await self._in_dungeon(zone):
-            return False  # fleeing in a dungeon throws us out of it (Katzenstein's Lab)
+
         # Fleeing the same enemies again and again on one objective means they
         # stand in the way (Desert Golems on the road to Akori's Chamber): fight.
         key = (objective, frozenset(names))
