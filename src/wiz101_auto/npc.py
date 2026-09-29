@@ -34,6 +34,9 @@ _WORD = re.compile(r"[a-z]{3,}")
 _STOP_WORDS = {"the", "and", "talk", "with", "for", "from", "into", "your", "you"}
 
 
+NOT_QUESTS = ("train", "shop", "reagent", "recipe", "craft", "sell", "buy", "rematch", "trading")
+
+
 def _words(text: str) -> set[str]:
     return {w for w in _WORD.findall(text.lower()) if w not in _STOP_WORDS}
 
@@ -113,6 +116,24 @@ class ServicesMenu:
 
     async def close(self):
         await ui.click(self.client, ["WorldView", "NPCServicesWin", "wndDialogMain", "Exit"])
+
+    async def choose_quest(self) -> bool:
+        """In an NPC's menu, click an option that isn't training or a shop (a
+        quest on offer). False if there's none."""
+        win = await ui.window_at(self.client, NPC_SERVICES)
+        if win is None:
+            return False
+        options = await _option_windows(win)
+        if not options:
+            await _clickable(win, options)
+        for o in options:
+            label = (await _text_of(o)).lower()
+            if not label or any(w in label for w in NOT_QUESTS):
+                continue
+            logger.info(f"NPC menu: taking {label!r}")
+            await self.client.mouse_handler.click_window(o)
+            return True
+        return False
 
     async def choose(self, objective: str) -> bool:
         """Click the most promising untried entry. Returns False if nothing left to try."""

@@ -14,16 +14,18 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
 from .questlist import norm
-from .upkeep import is_free, wait_for_loading
+from .upkeep import is_free, wait_for_loading, wait_until_free
 
 RAVENWOOD = "WizardCity/WC_Ravenwood"
 DORM = "WizardCity/Interiors/WC_Housing_Dorm_Interior"
+VISIT_REQUEST = Path("state") / "visit_professor.request"  # `visit-professor`: fetch the professor's quests
 DORM_DOOR = XYZ(-205.0, 13.0, 0.0)
 
 GUI = ["WorldView", "NPCTrainingGUI"]
@@ -108,6 +110,8 @@ class SpellTrainer:
 
     async def tick(self) -> bool:
         """Call while free. Makes the trip when one is due. True if it acted."""
+        if VISIT_REQUEST.exists():
+            return await self.visit_for_quests()
         level = await self.client.stats.reference_level()
         target = self.due(level)
         school = SCHOOLS.get((self.progression.school or "").lower())
@@ -127,6 +131,57 @@ class SpellTrainer:
         else:
             logger.info("nothing new to learn at the trainer")
         return True
+
+    async def visit_for_quests(self) -> bool:
+        """`visit-professor`: go to the school professor and take every quest
+        they offer (Cyrus Drake's quest to Aquila), then pin the new quest so
+        the bot follows it. True (it acted)."""
+        school = SCHOOLS.get((self.progression.school or "").lower())
+        if school is None:
+            VISIT_REQUEST.unlink(missing_ok=True)
+            return False
+        logger.info(f"visiting {school.professor} for quests")
+        before = set(self.q._book_names)
+        if not await self._go_to_professor_zone(school):
+            logger.warning(f"could not reach {school.professor}; trying again in {RETRY_MINUTES} min")
+            self._retry_at = time.monotonic() + RETRY_MINUTES * 60
+            return True
+        await self.client.teleport(school.spot)
+        await asyncio.sleep(1.0)
+        if self.q.dialogue:
+            self.q.dialogue.accept_offers_for(60)
+        for _ in range(4):
+            if await ui.is_visible(self.client, ui.NPC_RANGE):
+                await self.client.send_key(Keycode.X, 0.1)
+                await asyncio.sleep(1.5)
+                break
+            await self.client.send_key(Keycode.S, 0.3)
+            await self.client.send_key(Keycode.W, 0.4)
+            await asyncio.sleep(0.6)
+        # A menu (quests + training): anything but training and shops.
+        for _ in range(3):
+            if not await self.q.services.is_open():
+                break
+            if not await self.q.services.choose_quest():
+                break
+            await asyncio.sleep(2.0)
+            await wait_until_free(self.client, timeout=40)
+        await wait_until_free(self.client, timeout=40)
+        await ui.close_menus(self.client)
+        VISIT_REQUEST.unlink(missing_ok=True)
+        self.q.pin_new_quest_after(before)
+        return True
+
+    async def _go_to_professor_zone(self, school: School) -> bool:
+        zone = await self.client.zone_name() or ""
+        if zone not in (school.interior, RAVENWOOD) and not await self._home_to_ravenwood():
+            return False
+        if await self.client.zone_name() == RAVENWOOD:
+            await self.q.travel(school.door)
+            if await self.client.zone_name() == RAVENWOOD:
+                await self.q.approach_and_walk(school.door, RAVENWOOD)
+            await wait_for_loading(self.client)
+        return await self.client.zone_name() == school.interior
 
     # --- route ---------------------------------------------------------------
 

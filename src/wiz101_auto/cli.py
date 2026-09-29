@@ -110,6 +110,7 @@ def main(argv: list[str] | None = None):
     run_p.add_argument("-m", "--mode", choices=["quest", "fight", "farm"], help="override config mode")
     run_p.add_argument("-v", "--verbose", action="store_true")
 
+    sub.add_parser("visit-professor", help="have the bot fetch the school professor's quests (e.g. Aquila)")
     sub.add_parser("relog", help="quit to character select and play again (bot stopped): unsticks the wizard")
     insp = sub.add_parser("inspect", help="print what the bot sees (state, battle, UI)")
     insp.add_argument("--windows", action="store_true", help="also dump the visible UI window tree")
@@ -169,6 +170,14 @@ def main(argv: list[str] | None = None):
     if sys.platform != "win32":
         raise SystemExit("wiz101-auto talks to the Windows game client and must run on Windows.")
     _lower_priority()
+
+    if args.command == "visit-professor":
+        from .trainer import VISIT_REQUEST
+
+        VISIT_REQUEST.parent.mkdir(exist_ok=True)
+        VISIT_REQUEST.write_text("1", encoding="utf-8")
+        print("requested: the bot visits the professor for quests at its next free moment")
+        return
 
     if args.command == "relog":
         _setup_logging(None, True)

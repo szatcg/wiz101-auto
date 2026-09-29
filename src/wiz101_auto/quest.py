@@ -529,6 +529,8 @@ class Quester:
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
         self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
+        self._book_names: set[str] = set()  # quests in the book at the last full read
+        self._pin_new_from: set[str] | None = None  # after a visit: pin a quest not in this set
         self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
         self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -1742,6 +1744,15 @@ class Quester:
                 step += " (counted)" if q.counted else ""
                 logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.zone}/{q.world!r} {q.hops} hops: {step}")
             self._mainline = {q.name for _, q in all_quests if q.mainline}
+            names = {q.name for _, q in all_quests}
+            if self._pin_new_from is not None and complete:
+                new = sorted(names - self._pin_new_from)
+                if new:
+                    self._pin = new[0]
+                    save_pin(self._pin)
+                    logger.success(f"new quest from the visit: {new[0]!r}; following it")
+                self._pin_new_from = None
+            self._book_names = names
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
             # picked up again at the next level), never a trip to another world.
@@ -1835,6 +1846,13 @@ class Quester:
             return True
         finally:
             await self._close_quest_book()
+
+    def pin_new_quest_after(self, before: set[str]):
+        """After fetching quests from an NPC: at the next full read of the book,
+        pin the quest that wasn't there before."""
+        self._pin_new_from = set(before)
+        self._ranked_for = None
+        self._last_rank = -1e9
 
     def _apply_pin(self, quests: list[QuestEntry], chosen, set_aside: set[str]):
         """The player's pick wins: a pinned quest (state/quest_pin.json, or the
