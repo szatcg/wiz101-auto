@@ -36,6 +36,7 @@ from .collect import (
 )
 from .config import QuestConfig
 from .deck import close_spellbook
+from .dungeon_heal import DUNGEON_MANA_TRIP
 from .dungeons import DungeonEntry, DungeonMemory
 from .entitymap import DoorMemory, EntityMap
 from .entitymap import scan as scan_entities
@@ -2414,6 +2415,10 @@ class Quester:
         # needs no fight (the talk after beating Willie Marks), and heal only
         # when the next step is a fight.
         heal_now = not in_dungeon or await self._fight_ahead(await self.objective())
+        if heal_now and in_dungeon and self.upkeep:
+            hp, mana = await health_mana(self.client)
+            if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
+                heal_now = False  # only mana a little low: not worth leaving the dungeon
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
         if heal_now and self.healer and in_dungeon and await self.healer.between_fights(zone_now):

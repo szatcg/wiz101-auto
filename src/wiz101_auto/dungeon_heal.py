@@ -20,6 +20,7 @@ from . import ui
 from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading
 
+DUNGEON_MANA_TRIP = 0.3  # inside a dungeon, leave to refill mana only below this
 DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
 TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 30 minutes
 # The compass's teleport buttons: "GoHomeButton" goes to the current world's
@@ -57,7 +58,10 @@ class DungeonHealer:
         if fighter and time.monotonic() - fighter.combat_ended_at < DEFEAT_SETTLE_SECONDS:
             return False  # a lost fight registers as a defeat a moment after it ends
         hp, mana = await health_mana(self.client)
-        if not self.cfg.needs_recovery(hp, mana) or not await is_free(self.client):
+        # Leaving a dungeon risks its progress: only for health, or mana nearly
+        # gone (it went out at 62% mana in Katzenstein's Lab).
+        low = hp < self.cfg.min_health_to_fight or mana < DUNGEON_MANA_TRIP
+        if not low or not await is_free(self.client):
             return False
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
