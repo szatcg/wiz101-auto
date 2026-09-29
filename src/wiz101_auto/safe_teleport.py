@@ -24,6 +24,9 @@ import time
 from loguru import logger
 from wizwalker import XYZ
 
+OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
+GROUND_HEIGHT = 400.0  # ground points at about the destination's height count
+MIN_GROUND_POINTS = 6  # judge only with enough of the zone known
 FIGHT_STARTING = 30.0  # seconds after heading into a fight in which a circle holds us
 ON_CIRCLE = 700.0  # this close to a duel circle's center: on it (no teleporting off)
 DUEL_CIRCLE_RING = 350.0  # a duel circle's seats: hazards on this ring around its center
@@ -98,6 +101,18 @@ def install(client):
                     for a in (i * math.pi / 4 for i in range(8))
                 ]
             hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)] + ring)
+            ground_of = getattr(client, "_ground_points", None)
+            if ground_of is not None:
+                # Off the map (the clouds past the Commons' edge, where walking
+                # does nothing): land on the nearest known ground instead.
+                ground = [g for g in await ground_of(xyz) if abs(g[2] - xyz.z) < GROUND_HEIGHT]
+                if len(ground) >= MIN_GROUND_POINTS and all(
+                    math.dist((xyz.x, xyz.y), g[:2]) > OFF_MAP for g in ground
+                ):
+                    g = min(ground, key=lambda q: math.dist((xyz.x, xyz.y), q[:2]))
+                    logger.info(f"({xyz.x:.0f}, {xyz.y:.0f}) looks off the map; landing on known ground "
+                                f"at ({g[0]:.0f}, {g[1]:.0f})")
+                    xyz = XYZ(*g)
             start = await client.body.position()
             if clear_of(xyz, hazards, LANDING_CLEARANCE):
                 return await _arrive(xyz, start, args, kwargs)

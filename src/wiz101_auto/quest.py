@@ -508,6 +508,8 @@ class Quester:
         self.lock = asyncio.Lock()  # one step (or watchdog action) at a time
         self._step_task: asyncio.Task | None = None
         self.collector = Collector(client)
+        # Teleports land on known ground (safe_teleport reads this).
+        client._ground_points = self._ground_for_teleport
         self.givers = QuestGivers(self)  # talks to named NPCs nearby once, for their quests
         self.cfg = cfg
         self.controller = controller
@@ -773,6 +775,11 @@ class Quester:
             if await self.walk_through(target, zone):
                 return True
         return False
+
+    async def _ground_for_teleport(self, near: XYZ) -> list[tuple[float, float, float]]:
+        zone = await self.client.zone_name() or ""
+        points = await self._landmarks() + await path_points(self.client)
+        return points + self.entity_map.spots(zone, lambda _n: True, (near.x, near.y, near.z))
 
     async def _ground_points(self, zone: str, near: XYZ) -> list[tuple[float, float, float]]:
         """Points known to be on the walkable map at `near`'s height: landmarks,
