@@ -38,6 +38,7 @@ from .deck import close_spellbook
 from .dungeons import DungeonEntry, DungeonMemory
 from .entitymap import DoorMemory, EntityMap
 from .entitymap import scan as scan_entities
+from .givers import QuestGivers
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
@@ -454,6 +455,7 @@ class Quester:
         self.lock = asyncio.Lock()  # one step (or watchdog action) at a time
         self._step_task: asyncio.Task | None = None
         self.collector = Collector(client)
+        self.givers = QuestGivers(self)  # talks to named NPCs nearby once, for their quests
         self.cfg = cfg
         self.controller = controller
         self.sprinter = client  # SprintyClient (bot.new_handler)
@@ -2196,6 +2198,8 @@ class Quester:
         ):
             return
         if await self._recall_to_mark():
+            return
+        if not self._grinding and await self.givers.ask_nearby():
             return
         if self.gear:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
