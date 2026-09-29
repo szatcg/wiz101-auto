@@ -149,3 +149,10 @@ def test_any_matches_the_creature_kind():
     assert fight_needed(obj, ["Sokkwi Crusher"], "Krokotopia/KT_Krokosphinx/KT_ChampHall", False)
     assert not fight_needed(obj, ["Glacial Avenger"], "Krokotopia/KT_Krokosphinx/KT_ChampHall", False)
     assert defeat_names("Defeat Gobbler Gorger in Colossus Boulevard") == ["Gobbler Gorger"]
+
+
+def test_is_hub():
+    from wiz101_auto.quest import is_hub
+
+    assert is_hub("Krokotopia/KT_Hub") and is_hub("WizardCity/WC_Hub")
+    assert not is_hub("Krokotopia/KT_Hub_Sphinx") and not is_hub("Krokotopia/KT_Tomb/KT_DjeseritTomb")

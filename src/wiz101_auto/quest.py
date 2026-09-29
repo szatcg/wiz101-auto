@@ -284,6 +284,11 @@ def defeat_target(objective: str) -> str | None:
     return target or None
 
 
+def is_hub(zone: str) -> bool:
+    """A world's hub (the Oasis, the Commons...): "Krokotopia/KT_Hub"."""
+    return zone.split("/")[-1].endswith("_Hub")
+
+
 def defeat_names(objective: str) -> list[str]:
     """Names an enemy may have to count for a "Defeat X" objective, most
     specific first. "Defeat Any Sphinx Sokkwi" takes any Sokkwi (a Sokkwi
@@ -798,8 +803,11 @@ class Quester:
         the hub. Not while a dungeon mark waits for its Recall (a defeat)."""
         if not self.healer or self._recall_pending:
             return False
-        if time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS:
+        zone = await self.client.zone_name() or ""
+        if time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS or is_hub(zone):
             return False  # just respawned in the hub: a mark here is useless
+        if self._mark and self._mark.kind in RETURN_KINDS:
+            return True  # a fight/dungeon mark waits: heal trips Recall to it
         if await self._fight_mark_here():
             return True  # the fight mark does the job: healing Recalls back to it
         return await self._mark_here("room")
@@ -819,12 +827,17 @@ class Quester:
         if not self.healer:
             return False
         zone = await self.client.zone_name() or ""
+        if is_hub(zone) or time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS:
+            # Already at the hub (a defeat sends us here): a trip there is
+            # pointless; recovery goes to a zone with wisps instead.
+            return False
         objective = await self.objective()
         dest = objective_zone(objective) if objective else None
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
         if not zone or not (marked or coming_back or force):
             return False
-        keep = await self._fight_mark_here()  # never over the fight mark: Recall to it instead
+        # Never over a fight or dungeon mark: the trip Recalls to it instead.
+        keep = await self._fight_mark_here() or bool(self._mark and self._mark.kind in RETURN_KINDS)
         why = f"not enough wisps here for {objective!r}"
         return await self.healer.trip(zone, why, mark=not (marked or keep))
 
