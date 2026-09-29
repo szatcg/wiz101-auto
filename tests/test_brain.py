@@ -975,3 +975,13 @@ def test_spare_pips_hit_while_frog_is_still_in_the_deck():
     assert a.card is not None and a.card.name == "Cyclops"
     b.pips, b.power_pips = 3, 0
     assert decide(b, discards_left=0).kind is ActionKind.PASS  # a Cyclops now leaves nothing for the frog
+
+
+def test_a_full_party_never_summons_and_discards_the_minion():
+    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Apollo", 3000, boss=True)])
+    b.allies = [Combatant(n, 1500, 1500) for n in ("Ryan", "Isla", "Willow")]
+    action = decide(b)
+    assert not (action.kind is ActionKind.CAST and action.card.name == "Golem Minion")
+    assert action.kind is ActionKind.DISCARD and action.card.name == "Golem Minion"
+    b.allies = b.allies[:2]  # three players: a minion still has a place
+    assert decide(b).card.name == "Golem Minion"

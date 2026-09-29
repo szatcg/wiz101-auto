@@ -192,6 +192,15 @@ def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
     return None
 
 
+PARTY_SIZE = 4  # places on our side of the duel circle
+
+
+def party_full(battle: Battle) -> bool:
+    """Our side's places all taken (four players): a minion has nowhere to
+    stand, so summoning one does nothing."""
+    return 1 + len(battle.allies) >= PARTY_SIZE
+
+
 def _has_minion(battle: Battle) -> bool:
     return any(a.is_minion and not a.is_dead and a.health > 0 for a in battle.allies)
 
@@ -203,7 +212,7 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     """A minion once per fight: early on it soaks hits and traps for us; later,
     or a second one, costs all our pips when blade, trap and a big hit end it
     sooner (Itennu Sokkwi: a second Troll Minion with one enemy left)."""
-    if not strat.summon_minions or _has_minion(battle) or battle.summoned >= 1:
+    if not strat.summon_minions or _has_minion(battle) or battle.summoned >= 1 or party_full(battle):
         return None
     if len(battle.live_enemies) == 1 and battle.round > SUMMON_ROUNDS_ONE_ENEMY:
         return None
@@ -323,6 +332,10 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     draws the deck's stronger cards sooner."""
     if not strat.discard_junk:
         return None
+    if party_full(battle):
+        minions = [c for c in battle.cards if EffectKind.SUMMON in c.kinds and not c.treasure]
+        if minions:
+            return Action(ActionKind.DISCARD, minions[0], reason="a full party: no room for a minion")
     school = battle.me.school.lower()
     junk = [
         c for c in battle.cards
