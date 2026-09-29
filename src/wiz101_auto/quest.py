@@ -254,6 +254,9 @@ ERRAND_VERBS = (
     "talk", "speak", "go", "use", "find", "explore", "visit", "read", "locate", "return", "deliver",
 )
 ERRAND_MAX_HOPS = 3  # gates away at most: a detour, not a trip
+# The book's area names ("Regent's Square Hat Shop") often have no known route:
+# in the main quest's world such an errand counts as this far.
+ERRAND_UNKNOWN_HOPS = ERRAND_MAX_HOPS
 
 
 def is_errand(goal: str) -> bool:
@@ -287,12 +290,16 @@ def errand_detour(
     options = [
         q for q in quests
         if q is not chosen and not q.mainline and not q.activity and q.name not in set_aside
-        and quest_is_errand(q) and q.hops is not None and q.hops <= max_hops
+        and quest_is_errand(q) and _errand_hops(q) <= max_hops
         and same_world(quest_world(q), world)
     ]
     if not options:
         return None
-    return min(options, key=lambda q: (q.hops, -q.reward, not q.active))
+    return min(options, key=lambda q: (_errand_hops(q), -q.reward, not q.active))
+
+
+def _errand_hops(q: QuestEntry) -> int:
+    return ERRAND_UNKNOWN_HOPS if q.hops is None else q.hops
 
 
 def dungeon_quest(

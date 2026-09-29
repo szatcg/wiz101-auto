@@ -34,7 +34,11 @@ async def explore(out_dir: str = "state") -> Path | None:
                     pass
                 pos = await entity.location()
                 dist = math.dist((me.x, me.y, me.z), (pos.x, pos.y, pos.z))
-                rows.append((dist, name, display, pos))
+                try:
+                    behaviors = ",".join(await entity.list_behavior_names())
+                except Exception:
+                    behaviors = ""
+                rows.append((dist, name, display, pos, behaviors))
             except Exception:
                 continue
         rows.sort(key=lambda r: r[0])
@@ -48,9 +52,9 @@ async def explore(out_dir: str = "state") -> Path | None:
             "",
             f"{'dist':>7}  {'object name':<45} {'display name':<30} position",
         ]
-        for dist, name, display, pos in rows:
+        for dist, name, display, pos, behaviors in rows:
             where = f"({pos.x:.0f}, {pos.y:.0f}, {pos.z:.0f})"
-            lines.append(f"{dist:7.0f}  {name[:45]:<45} {display[:30]:<30} {where}")
+            lines.append(f"{dist:7.0f}  {name[:45]:<45} {display[:30]:<30} {where}  [{behaviors}]")
 
         Path(out_dir).mkdir(exist_ok=True)
         safe_zone = zone.replace("/", "_")
