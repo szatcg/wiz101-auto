@@ -407,6 +407,8 @@ class Quester:
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
         self._last_defeat = -1e9
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
+        self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
+        self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
         self._main_world: str | None = None  # the world the main quest is in (side quests stay there)
         self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
@@ -972,6 +974,22 @@ class Quester:
         except Exception as exc:
             logger.debug(f"loot pickup failed: {exc!r}")
             return False
+
+    async def _loot_after_boss(self) -> bool:
+        """A boss fight was just won: look for its loot chest and open it
+        before anything else (a heal trip would leave the room). True if it
+        looked."""
+        if not self.fighter or self.fighter.boss_fights == self._boss_fights_seen:
+            return False
+        won = self.controller.deaths == self._boss_deaths_seen
+        self._boss_fights_seen, self._boss_deaths_seen = self.fighter.boss_fights, self.controller.deaths
+        if not won or await self.client.in_battle():
+            return False
+        try:
+            await self.collector.loot_boss_chest(self._press_collect)
+        except Exception as exc:
+            logger.debug(f"boss chest looting failed: {exc!r}")
+        return True
 
     async def _pick_up_wanted(self) -> bool:
         """Every few seconds, grab any wanted "Collect X" item in view (away from
@@ -2055,6 +2073,8 @@ class Quester:
         zone_now = await self.client.zone_name() or ""
         if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
             await self._clear_of_enemies()
+        if await self._loot_after_boss():
+            return
         if await self._pick_up_wanted():
             return
         if await self._pick_up_loot():

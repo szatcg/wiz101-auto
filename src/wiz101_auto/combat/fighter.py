@@ -67,6 +67,8 @@ class Fighter(CombatHandler):
         self.max_discards = max_discards
         self.flee_below = flee_below
         self.fights = 0
+        self.boss_fights = 0  # fights that had a boss in them (a loot chest may spawn after)
+        self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
@@ -302,6 +304,7 @@ class Fighter(CombatHandler):
                 return
 
             if not self._judged_fight:
+                self._had_boss = self._had_boss or any(e.is_boss for e in battle.enemies)
                 await self._remember_bosses(battle)
 
             # Decide once, on the first round, whether this fight is worth having;
@@ -414,6 +417,9 @@ class Fighter(CombatHandler):
         self._fleeing = False
         self._want_flee = False
         self._last_plan = ""
+        self._had_boss = False
         await super().handle_combat()
         self.fights += 1
+        if self._had_boss:
+            self.boss_fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")

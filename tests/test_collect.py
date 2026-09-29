@@ -49,3 +49,12 @@ def test_duel_circles_are_not_landmarks():
     from wiz101_auto.collect import LANDMARK_NAMES
 
     assert "duel circle" not in LANDMARK_NAMES
+
+
+def test_is_chest_matches_any_chest_name():
+    from wiz101_auto.collect import is_chest
+
+    assert is_chest("KT-Chest-Boss-001")
+    assert is_chest("BossChest")
+    assert not is_chest("Krokopatra")
+    assert not is_chest("")

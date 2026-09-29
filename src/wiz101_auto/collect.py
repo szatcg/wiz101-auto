@@ -17,6 +17,8 @@ from loguru import logger
 from .names import lang_name
 
 CANDIDATE_CACHE_SECONDS = 5.0
+BOSS_CHEST_WAIT = 6.0  # seconds to wait for a boss's loot chest to appear
+BOSS_CHEST_RANGE = 3000.0  # the chest appears in the boss room
 LOOT_RANGE = 2000.0  # free pickups this close are worth the small detour
 WALK_IN = 150.0  # distance to land from an item before walking onto it
 
@@ -161,6 +163,11 @@ def is_collectable(object_name: str) -> bool:
     return name.startswith("collect_") or bool(_CHEST_RE.search(name)) or bool(_REAGENT_RE.match(name))
 
 
+def is_chest(object_name: str) -> bool:
+    """Any chest, however it's named ("KT-Chest-Boss-001", "BossChest")."""
+    return "chest" in (object_name or "").lower()
+
+
 def away_from(points: list, mobs: list, safe_distance: float) -> list:
     """Points with no mob within `safe_distance` (mobs are landmarks too)."""
     def clear(p) -> bool:
@@ -247,6 +254,47 @@ class Collector:
         await press_interact()
         await asyncio.sleep(1.0)
         await self.client.teleport(back)  # carry on from where we were
+        return True
+
+    async def loot_boss_chest(self, press_interact, wait: float = BOSS_CHEST_WAIT,
+                              max_range: float = BOSS_CHEST_RANGE) -> bool:
+        """Right after a boss fight: wait a few seconds for a loot chest to
+        appear near us, open it, and go back to where we stood. True if opened."""
+        from wizwalker import XYZ
+
+        me = await self.client.body.position()
+        deadline = time.monotonic() + wait
+        while True:
+            found = []
+            for e in await self.client.get_base_entity_list():
+                try:
+                    template = await e.object_template()
+                    name = await template.object_name() if template else ""
+                    if not is_chest(name):
+                        continue
+                    gid = await e.global_id_full()
+                    pos = await e.location()
+                    if gid not in self._looted and pos.distance(me) <= max_range:
+                        found.append((pos.distance(me), gid, pos, name))
+                except Exception:
+                    continue
+            if found or time.monotonic() > deadline:
+                break
+            await asyncio.sleep(1.0)
+        if not found:
+            logger.info("no loot chest after the boss fight")
+            return False
+        _d, gid, spot, name = min(found, key=lambda f: f[0])
+        self._looted.add(gid)
+        logger.info(f"boss loot chest {name!r} ({spot.distance(me):.0f} away): opening it")
+        back = XYZ(me.x, me.y, me.z)
+        await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
+        await asyncio.sleep(0.8)
+        await self.client.goto(spot.x, spot.y)
+        await asyncio.sleep(0.3)
+        await press_interact()
+        await asyncio.sleep(1.5)
+        await self.client.teleport(back)
         return True
 
     async def collect_once(self, item: str, press_interact) -> bool:
