@@ -260,6 +260,21 @@ def hops_to_place(current_zone: str, place: str) -> int | None:
     return hop_count(current_zone, dest, gates) if dest else None
 
 
+def world_hub(zone: str, gates: Gates | None = None) -> str | None:
+    """The hub of `zone`'s world ("Krokotopia/KT_Hub"), if the gate data has one."""
+    world = zone.split("/")[0]
+    for z in gates if gates is not None else _data()[0]:
+        if z.split("/")[0] == world and z.split("/")[-1].endswith("_Hub"):
+            return z
+    return None
+
+
+def hops_from_hub(zone: str, dest: str) -> int | None:
+    """Gate hops to `dest` from the hub of `zone`'s world (a heal trip starts
+    there); from `zone` itself if the world has no known hub."""
+    return zone_hops(world_hub(zone) or zone, dest)
+
+
 def zone_hops(current_zone: str, dest: str) -> int | None:
     """Gate hops between two zone ids (0 if the same, None if no known route)."""
     return hop_count(current_zone, dest, _data()[0])

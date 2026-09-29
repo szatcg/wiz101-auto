@@ -12,6 +12,7 @@ from wizwalker import XYZ, Keycode
 from . import ui
 from .collect import away_from, landmarks, spread_points
 from .config import QuestConfig, UpkeepConfig
+from .travel_data import hops_from_hub
 from .wisps import ANY, BOTH, HEALTH, MANA, WispMemory, usable, wisp_kind
 
 
@@ -220,7 +221,11 @@ async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str, need) -> bool:
     logger.info(f"checking a known {wisp_memory().kind_of(zone, spot)} wisp spawn point")
     await client.teleport(XYZ(*spot))
     await asyncio.sleep(1.0)
-    await collect_wisps(client, cfg)
+    if await collect_wisps(client, cfg):
+        wisp_memory().found(zone, spot)
+    elif wisp_memory().missed(zone, spot):
+        logger.info("no wisp at that spot three times running: forgetting it")
+        wisp_memory().save()
     return True
 
 
@@ -338,6 +343,7 @@ def best_wisp_zone(
     need=BOTH,
     kinds: dict | None = None,
     avoid: set[str] = frozenset(),
+    hops=None,
 ) -> str | None:
     """Where to recover: a preferred heal zone in the same world when health is
     needed, else the zone with the most remembered spots of the needed wisp
@@ -354,9 +360,15 @@ def best_wisp_zone(
         for z, pts in spots.items()
         if z.split("/", 1)[0] == world
     ]
-    zones = sorted(((n, z) for n, z in same_world if n >= 3), reverse=True)
-    for _, z in zones:
-        if z != current_zone and z not in avoid:
+    # The easiest to reach first (fewest gates by `hops`: from the world's hub,
+    # where a heal trip starts), then the most wisps. Hubs never have wisps.
+    def reach(z: str) -> int:
+        n = hops(current_zone, z) if hops else None
+        return 99 if n is None else n
+
+    zones = sorted(((reach(z), -n, z) for n, z in same_world if n >= 3))
+    for _, _, z in zones:
+        if z != current_zone and z not in avoid and not z.split("/")[-1].endswith("_Hub"):
             return z
     if in_world:
         return in_world[0]
@@ -449,7 +461,12 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                     continue
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
-            if await visit_known_spot(client, cfg, zone, need):
+            hub = zone.split("/")[-1].endswith("_Hub")  # the Oasis, the Commons: never any wisps
+            known_elsewhere = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones(),
+                                             hops=hops_from_hub) is not None
+            if hub:
+                fruitless = FRUITLESS_VISITS
+            if not hub and await visit_known_spot(client, cfg, zone, need):
                 rested = False
                 now_hp, now_mana = await health_mana(client)
                 # Passive regeneration ticks up a little on every visit; only a real
@@ -458,11 +475,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 fruitless = 0 if gained else fruitless + 1
                 if fruitless < FRUITLESS_VISITS:
                     continue
-            if zone not in swept:
+            if zone not in swept and not hub and not known_elsewhere:
+                # Only where no wisp zone is known yet: the sweep hops across
+                # landmarks (NPCs, objects) to discover the spawns.
                 swept.add(zone)
                 if await sweep_for_wisps(client, cfg):
                     continue
-            poor_zone = wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
+            poor_zone = hub or wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
             if trip and not tripped and poor_zone:
                 # This zone lacks what is needed (health wisps, or mana after
                 # healing here): the world hub, then Recall to the mark.
@@ -474,7 +493,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
                 fruitless = 0
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones())
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones(),
+                                      hops=hops_from_hub)
                 if dest:
                     what = " and ".join(sorted(need))
                     logger.info(f"no {what} wisps in {zone}; going to {dest} for them")
@@ -516,7 +536,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 if trip and await trip(force=True, marked=marked):
                     return True
                 dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
-                                      avoid=barren_zones())
+                                      avoid=barren_zones(), hops=hops_from_hub)
                 if dest and go_to_zone and await go_to_zone(dest):
                     logger.info(f"went to {dest} to heal")
                     rested, rest_start = False, None

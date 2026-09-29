@@ -38,12 +38,16 @@ def _dist(a: Point, b: Point) -> float:
     return math.dist(a, b)
 
 
+MISSES_TO_FORGET = 3  # visits in a row with no wisp before a spot is dropped
+
+
 @dataclass
 class WispMemory:
     path: Path = Path("state") / "wisps.json"
     spots: dict[str, list[Point]] = field(default_factory=dict)
     kinds: dict[str, dict[Point, str]] = field(default_factory=dict)  # zone -> spot -> kind
     _visited: dict[tuple[str, Point], float] = field(default_factory=dict)
+    _misses: dict[tuple[str, Point], int] = field(default_factory=dict)
 
     @classmethod
     def load(cls, path: Path | None = None) -> WispMemory:
@@ -94,6 +98,19 @@ class WispMemory:
         keep = [k for k in known if _dist(k, spot) > MERGE_DISTANCE]
         self.spots[zone] = keep
         return len(keep) < len(known)
+
+    def missed(self, zone: str, spot: Point, limit: int = MISSES_TO_FORGET) -> bool:
+        """A visit found no wisp there. After `limit` in a row the spot is
+        dropped (it was never a wisp, or no longer is). True if dropped."""
+        key = (zone, tuple(spot))
+        self._misses[key] = self._misses.get(key, 0) + 1
+        if self._misses[key] >= limit:
+            self._misses.pop(key, None)
+            return self.forget(zone, spot)
+        return False
+
+    def found(self, zone: str, spot: Point):
+        self._misses.pop((zone, tuple(spot)), None)
 
     def mark_visited(self, zone: str, spot: Point, now: float | None = None):
         self._visited[(zone, spot)] = time.monotonic() if now is None else now

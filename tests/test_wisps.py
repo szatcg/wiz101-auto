@@ -107,3 +107,34 @@ def test_heal_zone_skips_zones_that_gave_nothing():
     note_barren(here, now=100.0)
     assert here in barren_zones(now=200.0)
     assert here not in barren_zones(now=100.0 + 3600)
+
+
+def test_empty_spot_forgotten_after_three_misses(tmp_path):
+    from wiz101_auto.wisps import WispMemory
+
+    m = WispMemory(tmp_path / "w.json")
+    m.record("K/Palace", [(100.0, 100.0, 0.0)])
+    assert not m.missed("K/Palace", (100.0, 100.0, 0.0))
+    assert not m.missed("K/Palace", (100.0, 100.0, 0.0))
+    assert m.missed("K/Palace", (100.0, 100.0, 0.0))  # third miss: dropped
+    assert m.count("K/Palace") == 0
+
+
+def test_heal_zone_is_the_easiest_to_reach():
+    from wiz101_auto.upkeep import best_wisp_zone
+
+    spots = {
+        "K/Far": [(i, 0, 0) for i in range(0, 5000, 500)],  # many wisps, 3 gates away
+        "K/Near": [(i, 0, 0) for i in range(0, 1500, 500)],  # 3 wisps, next door
+        "K/KT_Hub": [(i, 0, 0) for i in range(0, 5000, 500)],
+    }
+    hops = {("K/KT_Hub", "K/Far"): 3, ("K/KT_Hub", "K/Near"): 1}
+    assert best_wisp_zone("K/KT_Hub", spots, hops=lambda a, b: hops.get((a, b))) == "K/Near"
+
+
+def test_world_hub_from_gates():
+    from wiz101_auto.travel_data import world_hub
+
+    gates = {"Krokotopia/KT_Hub": [], "Krokotopia/KT_Palace": [], "WizardCity/WC_Hub": []}
+    assert world_hub("Krokotopia/KT_Pyramid/Room1", gates) == "Krokotopia/KT_Hub"
+    assert world_hub("MooShu/MS_Hub2", gates) is None
