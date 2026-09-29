@@ -358,6 +358,12 @@ def defeat_target(objective: str) -> str | None:
     return target or None
 
 
+def talk_target(objective: str) -> str | None:
+    """The one a "Talk To Willie Marks in Willie's Clocktower" objective names."""
+    m = re.match(r"^\s*talk\s+to\s+(.+?)(?:\s+in\s+.+)?\s*$", objective, re.I)
+    return m.group(1).strip() if m else None
+
+
 def is_hub(zone: str) -> bool:
     """A world's hub (the Oasis, the Commons...): "Krokotopia/KT_Hub"."""
     return zone.split("/")[-1].endswith("_Hub")
@@ -1989,6 +1995,31 @@ class Quester:
             return False
         return True
 
+    async def _talk_means_fight(self, objective: str) -> bool:
+        """"Talk To Willie Marks" where Willie Marks is an enemy (the talk comes
+        after beating him, in the middle of his clocktower): go start the fight.
+        True if it went for one."""
+        name = talk_target(objective)
+        if not name:
+            return False
+        from .names import lang_name
+
+        want = _norm_name(name)
+        try:
+            for mob in await self.client.get_mobs():
+                t = await mob.object_template()
+                code = await t.display_name() if t else ""
+                label = await lang_name(self.client, code) if code else ""
+                if want and want == _norm_name(label):
+                    logger.info(f"{name} is an enemy here: fighting him to get on with {objective!r}")
+                    allow_engage(self.client)
+                    await self.client.teleport(await mob.location())
+                    await asyncio.sleep(3.0)
+                    return True
+        except Exception as exc:
+            logger.debug(f"talk-target enemy check failed: {exc!r}")
+        return False
+
     async def pull_mob(self, objective: str = ""):
         """For defeat objectives: teleport onto the enemy the objective names
         ("Defeat Gobbler Gorger ..."), else the closest mob, to start a fight."""
@@ -2364,6 +2395,8 @@ class Quester:
             allow_close_landing(self.client)  # enemies there are what we came for
         # An NPC here: inch toward it. Elsewhere the marker is a door on the way.
         npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
+        if npc_here and await self._talk_means_fight(objective):
+            return
         await self.travel(target, npc=npc_here)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival

@@ -199,3 +199,11 @@ def test_book_steps_without_verbs():
     assert not quest_is_errand(fight) and not quest_is_errand(collect)
     main = QuestEntry(0, "Not So Fast...", mainline=True, active=True, zone="Marleybone", fight=True)
     assert errand_detour([main, talk, fight, collect, done], main, world="Marleybone") is talk
+
+
+def test_talk_target():
+    from wiz101_auto.quest import talk_target
+
+    assert talk_target("Talk To Willie Marks in Willie's Clocktower") == "Willie Marks"
+    assert talk_target("Talk To Ms. Conrail") == "Ms. Conrail"
+    assert talk_target("Defeat Willie Marks") is None
