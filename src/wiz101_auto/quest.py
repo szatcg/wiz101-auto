@@ -72,6 +72,9 @@ from .upkeep import (
 from .wisps import sweep_points
 
 INTERACT_RANGE = 750.0
+# Marks go down only before a dungeon (its sigil) and before a heal trip; the
+# travel and fight marks kept replacing the one that mattered.
+TRAVEL_AND_FIGHT_MARKS = False
 DEFEAT_NO_MARK_SECONDS = 120.0  # right after a defeat the wizard stands in the hub: no heal marks
 NPC_INCH_RANGE = 1500.0  # a refused teleport this close to an NPC: step closer; farther off, it's a door
 EXPOSED_RADIUS = 1200.0  # standing still (menus, marking) this close to an enemy invites a fight
@@ -788,7 +791,10 @@ class Quester:
 
     async def _mark_for_fight(self, objective: str, zone: str):
         """Reaching a fight objective's zone: mark the spot once, so a defeat
-        is followed by a Recall here instead of the long walk back."""
+        is followed by a Recall here instead of the long walk back.
+        Off: marks are only placed before a dungeon and before a heal trip."""
+        if not TRAVEL_AND_FIGHT_MARKS:
+            return
         m = self._mark
         if m and m.kind in RETURN_KINDS and m.objective == objective and m.zone == zone:
             return
@@ -870,7 +876,10 @@ class Quester:
 
     async def _travel_mark(self, objective: str, zone: str):
         """A new objective several zones away: mark where we are first, so a
-        later objective back here is a Recall instead of the same long walk."""
+        later objective back here is a Recall instead of the same long walk.
+        Off: marks are only placed before a dungeon and before a heal trip."""
+        if not TRAVEL_AND_FIGHT_MARKS:
+            return
         dest = objective_zone(objective)
         dungeons = set(DungeonMemory.load().dungeons)
         keep = self._keep_dungeon_mark(objective)
