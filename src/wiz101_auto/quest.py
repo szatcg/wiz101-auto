@@ -123,6 +123,8 @@ TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
+TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
+TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
 TEAM_ALONE_AFTER = 300.0  # no teammate ever seen in here this long (not come in with one): alone
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -573,6 +575,8 @@ class Quester:
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave after its chest
+        self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
+        self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._chests_checked: set[str] = set()  # team dungeon rooms already checked for a boss chest
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
@@ -2706,7 +2710,9 @@ class Quester:
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
         elif mates:
             mate = min(mates, key=lambda m: distance(m, me))
-            self._mate_seen = (await self.client.zone_name() or "", mate, time.monotonic(), True)
+            here_zone = await self.client.zone_name() or ""
+            self._mate_seen = (here_zone, mate, time.monotonic(), True)
+            self._mate_trail = [*self._mate_trail[-4:], (here_zone, mate)]
             if distance(mate, me) > TEAM_FOLLOW:
                 logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
                             "not starting fights")
@@ -2725,20 +2731,48 @@ class Quester:
 
     async def _after_team_through_door(self) -> bool:
         """No teammate in sight for TEAM_LOST_AFTER, one last seen here: they
-        went on to the next room. Take the door nearest where they were (each
-        door once). True if it went."""
+        went on to another room. First follow their tracks: land where the
+        last one was seen and walk on the way they were going (they vanished
+        through a door the bot hadn't used, heading north in Mount Olympus).
+        Then the known doors of this zone, nearest to that spot first, each
+        once. A door walk that works is remembered (state/doors.json). True
+        if it went somewhere."""
         zone = await self.client.zone_name() or ""
         seen = self._mate_seen
         if not seen or seen[0] != zone or not seen[3] or time.monotonic() - seen[2] < TEAM_LOST_AFTER:
             return False
         last = seen[1]
-        doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
+        key = (zone, round(last.x / 300), round(last.y / 300))
+        tries = self._track_tries.get(key, 0)
+        if tries < TEAM_TRACK_TRIES:
+            self._track_tries[key] = tries + 1
+            trail = [p for z, p in self._mate_trail if z == zone]
+            prev = trail[-2] if len(trail) >= 2 else await self._position()
+            dx, dy = last.x - prev.x, last.y - prev.y
+            length = math.hypot(dx, dy) or 1.0
+            step = TEAM_TRACK_AHEAD / length
+            ahead = XYZ(last.x + dx * step, last.y + dy * step, last.z)
+            logger.info(f"the team went on; following their tracks from ({last.x:.0f}, {last.y:.0f}) "
+                        f"toward ({ahead.x:.0f}, {ahead.y:.0f})")
+            await self.client.teleport(last)
+            await asyncio.sleep(0.8)
+            start = await self._position()
+            await self.client.goto(ahead.x, ahead.y)
+            await asyncio.sleep(1.5)
+            await wait_for_loading(self.client)
+            now = await self.client.zone_name() or ""
+            if now != zone:
+                logger.success(f"followed the team into {now}")
+                self.doors.record(zone, (ahead.x, ahead.y, ahead.z), (start.x, start.y, start.z))
+            return True
+        doors = await self._doors_here(zone)
+        doors += [XYZ(d[0], d[1], last.z) for d, _spot in self.doors.doors.get(zone, [])]
         for door in sorted(doors, key=lambda d: distance(d, last)):
-            key = (zone, round(door.x / 100), round(door.y / 100))
-            if key in self._mate_doors:
+            dkey = (zone, round(door.x / 100), round(door.y / 100))
+            if dkey in self._mate_doors:
                 continue
-            self._mate_doors.add(key)
-            logger.info(f"the team went on; following them through the door at ({door.x:.0f}, {door.y:.0f})")
+            self._mate_doors.add(dkey)
+            logger.info(f"the team went on; trying the door at ({door.x:.0f}, {door.y:.0f})")
             await self.approach_and_walk(door, zone)
             return True
         return False
