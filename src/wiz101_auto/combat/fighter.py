@@ -349,6 +349,8 @@ class Fighter(CombatHandler):
                 logger.warning("flee didn't go through; playing this round and trying again next round")
                 self._fleeing = False  # let a stray confirmation be cancelled while we play
 
+            hand = ", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
+            logger.debug(f"hand: {hand}; deck left: {len(battle.upcoming)}")
             plan = plan_fight(battle, self.strategy).text
             if plan != self._last_plan:
                 logger.info(plan)

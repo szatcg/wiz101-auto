@@ -817,6 +817,7 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     return action
 
 
+AOE_SPILL_PER_PIP = 150.0  # damage to the other enemies worth one pip when comparing kill lines
 KILL_LOOKAHEAD = 4  # rounds the kill search looks ahead (blade, trap, a pip, Cyclops)
 
 
@@ -900,6 +901,12 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                     # still standing after this killing hit.
                     others = [e for e in battle.live_enemies if e is not target]
                     cost = spent + c.pip_cost - _shield_bonus(c, others)
+                    if c.is_aoe and others:
+                        # The same kill with a hit-all spell also hurts the rest
+                        # (Humongofrog on Kettlehead hits Firegut too): count its
+                        # damage to them as pips saved.
+                        spill = sum(min(hit_damage(c, attacker, o), o.health) for o in others)
+                        cost -= spill / AOE_SPILL_PER_PIP
                     key = (depth + 1, cost)
                     if not best or key < best[0][:2]:
                         best[:] = [(depth + 1, cost), act, steps + [step], used | {i}, dmg]

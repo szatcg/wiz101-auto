@@ -941,3 +941,15 @@ def test_group_saves_pips_for_a_frog_in_the_deck():
     b.upcoming = [_frog()]
     a = decide(b)
     assert a.card is not None and a.card.name == "Fire Trap"  # set up, don't spend the pips on one Napper
+
+
+def test_plan_prefers_the_frog_kill_that_also_hits_the_boss():
+    from wiz101_auto.combat.brain import plan_fight
+
+    cyclops = _myth(dmg_card(0, "Cyclops", 500, pips=3))
+    frog = _frog(1)
+    firegut = enemy("Firegut", 629, boss=True)
+    kettle = enemy("Kettlehead", 207)
+    b = battle([cyclops, frog], [firegut, kettle], my=_myth_me())
+    b.pips = 4
+    assert "Humongofrog" in plan_fight(b).text.split("|")[0]  # Kettlehead's line
