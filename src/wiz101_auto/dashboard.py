@@ -58,6 +58,21 @@ def _read_json(path: Path) -> dict:
         return {}
 
 
+THOUGHTS_SHOWN = 12  # the bot's latest decisions on the page (plain English)
+
+
+def _recent_thoughts() -> list[dict]:
+    """The bot's latest decisions, in plain English (as on the stream page)."""
+    from .thoughts import read_thoughts
+
+    try:
+        events = read_thoughts(limit=THOUGHTS_SHOWN)["events"]
+    except Exception:
+        return []
+    keep = ("time", "tag", "say")
+    return [{k: e.get(k, "") for k in keep} for e in events][::-1]
+
+
 def build_data(docs: Path = Path("docs")) -> dict:
     status = _read_json(STATUS)
     book = _read_json(QUEST_BOOK)
@@ -139,7 +154,9 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "quest": book.get("tracking", ""),
             "area": book.get("tracking_area", ""),
             "objective": status.get("objective") or "",
+            "objective_age_s": status.get("objective_age_s"),
         },
+        "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),
         "recent": completed[-12:][::-1],
         "worlds": worlds,

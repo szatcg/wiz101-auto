@@ -47,7 +47,17 @@
   .dot.fight { background: var(--red); box-shadow: 0 0 10px var(--red); }
   .now { min-width: 0; }
   .now .quest { font-size: 18px; font-weight: 700; color: var(--gold); overflow-wrap: anywhere; }
-  .now .objective { color: var(--text); overflow-wrap: anywhere; }
+  .now .objective { color: var(--text); overflow-wrap: anywhere; font-size: 15px; margin-top: 2px; }
+  .now .objective .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px; }
+  .now .objective .age { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .thoughts li { display: flex; gap: 8px; align-items: baseline; }
+  .thoughts .t { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .thoughts .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); color: var(--muted); white-space: nowrap; }
+  @media (max-width: 640px) {
+    .ribbon .wrap { grid-template-columns: 1fr; gap: 8px; }
+    .vitals { text-align: left; }
+    .hp { margin: 6px 0 0 0; }
+  }
   .now .where { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
   .vitals { text-align: right; font-size: 13px; color: var(--muted); white-space: nowrap; }
   .vitals b { color: var(--text); font-size: 16px; }
@@ -170,6 +180,7 @@
     <div class="box"><h3>Quest book</h3><ul id="book"></ul></div>
     <div class="box"><h3>Recently completed</h3><ul id="recent"></ul></div>
   </div>
+  <div class="box thoughts"><h3>What the bot is doing</h3><ul id="thoughts"></ul></div>
 </div>
 
 <script>
@@ -193,7 +204,11 @@ function renderRibbon() {
   document.getElementById("state").textContent = fighting ? "In battle" : live ? "Questing"
     : data.running ? `Offline · last update ${ago} ago` : "Bot stopped";
   document.getElementById("quest").textContent = data.current.quest || "No quest tracked";
-  document.getElementById("objective").textContent = data.current.objective || "";
+  const obj = data.current.objective || "";
+  const secs = data.current.objective_age_s;
+  const age = secs == null ? "" : secs < 90 ? "just now" : secs < 5400 ? `for ${Math.round(secs / 60)} min` : `for ${(secs / 3600).toFixed(1)} h`;
+  document.getElementById("objective").innerHTML = obj
+    ? `<span class="lbl">Current step</span>${esc(obj)}${age ? `<span class="age">(${age})</span>` : ""}` : "";
   const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
   document.getElementById("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
   document.getElementById("level").textContent = s.level ?? "–";
@@ -280,6 +295,10 @@ function renderLists() {
     ? data.book.map((q) => `<li>${q.name === tracking ? "<b>" + esc(q.name) + "</b>" : esc(q.name)}
         <small>${q.main ? "main" : q.spell ? "spell" : "side"}${q.area ? " · " + esc(q.area) : ""}</small></li>`).join("")
     : '<li class="empty">not read yet</li>';
+  const th = data.thoughts || [];
+  document.getElementById("thoughts").innerHTML = th.length
+    ? th.map((e) => `<li><span class="t">${esc(e.time)}</span>${e.tag ? `<span class="tag">${esc(cleanTag(e.tag))}</span>` : ""}<span>${esc(e.say)}</span></li>`).join("")
+    : '<li class="empty">nothing yet</li>';
   document.getElementById("recent").innerHTML = data.recent.length
     ? data.recent.map((n) => `<li>${esc(n)}</li>`).join("")
     : '<li class="empty">none yet</li>';
