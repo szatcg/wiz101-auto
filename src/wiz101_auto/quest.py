@@ -109,6 +109,8 @@ FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
+ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
+APPROACH_TRIES = 8  # approach spots tried around a door
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
@@ -746,9 +748,19 @@ class Quester:
         pos = await self._position()
         dx, dy = pos.x - target.x, pos.y - target.y
         length = math.hypot(dx, dy)
-        ux, uy = (dx / length, dy / length) if length > 1 else (1.0, 0.0)
-        for back in APPROACH_DISTANCES:
-            spot = XYZ(target.x + ux * back, target.y + uy * back, target.z)
+        base = math.atan2(dy, dx) if length > 1 else 0.0
+        # Only spots on the map: near something known to stand on the ground
+        # (it landed in the clouds off the Commons' edge beside the Nightside
+        # door). The side we came from first, then the others.
+        ground = await self._ground_points(zone or "", target)
+        spots = []
+        for turn in (0.0, math.pi / 4, -math.pi / 4, math.pi / 2, -math.pi / 2, math.pi):
+            for back in APPROACH_DISTANCES:
+                a = base + turn
+                spot = XYZ(target.x + math.cos(a) * back, target.y + math.sin(a) * back, target.z)
+                if not ground or any(math.dist((spot.x, spot.y), g[:2]) < ON_GROUND for g in ground):
+                    spots.append(spot)
+        for spot in spots[:APPROACH_TRIES]:
             if not await self._clear_spot(spot):
                 continue  # an enemy stands there: landing on it starts a fight
             before = await self._position()
@@ -761,6 +773,13 @@ class Quester:
             if await self.walk_through(target, zone):
                 return True
         return False
+
+    async def _ground_points(self, zone: str, near: XYZ) -> list[tuple[float, float, float]]:
+        """Points known to be on the walkable map at `near`'s height: landmarks,
+        walkway markers and spots things were seen at."""
+        points = await self._landmarks() + await path_points(self.client)
+        points += self.entity_map.spots(zone, lambda _n: True, (near.x, near.y, near.z))
+        return [p for p in points if abs(p[2] - near.z) < 300 and math.dist(p[:2], (near.x, near.y)) < 3000]
 
     async def go_to_zone(self, dest: str, max_hops: int = 6) -> bool:
         """Walk the known gates to `dest`. True once there."""
