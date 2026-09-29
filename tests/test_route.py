@@ -31,3 +31,13 @@ def test_team_fight_is_a_circle_with_a_teammate_in_it():
     assert team_fight_at(circles, [XYZ(3100, 50, 0)]) is circles[1]
     assert team_fight_at(circles, [XYZ(1500, 0, 0)]) is None  # nobody in a circle
     assert team_fight_at(circles, []) is None
+
+
+def test_players_on_sigil():
+    from wizwalker import XYZ
+
+    from wiz101_auto.teamup import players_on_sigil
+
+    sigil = XYZ(0, 0, 0)
+    assert players_on_sigil(sigil, [XYZ(100, 50, 0), XYZ(-200, 0, 0), XYZ(2000, 0, 0)]) == 2
+    assert players_on_sigil(sigil, []) == 0

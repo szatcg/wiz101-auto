@@ -39,6 +39,13 @@ CONFIRM_WINDOW = "TeamUpConfirmationWindow"
 TEAM_CHOICES = ("TeamTypeFarmingCheckBox", "TeamSize4CheckBox")
 CONFIRM_WORDS = ("team up", "join", "join team", "find team", "search", "yes", "ok", "go", "accept", "ready")
 TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
+# Players gathering on the sigil to go in: with this many others on it, press
+# X and stand still through the countdown to go in with them.
+PARTY_ON_SIGIL = 2
+SIGIL_RADIUS = 450.0  # a player this near the sigil's center is standing on it
+SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
+SIGIL_COUNTDOWN_WAIT = 15.0
+SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
 IN_FIGHT_RANGE = 450.0  # a player this near a duel circle is in its fight
 ME_RANGE = 60.0  # a Player Object this near us is our own wizard
 
@@ -59,6 +66,53 @@ async def teammates(client, me) -> list:
         except Exception:
             continue
     return out
+
+
+def players_on_sigil(center, mates) -> int:
+    """How many other players stand on the sigil at `center`."""
+    return sum(1 for m in mates if m.distance(center) < SIGIL_RADIUS)
+
+
+async def sigil_center(client, me):
+    """The sigil we stand at (its object), or our own spot if none is listed."""
+    best, best_d = me, SIGIL_FIND_RANGE
+    for e in await client.get_base_entity_list():
+        try:
+            t = await e.object_template()
+            if not t or "sigil" not in (await t.object_name() or "").lower():
+                continue
+            pos = await e.location()
+            if pos.distance(me) < best_d:
+                best, best_d = pos, pos.distance(me)
+        except Exception:
+            continue
+    return best
+
+
+async def _join_party_on_sigil(client, zone: str, center, last_press: list[float]) -> bool:
+    """Two or more players on the sigil: press X once and stand still through
+    the countdown so we go in with them. True once in the dungeon."""
+    from wizwalker import Keycode
+
+    if time.monotonic() - last_press[0] < SIGIL_RETRY:
+        return False
+    me = await client.body.position()
+    on = players_on_sigil(center, await teammates(client, me))
+    if on < PARTY_ON_SIGIL:
+        return False
+    last_press[0] = time.monotonic()
+    logger.info(f"team up: {on} players on the sigil; pressing X to go in with them "
+                f"(waiting {SIGIL_COUNTDOWN_WAIT:.0f}s)")
+    await client.send_key(Keycode.X, 0.1)
+    deadline = time.monotonic() + SIGIL_COUNTDOWN_WAIT + 10  # + the loading screen
+    while time.monotonic() < deadline:
+        if await client.is_loading() or await client.zone_name() != zone:
+            await wait_for_loading(client)
+            logger.success(f"team up: in {await client.zone_name()} with the players from the sigil")
+            return True
+        await asyncio.sleep(1.0)
+    logger.info("team up: the sigil's party didn't take us in; back to waiting")
+    return False
 
 
 def team_fight_at(circles, mates):
@@ -160,8 +214,12 @@ async def team_up(quester, dungeon: str) -> bool:
         logger.info(f"team up: waiting for a team for {dungeon} (up to {TEAM_UP_WAIT // 60} min)")
         started = time.monotonic()
         last_report = started
+        center = await sigil_center(client, await client.body.position())
+        last_press = [0.0]
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
+            if await _join_party_on_sigil(client, zone, center, last_press):
+                return True
             if await client.is_loading() or await client.zone_name() != zone:
                 await wait_for_loading(client)
                 logger.success(f"team up: in {await client.zone_name()} with a team")
