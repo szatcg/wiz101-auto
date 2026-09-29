@@ -216,7 +216,7 @@ function renderSide() {
   $("hp").style.width = max ? `${(100 * hp) / max}%` : "0%";
   $("hptext").textContent = max ? `${hp} / ${max}` : "";
   $("quest").textContent = data.current.quest || "—";
-  $("objective").textContent = data.current.objective || "";
+  $("objective").textContent = data.current.grinding ? "Grinding for experience (no quest to do right now)" : (data.current.objective || "");
   const zone = ((s.zone || "").split("/").slice(1).pop() || "")
     .replace(/^[A-Z]{2}_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
   $("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");

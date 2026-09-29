@@ -155,6 +155,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "area": book.get("tracking_area", ""),
             "objective": status.get("objective") or "",
             "objective_age_s": status.get("objective_age_s"),
+            "grinding": status.get("activity") == "grinding for experience",
         },
         "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),

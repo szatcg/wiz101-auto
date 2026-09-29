@@ -204,6 +204,7 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
                 objective=quester._last_progress[0],
                 objective_age_s=int(time.monotonic() - quester._last_progress_time),
                 objectives_completed=quester.objectives_completed,
+                activity="grinding for experience" if quester._grinding else "questing",
             )
         if watchdog:
             info["watchdog_nudges"] = watchdog.nudges

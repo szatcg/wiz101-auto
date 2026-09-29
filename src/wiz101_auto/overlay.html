@@ -79,7 +79,7 @@ function render(d) {
   const world = d.worlds.find((w) => w.current) || null;
   set("deaths", d.deaths ? d.deaths.total : "–");
   set("quest", d.current.quest || "—");
-  set("objective", d.current.objective || "");
+  set("objective", d.current.grinding ? "Grinding for experience (no quest to do right now)" : (d.current.objective || ""));
   if (world) {
     set("worldName", `${world.name}${world.deaths ? "  💀" + world.deaths : ""}`);
     set("worldPct", `${world.pct}%`);

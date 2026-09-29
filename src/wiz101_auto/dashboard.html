@@ -201,14 +201,16 @@ function renderRibbon() {
   const fighting = live && s.in_battle;
   dot.className = "dot " + (fighting ? "fight" : live ? "run" : "");
   const ago = age < 3600 ? `${Math.round(age / 60)} min` : `${Math.round(age / 3600)} h`;
-  document.getElementById("state").textContent = fighting ? "In battle" : live ? "Questing"
+  document.getElementById("state").textContent = fighting ? "In battle"
+    : live && data.current.grinding ? "Grinding for XP" : live ? "Questing"
     : data.running ? `Offline · last update ${ago} ago` : "Bot stopped";
   document.getElementById("quest").textContent = data.current.quest || "No quest tracked";
   const obj = data.current.objective || "";
   const secs = data.current.objective_age_s;
   const stepAge = secs == null ? "" : secs < 90 ? "just now" : secs < 5400 ? `for ${Math.round(secs / 60)} min` : `for ${(secs / 3600).toFixed(1)} h`;
-  document.getElementById("objective").innerHTML = obj
-    ? `<span class="lbl">Current step</span>${esc(obj)}${stepAge ? `<span class="age">(${stepAge})</span>` : ""}` : "";
+  document.getElementById("objective").innerHTML = data.current.grinding
+    ? `<span class="lbl">Now</span>Grinding for experience (no quest to do right now)`
+    : obj ? `<span class="lbl">Current step</span>${esc(obj)}${stepAge ? `<span class="age">(${stepAge})</span>` : ""}` : "";
   const zone = (s.zone || "").split("/").slice(1).join(" › ").replace(/_/g, " ");
   document.getElementById("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
   document.getElementById("level").textContent = s.level ?? "–";

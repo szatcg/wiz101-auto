@@ -106,6 +106,7 @@ FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one ob
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
+GRIND_RERANK_SECONDS = 90.0  # while grinding, re-read the quest book this often
 ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most hourly
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
@@ -1117,6 +1118,12 @@ class Quester:
         fight was last won. True if it acted this step."""
         if await self.client.in_battle():
             return True
+        if time.monotonic() - self._last_rank > GRIND_RERANK_SECONDS:
+            # A quest may have come in (an NPC offered one, the next main
+            # quest): read the book again before more grinding.
+            self._ranked_for = None
+            self._last_rank = -1e9
+            return False
         zone = await self.client.zone_name() or ""
         in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
         if not in_main_world:
@@ -2293,11 +2300,13 @@ class Quester:
             return
         if await self._recall_to_mark():
             return
+        # Quests beat grinding for experience: ask the NPCs around first (the
+        # next main quest may be waiting with one of them).
+        if await self.givers.ask_nearby():
+            return
         # Grinding comes after healing: right after a defeat it went looking for
         # fights at 0 mana and a third of its health.
         if self._grinding and await self._grind():
-            return
-        if not self._grinding and await self.givers.ask_nearby():
             return
         if self.gear:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
