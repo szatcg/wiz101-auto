@@ -855,3 +855,30 @@ def test_humongofrog_over_a_single_kill_that_leaves_the_boss_untouched():
     b = battle([golem, _frog()], [enemy("Willie", 725, boss=True), enemy("Napper", 300)], my=_myth_me())
     b.pips = 4
     assert decide(b).card.name == "Humongofrog"
+
+
+def test_second_trap_goes_where_the_frog_then_kills():
+    trap = _myth(trap_card(2))
+    willie = enemy("Willie", 725, boss=True, trap_count=1, incoming_boost=0.3)
+    napper = enemy("Napper", 450)  # frog ~330 * 1.3 trap > 400: tipped over by a trap
+    b = battle([_frog(castable=False), trap], [willie, napper], my=_myth_me())
+    b.pips = 2
+    a = decide(b)
+    assert a.card.name == "Fire Trap" and a.target.name == "Napper"
+
+
+def test_frog_waits_for_a_blade_still_in_the_deck():
+    b = battle([_frog()], [enemy("Willie", 725, boss=True), enemy("Napper", 525)], my=_myth_me())
+    b.pips = 4
+    b.upcoming = [_myth(blade_card(5))]
+    assert decide(b).kind is ActionKind.PASS
+    b.me.blade_count, b.me.outgoing_effects = 1, [("blade", "myth", 0.35)]
+    assert decide(b).card.name == "Humongofrog"
+
+
+def test_keeps_a_hit_that_finishes_someone_while_digging():
+    cyclops = _myth(dmg_card(1, "Cyclops", 290, pips=3, castable=False))
+    b = battle([cyclops], [enemy("Willie", 150, boss=True), enemy("Napper", 114)], my=_myth_me())
+    b.pips = 0
+    b.upcoming = [_frog()]
+    assert decide(b).kind is not ActionKind.DISCARD

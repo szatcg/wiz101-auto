@@ -380,6 +380,38 @@ def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | Non
 AOE_MIN_ENEMIES = 2  # a hit-all spell (Humongofrog) is the plan from this many enemies
 
 
+AOE_BLADE_WAIT_HEALTH = 0.4  # above this, the hit-all spell waits for a blade still in the deck
+
+
+def _group_aoe(battle: Battle) -> Card | None:
+    """Against a group: the hit-all spell in hand, else one still in the deck."""
+    if len(battle.live_enemies) < AOE_MIN_ENEMIES:
+        return None
+    for pool in (battle.cards, battle.upcoming):
+        aoes = [c for c in pool if c.is_damage and c.is_aoe and c.pip_cost >= 2]
+        if aoes:
+            return max(aoes, key=lambda c: c.base_damage())
+    return None
+
+
+def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
+    """Where the next trap helps the hit-all spell most: an enemy it would then
+    kill outright (the Napper at 525 with Humongofrog doing ~400), else the
+    one with the fewest traps, then the toughest. Spread out, not stacked."""
+    me = battle.me
+    traps = [c for c in battle.cards if EffectKind.TRAP in c.kinds and not c.is_enchant]
+    boost = 1 + (max(_power(c) for c in traps) if traps else 30) / 100
+
+    def tipped(e: Combatant) -> bool:
+        dmg = hit_damage(card, me, e)
+        return dmg < e.health <= dmg * boost
+
+    return min(
+        battle.live_enemies,
+        key=lambda e: (not tipped(e), e.trap_count, -(e.health - hit_damage(card, me, e))),
+    )
+
+
 def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     """Blades and traps win fights; a Troll or Cyclops without them doesn't.
     While a blade or trap slot is open and one is still in the deck (and
@@ -410,7 +442,18 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
         want.append("hit-all spell")
     if not want:
         return None
-    singles = [c for c in battle.cards if c.is_damage and not c.is_aoe]
+    # A hit that kills someone now is no junk (Cyclops with enemies at 114/150).
+    singles = [
+        c for c in battle.cards
+        if c.is_damage and not c.is_aoe and all(hit_damage(c, me, e) < e.health for e in enemies)
+    ]
+    if group and ("blade" in want or "trap" in want):
+        # Against a group everything but the plan's cards may go: minions, prisms.
+        singles += [
+            c for c in battle.cards
+            if not c.is_damage and not c.is_heal and not c.is_enchant
+            and not ({EffectKind.BLADE, EffectKind.TRAP, EffectKind.SHIELD} & set(c.kinds))
+        ]
     if not group:
         if len(singles) < 2:
             return None
@@ -434,13 +477,17 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
     if not aoes:
         return None
     card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
-    # Traps go on the enemy the hit is least likely to kill.
-    toughest = max(enemies, key=lambda e: e.health - hit_damage(card, battle.me, e))
-    setup = _break_shield(battle) or _setup_action(battle, strat, toughest)
+    setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
     if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
         return setup
     if not card.castable:
         return Action(ActionKind.PASS, reason=f"saving pips for {card.name} (hits all {len(enemies)})")
+    blade_to_come = any(EffectKind.BLADE in c.kinds and not c.is_enchant for c in battle.upcoming)
+    if (
+        battle.me.blade_count == 0 and blade_to_come
+        and battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH
+    ):
+        return Action(ActionKind.PASS, reason=f"holding {card.name} until a blade is up")
     enchant = _pick_enchant(battle, card)
     if enchant:
         return Action(ActionKind.ENCHANT, enchant, target_card=card, reason=f"boost {card.name}")
@@ -712,6 +759,9 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     free = [c for c in _castable(battle.cards) if c.pip_cost == 0 and not c.is_enchant]
     me = battle.me
     focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health)) if battle.live_enemies else None
+    aoe = _group_aoe(battle)
+    if aoe is not None:
+        focus = _aoe_trap_target(battle, aoe)  # spread traps for the hit-all spell
     options: list[tuple[bool, int, Action]] = []
     if me.blade_count < max(strat.max_blades, FREE_TRAP_LIMIT):
         for c in free:
