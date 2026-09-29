@@ -921,3 +921,23 @@ def test_keeps_a_prism_an_enemy_here_is_weak_to():
     b.upcoming = [_myth(blade_card(5)), _frog()]
     a = decide(b)
     assert not (a.kind is ActionKind.DISCARD and a.card.name == "Myth Prism")
+
+
+def test_plan_counts_pips_across_enemies():
+    from wiz101_auto.combat.brain import plan_fight
+
+    cyclops = [_myth(dmg_card(i, "Cyclops", 600, pips=3)) for i in range(2)]
+    b = battle(cyclops, [enemy("Napper", 451), enemy("Napper", 525)], my=_myth_me())
+    b.pips = 3
+    plan = plan_fight(b)
+    assert plan.rounds > 2 and not plan.skip_summon  # the second Cyclops waits for 3 more pips
+
+
+def test_group_saves_pips_for_a_frog_in_the_deck():
+    cyclops = _myth(dmg_card(0, "Cyclops", 600, pips=3))
+    trap = _myth(trap_card(1))
+    b = battle([cyclops, trap], [enemy("Napper", 451), enemy("Napper", 525)], my=_myth_me())
+    b.pips = 3
+    b.upcoming = [_frog()]
+    a = decide(b)
+    assert a.card is not None and a.card.name == "Fire Trap"  # set up, don't spend the pips on one Napper

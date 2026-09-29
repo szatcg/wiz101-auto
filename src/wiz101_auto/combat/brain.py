@@ -394,6 +394,17 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+AOE_SAVE_HEALTH = 0.5  # above this, pips go to the hit-all spell rather than a single kill
+
+
+def _saving_for_aoe(battle: Battle, kill: Action) -> bool:
+    """Hold a 2+ pip single-target kill for the hit-all spell (in hand or deck)."""
+    card = kill.card
+    if card is None or card.is_aoe or card.pip_cost < 2:
+        return False
+    return _group_aoe(battle) is not None and battle.me.health_ratio >= AOE_SAVE_HEALTH
+
+
 def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
     """Where the next trap helps the hit-all spell most: an enemy it would then
     kill outright (the Napper at 525 with Humongofrog doing ~400), else the
@@ -475,7 +486,15 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         return None
     aoes = [c for c in battle.cards if c.is_damage and c.is_aoe and c.pip_cost >= 2]
     if not aoes:
-        return None
+        coming = _group_aoe(battle)
+        if coming is None or battle.me.health_ratio < AOE_SAVE_HEALTH:
+            return None
+        # Still in the deck: set up for it (a blade, a trap on each enemy),
+        # with 0-pip cards only, and keep the pips for when it's drawn.
+        setup = _setup_action(battle, strat, _aoe_trap_target(battle, coming))
+        if setup and setup.card is not None and setup.card.pip_cost == 0:
+            return setup
+        return Action(ActionKind.PASS, reason=f"saving pips for {coming.name} (still in the deck)")
     card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
     if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
@@ -735,9 +754,21 @@ def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
     enemies = sorted(battle.live_enemies, key=lambda e: e.health)
     if not enemies:
         return FightPlan(0, "no enemies", True)
-    parts, total = [], 0
+    # One enemy after the other: the next plan starts with the pips and cards
+    # the one before left (both Nappers "Cyclops = 1 round" with 3 pips was
+    # one Cyclops, not two).
+    parts, total, state = [], 0, battle
     for e in enemies:
-        n, how = _rounds_to_kill(battle, e)
+        draws = sorted(state.upcoming, key=lambda c: -c.base_damage())
+        found = _kill_search(state, e, PLAN_ROUNDS, draws)
+        if found is None:
+            n, how = 99, f"no kill within {PLAN_ROUNDS} rounds with the cards left"
+        else:
+            n, spent, _action, steps, used = found
+            how = " > ".join(steps)
+            left = max(0, state.pips + 2 * state.power_pips + n - spent)
+            cards = [c for c in state.cards if c.index not in used] + draws[:n]
+            state = replace(state, pips=left, power_pips=0, cards=cards, upcoming=draws[n:])
         total += n
         parts.append(f"{e.name} {e.health}hp: {how} = {n} round{'s' if n != 1 else ''}")
     boss = any(e.is_boss for e in enemies)
@@ -1117,8 +1148,10 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     if save:
         return save
 
-    # With several enemies, removing one means one fewer attacker every round.
-    if kill:
+    # With several enemies, removing one means one fewer attacker every round;
+    # but with the hit-all spell in hand or deck, 2+ pips on one kill leave
+    # nothing for it (a Cyclops on one Napper, then nothing for the other).
+    if kill and not _saving_for_aoe(battle, kill):
         return kill
 
     if discards_left > 0:
