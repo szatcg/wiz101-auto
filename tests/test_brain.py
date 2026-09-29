@@ -985,3 +985,10 @@ def test_a_full_party_never_summons_and_discards_the_minion():
     assert action.kind is ActionKind.DISCARD and action.card.name == "Golem Minion"
     b.allies = b.allies[:2]  # three players: a minion still has a place
     assert decide(b).card.name == "Golem Minion"
+
+
+def test_no_minions_in_a_four_player_dungeon_even_with_one_teammate():
+    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Apollo", 3000, boss=True)])
+    b.allies = [Combatant("Ryan", 1500, 1500)]
+    action = decide(b, Strategy(no_minions=True))
+    assert action.kind is ActionKind.DISCARD and action.card.name == "Golem Minion"

@@ -57,6 +57,9 @@ class Strategy:
     max_hand_size: int = 7
     allow_discard: bool = True
     summon_minions: bool = True  # keep a minion out: it soaks hits and adds damage
+    # A 4-player dungeon (Mount Olympus): the side fills up with players, so a
+    # minion is useless there: never summon, discard minion cards.
+    no_minions: bool = False
     focus_bonus: float = 60.0  # value of taking a target's whole remaining health
     # Pass a round for an attack one pip away when the best castable one does
     # less than this share of its damage (two 1-pip hits < one 2-pip Troll).
@@ -212,7 +215,10 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     """A minion once per fight: early on it soaks hits and traps for us; later,
     or a second one, costs all our pips when blade, trap and a big hit end it
     sooner (Itennu Sokkwi: a second Troll Minion with one enemy left)."""
-    if not strat.summon_minions or _has_minion(battle) or battle.summoned >= 1 or party_full(battle):
+    if (
+        not strat.summon_minions or strat.no_minions or party_full(battle)
+        or _has_minion(battle) or battle.summoned >= 1
+    ):
         return None
     if len(battle.live_enemies) == 1 and battle.round > SUMMON_ROUNDS_ONE_ENEMY:
         return None
@@ -332,10 +338,10 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     draws the deck's stronger cards sooner."""
     if not strat.discard_junk:
         return None
-    if party_full(battle):
+    if strat.no_minions or party_full(battle):
         minions = [c for c in battle.cards if EffectKind.SUMMON in c.kinds and not c.treasure]
         if minions:
-            return Action(ActionKind.DISCARD, minions[0], reason="a full party: no room for a minion")
+            return Action(ActionKind.DISCARD, minions[0], reason="a 4-player fight: no use for a minion")
     school = battle.me.school.lower()
     junk = [
         c for c in battle.cards
