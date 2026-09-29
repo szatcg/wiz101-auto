@@ -2526,15 +2526,18 @@ class Quester:
         # Only this dungeon's own non-fight steps are done as usual (talks,
         # pick-ups); a quest from elsewhere would walk away from the team.
         here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
-        if here and not (is_combat_objective(objective or "") or self._step_is_fight):
-            return False
+        fight_step = is_combat_objective(objective or "") or self._step_is_fight
+        if here and not fight_step and talk_target(objective or ""):
+            return False  # a talk counts for each player: do it (it's one teleport)
+        # Anything else not a fight (collect tokens, use things) counts for the
+        # whole team: leave it to the others and stay with them.
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
         # This dungeon's fight step: head for the boss along the quest marker,
         # stopping short of any duel circle there (the team starts the fight;
         # we walk in once a player is in it). A marker with no circle near it
         # is a door or passage: normal travel goes through it.
         marker = await self.client.quest_position.position()
-        if here and distance(marker, XYZ(0, 0, 0)) > 1:
+        if here and fight_step and distance(marker, XYZ(0, 0, 0)) > 1:
             d = distance(me, marker)
             at_fight = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR]
             if d > TEAM_APPROACH or (at_fight and d > TEAM_STANDOFF + 400):
@@ -3163,12 +3166,15 @@ class Quester:
         zone_now = await self.client.zone_name() or ""
         if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
             await self._clear_of_enemies()
-        if await self._loot_after_boss():
-            return
-        if await self._pick_up_wanted():
-            return
-        if await self._pick_up_loot():
-            return
+        # With a team, no detours for pick-ups (it teleported all over Mount
+        # Olympus): the team's shared objectives are left to the others.
+        if not is_team_up_zone(zone_now):
+            if await self._loot_after_boss():
+                return
+            if await self._pick_up_wanted():
+                return
+            if await self._pick_up_loot():
+                return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
         if is_team_up_zone(zone_now):
