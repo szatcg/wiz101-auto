@@ -1073,7 +1073,13 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     breaks an enemy's shield, else a blade or trap, else a harmless hit."""
     strat = strat or Strategy()
     action = _decide(battle, strat, discards_left=discards_left)
-    if action.kind is ActionKind.DISCARD and action.card is not None and not can_spare(battle, action.card):
+    wanted_prism = (
+        action.kind is ActionKind.DISCARD and action.card is not None
+        and _is_prism(action.card) and not _prism_useless(action.card, battle)
+    )
+    if wanted_prism or (
+        action.kind is ActionKind.DISCARD and action.card is not None and not can_spare(battle, action.card)
+    ):
         # Keep the cards the fight will need: decide again without discarding.
         action = _decide(battle, strat, discards_left=0)
     if action.kind is ActionKind.PASS and battle.live_enemies:

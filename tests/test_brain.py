@@ -910,3 +910,14 @@ def test_out_of_attacks():
     assert out_of_attacks(b)
     b.upcoming = [dmg_card(1, "Troll", 190, pips=2)]
     assert not out_of_attacks(b)
+
+
+def test_keeps_a_prism_an_enemy_here_is_weak_to():
+    prism = myth_prism(0)
+    troll = _myth(dmg_card(1, "Troll", 190, pips=2))
+    shakes = enemy("Shakes", 880, boss=True, school="myth", resist={"myth": 0.7, "storm": -0.4})
+    b = battle([prism, troll], [shakes, enemy("Bruiser", 625)], my=_myth_me())
+    b.pips = 0
+    b.upcoming = [_myth(blade_card(5)), _frog()]
+    a = decide(b)
+    assert not (a.kind is ActionKind.DISCARD and a.card.name == "Myth Prism")
