@@ -256,15 +256,16 @@ def errand_detour(
     world: str | None = None, max_hops: int = ERRAND_MAX_HOPS,
 ) -> QuestEntry | None:
     """A side quest whose current step is a quick no-fight errand close by (a
-    turn-in, a talk): worth doing before going on with the main quest. The
-    nearest first, then the biggest reward. None when there's none."""
-    if chosen is None:
+    turn-in, a talk): worth doing before going on with the main quest. Only
+    in `world`, the main quest's (furthest) world: no trips back to earlier
+    worlds. The nearest first, then the biggest reward. None when there's none."""
+    if chosen is None or not world:
         return None
     options = [
         q for q in quests
         if q is not chosen and not q.mainline and not q.activity and q.name not in set_aside
         and is_errand(q.goal) and q.hops is not None and q.hops <= max_hops
-        and (world is None or quest_world(q) in (None, world))
+        and quest_world(q) == world
     ]
     if not options:
         return None
@@ -442,6 +443,7 @@ class Quester:
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
         self._last_defeat = -1e9
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
+        self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
@@ -1479,6 +1481,16 @@ class Quester:
             reward = await ui.text_at(self.client, reward_path)
             world = (await ui.text_at(self.client, [*base, "txtWorld"])).strip()
             goal = (await ui.text_at(self.client, [*base, "txtGoal"])).strip()
+            if not self._book_dumped and i == 0:
+                # The goal text came back empty for most quests: save the
+                # slot's layout once to find where it lives.
+                self._book_dumped = True
+                win = await ui.window_at(self.client, [*QUEST_LIST, f"wndQuestInfo{i}"])
+                if win is not None:
+                    lines = await ui.dump_tree(win, max_depth=10, only_visible=False, with_types=True)
+                    Path("state", "quest_book_window.txt").write_text(
+                        "\n".join(lines), encoding="utf-8", errors="replace"
+                    )
             out.append(
                 QuestEntry(
                     slot=i,

@@ -176,6 +176,11 @@ def test_nearby_side_errand_comes_before_the_main_quest():
     far = QuestEntry(2, "Far Away", goal="Talk To Someone", hops=6)
     fight = QuestEntry(3, "Pests", goal="Defeat Ratbeasts", hops=0)
     unknown = QuestEntry(4, "Somewhere", goal="Talk To Nobody")
-    assert errand_detour([main, turn_in, far, fight, unknown], main) is turn_in
-    assert errand_detour([main, far, fight, unknown], main) is None
-    assert errand_detour([main, turn_in], main, set_aside={"Lost Hat"}) is None
+    mb = "Marleybone"
+    turn_in.world = "Regent's Square"
+    assert errand_detour([main, turn_in, far, fight, unknown], main, world=mb) is turn_in
+    assert errand_detour([main, far, fight, unknown], main, world=mb) is None
+    assert errand_detour([main, turn_in], main, {"Lost Hat"}, world=mb) is None
+    # a side quest back in an earlier world isn't worth the trip
+    old = QuestEntry(5, "Thirst Day", world="The Oasis", goal="Talk To Someone", hops=1)
+    assert errand_detour([main, old], main, world=mb) is None
