@@ -94,6 +94,10 @@ WALK_STEP_SECONDS = 0.25  # walking into a door in short steps, checking the zon
 WALK_MAX_STEPS = 40
 APPROACH_DISTANCES = (250.0, 450.0, 700.0)
 SIGIL_RANGE = 150.0  # a dungeon sigil this close to the marker is the way in
+# Standing at a "press X to enter" prompt: a sigil this close is the one (a
+# 4-player sigil's circles spread far from its center).
+SIGIL_NEAR_RANGE = 800.0
+SIGIL_WAIT_TICKS = 30  # half-seconds to stand still after one X at an entry prompt
 STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can still walk
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
@@ -655,9 +659,17 @@ class Quester:
                 await asyncio.sleep(0.25)
             if not await ui.is_visible(self.client, ui.NPC_RANGE):
                 continue
-            for _ in range(PRESS_X_TRIES):
+            prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+            entering = "to enter" in prompt
+            if entering:
+                # A dungeon sigil (the Hyde Park safehouses): ONE press starts
+                # a countdown that a second press or any step cancels.
+                sigil = await self._sigil_at(await self._position(), SIGIL_NEAR_RANGE)
+                if sigil is not None:
+                    return await self._enter_by_sigil(sigil, zone)
+            for _ in range(1 if entering else PRESS_X_TRIES):
                 await self.client.send_key(Keycode.X, 0.1)
-                for _ in range(6):
+                for _ in range(SIGIL_WAIT_TICKS if entering else 6):
                     await asyncio.sleep(0.5)
                     if await self._zone_changed(zone) or await self.client.is_loading():
                         await wait_for_loading(self.client)
@@ -742,7 +754,7 @@ class Quester:
                 return True
         return await self.client.zone_name() == next_zone
 
-    async def _sigil_at(self, target: XYZ) -> XYZ | None:
+    async def _sigil_at(self, target: XYZ, within: float = SIGIL_RANGE) -> XYZ | None:
         """Position of a dungeon sigil ("Teleport Semi Circle") at the marker, if any."""
         try:
             entities = await self.client.get_base_entity_list()
@@ -755,7 +767,7 @@ class Quester:
                 if "semi circle" not in name and "sigil" not in name:
                     continue
                 pos = await e.location()
-                if distance(pos, target) < SIGIL_RANGE:
+                if distance(pos, target) < within:
                     return pos
             except Exception:
                 continue
@@ -1390,7 +1402,7 @@ class Quester:
         if "to enter" in prompt:
             # A dungeon sigil: X starts a countdown that any later movement
             # cancels, so let the sigil routine press it and stand still.
-            sigil = await self._sigil_at(await self._position())
+            sigil = await self._sigil_at(await self._position(), SIGIL_NEAR_RANGE)
             if sigil is not None:
                 return await self._enter_by_sigil(sigil, await self.client.zone_name())
 
