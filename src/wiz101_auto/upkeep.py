@@ -279,10 +279,22 @@ async def unstick(client) -> bool:
                 logger.success(f"unstuck: now at ({p[0]:.0f}, {p[1]:.0f})")
                 return True
         logger.warning("still stuck after trying nearby landmarks")
-        return True
+        return await _relog_out(client)
     except Exception as exc:
         logger.debug(f"unstick failed: {exc!r}")
+        if "should_update" in str(exc):
+            return await _relog_out(client)  # the game takes no moves at all
         return False
+
+
+async def _relog_out(client) -> bool:
+    """Nothing frees the wizard (a duel circle 'battle' with 0 opponents):
+    log out to character select and back in. True (it acted)."""
+    from .relog import relog
+
+    if not await relog(client):
+        logger.warning("ALERT: main quest stuck: the wizard can't move; relog failed")
+    return True
 
 
 async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to rest") -> bool:
