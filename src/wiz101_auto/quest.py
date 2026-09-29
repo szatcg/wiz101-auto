@@ -98,8 +98,12 @@ RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
 GUARD_RANGE = 1500.0  # enemies this close to a lever are its guards: fought before pulling it
 FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different floors
-LEVER_WAIT = 30.0  # after each lever pulled in a dungeon (a counterweight on its way)
-BOSS_SPAWN_WAIT = 30.0  # after the last lever, before walking up to the boss
+# Dungeons where a pulled lever needs time (Counterweight East: the
+# counterweight must reach the top before Sprockets spawns): zone -> seconds.
+LEVER_WAITS = {"Marleybone/MB_BigBen/MB_CounterweightEast": 8.0}
+BOSS_SPAWN_WAIT = 8.0  # after the last lever, before walking up to the boss
+GATE_FRONT = 250.0  # land this far in front of the gate the last lever opened
+GATE_BEYOND = 400.0  # and walk this far past it
 NEAR_START = 2500.0  # already this close to where the walk up starts: walk from here
 FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
@@ -2244,12 +2248,13 @@ class Quester:
         before Sprockets spawns)."""
         if not objective.strip().lower().startswith("pull"):
             return
-        if not await self._in_dungeon(await self.client.zone_name() or ""):
+        wait = LEVER_WAITS.get(await self.client.zone_name() or "")
+        if not wait:
             return
-        logger.info(f"pulled it; waiting {LEVER_WAIT:.0f}s for it to take effect")
-        self.controller.allow_idle(LEVER_WAIT + 10)
+        logger.info(f"pulled it; waiting {wait:.0f}s for it to take effect")
+        self.controller.allow_idle(wait + 10)
         try:
-            await asyncio.sleep(LEVER_WAIT)
+            await asyncio.sleep(wait)
         finally:
             self.controller.end_idle()
 
@@ -2309,6 +2314,7 @@ class Quester:
             back = CIRCLE_WALK_FROM / length
             start = XYZ(circle.x + dx * back, circle.y + dy * back, circle.z)
             logger.info(f"the fight is on a duel circle: landing {CIRCLE_WALK_FROM:.0f} away and walking in")
+        gate = await self._gate_below(circle) if below is not None else None
         key = (self._last_progress[0] or "", zone)
         if key not in self._boss_waited:
             # Right after the last lever: give the boss time to spawn, standing
@@ -2325,11 +2331,28 @@ class Quester:
             target = defeat_target(self._last_progress[0] or "")
             if target and await find_entity_named(self.client, target) is not None:
                 return True  # it's there now: the next step goes after it
-        if below is None or distance(await self._position(), start) > NEAR_START:
-            await self.client.teleport(start)
+        if gate is not None:
+            # The gate the last lever opened (Counterweight East's top floor):
+            # land in front of it, walk through, and climb the stairs beyond
+            # on foot; never teleport near the boss's circle.
+            here = await self._position()
+            dx, dy = here.x - gate.x, here.y - gate.y
+            length = math.hypot(dx, dy) or 1.0
+            front = XYZ(gate.x + dx / length * GATE_FRONT, gate.y + dy / length * GATE_FRONT, gate.z)
+            beyond = XYZ(gate.x - dx / length * GATE_BEYOND, gate.y - dy / length * GATE_BEYOND, gate.z)
+            logger.info(f"walking through the gate at ({gate.x:.0f}, {gate.y:.0f}, {gate.z:.0f}) "
+                        "and up the stairs")
+            await self.client.teleport(front)
             await asyncio.sleep(0.8)
-        if below is not None:
+            await self.client.goto(beyond.x, beyond.y)
+            await asyncio.sleep(0.5)
             await self._walk_route_to(circle, zone)
+        else:
+            if below is None or distance(await self._position(), start) > NEAR_START:
+                await self.client.teleport(start)
+                await asyncio.sleep(0.8)
+            if below is not None:
+                await self._walk_route_to(circle, zone)
         allow_engage(self.client)
         await self.client.goto(circle.x, circle.y)
         await self._hold_for_fight()
@@ -2375,6 +2398,27 @@ class Quester:
             return False
         finally:
             self.controller.end_idle()
+
+    async def _gate_below(self, circle: XYZ) -> XYZ | None:
+        """The gate object on the floor just under a raised fight (the one the
+        last lever opens: DynaTrigger_MB_BigBen_Gate on Counterweight East's
+        3300 floor), read from the zone's entities; None if there's none."""
+        gates = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                name = (await t.object_name() or "").lower() if t else ""
+                if "gate" not in name:
+                    continue
+                pos = await e.location()
+                if 300 < circle.z - pos.z < FLOOR_BELOW_MAX:
+                    gates.append(pos)
+            except Exception:
+                continue
+        if not gates:
+            return None
+        top = max(g.z for g in gates)
+        return min((g for g in gates if abs(g.z - top) < 150), key=lambda g: distance(g, circle))
 
     def _floor_below(self, zone: str, spot: XYZ) -> XYZ | None:
         """The nearest known spot on the floor under `spot` (between 300 and
