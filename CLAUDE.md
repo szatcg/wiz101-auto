@@ -112,6 +112,8 @@ while the bot is stopped.
 | `safe_teleport.py` | wraps `client.teleport`: re-reads enemies and duel circles before every jump and lands clear of them; `allow_engage` for teleports meant to start a fight |
 | `entitymap.py` | what was seen where (state/entity_map.json) and where door walks worked (state/doors.json): searches visit known spots first |
 | `puzzles.py` | switch puzzles ("Use X" with X hidden until the right obelisks/braziers are lit): flips the room's switches through every combination (Gray code) until X appears |
+| `bring_out.py` | a "Talk to X" with no marker and X nowhere (Clockwork in Katzenstein's Lab): beat the room's boss, collect pick-ups, talk to NPCs, try switches, one per step, until X appears |
+| `givers.py` | talks once to each named NPC nearby (in the main world) to pick up quests |
 | `marks.py` | Mark/Recall decisions: mark before trips of 2+ zones, recall when mark + walk beats walking |
 | `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |

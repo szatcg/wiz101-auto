@@ -23,6 +23,7 @@ from loguru import logger
 from wizwalker import XYZ, Keycode
 
 from . import ui
+from .bring_out import BringOut
 from .collect import (
     Collector,
     away_from,
@@ -505,6 +506,7 @@ class Quester:
         self._last_entity_scan = 0.0
         self._attempts_at: dict[tuple[str, str, str], int] = {}  # (objective, zone, approach) -> tries
         self._swept_spots: dict[tuple[str, str], list] = {}  # (objective, zone) -> sweep spots visited
+        self.bring_out = BringOut(self)  # a missing Talk To target: work the room until it shows
         self._puzzles_tried: set[tuple[str, str]] = set()  # (objective, zone) switch puzzles tried
         self._teleporters_tried: dict[tuple[str, str], set[str]] = {}  # (objective, zone) -> labels
         self._accepted_seen = 0  # DialoguePolicy.accepted at the last ranking
@@ -2305,16 +2307,10 @@ class Quester:
                 await asyncio.sleep(0.5)
                 await self.interact(objective)
                 return True
-            if (objective, zone) not in self._puzzles_tried:
-                # Nowhere to be seen (Clockwork in Katzenstein's Lab, powered
-                # up by its three levers): try the room's switches.
-                from .puzzles import find_switches, solve_by_trying
-
-                if await find_switches(self.client):
-                    self._puzzles_tried.add((objective, zone))
-                    logger.info(f"{name} isn't here; trying the switches around to bring them out")
-                    await solve_by_trying(self, objective, target=name)
-                    return True
+            # Nowhere to be seen (Clockwork in Katzenstein's Lab: beat the
+            # doctor, bring Grunk the crates, pull his levers): work the room.
+            if await self.bring_out.step(objective, zone, name):
+                return True
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
             await self.controller.checkpoint()
