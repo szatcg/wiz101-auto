@@ -69,8 +69,8 @@ class DungeonHealer:
         if zone.split("/")[-1].endswith("_Hub"):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
         m = self.q._mark
-        if m and m.kind in RETURN_KINDS:
-            mark = False  # a dungeon/fight mark waits: Recall to it, never mark over it
+        if m and m.kind in RETURN_KINDS and self.q._keep_dungeon_mark(await self.q.objective()):
+            mark = False  # a dungeon/fight mark for this objective waits: Recall to it
         logger.info(f"{why}: going to the hub to heal, then back by Recall")
         if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")

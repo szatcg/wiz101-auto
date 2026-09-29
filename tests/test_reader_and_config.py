@@ -147,5 +147,6 @@ def test_recovery_covers_mana():
 
     cfg = UpkeepConfig()
     assert cfg.needs_recovery(1.0, 0.0)
-    assert not cfg.needs_recovery(0.9, 0.5)
+    assert not cfg.needs_recovery(0.9, 0.7)
+    assert cfg.needs_recovery(0.9, 0.6)  # mana is refilled at 65% or less
     assert not cfg.recovered(1.0, 0.5) and cfg.recovered(1.0, 0.9)

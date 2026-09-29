@@ -481,6 +481,12 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 swept.add(zone)
                 if await sweep_for_wisps(client, cfg):
                     continue
+            # The wisps visited above may have done the job (14% -> 88% in
+            # Hyde Park): look again before leaving the zone to heal.
+            hp, mana = await health_mana(client)
+            if not cfg.needs_recovery(hp, mana):
+                logger.info(f"healed here to {hp:.0%} health, {mana:.0%} mana; no trip needed")
+                return True
             poor_zone = hub or wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
             if trip and not tripped and poor_zone:
                 # This zone lacks what is needed (health wisps, or mana after

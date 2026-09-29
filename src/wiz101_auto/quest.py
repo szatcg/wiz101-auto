@@ -906,8 +906,8 @@ class Quester:
         zone = await self.client.zone_name() or ""
         if time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS or is_hub(zone):
             return False  # just respawned in the hub: a mark here is useless
-        if self._mark and self._mark.kind in RETURN_KINDS:
-            return True  # a fight/dungeon mark waits: heal trips Recall to it
+        if self._mark and self._mark.kind in RETURN_KINDS and self._keep_dungeon_mark(await self.objective()):
+            return True  # a fight/dungeon mark for this objective waits: heal trips Recall to it
         if await self._fight_mark_here():
             return True  # the fight mark does the job: healing Recalls back to it
         return await self._mark_here("room")
@@ -936,8 +936,10 @@ class Quester:
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
         if not zone or not (marked or coming_back or force):
             return False
-        # Never over a fight or dungeon mark: the trip Recalls to it instead.
-        keep = await self._fight_mark_here() or bool(self._mark and self._mark.kind in RETURN_KINDS)
+        # Never over a fight or dungeon mark still wanted for this objective:
+        # the trip Recalls to it instead. An old one (Willie Marks's, done) is
+        # replaced by a mark here.
+        keep = await self._fight_mark_here() or self._keep_dungeon_mark(objective or "")
         why = f"not enough wisps here for {objective!r}"
         return await self.healer.trip(zone, why, mark=not (marked or keep))
 
