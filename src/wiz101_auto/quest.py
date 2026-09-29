@@ -698,7 +698,11 @@ class Quester:
             if await self.client.zone_name() != zone or await self.client.is_loading():
                 break
             if await ui.is_visible(self.client, ui.NPC_RANGE):
-                return await self._press_x_here(zone, adjust=False)  # walked into a prompt: stop, use it
+                prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+                if "talk" not in prompt:
+                    return await self._press_x_here(zone, adjust=False)  # walked into a prompt: stop, use it
+                # Someone standing by the door (Marla Stinger at the Death
+                # school): not what we're walking to; keep going.
             now = await self._position()
             if distance(now, beyond) < 60 or distance(now, last) < 5:
                 break  # there, or blocked by a wall
