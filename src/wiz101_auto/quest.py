@@ -86,6 +86,7 @@ WISP_SCAN_SECONDS = 30.0
 STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
+MAX_BOOK_PAGES = 30  # the quest book, read to its last page (was 5: quests went missing)
 RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objective changes)
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
@@ -1631,15 +1632,20 @@ class Quester:
         back_button = [*QUEST_LIST, "btnPrevPage"]
         all_quests: list[tuple[int, QuestEntry]] = []
         pages = 0
+        complete = False  # read through to the last page
         try:
-            for page in range(5):
+            # Every page: with 5 pages at most, 'Fetch Bones!' (main) sat past
+            # the end, and quests pushed off the read counted as completed.
+            for page in range(MAX_BOOK_PAGES):
                 known = {q.name for _, q in all_quests}
                 entries = [e for e in await self._read_quest_page() if e.name not in known]
                 if not entries:
+                    complete = True
                     break
                 pages = page + 1
                 all_quests += [(page, e) for e in entries]
                 if not await ui.click(self.client, page_button):
+                    complete = True
                     break
                 await asyncio.sleep(0.6)
             activities = {q.name for _, q in all_quests if q.activity}
@@ -1648,7 +1654,10 @@ class Quester:
                 for _, q in all_quests
                 if collect_item_name(q.goal) and (q.mainline or q.activity)
             }
-            done = self.completions.update({q.name for _, q in all_quests})
+            # A quest missing from a partial read isn't done: only a full read counts.
+            done = self.completions.update({q.name for _, q in all_quests}) if complete else set()
+            if not complete:
+                logger.warning(f"read {len(all_quests)} quests over {pages} pages without reaching the end")
             for name in done:
                 listed = self.quest_order.get(norm(name))
                 where = f" (#{listed.index} on the quest list)" if listed else ""
