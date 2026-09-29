@@ -751,3 +751,46 @@ def test_keeps_a_gear_card_the_plan_needs():
     troll.school = "Myth"
     b = battle([elf, troll], [enemy("Krokopatra", 250, boss=True)], my=_myth_me())
     assert decide(b).kind is not ActionKind.DISCARD  # Troll + Fire Elf is the kill
+
+
+def _frog(i=9, castable=True):
+    frog = dmg_card(i, "Humongofrog", 330, pips=4, target=Target.ENEMY_ALL, castable=castable)
+    frog.school = "Myth"
+    return frog
+
+
+def test_humongofrog_blades_then_traps_then_hits_all():
+    blade = blade_card(1)
+    blade.school = "Myth"
+    trap = trap_card(2)
+    trap.school = "Myth"
+    troll = dmg_card(3, "Troll", 190, pips=2)
+    troll.school = "Myth"
+    foes = [enemy("Rat", 500), enemy("Dog", 520)]
+    b = battle([_frog(), blade, trap, troll], foes, my=_myth_me())
+    b.pips = 4
+    first = decide(b)
+    assert first.kind is ActionKind.CAST and first.card.name == "Fireblade"
+    b.cards.remove(blade)
+    b.me.blade_count, b.me.outgoing_effects = 1, [("blade", "myth", 0.35)]
+    second = decide(b)
+    assert second.card.name == "Fire Trap"
+    b.cards.remove(trap)
+    third = decide(b)
+    assert third.kind is ActionKind.CAST and third.card.name == "Humongofrog"
+
+
+def test_saves_pips_for_humongofrog_instead_of_a_single_hit():
+    troll = dmg_card(3, "Troll", 190, pips=2)
+    troll.school = "Myth"
+    b = battle([_frog(castable=False), troll], [enemy("Rat", 500), enemy("Dog", 520)], my=_myth_me())
+    b.pips = 2
+    assert decide(b).kind is ActionKind.PASS
+
+
+def test_humongofrog_that_kills_everyone_goes_at_once():
+    blade = blade_card(1)
+    b = battle([_frog(), blade], [enemy("Rat", 200), enemy("Dog", 250)], my=_myth_me())
+    b.pips = 4
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name == "Humongofrog"

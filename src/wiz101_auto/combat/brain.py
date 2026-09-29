@@ -360,6 +360,35 @@ def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | Non
     return best
 
 
+AOE_MIN_ENEMIES = 2  # a hit-all spell (Humongofrog) is the plan from this many enemies
+
+
+def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
+    """Several enemies and a hit-all spell in hand (Humongofrog): blade
+    ourselves, trap the enemies, then one hit clears the board. Pips are
+    saved for it (nothing else is cast) until it's affordable; blades and
+    traps come first while there are any left to hang."""
+    enemies = battle.live_enemies
+    if len(enemies) < AOE_MIN_ENEMIES:
+        return None
+    aoes = [c for c in battle.cards if c.is_damage and c.is_aoe and c.pip_cost >= 2]
+    if not aoes:
+        return None
+    card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
+    # Traps go on the enemy the hit is least likely to kill.
+    toughest = max(enemies, key=lambda e: e.health - hit_damage(card, battle.me, e))
+    setup = _break_shield(battle) or _setup_action(battle, strat, toughest)
+    if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
+        return setup
+    if not card.castable:
+        return Action(ActionKind.PASS, reason=f"saving pips for {card.name} (hits all {len(enemies)})")
+    enchant = _pick_enchant(battle, card)
+    if enchant:
+        return Action(ActionKind.ENCHANT, enchant, target_card=card, reason=f"boost {card.name}")
+    total = sum(min(hit_damage(card, battle.me, e), e.health) for e in enemies)
+    return Action(ActionKind.CAST, card, None, reason=f"{card.name} on all {len(enemies)}: ~{total:.0f} dmg")
+
+
 def _pick_enchant(battle: Battle, attack_card: Card) -> Card | None:
     if attack_card.enchanted:
         return None
@@ -936,6 +965,11 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         junk = _junk_discard(battle, strat)
         if junk:
             return junk
+
+    # Several enemies: buff up and clear them all with one hit-all spell.
+    aoe = _aoe_plan(battle, strat)
+    if aoe:
+        return aoe
 
     # One enemy left: play the line that kills it in the fewest rounds (then
     # the fewest pips). Troll with blade and traps doing 500 into 400 hp kills
