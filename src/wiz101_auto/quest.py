@@ -2450,6 +2450,27 @@ class Quester:
         best = min(same, key=lambda p: math.dist(p[:2], (spot.x, spot.y)))
         return XYZ(*best)
 
+    async def _talk_to_named(self, objective: str) -> bool:
+        """Walk up to the NPC a Talk To objective names (exact name, not an
+        enemy) and talk; a few tries per objective. True if it went."""
+        name = talk_target(objective)
+        if not name or not self._may_try(objective, await self.client.zone_name() or "", "talk_named"):
+            return False
+        pos = await self._npc_named(name, near=await self._position())
+        if pos is None:
+            return False
+        logger.info(f"{name} is here: walking up to talk")
+        await self.travel(pos, npc=True)
+        if not await wait_until_free(self.client, timeout=5):
+            return True
+        if await self.interact(objective):
+            return True
+        await self.client.send_key(Keycode.S, 0.3)
+        await self.client.send_key(Keycode.W, 0.3)
+        await asyncio.sleep(0.5)
+        await self.interact(objective)
+        return True
+
     async def _talk_to_npc_near(self, spot: XYZ, objective: str) -> bool:
         """Walk up to a named NPC (not an enemy) within NPC_NEAR_MARKER of
         `spot` and talk, once per objective. True if it talked."""
@@ -3059,6 +3080,10 @@ class Quester:
                 await self.pull_mob()
                 return
 
+        # "Talk To Baxter" and Baxter is in this zone: go to him by name, not
+        # through the marker as if it were a door.
+        if npc_here and await self._talk_to_named(objective):
+            return
         # At the marker with no prompt, and someone standing right there
         # ("Return to Platform Assemble Parts": Grunk by the platform): talk.
         if dist < INTERACT_RANGE and await self._talk_to_npc_near(target, objective):
