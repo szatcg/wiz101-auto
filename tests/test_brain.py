@@ -736,8 +736,9 @@ def test_ether_golem_preferred_against_death_enemies_when_equal():
     golem = Card(0, "Ether Golem", school="myth", pip_cost=4, effects=golem_fx)
     cyclops = myth_hit(1, dmg=295, pips=3)
     cyclops.name = "Cyclops"
-    b = battle([golem, cyclops], [enemy("Death Pixie", 250, school="death")], my=_myth_me())
+    pixies = [enemy("Death Pixie", 250, school="death"), enemy("Death Pixie", 400, school="death")]
+    b = battle([golem, cyclops], pixies, my=_myth_me())
     b.pips = 4
-    assert fastest_kill(b, b.enemies[0]).card.name == "Ether Golem"
-    b.enemies[0].school = "ice"
-    assert fastest_kill(b, b.enemies[0]).card.name == "Cyclops"
+    assert fastest_kill(b, b.enemies[0]).card.name == "Ether Golem"  # the other pixie still hits
+    b.enemies = pixies[:1]
+    assert fastest_kill(b, b.enemies[0]).card.name == "Cyclops"  # the last one: its shield would be wasted

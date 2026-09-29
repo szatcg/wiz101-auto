@@ -719,7 +719,10 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                 dmg = hit_damage(c, attacker, victim)
                 step = f"{c.name} (~{dmg:.0f})"
                 if dmg >= hp:
-                    cost = spent + c.pip_cost - _shield_bonus(c, battle.live_enemies)
+                    # The shield it gives (Ether Golem) only helps against enemies
+                    # still standing after this killing hit.
+                    others = [e for e in battle.live_enemies if e is not target]
+                    cost = spent + c.pip_cost - _shield_bonus(c, others)
                     key = (depth + 1, cost)
                     if not best or key < best[0][:2]:
                         best[:] = [(depth + 1, cost), act, steps + [step], used | {i}, dmg]
