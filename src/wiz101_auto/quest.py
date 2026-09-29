@@ -92,6 +92,7 @@ RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objectiv
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
+NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
 DOOR_RANGE = 300.0  # at the marker with no prompt: probably a doorway
 DOOR_OVERSHOOT = 200.0
 WALK_STEP_SECONDS = 0.25  # walking into a door in short steps, checking the zone after each
@@ -2141,6 +2142,50 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _talk_to_npc_near(self, spot: XYZ, objective: str) -> bool:
+        """Walk up to a named NPC (not an enemy) within NPC_NEAR_MARKER of
+        `spot` and talk, once per objective. True if it talked."""
+        from .givers import is_named_npc
+        from .names import lang_name
+
+        key = (objective, "npc-near")
+        if key in self._puzzles_tried:
+            return False
+        try:
+            mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
+        except Exception:
+            mobs = set()
+        best = None
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else ""
+                display = await lang_name(self.client, code) if code else ""
+                if not display or await e.global_id_full() in mobs:
+                    continue
+                if not is_named_npc(await t.object_name() or "", display, await e.list_behavior_names()):
+                    continue
+                pos = await e.location()
+                d = distance(pos, spot)
+                if d < NPC_NEAR_MARKER and (best is None or d < best[0]):
+                    best = (d, display, pos)
+            except Exception:
+                continue
+        if best is None:
+            return False
+        self._puzzles_tried.add(key)
+        _d, name, pos = best
+        logger.info(f"nothing to use at the marker; talking to {name} beside it")
+        await self.travel(pos, npc=True)
+        if not await wait_until_free(self.client, timeout=5):
+            return True
+        if not await self.interact(objective):
+            await self.client.send_key(Keycode.S, 0.3)
+            await self.client.send_key(Keycode.W, 0.3)
+            await asyncio.sleep(0.5)
+            await self.interact(objective)
+        return True
+
     async def _npc_named(self, name: str):
         """Position of an entity named exactly `name` that isn't an enemy
         ('Clockwork', not the 'Clockwork Warrior' mobs), or None."""
@@ -2657,6 +2702,10 @@ class Quester:
                 await self.pull_mob()
                 return
 
+        # At the marker with no prompt, and someone standing right there
+        # ("Return to Platform Assemble Parts": Grunk by the platform): talk.
+        if dist < INTERACT_RANGE and await self._talk_to_npc_near(target, objective):
+            return
         doorish = dist < DOOR_RANGE or ("talk" not in objective.lower() and dist < INTERACT_RANGE)
         if doorish and await self.client.zone_name() == zone:
             # At (or near) the marker with nothing to interact with: it's most
