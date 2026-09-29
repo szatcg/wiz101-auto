@@ -170,7 +170,8 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
             moved = await client.zone_name() != fight_zone or (
                 (await client.body.position()).distance(fight_spot) > DEFEAT_MOVE_DISTANCE
             )
-            if hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO and moved):
+            # (Fleeing moves us away too, but isn't a defeat.)
+            if not fighter.fled and (hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO and moved)):
                 # Losing a fight sends you back (elsewhere) with a sliver of
                 # health; winning on a sliver leaves you standing where you fought.
                 controller.record_death(fight_zone)

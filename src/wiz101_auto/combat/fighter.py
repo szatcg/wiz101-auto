@@ -70,6 +70,7 @@ class Fighter(CombatHandler):
         self.fights = 0
         self.boss_fights = 0  # fights that had a boss in them (a loot chest may spawn after)
         self.combat_ended_at = 0.0  # monotonic time the last fight ended
+        self.fled = False  # the last fight ended by fleeing (not a defeat)
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
@@ -164,6 +165,13 @@ class Fighter(CombatHandler):
         return None
 
     async def flee(self) -> bool:
+        """Flee (see _flee); remembers that this fight ended by fleeing, which
+        also moves the wizard away but isn't a defeat."""
+        fled = await self._flee()
+        self.fled = self.fled or fled
+        return fled
+
+    async def _flee(self) -> bool:
         """Flee on purpose, then answer Yes to "Are you sure you want to flee?
         You will lose all your Mana..." (mana comes back quickly from wisps).
         True once the flee went through."""
@@ -429,6 +437,7 @@ class Fighter(CombatHandler):
         self._want_flee = False
         self._last_plan = ""
         self._had_boss = False
+        self.fled = False
         await super().handle_combat()
         self.fights += 1
         self.combat_ended_at = time.monotonic()
