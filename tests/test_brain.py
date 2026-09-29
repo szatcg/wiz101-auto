@@ -446,13 +446,16 @@ def test_super_strike_does_not_waste_a_trap():
     assert decide(b).kind is ActionKind.PASS
 
 
-def test_super_strike_on_a_heavily_trapped_enemy():
+def test_no_free_hit_on_a_heavily_trapped_enemy():
+    # A hit spends several traps at once (Crush took two off Kenedy the Klaw):
+    # stacked traps wait for the real hit.
     traps = [(f"t{i}", "myth", 0.3) for i in range(3)]
     trapped = enemy("Gobbler", 900, trap_count=3, incoming_effects=traps)
     b = battle([super_strike(), myth_hit(1, pips=2)], [trapped])
     b.pips = 1
     b.cards[-1].castable = False
-    assert decide(b).card.name == "Super Strike"
+    a = decide(b)
+    assert a.card is None or a.card.name != "Super Strike"
 
 
 def test_super_strike_breaks_a_shield_before_trapping():

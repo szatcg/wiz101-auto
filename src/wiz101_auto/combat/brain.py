@@ -995,7 +995,7 @@ def _buffed_for(battle: Battle, card: Card, target: Combatant) -> bool:
     )
 
 
-FREE_HIT_SPARE_TRAPS = 3  # an enemy with this many traps can lose one to a 0-pip hit
+FREE_HIT_SPARE_TRAPS = 99  # never: a hit spends several traps at once (Crush took two off Kenedy the Klaw)
 
 
 def _matching(effects: list[tuple[str, str, float]], school: str, shields: bool) -> list:
