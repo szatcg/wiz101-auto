@@ -1050,7 +1050,13 @@ class Quester:
         zone = await self.client.zone_name() or ""
         objective = await self.objective()
         target = objective_zone(objective)
-        leave = target is not None and target != zone
+        if target is not None:
+            leave = target != zone
+        else:
+            # A place we can't map ("Talk To Sergeant Steeg in Knight's Court"):
+            # the marker led us to the exit, so the step is outside; stay only
+            # when it's a fight (maybe a boss further in).
+            leave = not await self._fight_ahead(objective)
         logger.info(f"dungeon exit prompt: {'leaving' if leave else 'staying'} (objective {objective!r})")
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
