@@ -28,6 +28,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `restart [--supervise]` | stop + start |
 | `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |
 | `logs -n 200` | recent log; `logs -f` follows (blocks, so avoid in automation) |
+| `relog` | quit to character select and Play again (bot stopped): frees a wizard the game won't move; the bot also does it by itself after 8 steps in a row fail on WizWalker's `should_update` |
 | `inspect` | one-shot: what the bot reads from the game (needs the bot STOPPED) |
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
 | `gear` | try every backpack item per slot and keep the best (needs the bot stopped) |

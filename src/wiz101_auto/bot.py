@@ -212,15 +212,34 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
         await asyncio.sleep(5)
 
 
+STUCK_TIMEOUTS_BEFORE_RELOG = 8  # quest steps failing in a row on WizWalker's should_update
+
+
 async def quest_loop(quester: Quester, controller: Controller):
+    stuck = 0  # steps in a row that failed because the game ignored our moves
     while not controller.stopped.is_set():
         await controller.checkpoint()
         try:
             await quester.run_step()
+            stuck = 0
         except BotStopped:
             raise
         except Exception as exc:
             logger.opt(exception=exc).warning("quest step failed; retrying")
+            if "should_update" in str(exc):
+                # Standing on a duel circle whose fight never started, the game
+                # stopped taking moves: log out to character select and back.
+                stuck += 1
+                if stuck >= STUCK_TIMEOUTS_BEFORE_RELOG and not await quester.client.in_battle():
+                    from .relog import relog
+
+                    stuck = 0
+                    controller.allow_idle(180)
+                    try:
+                        if not await relog(quester.client):
+                            logger.warning("ALERT: main quest stuck: the wizard can't move; relog failed")
+                    finally:
+                        controller.end_idle()
             await asyncio.sleep(2.0)
         await asyncio.sleep(0.5)
 
