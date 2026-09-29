@@ -89,13 +89,14 @@ async def _flip(quester, pos: XYZ) -> bool:
     return False
 
 
-async def solve_by_trying(quester, objective: str) -> bool:
+async def solve_by_trying(quester, objective: str, target: str | None = None) -> bool:
     """Flip the room's switches through every combination until the objective
-    moves on or its hidden target appears. True if solved."""
+    moves on or its hidden target appears (`target`, else the X of "Use X").
+    True if solved."""
     from .bossfarm import find_entity_named
 
     client = quester.client
-    target = use_target(objective)
+    target = target or use_target(objective)
     switches = await find_switches(client)
     if not target or len(switches) < 2:
         return False

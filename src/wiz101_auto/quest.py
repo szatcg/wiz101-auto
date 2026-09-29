@@ -2305,6 +2305,16 @@ class Quester:
                 await asyncio.sleep(0.5)
                 await self.interact(objective)
                 return True
+            if (objective, zone) not in self._puzzles_tried:
+                # Nowhere to be seen (Clockwork in Katzenstein's Lab, powered
+                # up by its three levers): try the room's switches.
+                from .puzzles import find_switches, solve_by_trying
+
+                if await find_switches(self.client):
+                    self._puzzles_tried.add((objective, zone))
+                    logger.info(f"{name} isn't here; trying the switches around to bring them out")
+                    await solve_by_trying(self, objective, target=name)
+                    return True
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
             await self.controller.checkpoint()
