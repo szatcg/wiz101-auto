@@ -26,6 +26,7 @@ from .watchdog import Watchdog
 
 HOOK_TIMEOUT = 90
 DEATH_HEALTH_RATIO = 0.1
+DEFEAT_MOVE_DISTANCE = 1500.0  # a defeat puts you back at the zone's start (or another zone)
 
 
 def new_handler() -> ClientHandler:
@@ -161,12 +162,17 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
         await controller.checkpoint()
         if await client.in_battle():
             fight_zone = await client.zone_name() or ""  # a defeat moves us elsewhere
+            fight_spot = await client.body.position()
             await fighter.handle_combat()
             await asyncio.sleep(1.5)
             hp = await client.stats.current_hitpoints()
             max_hp = await client.stats.max_hitpoints()
-            if hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO):
-                # Losing a fight sends you back with a sliver of health.
+            moved = await client.zone_name() != fight_zone or (
+                (await client.body.position()).distance(fight_spot) > DEFEAT_MOVE_DISTANCE
+            )
+            if hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO and moved):
+                # Losing a fight sends you back (elsewhere) with a sliver of
+                # health; winning on a sliver leaves you standing where you fought.
                 controller.record_death(fight_zone)
             elif await is_free(client):
                 await scan_wisps(client)

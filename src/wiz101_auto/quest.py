@@ -1995,13 +1995,12 @@ class Quester:
             return False
         return True
 
-    async def _talk_means_fight(self, objective: str) -> bool:
-        """"Talk To Willie Marks" where Willie Marks is an enemy (the talk comes
-        after beating him, in the middle of his clocktower): go start the fight.
-        True if it went for one."""
+    async def _talk_target_enemy(self, objective: str):
+        """The enemy a "Talk To X" objective names, if X is a mob here (Willie
+        Marks before he's beaten), else None."""
         name = talk_target(objective)
         if not name:
-            return False
+            return None
         from .names import lang_name
 
         want = _norm_name(name)
@@ -2011,14 +2010,30 @@ class Quester:
                 code = await t.display_name() if t else ""
                 label = await lang_name(self.client, code) if code else ""
                 if want and want == _norm_name(label):
-                    logger.info(f"{name} is an enemy here: fighting him to get on with {objective!r}")
-                    allow_engage(self.client)
-                    await self.client.teleport(await mob.location())
-                    await asyncio.sleep(3.0)
-                    return True
+                    return mob
         except Exception as exc:
             logger.debug(f"talk-target enemy check failed: {exc!r}")
-        return False
+        return None
+
+    async def _talk_means_fight(self, objective: str) -> bool:
+        """"Talk To Willie Marks" where Willie Marks is an enemy (the talk comes
+        after beating him, in the middle of his clocktower): go start the fight.
+        True if it went for one."""
+        mob = await self._talk_target_enemy(objective)
+        if mob is None:
+            return False
+        logger.info(f"{talk_target(objective)} is an enemy here: fighting him to get on with {objective!r}")
+        allow_engage(self.client)
+        await self.client.teleport(await mob.location())
+        await asyncio.sleep(3.0)
+        return True
+
+    async def _fight_ahead(self, objective: str) -> bool:
+        """Is the next thing to do a fight (a Defeat objective, or a Talk To
+        someone who is still an enemy here)?"""
+        if is_combat_objective(objective or ""):
+            return True
+        return await self._talk_target_enemy(objective or "") is not None
 
     async def pull_mob(self, objective: str = ""):
         """For defeat objectives: teleport onto the enemy the objective names
@@ -2233,9 +2248,16 @@ class Quester:
             return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
-        if self.healer and await self._in_dungeon(zone_now) and await self.healer.between_fights(zone_now):
+        in_dungeon = await self._in_dungeon(zone_now)
+        # In a dungeon, leaving to heal resets it: first do everything that
+        # needs no fight (the talk after beating Willie Marks), and heal only
+        # when the next step is a fight.
+        heal_now = not in_dungeon or await self._fight_ahead(await self.objective())
+        if not heal_now:
+            logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
+        if heal_now and self.healer and in_dungeon and await self.healer.between_fights(zone_now):
             return
-        if self.upkeep and not await recover(
+        if heal_now and self.upkeep and not await recover(
             self.client, self.upkeep, self.controller, self.go_to_zone,
             trip=self._heal_trip, mark=self._heal_mark,
         ):
