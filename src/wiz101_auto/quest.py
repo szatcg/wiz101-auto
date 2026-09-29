@@ -47,6 +47,7 @@ from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
+from .teamup import TEAM_UP_DUNGEONS
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -869,6 +870,13 @@ class Quester:
                 continue
         return None
 
+    def _dungeon_at(self, outside: str, sigil: XYZ) -> str | None:
+        """The dungeon (its first room's zone) whose sigil this is, if learned."""
+        for inside, entry in DungeonMemory.load().dungeons.items():
+            if entry.outside == outside and distance(XYZ(*entry.sigil), sigil) < SIGIL_NEAR_RANGE:
+                return inside
+        return None
+
     async def _enter_by_sigil(self, sigil: XYZ, zone: str | None) -> bool:
         """Dungeons start with ONE press of X on the sigil, then a ~10s countdown
         that any movement or another X press cancels. After a failed try the
@@ -897,6 +905,27 @@ class Quester:
         if not await is_free(self.client):
             logger.info("pulled into a fight near the sigil; will try again after it")
             self._sigil_failed_at = sigil
+            return False
+        # Never into a dungeon hurt or low on mana (Mount Olympus twice at low
+        # health): heal first, then come back to the sigil.
+        if self.upkeep:
+            hp, mana = await health_mana(self.client)
+            if self.upkeep.needs_recovery(hp, mana):
+                logger.info(f"{hp:.0%} health, {mana:.0%} mana: healing before entering the dungeon")
+                await recover(self.client, self.upkeep, self.controller, self.go_to_zone)
+                return False
+        dungeon = self._dungeon_at(zone or "", sigil)
+        if dungeon in TEAM_UP_DUNGEONS:
+            # Too hard alone: only with a team (the Team Up button on the sigil).
+            from .teamup import team_up
+
+            await self._mark_here()
+            if await team_up(self, dungeon):
+                self._dungeon = (zone or "", await self.client.zone_name() or "")
+                self._sigil_failed_at = None
+                return True
+            logger.warning(f"no team for {dungeon}; not going in alone, setting this quest aside for now")
+            await self._set_current_aside(await self.objective())
             return False
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:

@@ -79,6 +79,15 @@ class DungeonHealer:
         low = hp < self.cfg.min_health_to_fight or mana < DUNGEON_MANA_TRIP
         if not low or not await is_free(self.client):
             return False
+        # The dungeon's own wisps first (Mount Olympus has them in its first
+        # room): no trip out if they do the job.
+        from .upkeep import collect_wisps, needed_wisps, visit_known_spot
+
+        took = await collect_wisps(self.client, self.cfg)
+        if not took:
+            took = await visit_known_spot(self.client, self.cfg, zone, needed_wisps(self.cfg, hp, mana))
+        if took:
+            return True
         m = self.q._mark
         if m and m.kind == "fight" and m.zone == zone:
             # Marked beside the boss: heal here (wisps, rest), don't leave.
