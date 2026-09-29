@@ -106,6 +106,7 @@ FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one ob
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
+BOSS_CHEST_SETTLE_SECONDS = 3.0  # after a boss fight, before teleporting to its chest
 GRIND_RERANK_SECONDS = 90.0  # while grinding, re-read the quest book this often
 ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most hourly
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
@@ -1053,10 +1054,11 @@ class Quester:
         if target is not None:
             leave = target != zone
         else:
-            # A place we can't map ("Talk To Sergeant Steeg in Knight's Court"):
-            # the marker led us to the exit, so the step is outside; stay only
-            # when it's a fight (maybe a boss further in).
-            leave = not await self._fight_ahead(objective)
+            # A place we can't map ("Talk To Sergeant Steeg in Knight's Court",
+            # "Defeat Mikey the Brick in Knight's Court"): the marker led us to
+            # the exit, so the step is outside; stay only when the enemy it
+            # names is in here.
+            leave = not await self._named_enemy_here(objective)
         logger.info(f"dungeon exit prompt: {'leaving' if leave else 'staying'} (objective {objective!r})")
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
@@ -1082,6 +1084,8 @@ class Quester:
         looked."""
         if not self.fighter or self.fighter.boss_fights == self._boss_fights_seen:
             return False
+        if time.monotonic() - self.fighter.combat_ended_at < BOSS_CHEST_SETTLE_SECONDS:
+            return False  # let the defeat check see where the fight ended first
         won = self.controller.deaths == self._boss_deaths_seen
         self._boss_fights_seen, self._boss_deaths_seen = self.fighter.boss_fights, self.controller.deaths
         if not won or await self.client.in_battle():
@@ -2090,6 +2094,17 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _named_enemy_here(self, objective: str) -> bool:
+        """Is the enemy the objective names (Defeat X, or Talk To an enemy) in this zone?"""
+        if await self._talk_target_enemy(objective or "") is not None:
+            return True
+        from .bossfarm import find_entity_named
+
+        for name in defeat_names(objective or ""):
+            if await find_entity_named(self.client, name) is not None:
+                return True
+        return False
+
     async def _fight_ahead(self, objective: str) -> bool:
         """Is the next thing to do a fight (a Defeat objective, or a Talk To
         someone who is still an enemy here)?"""
@@ -2270,6 +2285,26 @@ class Quester:
                 logger.warning(f"{target_zone} looks locked (every gate refused); setting this quest aside")
                 return await self._set_current_aside(objective)
             return False  # the target is in another zone; its spots here are someone else's
+        # "Talk to Clockwork in Katzenstein's Lab" with no marker: look for
+        # Clockwork around here and walk up to him.
+        name = talk_target(objective)
+        if name:
+            from .bossfarm import find_entity_named
+
+            pos = await find_entity_named(self.client, name)
+            if pos is not None:
+                logger.info(f"no quest marker for {objective!r}; {name} is here: going to talk")
+                await self.controller.checkpoint()
+                await self.travel(pos, npc=True)
+                if not await wait_until_free(self.client, timeout=5):
+                    return True
+                if await self.interact(objective):
+                    return True
+                await self.client.send_key(Keycode.S, 0.3)
+                await self.client.send_key(Keycode.W, 0.3)
+                await asyncio.sleep(0.5)
+                await self.interact(objective)
+                return True
         for pos in quest_spots(zone):
             logger.info(f"no quest marker for {objective!r}; trying quest spot ({pos.x:.0f}, {pos.y:.0f})")
             await self.controller.checkpoint()
