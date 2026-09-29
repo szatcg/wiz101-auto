@@ -156,3 +156,26 @@ def test_is_hub():
 
     assert is_hub("Krokotopia/KT_Hub") and is_hub("WizardCity/WC_Hub")
     assert not is_hub("Krokotopia/KT_Hub_Sphinx") and not is_hub("Krokotopia/KT_Tomb/KT_DjeseritTomb")
+
+
+def test_errands_are_no_fight_steps():
+    from wiz101_auto.quest import is_errand
+
+    assert is_errand("Talk To Sergeant Major Talbot in The Oasis")
+    assert is_errand("Go To Wolfminster Abbey")
+    assert not is_errand("Defeat Krokopatra in Temple of Storms")
+    assert not is_errand("Collect Flame Gems")
+    assert not is_errand("")
+
+
+def test_nearby_side_errand_comes_before_the_main_quest():
+    from wiz101_auto.quest import QuestEntry, errand_detour
+
+    main = QuestEntry(0, "Triumphant Return!", mainline=True, active=True, goal="Defeat Rat Thief", hops=2)
+    turn_in = QuestEntry(1, "Lost Hat", goal="Talk To Sergeant Major Talbot", hops=1)
+    far = QuestEntry(2, "Far Away", goal="Talk To Someone", hops=6)
+    fight = QuestEntry(3, "Pests", goal="Defeat Ratbeasts", hops=0)
+    unknown = QuestEntry(4, "Somewhere", goal="Talk To Nobody")
+    assert errand_detour([main, turn_in, far, fight, unknown], main) is turn_in
+    assert errand_detour([main, far, fight, unknown], main) is None
+    assert errand_detour([main, turn_in], main, set_aside={"Lost Hat"}) is None

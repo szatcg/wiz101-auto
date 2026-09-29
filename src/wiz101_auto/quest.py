@@ -236,6 +236,41 @@ def choose_quest(
     return max(quests, key=lambda q: quest_rank(q, current, order))
 
 
+# Objectives with no fight: talking to someone (a turn-in), going somewhere,
+# using or finding something. "Collect" is left out (items often drop from
+# enemies, and one can take many fights).
+ERRAND_VERBS = (
+    "talk", "speak", "go", "use", "find", "explore", "visit", "read", "locate", "return", "deliver",
+)
+ERRAND_MAX_HOPS = 3  # gates away at most: a detour, not a trip
+
+
+def is_errand(goal: str) -> bool:
+    """A quick step with no fight ('Talk To Sergeant Major Talbot')."""
+    words = (goal or "").strip().lower().split()
+    return bool(words) and words[0] in ERRAND_VERBS and not is_combat_objective(goal)
+
+
+def errand_detour(
+    quests: list[QuestEntry], chosen: QuestEntry | None, set_aside: set[str] = frozenset(),
+    world: str | None = None, max_hops: int = ERRAND_MAX_HOPS,
+) -> QuestEntry | None:
+    """A side quest whose current step is a quick no-fight errand close by (a
+    turn-in, a talk): worth doing before going on with the main quest. The
+    nearest first, then the biggest reward. None when there's none."""
+    if chosen is None:
+        return None
+    options = [
+        q for q in quests
+        if q is not chosen and not q.mainline and not q.activity and q.name not in set_aside
+        and is_errand(q.goal) and q.hops is not None and q.hops <= max_hops
+        and (world is None or quest_world(q) in (None, world))
+    ]
+    if not options:
+        return None
+    return min(options, key=lambda q: (q.hops, -q.reward, not q.active))
+
+
 def dungeon_quest(
     quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset()
 ) -> QuestEntry | None:
@@ -1530,6 +1565,13 @@ class Quester:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
             chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside)
+            if not self._grinding and not await self._in_dungeon(here):
+                errand = errand_detour([q for _, q in all_quests], chosen, set_aside, world)
+                if errand:
+                    if not errand.active:
+                        logger.info(f"quick errand first: {errand.name!r} ({errand.goal}), "
+                                    f"then back to {chosen.name!r}")
+                    chosen = errand
             _write_quest_book([q for _, q in all_quests], chosen, world)
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
