@@ -143,6 +143,8 @@ EXTRA_DISPLAY_ZONES = [
     ("altar of kings", "Krokotopia/KT_Pyramid/KT_AltarOfKings"),  # the data says "altar of the kings"
     ("hall of champions", "Krokotopia/KT_Krokosphinx/KT_ChampHall"),  # the data says "hall of champion's"
     ("wizard city library", "WizardCity/Interiors/WC_Library"),  # Harold Argleston (not in the data)
+    ("djeserit family tomb", "Krokotopia/KT_Tomb/KT_DjeseritTomb"),  # the data says "djeserit tomb"
+    ("ahnic family tomb", "Krokotopia/KT_Tomb/KT_AhnicTomb"),  # the data says "ahnic tomb"
 ]
 
 
