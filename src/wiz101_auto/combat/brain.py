@@ -42,8 +42,12 @@ from .model import (
 
 @dataclass
 class Strategy:
-    heal_threshold: float = 0.45  # heal self below this health ratio
-    boss_heal_threshold: float = 0.6  # bosses can take half our health in one round
+    heal_threshold: float = 0.35  # heal self below this health ratio
+    boss_heal_threshold: float = 0.45  # bosses hit harder: heal a little sooner
+    # A cast that ends the fight wins over healing above this; one that kills
+    # at least one enemy (one fewer attacker) above partial_kill_health.
+    critical_health: float = 0.2
+    partial_kill_health: float = 0.25
     ally_heal_threshold: float = 0.35
     shield_threshold: float = 0.6  # shield self below this if no heal is available
     max_blades: int = 2
@@ -233,12 +237,26 @@ def _kill_action(battle: Battle) -> Action | None:
             kills = [t for t in victims if hit_damage(card, battle.me, t) >= t.health]
             if not kills:
                 continue
-            key = (len(kills), -card.pip_cost, -min(t.health for t in kills))
+            # Same number of kills: the one that also hurts the survivors most
+            # (Humongofrog over Ether Golem), then the cheapest.
+            spill = sum(min(hit_damage(card, battle.me, t), t.health) for t in victims if t not in kills)
+            key = (len(kills), round(spill), -card.pip_cost, -min(t.health for t in kills))
             if best is None or key > best[0]:
                 name = kills[0].name if len(kills) == 1 else f"{len(kills)} enemies"
                 dmg = hit_damage(card, battle.me, kills[0])
                 best = (key, Action(ActionKind.CAST, card, target, reason=f"finish {name}: ~{dmg:.0f} dmg"))
     return best[1] if best else None
+
+
+def _kills_all(battle: Battle, action: Action) -> bool:
+    """Does this cast finish every enemy left (ending the fight)?"""
+    card = action.card
+    if card is None:
+        return False
+    victims = battle.live_enemies if action.target is None else [action.target]
+    return len(victims) == len(battle.live_enemies) and all(
+        hit_damage(card, battle.me, t) >= t.health for t in victims
+    )
 
 
 def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
@@ -988,12 +1006,15 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     # then heal first and kill next round.
     kill = _kill_action(battle)
     heal = _best_heal(battle, strat)
-    if kill and len(battle.live_enemies) == 1:
-        if heal and battle.me.health_ratio < heal_threshold(battle, strat):
+    if kill and _kills_all(battle, kill):
+        if heal and battle.me.health_ratio < strat.critical_health:
             return heal
         return kill
 
     if heal:
+        # Removing an attacker beats a 2-pip heal unless we're about to fall.
+        if kill and battle.me.health_ratio >= strat.partial_kill_health:
+            return kill
         return heal
     save = _save_for_heal(battle, strat)
     if save:

@@ -201,7 +201,7 @@ def test_low_health_heals_before_finishing_the_last_enemy():
     # A Desert Golem killed the wizard at 267/815 while it cast Troll for the kill:
     # the enemy can act first, and spells fizzle. Low on health, heal first.
     hand = [dmg_card(0, "Troll", 400, pips=2), heal_card(1, "Pixie", 400)]
-    b = battle(hand, [enemy("Desert Golem", 395)], my=me(hp=100))
+    b = battle(hand, [enemy("Desert Golem", 395)], my=me(hp=90))  # under critical_health
     b.pips = 2
     assert decide(b).card.name == "Pixie"
 
@@ -249,9 +249,9 @@ def test_saves_pips_for_a_heal_when_low():
 
 def test_heals_earlier_against_a_boss():
     hand = [dmg_card(0, "Blood Bat", 90), heal_card(1, "Pixie", 400)]
-    boss_fight = battle(hand, [enemy("Alicane", 480, boss=True)], my=me(hp=325, max_hp=628))
+    boss_fight = battle(hand, [enemy("Alicane", 480, boss=True)], my=me(hp=260, max_hp=628))
     assert decide(boss_fight).card.name == "Pixie"
-    normal = battle(hand, [enemy("Magma Man", 235)], my=me(hp=325, max_hp=628))
+    normal = battle(hand, [enemy("Magma Man", 235)], my=me(hp=260, max_hp=628))
     assert decide(normal).card.name == "Blood Bat"
 
 
@@ -828,3 +828,31 @@ def test_no_digging_once_blades_and_traps_are_in_hand():
     b = battle([troll, _myth(blade_card(1)), _myth(trap_card(2))], [enemy("Midnighter", 900)], my=_myth_me())
     b.upcoming = [_myth(blade_card(5)), _myth(trap_card(6))]
     assert decide(b).kind is not ActionKind.DISCARD
+
+
+def _pixie(i=8):
+    return Card(i, "Pixie", school="Life", pip_cost=2, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)])
+
+
+def test_a_hit_that_ends_the_fight_beats_healing():
+    foes = [enemy("Willie", 300, boss=True), enemy("Napper", 250)]
+    b = battle([_frog(), _pixie()], foes, my=_myth_me(hp=371, max_hp=1284))
+    b.pips = 4
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name == "Humongofrog"
+
+
+def test_killing_one_of_two_beats_healing_above_a_quarter():
+    foes = [enemy("Willie", 725, boss=True), enemy("Napper", 300)]
+    b = battle([_frog(), _pixie()], foes, my=_myth_me(hp=371, max_hp=1284))
+    b.pips = 4
+    assert decide(b).card.name == "Humongofrog"
+    b.me.health = 200  # under a quarter: heal first
+    assert decide(b).card.name == "Pixie"
+
+
+def test_humongofrog_over_a_single_kill_that_leaves_the_boss_untouched():
+    golem = _myth(dmg_card(0, "Ether Golem", 1000, pips=3))
+    b = battle([golem, _frog()], [enemy("Willie", 725, boss=True), enemy("Napper", 300)], my=_myth_me())
+    b.pips = 4
+    assert decide(b).card.name == "Humongofrog"
