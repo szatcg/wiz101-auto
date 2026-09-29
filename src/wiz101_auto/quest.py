@@ -2518,8 +2518,11 @@ class Quester:
                 await self.pull_mob()
                 return
 
-        if dist < DOOR_RANGE and await self.client.zone_name() == zone:
-            # Standing on the marker with nothing to interact with: it's most
-            # likely a door or zone exit, which needs walking into.
+        doorish = dist < DOOR_RANGE or ("talk" not in objective.lower() and dist < INTERACT_RANGE)
+        if doorish and await self.client.zone_name() == zone:
+            # At (or near) the marker with nothing to interact with: it's most
+            # likely a door or zone exit, which needs walking into. (The Post
+            # Office's exit sat 590 away, beyond DOOR_RANGE, and a teleport to
+            # it was rejected: nothing handled it.)
             if await self.walk_through(target, zone) or await self._walk_in_from_around(target, zone):
                 logger.info("walked through a door")
