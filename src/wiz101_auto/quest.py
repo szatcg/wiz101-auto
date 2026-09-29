@@ -126,6 +126,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
+TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long: they left; leave too
 TEAM_ALONE_AFTER = 90.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -573,6 +574,7 @@ class Quester:
         self._mate_seen: tuple[str, XYZ, float, bool] | None = None
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
+        self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
@@ -2632,16 +2634,24 @@ class Quester:
         now = time.monotonic()
         if mates:
             self._team_with_us = True  # seen one in here: we have a team
+            self._mate_last_seen = now
+        gone = self._team_with_us and now - self._mate_last_seen > TEAM_GONE_AFTER
         if self._team_alone_since is None:
             self._team_alone_since = now
-        elif not self._team_with_us and now - self._team_alone_since > TEAM_ALONE_AFTER:
+        elif (not self._team_with_us and now - self._team_alone_since > TEAM_ALONE_AFTER) or gone:
+            # The team left (none seen for TEAM_GONE_AFTER: they went after
+            # Apollo, and it waited alone in the Moon Chamber for 20 minutes).
             # Only when no teammate has been seen in here at all (and we didn't
             # come in with one): out of sight in another room isn't alone.
             # Nobody with us: leave by the world hub button and queue for a new team.
             from .dungeon_heal import go_to_hub
 
-            logger.warning(f"alone in the team dungeon for {TEAM_ALONE_AFTER:.0f}s; "
-                           "leaving to wait for a new team")
+            if gone:
+                why = f"no teammate seen for {TEAM_GONE_AFTER / 60:.0f} min"
+            else:
+                why = f"alone for {TEAM_ALONE_AFTER:.0f}s"
+            logger.warning(f"{why} in the team dungeon; leaving to wait for a new team")
+            self._team_with_us = False
             self._team_alone_since = None
             self._mate_seen = None
             await go_to_hub(self.client)
