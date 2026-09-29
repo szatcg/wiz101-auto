@@ -111,10 +111,13 @@ FIGHT_START_WAIT = 25.0  # standing still after walking into a fight's circle
 CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the circle, walk in
-TEAM_FOLLOW = 900.0  # farther than this from the nearest teammate: catch up
+TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
-TEAM_WAIT_TICK = 3.0  # seconds between looks for a teammate's fight
-TEAM_LOST_AFTER = 20.0  # no teammate in sight this long: go after them
+TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
+TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
+TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
+TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
+TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_ALONE_AFTER = 300.0  # no teammate ever seen in here this long (not come in with one): alone
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -560,6 +563,7 @@ class Quester:
         self._mate_seen: tuple[str, XYZ, float, bool] | None = None
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
+        self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -2519,41 +2523,44 @@ class Quester:
         if here and not (is_combat_objective(objective or "") or self._step_is_fight):
             return False
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
-        self.controller.allow_idle(TEAM_WAIT_TICK + 10)
-        zone = await self.client.zone_name() or ""
-        now = time.monotonic()
-        if self._mate_seen is None or self._mate_seen[0] != zone:
-            self._mate_seen = (zone, me, now, False)  # just arrived: look around first
-        if mates:
-            mate = min(mates, key=lambda m: distance(m, me))
-            self._mate_seen = (zone, mate, now, True)
-        elif now - self._mate_seen[2] > TEAM_LOST_AFTER and self._mate_seen[3]:
-            # The team went on (another room): through the door nearest where
-            # a teammate was last seen. Never on alone toward the marker: that
-            # landed beside Apollo and started his fight solo.
-            last = self._mate_seen[1]
-            doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
-            for door in sorted(doors, key=lambda d: distance(d, last)):
-                key = (zone, round(door.x / 100), round(door.y / 100))
-                if key in self._mate_doors:
-                    continue
-                self._mate_doors.add(key)
-                logger.info(f"lost the team; following them through the door at "
-                            f"({door.x:.0f}, {door.y:.0f})")
-                await self.approach_and_walk(door, zone)
+        # This dungeon's fight step: head for the boss along the quest marker,
+        # stopping short of any duel circle there (the team starts the fight;
+        # we walk in once a player is in it). A marker with no circle near it
+        # is a door or passage: normal travel goes through it.
+        marker = await self.client.quest_position.position()
+        if here and distance(marker, XYZ(0, 0, 0)) > 1:
+            d = distance(me, marker)
+            at_fight = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR]
+            if d > TEAM_APPROACH or (at_fight and d > TEAM_STANDOFF + 400):
+                dx, dy = me.x - marker.x, me.y - marker.y
+                length = math.hypot(dx, dy) or 1.0
+                stop = XYZ(marker.x + dx / length * TEAM_STANDOFF, marker.y + dy / length * TEAM_STANDOFF,
+                           marker.z)
+                key = (await self.client.zone_name() or "", round(stop.x / 300), round(stop.y / 300))
+                self._standoff_tries[key] = self._standoff_tries.get(key, 0) + 1
+                if self._standoff_tries[key] > 2 and not at_fight:
+                    # Teleporting there gets no closer (off the map, or the way
+                    # on is a gateway): normal travel walks the doors.
+                    return False
+                logger.info(f"heading for the boss; stopping {TEAM_STANDOFF:.0f} short at "
+                            f"({stop.x:.0f}, {stop.y:.0f}) (a teammate starts the fight)")
+                await self.client.teleport(stop)
+                await asyncio.sleep(TEAM_WAIT_TICK)
                 return True
+            if not at_fight:
+                return False  # a door or passage on the way: normal travel (it starts no fight here)
+            logger.debug("near the boss's circle; waiting for a teammate to start the fight")
+        elif mates:
+            mate = min(mates, key=lambda m: distance(m, me))
+            if distance(mate, me) > TEAM_FOLLOW:
+                logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
+                            "not starting fights")
+                dx, dy = me.x - mate.x, me.y - mate.y
+                length = math.hypot(dx, dy) or 1.0
+                await self.client.teleport(XYZ(mate.x + dx / length * TEAM_BEHIND,
+                                               mate.y + dy / length * TEAM_BEHIND, mate.z))
+        self.controller.allow_idle(TEAM_WAIT_TICK + 10)
         try:
-            if not mates:
-                logger.debug("no teammate in sight; waiting for the team to start a fight")
-            else:
-                mate = min(mates, key=lambda m: distance(m, me))
-                if distance(mate, me) > TEAM_FOLLOW:
-                    logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
-                                "not starting fights")
-                    dx, dy = me.x - mate.x, me.y - mate.y
-                    length = math.hypot(dx, dy) or 1.0
-                    await self.client.teleport(XYZ(mate.x + dx / length * TEAM_BEHIND,
-                                                   mate.y + dy / length * TEAM_BEHIND, mate.z))
             await asyncio.sleep(TEAM_WAIT_TICK)
         finally:
             self.controller.end_idle()
@@ -3201,19 +3208,21 @@ class Quester:
             trip=self._heal_trip, mark=self._heal_mark,
         ):
             return
-        if is_team_up_zone(zone_now):
-            return  # nothing else here may leave the dungeon (Recall, grinding, trips)
-        if await self._recall_to_mark():
+        # With a team, nothing that could leave the dungeon or hold us back
+        # (Recall, NPC visits, grinding, gear checks, training trips); the quest
+        # step itself still runs (returning here stood still while the team left).
+        team = is_team_up_zone(zone_now)
+        if not team and await self._recall_to_mark():
             return
         # Quests beat grinding for experience: ask the NPCs around first (the
         # next main quest may be waiting with one of them).
-        if await self.givers.ask_nearby():
+        if not team and await self.givers.ask_nearby():
             return
         # Grinding comes after healing: right after a defeat it went looking for
         # fights at 0 mana and a third of its health.
-        if self._grinding and await self._grind():
+        if not team and self._grinding and await self._grind():
             return
-        if self.gear:
+        if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
             try:
                 await self.gear.tick()
@@ -3223,7 +3232,7 @@ class Quester:
                 self.controller.end_idle()
             if not await is_free(self.client):
                 return
-        if self.trainer:
+        if self.trainer and not team:
             self.controller.allow_idle(240)  # the trip crosses zones and a training window
             try:
                 acted = await self.trainer.tick()
