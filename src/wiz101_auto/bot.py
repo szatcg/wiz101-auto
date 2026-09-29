@@ -203,7 +203,12 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
 
         farm = Farm.load()
         if farm.active or farm.runs:
-            info["farm"] = {"dungeon": farm.name, "runs": farm.runs, "active": farm.active}
+            from .farm import load_looted, target_status
+
+            info["farm"] = {
+                "dungeon": farm.name, "runs": farm.runs, "active": farm.active,
+                "targets": target_status(farm.name, load_looted()),
+            }
         if quester:
             info.update(
                 objective=quester._last_progress[0],

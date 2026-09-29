@@ -47,6 +47,12 @@
   .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
   .bar > div { height: 100%; background: linear-gradient(90deg, #c99a2e, var(--gold)); transition: width 0.8s; }
   .hp > div { background: linear-gradient(90deg, #e44d6a, #ff8a7a); }
+  .loot { margin-top: 6px; font-size: 13px; }
+  .loot .set { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .loot .setname { min-width: 120px; opacity: 0.85; }
+  .loot .item { padding: 1px 7px; border-radius: 8px; border: 1px solid currentColor;
+                opacity: 0.3; filter: grayscale(1); }
+  .loot .item.have { opacity: 1; filter: none; background: rgba(255, 215, 90, 0.25); color: #ffd75a; }
 </style>
 </head>
 <body>
@@ -61,6 +67,7 @@
   <div class="quest" id="quest">—</div>
   <div class="objective" id="objective"></div>
   <div class="objective" id="farm" style="display:none"></div>
+  <div class="loot" id="loot" style="display:none"></div>
   <div class="row"><span class="name" id="worldName">World</span><div class="bar"><div id="worldBar" style="width:0%"></div></div><span class="pct" id="worldPct">0%</span></div>
   <div class="row"><span class="name" id="arcName">Arc</span><div class="bar"><div id="arcBar" style="width:0%"></div></div><span class="pct" id="arcPct">0%</span></div>
   <div class="row"><span class="name" id="hpText">Health</span><div class="bar hp"><div id="hpBar" style="width:0%"></div></div><span class="pct" id="hpPct"></span></div>
@@ -84,6 +91,15 @@ function render(d) {
   const farmEl = document.getElementById("farm");
   farmEl.style.display = farm ? "" : "none";
   if (farm) farmEl.textContent = `🏛 ${farm.dungeon} runs: ${farm.runs}${farm.active ? " (farming)" : ""}`;
+  const loot = document.getElementById("loot");
+  const targets = (farm && farm.targets) || [];
+  loot.style.display = targets.length ? "" : "none";
+  const groups = [...new Set(targets.map((t) => t.group))];
+  loot.innerHTML = groups.map((g) => {
+    const items = targets.filter((t) => t.group === g).map((t) =>
+      `<span class="item${t.have ? " have" : ""}" title="${t.name}">${t.slot}</span>`).join("");
+    return `<div class="set"><span class="setname">${g}</span>${items}</div>`;
+  }).join("");
   set("objective", d.current.grinding ? "Grinding for experience (no quest to do right now)" : (d.current.objective || ""));
   if (world) {
     set("worldName", `${world.name}${world.deaths ? "  💀" + world.deaths : ""}`);

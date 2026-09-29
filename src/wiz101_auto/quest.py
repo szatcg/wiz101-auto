@@ -115,6 +115,8 @@ TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the cir
 TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
+RAVENWOOD = "WizardCity/WC_Ravenwood"
+BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
 TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
@@ -566,6 +568,8 @@ class Quester:
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
+        self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
+        self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave after its chest
         self._chests_checked: set[str] = set()  # team dungeon rooms already checked for a boss chest
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -2480,6 +2484,79 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _world_tree_to_aquila(self, zone: str) -> bool:
+        """Aquila from another world: the dorm button to Wizard City, walk to
+        Ravenwood, into the World Tree (Bartleby's mouth door), and on from
+        inside it to Aquila. The tree's inside isn't mapped: its entities are
+        saved to state/world_tree_entities.txt and the way on is found by name
+        (aquila / portal / teleport / door). True if it acted."""
+        if zone.startswith("Aquila/"):
+            return False
+        if not zone.startswith("WizardCity/"):
+            from .trainer import go_home
+
+            logger.info("to Aquila: by the dorm button to Wizard City, then the World Tree")
+            return await go_home(self.client)
+        if zone == RAVENWOOD:
+            door = await self._entity_named_like(("bartlebymouth",)) or XYZ(*BARTLEBY_MOUTH)
+            logger.info(f"to Aquila: into the World Tree (Bartleby's mouth, ({door.x:.0f}, {door.y:.0f}))")
+            if await self.approach_and_walk(door, zone):
+                self._world_tree_zone = await self.client.zone_name() or ""
+                logger.info(f"to Aquila: inside the World Tree ({self._world_tree_zone})")
+            return True
+        if zone == self._world_tree_zone:
+            await self._dump_entities("state/world_tree_entities.txt")
+            me = await self._position()
+            ways = await self._entities_named_like(("aquila", "portal", "teleport", "spiral", "gate", "door"))
+            ways = [w for w in ways if (zone, round(w.x / 100), round(w.y / 100)) not in self._tree_tried]
+            if not ways:
+                logger.warning("to Aquila: no way on found in the World Tree; "
+                               "entities saved to state/world_tree_entities.txt")
+                return False
+            way = min(ways, key=lambda w: distance(w, me))
+            self._tree_tried.add((zone, round(way.x / 100), round(way.y / 100)))
+            logger.info(f"to Aquila: trying the way at ({way.x:.0f}, {way.y:.0f}) in the World Tree")
+            await self.approach_and_walk(way, zone)
+            await self._press_x_here(zone)
+            await asyncio.sleep(2.0)
+            await wait_for_loading(self.client)
+            return True
+        logger.info("to Aquila: walking to Ravenwood for the World Tree")
+        return await self.go_to_zone(RAVENWOOD)
+
+    async def _entities_named_like(self, words: tuple[str, ...]) -> list[XYZ]:
+        out = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                if not t:
+                    continue
+                name = f"{await t.object_name() or ''} {await t.display_name() or ''}".lower()
+                if any(w in name for w in words) and "collision" not in name:
+                    out.append(await e.location())
+            except Exception:
+                continue
+        return out
+
+    async def _entity_named_like(self, words: tuple[str, ...]) -> XYZ | None:
+        found = await self._entities_named_like(words)
+        return found[0] if found else None
+
+    async def _dump_entities(self, path: str):
+        lines = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                pos = await e.location()
+                name = f"{await t.object_name() if t else '?'} | {await t.display_name() if t else ''}"
+                lines.append(f"{name} | ({pos.x:.0f}, {pos.y:.0f}, {pos.z:.0f})")
+            except Exception:
+                continue
+        try:
+            Path(path).write_text("\n".join(lines), encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
     async def _farm_trip(self, zone: str) -> bool:
         """Farming a dungeon: go to its sigil and in with a team. True if it acted."""
         farm = Farm.load()
@@ -2502,6 +2579,8 @@ class Quester:
                 logger.info(f"farming {farm.name}: going to {entry.outside}")
                 if await self.go_to_zone(entry.outside):
                     return True
+            if entry.outside.startswith("Aquila/") and await self._world_tree_to_aquila(zone):
+                return True
             if time.monotonic() - self._farm_alerted > 600:
                 self._farm_alerted = time.monotonic()
                 logger.warning(f"ALERT: farming {farm.name}: can't get to {entry.outside} from {zone} "

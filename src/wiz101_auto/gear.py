@@ -40,7 +40,7 @@ BACKPACK_CHECK_SECONDS = 20.0  # how often to look for new items (a memory read,
 SLOT_WORDS = {
     "Tab_Hat": ("hat", "helm", "helmet", "hood", "cowl", "cap", "mask", "crown", "circlet", "headgear"),
     "Tab_Robe": ("robe", "cloak", "tunic", "vest", "garb", "jacket", "coat", "gown",
-                 "armor", "mantle", "cape"),
+                 "armor", "mantle", "cape", "raiment", "toga"),
     "Tab_Shoes": ("shoes", "shoe", "boots", "boot", "slippers", "sandals", "footwear", "treads", "greaves"),
     "Tab_Athame": ("athame", "dagger", "knife", "dirk", "blade", "sword"),
     "Tab_Amulet": ("amulet", "necklace", "pendant", "talisman", "locket"),
@@ -50,6 +50,19 @@ SLOT_WORDS = {
 
 def norm_item(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+# Wands aren't gear-checked (their item cards matter) but are logged as loot
+# (the Sky Iron Hasta farm target).
+WAND_WORDS = ("wand", "staff", "hasta", "spear", "sceptre", "scepter", "rod", "stave", "trident")
+
+
+def is_wand(texts: list[str]) -> bool:
+    words = set()
+    for t in texts:
+        spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", t or "")
+        words.update(w for w in re.split(r"[^a-z]+", spaced.lower()) if w)
+    return bool(words & set(WAND_WORDS))
 
 
 def item_slot(texts: list[str]) -> str | None:
@@ -489,9 +502,13 @@ class GearManager:
         by_tab: dict[str, set[str]] = {}
         for texts in new:
             tab = item_slot(texts)
-            if not tab:
-                continue
             name = texts[-1] if len(texts) > 3 else texts[0]
+            if not tab:
+                if is_wand(texts) and not self.loot.seen(name):
+                    self.loot.record(name, "Tab_Wand")
+                    if not first_look:
+                        logger.info(f"new item: {name!r} -> Wand (logged; wands aren't gear-checked)")
+                continue
             if first_look:
                 # Already in the backpack: judged before (or by hand). Just list it.
                 if not self.loot.seen(name):

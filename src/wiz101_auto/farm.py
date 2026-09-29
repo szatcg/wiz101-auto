@@ -18,6 +18,41 @@ from loguru import logger
 
 FARM_FILE = Path("state") / "farm.json"
 
+# What each farm is after (shown on the overlay, filled in as looted):
+# (group, slot, item name).
+TARGETS = {
+    "Mount Olympus": [
+        ("Zeus' Conjurer", "Hat", "Zeus' Conjurer Hood"),
+        ("Zeus' Conjurer", "Robe", "Zeus' Conjurer Raiment"),
+        ("Zeus' Conjurer", "Shoes", "Zeus' Conjurer Slippers"),
+        ("Senator's Conjurer", "Hat", "Senator's Conjurer Hood"),
+        ("Senator's Conjurer", "Robe", "Senator's Conjurer Tunic"),
+        ("Senator's Conjurer", "Shoes", "Senator's Conjurer Shoes"),
+        ("Ares", "Wand", "Sky Iron Hasta"),
+    ],
+}
+
+
+def _norm(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def target_status(farm_name: str, looted: dict) -> list[dict]:
+    """The farm's targets, each with whether it has been looted (by name, in
+    state/looted_gear.json)."""
+    have = {_norm(n) for n in looted}
+    return [
+        {"group": group, "slot": slot, "name": name, "have": _norm(name) in have}
+        for group, slot, name in TARGETS.get(farm_name, [])
+    ]
+
+
+def load_looted() -> dict:
+    try:
+        return json.loads((Path("state") / "looted_gear.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
 
 @dataclass
 class Farm:
