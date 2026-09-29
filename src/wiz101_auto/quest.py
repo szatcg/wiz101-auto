@@ -767,6 +767,11 @@ class Quester:
         try:
             objective = await self.objective() if objective is None else objective
             zone = await self.client.zone_name() or ""
+            if is_hub(zone):
+                # Never mark a hub: a defeat or the hub button brings us here
+                # anyway, and it would overwrite the mark that matters.
+                logger.debug(f"not marking in the hub {zone}")
+                return False
             if kind != "dungeon":  # a dungeon mark belongs on its sigil
                 await move_to_safety(self.client, EXPOSED_RADIUS, "before marking")
             if not await ui.click_named(self.client, "MarkButton"):
@@ -807,8 +812,8 @@ class Quester:
     async def _heal_mark(self) -> bool:
         """Before healing: mark the spot, to Recall back after healing from
         the hub. Not while a dungeon mark waits for its Recall (a defeat)."""
-        if not self.healer or self._recall_pending:
-            return False
+        if not self.healer or self._recall_pending or self.healer.busy:
+            return False  # (a heal trip is under way: its mark is placed)
         zone = await self.client.zone_name() or ""
         if time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS or is_hub(zone):
             return False  # just respawned in the hub: a mark here is useless
@@ -856,7 +861,7 @@ class Quester:
                 return False
             self._dungeon = (entry.outside, zone)
         outside, first_room = self._dungeon
-        if zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
+        if is_hub(zone) or zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
             self._dungeon = None
             return False
         return True

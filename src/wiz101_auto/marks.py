@@ -83,6 +83,8 @@ def recall_is_faster(
     very objective ("Talk To Zan'ne", marked in her building) is the place."""
     if not mark or not mark.zone or mark.zone == here:
         return False
+    if mark.zone.split("/")[-1].endswith("_Hub"):
+        return False  # the hub button goes there without spending the mark
     if objective and mark.objective == objective:
         return True
     if not dest or dest == here:

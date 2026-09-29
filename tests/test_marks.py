@@ -58,3 +58,11 @@ def test_mark_for_the_same_objective_is_the_place():
                             objective="Talk To Zan'ne in The Oasis")
     assert not recall_is_faster("Krokotopia/Interiors/KT_Library", "Krokotopia/KT_Hub", mark, hops,
                                 objective="Talk To Zan'ne in The Oasis")  # already there
+
+
+def test_never_recall_to_a_hub_mark():
+    from wiz101_auto.marks import Mark, recall_is_faster
+
+    m = Mark("Krokotopia/KT_Hub", "Defeat Krokopatra", "room")
+    here = "Krokotopia/KT_Pyramid/KT_AltarOfKings"
+    assert not recall_is_faster(here, None, m, lambda a, b: 1, "Defeat Krokopatra")

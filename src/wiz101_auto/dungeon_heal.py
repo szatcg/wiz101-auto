@@ -17,6 +17,7 @@ import time
 from loguru import logger
 
 from . import ui
+from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading
 
 TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 30 minutes
@@ -44,6 +45,10 @@ class DungeonHealer:
         self.cfg = cfg  # UpkeepConfig
         self._busy = False
 
+    @property
+    def busy(self) -> bool:
+        return self._busy
+
     async def between_fights(self, zone: str) -> bool:
         """Inside a dungeon and in need of recovery: heal outside and come
         back. True if it acted this step."""
@@ -57,6 +62,11 @@ class DungeonHealer:
         True if it went."""
         if self._busy:
             return False  # recover() inside the trip must not start another
+        if zone.split("/")[-1].endswith("_Hub"):
+            return False  # already at the hub (a defeat respawns us here): heal the usual way
+        m = self.q._mark
+        if m and m.kind in RETURN_KINDS:
+            mark = False  # a dungeon/fight mark waits: Recall to it, never mark over it
         logger.info(f"{why}: going to the hub to heal, then back by Recall")
         if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")
