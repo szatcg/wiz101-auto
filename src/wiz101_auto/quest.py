@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -95,6 +96,7 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
+CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel circle
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 NPC_NEAR_MARKER = 900.0  # a named NPC this close to a prompt-less marker is who to talk to
@@ -2427,6 +2429,14 @@ class Quester:
                 return True
         return False
 
+    async def _duel_circles(self, zone: str) -> list[tuple[float, float, float]]:
+        """Duel circles here: loaded now, or seen before in this zone."""
+        from .collect import duel_circles
+
+        found = list(await duel_circles(self.client))
+        found += self.entity_map.spots(zone, lambda n: n.lower() == "duel circle", (0.0, 0.0, 0.0))
+        return found
+
     async def _look_for(self, target: str):
         """Hop across the zone's landmarks (clear of enemies) until an enemy
         named `target` is in view, then go after it."""
@@ -2443,9 +2453,17 @@ class Quester:
         # Wanderers patrol the walkways: search along the path markers as well
         # as the named landmarks, so the whole zone gets covered.
         points = await self._landmarks() + floor_points(await path_points(self.client), start.z)
+        # Every floor seen in this zone too (a boss up a tower, Sprockets), in
+        # random order; never near a duel circle: landing by one froze the
+        # wizard in a 'battle' with 0 opponents.
+        seen = self.entity_map.spots(zone, lambda _n: True, here)
+        random.shuffle(seen)
+        points += seen
+        circles = await self._duel_circles(zone)
         sweep = [
             p for p in spread_points(points, (start.x, start.y, start.z), ENEMY_SWEEP_SPACING)
             if all(math.dist(p[:2], k[:2]) > ENEMY_SWEEP_SPACING / 2 for k in known)
+            and all(math.dist(p[:2], c[:2]) > CIRCLE_KEEP_AWAY for c in circles)
         ]
         visited = self._swept_spots.setdefault((self._last_progress[0] or "", zone), [])
         fresh = [p for p in sweep if all(math.dist(p[:2], v[:2]) > ENEMY_SWEEP_SPACING / 2 for v in visited)]
@@ -2465,8 +2483,18 @@ class Quester:
             pos = await find_entity_named(self.client, target)
             if pos is not None:
                 logger.info(f"found {target} near ({p[0]:.0f}, {p[1]:.0f}); going after it")
-                allow_engage(self.client)
-                await self.client.teleport(pos)
+                if any(math.dist((pos.x, pos.y), c[:2]) < CIRCLE_KEEP_AWAY for c in circles):
+                    # On its duel circle: walk in from outside, don't land on it.
+                    me = await self._position()
+                    dx, dy = me.x - pos.x, me.y - pos.y
+                    back = CIRCLE_WALK_FROM / (math.hypot(dx, dy) or 1.0)
+                    await self.client.teleport(XYZ(pos.x + dx * back, pos.y + dy * back, pos.z))
+                    await asyncio.sleep(0.8)
+                    allow_engage(self.client)
+                    await self.client.goto(pos.x, pos.y)
+                else:
+                    allow_engage(self.client)
+                    await self.client.teleport(pos)
                 await asyncio.sleep(3.0)
                 return
 
