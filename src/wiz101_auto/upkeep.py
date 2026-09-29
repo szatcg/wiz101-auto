@@ -16,6 +16,11 @@ from .travel_data import hops_from_hub
 from .wisps import ANY, BOTH, HEALTH, MANA, WispMemory, usable, wisp_kind
 
 
+def is_hub_zone(zone: str) -> bool:
+    """A world's hub (the Oasis, the Commons...): never any wisps."""
+    return zone.split("/")[-1].endswith("_Hub")
+
+
 async def is_free(client) -> bool:
     """Not loading, not fighting and not in a dialogue."""
     try:
@@ -327,6 +332,7 @@ WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
 STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geometry
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
+WISP_RESPAWN_WAIT = 15.0  # empty wisp spots in a wisp zone: wait this long, then go round again
 REST_SAFE_DISTANCE = 2000.0  # resting spot: no enemy (or duel circle) this close
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
 # Interiors recovery gave up on (walk out on the quest path instead).
@@ -500,7 +506,18 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             if not cfg.needs_recovery(hp, mana):
                 logger.info(f"healed here to {hp:.0%} health, {mana:.0%} mana; no trip needed")
                 return True
-            poor_zone = hub or wisp_memory().count(zone, need) < 3 or fruitless >= FRUITLESS_VISITS
+            wisp_zone = not hub and wisp_memory().count(zone, need) >= 3
+            in_time = loop.time() - started < cfg.rest_max_minutes * 60
+            if wisp_zone and fruitless >= FRUITLESS_VISITS and in_time:
+                # A street with wisps whose spots are empty right now: they
+                # respawn. Wait here and go round them again, rather than back
+                # to the hub (it went hub <-> Hyde Park, then rested).
+                logger.info(f"wisps here are respawning; waiting {WISP_RESPAWN_WAIT:.0f}s to go round again")
+                await move_to_safety(client, REST_SAFE_DISTANCE)
+                await asyncio.sleep(WISP_RESPAWN_WAIT)
+                fruitless = 0
+                continue
+            poor_zone = hub or not wisp_zone
             if trip and not tripped and poor_zone:
                 # This zone lacks what is needed (health wisps, or mana after
                 # healing here): the world hub, then Recall to the mark.
@@ -538,6 +555,12 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             logger.info(f"nothing to heal with here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
             await back_to_start()
             return True
+        zone = await client.zone_name() or "?"
+        in_time = loop.time() - started < cfg.rest_max_minutes * 60
+        if in_time and not is_hub_zone(zone) and wisp_memory().count(zone, needed_wisps(cfg, hp, mana)) >= 3:
+            # Wisps beat resting: wait for the next ones to come off cooldown.
+            await asyncio.sleep(WISP_RESPAWN_WAIT / 2)
+            continue
         if not rested:
             await move_to_safety(client, REST_SAFE_DISTANCE)
             rested = True
