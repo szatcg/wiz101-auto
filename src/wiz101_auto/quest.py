@@ -2008,16 +2008,19 @@ class Quester:
                 t = await e.object_template()
                 code = await t.display_name() if t else None
                 label = await lang_name(self.client, code) if code else ""
-                if not label.lower().startswith("to ") or label in tried:
-                    continue
+                # "To the Sarcophagus"; Katzenstein's Lab's floors: plain "Teleporter"
+                is_tp = label.lower().startswith("to ") or label.lower() == "teleporter"
                 pos = await e.location()
-                options.append((distance(pos, here), label, pos))
+                key = f"{label}@{pos.x:.0f},{pos.y:.0f}"  # several plain "Teleporter"s
+                if not is_tp or key in tried:
+                    continue
+                options.append((distance(pos, here), key, label, pos))
             except Exception:
                 continue
         if not options:
             return False
-        _d, label, pos = min(options, key=lambda o: o[0])
-        tried.add(label)
+        _d, key, label, pos = min(options, key=lambda o: o[0])
+        tried.add(key)
         logger.info(f"the quest marker is out of reach: taking the {label!r} teleporter")
         dx, dy = here.x - pos.x, here.y - pos.y
         length = math.hypot(dx, dy) or 1.0
@@ -2601,9 +2604,16 @@ class Quester:
                 await self.pull_mob(objective)
             return
 
-        if dist >= INTERACT_RANGE and "interiors" in (zone or "").lower():
-            # In a dungeon, a marker we can't reach is usually behind a gate that
-            # opens once the enemies in front of it are beaten: go fight them.
+        in_dungeon = "interiors" in (zone or "").lower() or await self._in_dungeon(zone or "")
+        if dist >= INTERACT_RANGE and in_dungeon:
+            # A dungeon on several floors (Katzenstein's Lab): its teleporter
+            # pads lead to the marker's floor.
+            if self._may_try(objective, zone or "", "teleporter") and await self._use_zone_teleporter(
+                objective
+            ):
+                return
+            # A marker we can't reach is usually behind a gate that opens once
+            # the enemies in front of it are beaten: go fight them.
             key = (objective, zone)
             self._unreached[key] = self._unreached.get(key, 0) + 1
             if self._unreached[key] >= UNREACHED_BEFORE_FIGHT and await self.sprinter.get_mobs():
