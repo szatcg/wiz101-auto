@@ -496,6 +496,7 @@ class Quester:
         self._last_win_zone = ""  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
+        self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
@@ -1727,6 +1728,9 @@ class Quester:
             if best is None:
                 return False
             page, entry = best
+            # The book's encounter icon: this step is a fight even when its
+            # words aren't ("Open Locked Door": beat the Kettleheads guarding it).
+            self._step_is_fight = entry.fight
             if entry.active:
                 logger.info(f"quest priority: continuing {entry.name!r}")
                 return False
@@ -2150,9 +2154,9 @@ class Quester:
         return False
 
     async def _fight_ahead(self, objective: str) -> bool:
-        """Is the next thing to do a fight (a Defeat objective, or a Talk To
-        someone who is still an enemy here)?"""
-        if is_combat_objective(objective or ""):
+        """Is the next thing to do a fight (a Defeat objective, a step the book
+        marks as a fight, or a Talk To someone who is still an enemy here)?"""
+        if is_combat_objective(objective or "") or self._step_is_fight:
             return True
         return await self._talk_target_enemy(objective or "") is not None
 
@@ -2599,7 +2603,7 @@ class Quester:
                 await self._count_attempt()
                 return
 
-        if is_combat_objective(objective):
+        if is_combat_objective(objective) or self._step_is_fight:
             if not await self.client.in_battle():
                 await self.pull_mob(objective)
             return
