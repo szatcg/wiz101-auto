@@ -2014,6 +2014,7 @@ class Quester:
         from .bossfarm import find_entity_named
 
         logger.info(f"teleporting toward the quest marker to find {target}")
+        circles = await self._duel_circles(await self.client.zone_name() or "")
         for _ in range(WALK_LEGS):
             here = await self._position()
             gap = distance(here, marker)
@@ -2026,6 +2027,9 @@ class Quester:
                 a = base + turn
                 z = marker.z if leg == gap else here.z
                 hop = XYZ(here.x + math.cos(a) * leg, here.y + math.sin(a) * leg, z)
+                if any(math.dist((hop.x, hop.y), c[:2]) < CIRCLE_KEEP_AWAY for c in circles):
+                    logger.info("the marker is by a duel circle: not hopping any closer")
+                    return False
                 await self.client.teleport(hop)
                 await asyncio.sleep(0.6)
                 if not await is_free(self.client):
