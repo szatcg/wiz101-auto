@@ -565,6 +565,7 @@ class Quester:
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
+        self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave after its chest
         self._chests_checked: set[str] = set()  # team dungeon rooms already checked for a boss chest
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -1009,9 +1010,13 @@ class Quester:
         try:
             objective = await self.objective() if objective is None else objective
             zone = await self.client.zone_name() or ""
-            if is_hub(zone):
+            if is_team_up_zone(zone):
+                return False  # the mark stays at the sigil outside (Recall can't take us in alone)
+            if is_hub(zone) and kind != "dungeon":
                 # Never mark a hub: a defeat or the hub button brings us here
-                # anyway, and it would overwrite the mark that matters.
+                # anyway, and it would overwrite the mark that matters. (A
+                # dungeon's sigil in a hub, Mount Olympus's in Aquila's, is
+                # marked: Recall is the way back to it from another world.)
                 logger.debug(f"not marking in the hub {zone}")
                 return False
             if kind != "dungeon":  # a dungeon mark belongs on its sigil
@@ -2486,9 +2491,22 @@ class Quester:
             return False
         self._last_progress_time = time.monotonic()  # farming isn't a stalled quest
         if zone != entry.outside:
-            logger.info(f"farming {farm.name}: going to {entry.outside}")
-            await self.go_to_zone(entry.outside)
-            return True
+            # The Mark stays at the sigil (made before each Team Up): Recall is
+            # the way back from another world (no gate route crosses worlds).
+            other_world = zone.split("/")[0] != entry.outside.split("/")[0]
+            if self._mark and self._mark.zone == entry.outside and other_world:
+                logger.info(f"farming {farm.name}: recalling to the mark at its sigil")
+                if await self._recall(entry.outside, "the sigil mark"):
+                    return True
+            if not other_world:
+                logger.info(f"farming {farm.name}: going to {entry.outside}")
+                if await self.go_to_zone(entry.outside):
+                    return True
+            if time.monotonic() - self._farm_alerted > 600:
+                self._farm_alerted = time.monotonic()
+                logger.warning(f"ALERT: farming {farm.name}: can't get to {entry.outside} from {zone} "
+                               "(no mark there); questing meanwhile")
+            return False
         logger.info(f"farming {farm.name} (run {farm.runs + 1}): to the sigil")
         await self._enter_by_sigil(XYZ(*entry.sigil), zone)
         return True
