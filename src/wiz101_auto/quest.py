@@ -47,7 +47,7 @@ from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_DUNGEONS, is_team_up_zone
+from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -113,6 +113,8 @@ TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the cir
 TEAM_FOLLOW = 900.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 3.0  # seconds between looks for a teammate's fight
+TEAM_LOST_AFTER = 20.0  # no teammate in sight this long: go after them
+TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
 APPROACH_TRIES = 8  # approach spots tried around a door
@@ -352,11 +354,20 @@ def dungeon_quest(
     # A book area we can't map ("Counterweight East") still counts when the
     # main quest's area is the same one: that's the dungeon we're in.
     main_areas = {q.world for q in quests if q.mainline and q.world and zone_of(q.world) is None}
+
+    def named_here(area: str) -> bool:  # "Mount Olympus" in "Aquila/AQ_Z01_MountOlympus"
+        key = area.replace(" ", "").replace("'", "").lower()
+        return len(key) > 4 and key in zone.replace("_", "").lower()
+
+    # Set aside or not: we're in its dungeon now, which is what it waited on
+    # (Into the Clouds, set aside while no team came, then the team took us in).
     local = [
         q for q in quests
-        if not q.mainline and q.name not in set_aside and q.world
-        and (zone_of(q.world) == zone or (zone_of(q.world) is None and q.world in main_areas))
+        if not q.mainline and q.world
+        and (zone_of(q.world) == zone or named_here(q.world)
+             or (zone_of(q.world) is None and q.world in main_areas))
     ]
+    local.sort(key=lambda q: q.name in set_aside)  # ones not set aside first
     if not local:
         return None
     return next((q for q in local if q.active), local[0])
@@ -543,6 +554,8 @@ class Quester:
         self._pin_new_from: set[str] | None = None  # after a visit: pin a quest not in this set
         self._floors_cleared: dict[tuple[str, str], set[int]] = {}  # dungeon floors checked for enemies
         self._boss_waited: set[tuple[str, str]] = set()  # (objective, zone) the spawn wait was done for
+        self._mate_seen: tuple[str, XYZ, float] | None = None  # (zone, where, when) a teammate was last seen
+        self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
@@ -1886,7 +1899,7 @@ class Quester:
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
             chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside, prev_names, complete)
-            if await self._in_dungeon(here):
+            if is_team_up_zone(here) or await self._in_dungeon(here):
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside)
@@ -2467,10 +2480,35 @@ class Quester:
             self._last_progress_time = time.monotonic()
             return True
         objective = await self.objective()
-        if not (is_combat_objective(objective or "") or self._step_is_fight):
+        # Only this dungeon's own non-fight steps are done as usual (talks,
+        # pick-ups); a quest from elsewhere would walk away from the team.
+        here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
+        if here and not (is_combat_objective(objective or "") or self._step_is_fight):
             return False
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
         self.controller.allow_idle(TEAM_WAIT_TICK + 10)
+        zone = await self.client.zone_name() or ""
+        if mates:
+            mate = min(mates, key=lambda m: distance(m, me))
+            self._mate_seen = (zone, mate, time.monotonic())
+        elif self._mate_seen is None or time.monotonic() - self._mate_seen[2] > TEAM_LOST_AFTER:
+            # The team went on (another room): through the door nearest where
+            # a teammate was last seen, else on toward the quest marker (never
+            # starting a fight on the way).
+            if self._mate_seen and self._mate_seen[0] == zone:
+                last = self._mate_seen[1]
+                doors = [d for d in await self._doors_here(zone) if distance(d, last) < TEAM_DOOR_NEAR]
+                for door in sorted(doors, key=lambda d: distance(d, last)):
+                    key = (zone, round(door.x / 100), round(door.y / 100))
+                    if key in self._mate_doors:
+                        continue
+                    self._mate_doors.add(key)
+                    logger.info(f"lost the team; following them through the door at "
+                                f"({door.x:.0f}, {door.y:.0f})")
+                    await self.approach_and_walk(door, zone)
+                    return True
+            logger.debug("lost the team; heading on toward the quest marker")
+            return False
         try:
             if not mates:
                 logger.debug("no teammate in sight; waiting for the team to start a fight")
@@ -2797,6 +2835,8 @@ class Quester:
     async def pull_mob(self, objective: str = ""):
         """For defeat objectives: teleport onto the enemy the objective names
         ("Defeat Gobbler Gorger ..."), else the closest mob, to start a fight."""
+        if is_team_up_zone(await self.client.zone_name() or ""):
+            return  # with a team, the team starts fights (see _team_step)
         target = defeat_target(objective)
         if target:
             from .bossfarm import find_entity_named

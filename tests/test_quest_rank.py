@@ -137,7 +137,8 @@ def test_a_dungeons_own_quest_comes_before_the_main_quest():
         QuestEntry(2, "Serpent Staff", world="Throne Room of Fire"),
     ]
     assert dungeon_quest(quests, zone, zones.get).name == "Serpent Staff"
-    assert dungeon_quest(quests, zone, zones.get, {"Serpent Staff"}) is None
+    # Set aside (waiting on this dungeon) but we're in it now: still first.
+    assert dungeon_quest(quests, zone, zones.get, {"Serpent Staff"}).name == "Serpent Staff"
     assert dungeon_quest(quests, "Krokotopia/KT_Hub", zones.get) is None
 
 
@@ -237,3 +238,12 @@ def test_dungeon_quest_with_an_unmapped_area_shares_the_main_quests():
     side = QuestEntry(1, "Counterweight Madness", world="Some Unmapped Tower")
     other = QuestEntry(2, "Elsewhere", world="Another Unmapped Place")
     assert dungeon_quest([main, other, side], "X/Tower", lambda a: None) is side
+
+
+def test_a_dungeon_quest_named_like_the_zone_id():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    main = QuestEntry(0, "Stolen Away", mainline=True, world="Counterweight East")
+    clouds = QuestEntry(1, "Into the Clouds", world="Mount Olympus")
+    got = dungeon_quest([main, clouds], "Aquila/AQ_Z01_MountOlympus", lambda a: None, {"Into the Clouds"})
+    assert got is clouds

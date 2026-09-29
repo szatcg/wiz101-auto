@@ -25,6 +25,8 @@ from .upkeep import wait_for_loading
 TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus"}
 # Every zone of those dungeons (their rooms are separate interiors).
 TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_")
+# How quest steps name those dungeons ("Defeat Zeus Sky Father in Mount Olympus").
+TEAM_UP_NAMES = ("mount olympus",)
 TEAM_UP_WORDS = ("team up!", "team up")
 
 
