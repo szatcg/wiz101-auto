@@ -1318,6 +1318,24 @@ class Quester:
                 continue  # teleport rejected; still on the marker
             if await self.walk_through(target, zone):
                 return True
+        # In a small room every spot 300 away is behind a wall (the Post
+        # Office's exit): back up a step on foot in each direction and walk
+        # through the marker from there.
+        from wizwalker.utils import calculate_perfect_yaw
+
+        logger.info("backing off the door marker on foot to walk through it")
+        for i in range(8):
+            ang = i * math.pi / 4
+            away = XYZ(target.x + 100 * math.cos(ang), target.y + 100 * math.sin(ang), target.z)
+            await self.client.body.write_yaw(calculate_perfect_yaw(target, away))
+            await self.client.send_key(Keycode.W, 0.5)  # a step away from the marker
+            if await self._zone_changed(zone):
+                return True
+            if distance(await self._position(), target) < 40:
+                continue  # a wall on that side
+            if await self.walk_through(target, zone):
+                return True
+        logger.warning("could not walk through the door marker from any side")
         return False
 
     async def travel(self, target: XYZ, avoid_mobs: bool = True, npc: bool = False) -> bool:
