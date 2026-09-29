@@ -1817,6 +1817,7 @@ class Quester:
                     logger.success(f"new quest from the visit: {new[0].name!r}; following it"
                                    + (f" (also new: {others})" if others else ""))
                 self._pin_new_from = None
+            prev_names = self._book_names
             if complete:
                 self._book_names = names  # only a full read says what's in the book
             here = await self.client.zone_name() or ""
@@ -1841,7 +1842,7 @@ class Quester:
                 # Track the main quest so its marker leads back into its world;
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
-            chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside)
+            chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside, prev_names, complete)
             if await self._in_dungeon(here):
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
@@ -1922,7 +1923,10 @@ class Quester:
         self._ranked_for = None
         self._last_rank = -1e9
 
-    def _apply_pin(self, quests: list[QuestEntry], chosen, set_aside: set[str]):
+    def _apply_pin(
+        self, quests: list[QuestEntry], chosen, set_aside: set[str],
+        before: set[str] = frozenset(), complete: bool = True,
+    ):
         """The player's pick wins: a pinned quest (state/quest_pin.json, or the
         main-story quest tracked when the bot starts) is followed while it's in
         the book and not set aside (a boss won 5 times, no progress for 5 min)."""
@@ -1935,6 +1939,18 @@ class Quester:
         if not self._pin:
             return chosen
         pinned = next((q for q in quests if q.name == self._pin), None)
+        if pinned is None and not complete:
+            return chosen  # a read cut short: it may just be further in the book
+        if pinned is None and before:
+            # Done: follow the quest line to the quest it handed us ('Quest For
+            # Glory' finished at Romulus and the next one began).
+            new = [q for q in quests if q.name not in before and q.name not in set_aside]
+            new.sort(key=lambda q: (not q.activity, not q.mainline))
+            if new:
+                logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {new[0].name!r}")
+                self._pin = new[0].name
+                save_pin(self._pin)
+                return new[0]
         if pinned is None or pinned.name in set_aside:
             why = "done" if pinned is None else "set aside"
             logger.info(f"your pick {self._pin!r} is {why}; choosing quests again")
