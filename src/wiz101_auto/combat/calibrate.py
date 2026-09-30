@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROUND = re.compile(
     r"\[round (?P<n>\d+)\] pips=(?P<p>\d+)\+(?P<pp>\d+)P hp=(?P<hp>\d+)/(?P<max>\d+) "
-    r"vs (?P<foes>.*?) -> (?P<act>.*)$"
+    r"(?:minion=(?P<mhp>\d+)/(?P<mmax>\d+) )?vs (?P<foes>.*?) -> (?P<act>.*)$"
 )
 FOE = re.compile(r"(?P<name>.+?)(?P<boss>\*)? (?P<hp>\d+)/(?P<max>\d+)(?P<dead> dead)?$")
 PREDICT = re.compile(r"predict: (?P<m>.*)$")
@@ -48,6 +48,7 @@ class Round:
     predict: dict[int, int] = field(default_factory=dict)
     bosses: set[str] = field(default_factory=set)
     world: str = ""  # the world of the last zone logged before it ("Marleybone")
+    minion_hp: int | None = None  # our minion's health, when one is out
 
 
 RESISTS = re.compile(
@@ -107,7 +108,7 @@ def read_log(paths: list[Path]) -> LogRead:
             if m:
                 r = Round(int(m["n"]), int(m["hp"]), int(m["max"]), _foes(m["foes"]), m["act"],
                           bosses={b.strip() for b in re.findall(r"([^,]+?)\* \d+/\d+", m["foes"])},
-                          world=world)
+                          world=world, minion_hp=int(m["mhp"]) if m["mhp"] else None)
                 if cur and r.n == cur[-1].n:
                     cur[-1] = r
                     continue
@@ -178,6 +179,23 @@ def measure(fights: list[list[Round]]):
     return ours, fizzles, theirs, shared
 
 
+def minion_share(fights: list[list[Round]]) -> dict:
+    """How much of the enemies' damage our minion takes: its health lost vs.
+    ours, over rounds it was out in both (a heal of ours counted back)."""
+    to_minion = to_us = rounds = 0
+    for fight in fights:
+        for a, b in zip(fight, fight[1:], strict=False):
+            if b.n != a.n + 1 or a.minion_hp is None or b.minion_hp is None:
+                continue
+            cast = CAST.search(a.action)
+            healed = HEAL_SPELLS.get(cast["spell"] if cast else "", 0)
+            to_us += max(0, min(a.max_hp, a.hp + healed) - b.hp)
+            to_minion += max(0, a.minion_hp - b.minion_hp)
+            rounds += 1
+    total = to_minion + to_us
+    return {"share": round(to_minion / total, 3) if total else 0.0, "rounds": rounds}
+
+
 def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
     """Save what the simulator needs: per enemy its max health, boss flag,
     per-round damage alone and shared; per spell our hit rate."""
@@ -202,7 +220,7 @@ def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
          "rounds": len(f)}
         for f, lost in list(zip(fights, log.lost, strict=False))[-RECENT_FIGHTS:]
     ]
-    data = {"enemies": info, "hit_rate": hit_rate, "fights": recent}
+    data = {"enemies": info, "hit_rate": hit_rate, "fights": recent, "minion": minion_share(fights)}
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(data, indent=0), encoding="utf-8")
     return data

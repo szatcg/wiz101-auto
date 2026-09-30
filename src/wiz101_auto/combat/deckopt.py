@@ -3,8 +3,9 @@
 The deck is played against encounters: the fights logged recently in the
 current world (a general deck: blades and Humongofrog for the groups), or one
 group we lost to (a boss deck). A deck scores WIN_WEIGHT x its win rate minus
-its mean rounds (everyday fights are all won: fewer rounds, i.e. a thin deck
-whose combo comes up early, is what tells decks apart). The search changes
+its mean rounds minus a little per card (everyday fights are all won: fewer
+rounds and a thin deck whose combo comes up early tell decks apart; a loss
+costs far more than a round). The search changes
 one or two cards at a time (at most 3 copies of a spell, the game's limit)
 and keeps what scores better on the same fights.
 
@@ -27,7 +28,23 @@ from . import sim
 MAX_COPIES = 3
 MIN_SIZE, MAX_SIZE = 12, 24
 FIGHTS_PER_DECK = 1000  # simulated fights per deck compared (fewer: noise beats a tenth of a round)
-WIN_WEIGHT = 5.0  # score = WIN_WEIGHT x win rate - mean rounds: 1% of wins is worth 0.05 rounds
+WIN_WEIGHT = 30.0  # score = WIN_WEIGHT x win rate - mean rounds - SIZE_COST x cards: 1% of wins = 0.3 rounds
+SIZE_COST = 0.03  # per card: a thin deck (the combo drawn early) wins a tie (the player's rule)
+THIN_START = {"Humongofrog": 3, "Mythblade": 3, "Spirit Blade": 2, "Feint": 2, "Pixie": 3, "Minotaur": 2}
+# The default deck (the player's rules): no minions (too slow for everyday
+# fights; a boss deck may have them), a single-target hit, some heals.
+GENERAL_EXCLUDE = {"Troll Minion", "Cyclops Minion"}
+GENERAL_NEEDS = {"single": 1, "heals": 2}
+HEALS = {"Pixie"}
+SINGLE_HITS = {"Minotaur", "Cyclops", "Troll", "Banshee", "Vampire", "Ghoul"}
+
+
+def allowed(deck: dict[str, int], general: bool) -> bool:
+    """A default deck keeps the player's rules; a boss deck is free."""
+    if not general:
+        return True
+    return (sum(deck.get(c, 0) for c in SINGLE_HITS) >= GENERAL_NEEDS["single"]
+            and sum(deck.get(c, 0) for c in HEALS) >= GENERAL_NEEDS["heals"])
 BETTER_BY = 0.05  # a change is kept when it scores this much better (same fights)
 ADVICE_FILE = Path("state") / "deck_advice.json"
 GENERAL_FILE = Path("state") / "deck_general.json"
@@ -105,7 +122,7 @@ def score(pool, deck: dict[str, int], mix, stats: dict, n: int = FIGHTS_PER_DECK
     wins = [r for ok, r in results if ok]
     rate = len(wins) / len(results)
     rounds = sum(wins) / len(wins) if wins else float(sim.MAX_ROUNDS)
-    return WIN_WEIGHT * rate - rounds, rate, rounds
+    return WIN_WEIGHT * rate - rounds - SIZE_COST * sum(deck.values()), rate, rounds
 
 
 def neighbours(deck: dict[str, int], cards: list[str], rng: random.Random) -> list[dict[str, int]]:
@@ -128,9 +145,13 @@ def neighbours(deck: dict[str, int], cards: list[str], rng: random.Random) -> li
 
 
 def search(start: dict[str, int], cards: list[str], mix, stats: dict, pool=None, seconds: float = 600,
-           log=print) -> tuple[dict[str, int], float, float]:
-    """Hill-climb from `start` for up to `seconds`. (deck, win rate, rounds)."""
+           log=print, general: bool = False) -> tuple[dict[str, int], float, float]:
+    """Hill-climb from `start` for up to `seconds`. (deck, win rate, rounds).
+    `general`: the default deck's rules (no minions, a single-target hit,
+    heals)."""
     rng = random.Random(7)
+    if general:
+        cards = [c for c in cards if c not in GENERAL_EXCLUDE]
     deck = {k: v for k, v in start.items() if k in cards}
     best, rate, rounds = score(pool, deck, mix, stats)
     log(f"start: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}")
@@ -140,6 +161,8 @@ def search(start: dict[str, int], cards: list[str], mix, stats: dict, pool=None,
         for cand in neighbours(deck, cards, rng)[:50]:
             if time.monotonic() - t0 > seconds:
                 break
+            if not allowed(cand, general):
+                continue
             sc, r, rd = score(pool, cand, mix, stats)
             if sc > best + BETTER_BY:
                 deck, best, rate, rounds, improved = cand, sc, r, rd, True
@@ -162,8 +185,16 @@ def main(argv=None):
     ap.add_argument("--world", default=None)
     ap.add_argument("--minutes", type=float, default=8.0)
     ap.add_argument("--out", default=None, help="write the result here (json)")
+    ap.add_argument("--thin", action="store_true", help="start from a thin blades + Humongofrog deck")
+    ap.add_argument("--start", default=None, help="a deck json to start from (the current default deck)")
     args = ap.parse_args(argv)
 
+    try:  # the fights logged up to now
+        from .calibrate import write_stats
+
+        write_stats([Path("activity.log")])
+    except Exception:
+        pass
     stats = sim.load_stats()
     progress = json.loads(Path("state", "progress.json").read_text(encoding="utf-8"))
     cards = available(progress.get("known_spells", []))
@@ -180,7 +211,13 @@ def main(argv=None):
         what = f"general ({world}: {len(mix)} kinds of fight)"
     print(f"deck search {what}; spells: {', '.join(cards)}", flush=True)
     with mp.Pool(max(2, (mp.cpu_count() or 4) - 2)) as pool:
-        deck, rate, rounds = search(current or {c: 2 for c in cards[:8]}, cards, mix, stats, pool,
+        start = dict(THIN_START) if args.thin or not current else current
+        if args.start:
+            try:
+                start = to_sim(json.loads(Path(args.start).read_text(encoding="utf-8")).get("deck", {}))
+            except (OSError, ValueError):
+                pass
+        deck, rate, rounds = search(start, cards, mix, stats, pool, general=not args.vs,
                                     seconds=args.minutes * 60, log=lambda s: print(s, flush=True))
     print(f"BEST {what}: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}", flush=True)
     if args.out:

@@ -106,3 +106,25 @@ def test_no_prism_move_on_an_enemy_without_a_storm_weakness():
     b = _battle([wraith, cat], [_hit(0, 495, 5), prism])
     targets = [m.target.name for m in sim.candidates(b) if m.card is prism]
     assert targets == ["Meowiarty"]
+
+
+def test_discards_are_moves_while_there_are_discards_and_draws():
+    foe = Combatant("Weakling", 250, 300, is_enemy=True, school="fire", resist={})
+    b = _battle([foe], [_hit(0, 400, 3)])
+    assert any(m.kind is ActionKind.DISCARD for m in sim.candidates(b, discards=1))
+    assert not any(m.kind is ActionKind.DISCARD for m in sim.candidates(b, discards=0))
+
+
+def test_minion_share_from_the_logged_rounds(tmp_path):
+    from wiz101_auto.combat.calibrate import minion_share, read_fights
+
+    log = tmp_path / "a.log"
+    log.write_text(
+        "10:00:00 | INFO | [round 1] pips=1+0P hp=1000/1000 minion=900/900 vs Brute* 1200/1200 -> pass (x)\n"
+        "10:00:10 | INFO | [round 2] pips=2+0P hp=900/1000 minion=600/900 vs Brute* 1200/1200 -> pass (x)\n"
+        "10:00:20 | INFO | [round 3] pips=3+0P hp=900/1000 vs Brute* 1200/1200 -> pass (x)\n",
+        encoding="utf-8")
+    share = minion_share(read_fights([log]))
+    assert share == {"share": 0.75, "rounds": 1}  # it took 300 of the 400
+    assert sim.minion_share({"minion": share}) == sim.MINION_SHARE_PRIOR  # too few rounds to trust yet
+    assert sim.minion_share({"minion": {"share": 0.75, "rounds": 12}}) == 0.75

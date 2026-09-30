@@ -37,7 +37,7 @@ def _eval_one(battle: Battle, index: int, strat, n: int, seed: int, discards: in
         if _STATS is None:
             _STATS = sim.load_stats()
         stats = _STATS
-    action = sim.candidates(battle)[index]
+    action = sim.candidates(battle, discards)[index]
     out = sim.evaluate(battle, [action], strat, stats, n=n, seed0=seed, discards=discards)[0]
     return index, out.value, out.wins, out.deaths, out.damage
 
@@ -93,9 +93,10 @@ class RolloutPlanner:
         """The brain's move, or a move that plays out clearly better."""
         from . import sim
 
-        if brain.kind not in (ActionKind.CAST, ActionKind.PASS) or not worth_it(battle, brain):
+        kinds = (ActionKind.CAST, ActionKind.PASS, ActionKind.DISCARD)
+        if brain.kind not in kinds or not worth_it(battle, brain):
             return brain
-        moves = sim.candidates(battle)
+        moves = sim.candidates(battle, discards)
         try:  # the last battle planned, to replay offline (state/rollout_battle.pkl)
             import pickle
             from pathlib import Path

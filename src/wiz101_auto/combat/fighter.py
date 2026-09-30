@@ -88,6 +88,13 @@ FLEE_FILE = Path("state") / "flee.request"  # created by the user: flee this fig
 MY_STATS = Path("state") / "my_stats.json"
 
 
+def _minion_text(battle) -> str:
+    """Our minion's health in the round line (calibrate.py measures how much
+    enemy damage goes to it)."""
+    m = next((a for a in battle.allies if a.is_minion and a.health > 0), None)
+    return f" minion={m.health}/{m.max_health}" if m else ""
+
+
 def _save_my_stats(me) -> None:
     """Our wizard as the game reads it (max health, gear's damage bonus and
     resists), for the simulator's fights from the start (sim.simulate)."""
@@ -467,7 +474,8 @@ class Fighter(CombatHandler):
             )
             logger.info(
                 f"[round {battle.round}] pips={battle.pips}+{battle.power_pips}P "
-                f"hp={battle.me.health}/{battle.me.max_health} vs {foes} -> {action.describe()}"
+                f"hp={battle.me.health}/{battle.me.max_health}{_minion_text(battle)} vs {foes} -> "
+                f"{action.describe()}"
             )
             predicted = predicted_damage(battle, action)
             if predicted:  # for the stream page's health bars

@@ -28,10 +28,22 @@ ACCURACY = 0.8  # our spells' hit rate when the logs have too few casts of one
 SHIELD_ON_QUIET_ROUND = 0.05  # a round without damage: chance it shields (Meowiarty: 2 in 80 rounds logged)
 MIN_SAMPLES = 8  # rounds of an enemy needed before its own numbers are trusted
 MAX_MINION_HIT = 1000  # a minion hit above this is a template id, not damage
+MINION_SHARE_PRIOR = 0.2  # enemy hits going to our minion until enough rounds are measured
+MINION_SHARE_ROUNDS = 10  # rounds with a minion out needed to trust the measured share
+
 PRISM_WORTH = 1.25  # a prism move only where the converted hit lands this much harder
 POWER_PIP_CHANCE = 0.35
 MAX_PIPS = 7
 MAX_ROUNDS = 40
+
+
+def minion_share(stats: dict | None) -> float:
+    """The share of enemy hits our minion takes: measured once enough rounds
+    are logged, else the prior."""
+    m = (stats or {}).get("minion", {})
+    if m.get("rounds", 0) >= MINION_SHARE_ROUNDS:
+        return m.get("share", MINION_SHARE_PRIOR)
+    return MINION_SHARE_PRIOR
 
 
 def card(name, school, pips, *effects, target=Target.ENEMY_SINGLE, item=False) -> Card:
@@ -159,6 +171,7 @@ class Fight:
     foe_pips: dict[str, int] = field(default_factory=dict)
     dots: list = field(default_factory=list)  # our side's damage over time: [victim, per round, rounds left]
     hit_rate: dict[str, float] = field(default_factory=dict)  # per spell, from the logs (else ACCURACY)
+    minion_share: float = 0.2  # share of enemy hits our minion takes (measured: stats["minion"])
 
 
 def _use_up(effects: list, school: str) -> list:
@@ -272,6 +285,12 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 if shields and rng.random() < SHIELD_ON_QUIET_ROUND:
                     sp = rng.choice(shields)
                     e.incoming_effects.append((f"foe:{e.name}:{sp.name}", sp.school, sp.value / 100))
+                continue
+            if f.minion and f.minion.health > 0 and rng.random() < f.minion_share:
+                # It went for our minion (the MooShu boss hit the Cyclops minion).
+                f.minion.health -= dmg
+                if f.minion.health <= 0:
+                    f.minion.is_dead = True
                 continue
             victim = f.me
             ours = [x for x in victim.incoming_effects if x[2] < 0 and x[1] in ("", foe.school)]
@@ -394,7 +413,8 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
         foes = [with_samples(x, stats) for x in foes]
     enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
                          resist=dict(x.resist)) for x in foes]
-    f = Fight(me, enemies, {x.name: x for x in foes}, cards, hit_rate=(stats or {}).get("hit_rate", {}))
+    f = Fight(me, enemies, {x.name: x for x in foes}, cards, hit_rate=(stats or {}).get("hit_rate", {}),
+              minion_share=minion_share(stats))
     f.pips, f.power = (1, 1) if rng.random() < 0.5 else (0, 2)
     return _run(f, rng, strat, 1)
 
@@ -478,7 +498,8 @@ def fight_from_battle(battle: Battle, stats: dict, rng: random.Random) -> Fight:
     minion = next((copy.deepcopy(a) for a in battle.allies if a.is_minion and a.health > 0), None)
     return Fight(me, enemies, foes, deck, hand=hand, pips=battle.pips, power=battle.power_pips,
                  minion=minion, prism_on=set(battle.prismed), summoned=battle.summoned,
-                 foe_pips={e.name: rng.randint(0, 2) for e in enemies}, hit_rate=stats.get("hit_rate", {}))
+                 foe_pips={e.name: rng.randint(0, 2) for e in enemies}, hit_rate=stats.get("hit_rate", {}),
+                 minion_share=minion_share(stats))
 
 
 def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
@@ -494,10 +515,17 @@ def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
     return c.base_damage() < best / 2 and hit_damage(c, battle.me, t) < t.health
 
 
-def candidates(battle: Battle) -> list[Action]:
+def candidates(battle: Battle, discards: int = 0) -> list[Action]:
     """Every move this step: each castable card on each target it can take
-    (not chip hits that would waste a trap or blade), and passing."""
+    (not chip hits that would waste a trap or blade), passing, and (with
+    `discards` left) binning each kind of card for a new draw."""
     out = [Action(ActionKind.PASS, reason="rollout: pass")]
+    if discards > 0 and battle.upcoming:
+        binned = set()
+        for c in battle.cards:
+            if c.name not in binned and not c.treasure:
+                binned.add(c.name)
+                out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))
     live = battle.live_enemies
     seen = set()
     for c in battle.cards:
