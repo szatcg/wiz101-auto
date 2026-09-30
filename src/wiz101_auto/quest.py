@@ -144,7 +144,9 @@ TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the tar
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
-TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long: they left; leave too
+TEAM_GONE_AFTER = 900.0  # had a team but none seen for this long: they left; leave too (4 min was too
+# short: they were finding the Bronze Eagles in another room)
+TEAM_TALK_TRIES = 3  # a talk step in a team dungeon: tries before it's taken as waiting on the team
 TEAM_ALONE_AFTER = 90.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -600,6 +602,7 @@ class Quester:
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._mate_last_seen = 0.0  # when a teammate was last in sight
+        self._team_talks: dict[str, int] = {}  # team dungeon talk objective -> tries
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._visit_tries = 0  # talk attempts for a visit_npc request
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
@@ -3001,8 +3004,15 @@ class Quester:
         farming = Farm.load().active and not here  # the dungeon's own quest (given on entering) is followed
         if not farming and not fight_step and talk_target(objective or ""):
             # A talk counts for each player: do it, wherever in the dungeon
-            # ("Talk To Silenus in Garden Of Hesperides" after Zeus).
-            return False
+            # ("Talk To Silenus in Garden Of Hesperides" after Zeus). But a talk
+            # that doesn't move on waits on the team (Hephaestus until the
+            # Bronze Eagles are found: it talked to him for minutes while the
+            # team was elsewhere): after a few, go after the team instead.
+            tries = self._team_talks[objective] = self._team_talks.get(objective, 0) + 1
+            if tries <= TEAM_TALK_TRIES:
+                return False
+            if tries == TEAM_TALK_TRIES + 1:
+                logger.info(f"{objective!r} isn't moving on (waits on the team?): going after the team")
         # Anything else not a fight (collect tokens, use things) counts for the
         # whole team: leave it to the others and stay with them.
         self._last_progress_time = time.monotonic()  # waiting on the team isn't a stall
