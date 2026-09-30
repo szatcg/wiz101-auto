@@ -2911,8 +2911,11 @@ class Quester:
             if time.monotonic() - self._farm_alerted > 600:
                 self._farm_alerted = time.monotonic()
                 logger.warning(f"ALERT: farming {farm.name}: can't get to {entry.outside} from {zone} "
-                               "(no mark there); questing meanwhile")
-            return False
+                               "(no mark there); trying again")
+            # Farming means no questing (it went back to Meowiarty): wait and retry.
+            self.controller.allow_idle(20)
+            await asyncio.sleep(5.0)
+            return True
         logger.info(f"farming {farm.name} (run {farm.runs + 1}): to the sigil")
         await self._enter_by_sigil(XYZ(*entry.sigil), zone)
         return True

@@ -73,18 +73,22 @@ DORM_BUTTON = "GotoDormButton"
 
 
 async def go_home(client) -> bool:
-    """Press the dorm button (usable any time, from any world): lands in the dorm."""
-    if not await ui.click_named(client, DORM_BUTTON):
-        logger.warning("no dorm button to click")
-        return False
-    await asyncio.sleep(1.0)
-    await ui.confirm_modal(client)
-    await wait_for_loading(client, appear_timeout=6.0)
+    """Press the dorm button (usable any time, from any world): lands in the
+    dorm. A few tries: a click right after logging back in didn't take."""
     zone = await client.zone_name()
-    if zone != DORM:
-        logger.warning(f"the dorm button took us to {zone}, not the dorm")
-        return False
-    return True
+    for _ in range(3):
+        if not await ui.click_named(client, DORM_BUTTON):
+            logger.warning("no dorm button to click")
+            return False
+        await asyncio.sleep(1.0)
+        await ui.confirm_modal(client)
+        await wait_for_loading(client, appear_timeout=6.0)
+        zone = await client.zone_name()
+        if zone == DORM:
+            return True
+        await asyncio.sleep(2.0)
+    logger.warning(f"the dorm button took us to {zone}, not the dorm")
+    return False
 
 
 async def home_to_ravenwood(q) -> bool:
