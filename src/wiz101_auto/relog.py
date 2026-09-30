@@ -26,6 +26,7 @@ from .upkeep import wait_for_loading
 QUIT_WORDS = ("quit",)
 CONFIRM_WORDS = ("yes", "ok", "quit")
 PLAY_WORDS = ("play",)
+RELOG_SECONDS = 120.0  # the watchdog holds off this long while a relog runs
 
 
 async def _dump(client, stage: str):
@@ -81,7 +82,36 @@ async def _click_text(client, words: tuple[str, ...], stage: str, tries: int = 1
 
 
 async def relog(client) -> bool:
-    """Quit to character select and play again. True once back in the world."""
+    """Quit to character select and play again. True once back in the world.
+    The watchdog leaves it alone meanwhile (client._relogging_until)."""
+    client._relogging_until = time.monotonic() + RELOG_SECONDS
+    try:
+        return await _relog(client)
+    finally:
+        client._relogging_until = 0.0
+
+
+async def at_character_select(client) -> bool:
+    """The game is at character select (no zone, a Play button showing)."""
+    try:
+        if await client.zone_name():
+            return False
+    except Exception:
+        pass
+    return await _find_button(client.root_window, PLAY_WORDS) is not None
+
+
+async def play_from_character_select(client) -> bool:
+    """Left at character select (a relog cut short): press Play."""
+    client._relogging_until = time.monotonic() + RELOG_SECONDS
+    try:
+        logger.warning("at character select: pressing Play to get back in")
+        return await _play(client, None)
+    finally:
+        client._relogging_until = 0.0
+
+
+async def _relog(client) -> bool:
     logger.warning("relogging: the wizard is stuck in place; quitting to character select and back")
     zone_before = await client.zone_name()
     if await _confirm_logout(client):

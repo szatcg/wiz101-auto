@@ -3548,6 +3548,16 @@ class Quester:
     # --- main step -----------------------------------------------------------
 
     async def step(self):
+        try:
+            zone_known = bool(await self.client.zone_name())
+        except Exception:
+            zone_known = False
+        if not zone_known:
+            from .relog import at_character_select, play_from_character_select
+
+            if await at_character_select(self.client):
+                await play_from_character_select(self.client)
+                return
         if not await is_free(self.client):
             return
         await clear_popups(self.client)

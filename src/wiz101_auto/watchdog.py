@@ -89,6 +89,11 @@ class Watchdog:
             limit = self.battle_stall_seconds if in_battle else self.stall_seconds
             if now - changed < limit:
                 continue
+            if time.monotonic() < getattr(self.client, "_relogging_until", 0.0):
+                # A relog is under way (menus, character select): nudging now
+                # cut one short at character select, where it then sat.
+                changed = now
+                continue
             if in_battle:
                 logger.warning(f"battle hasn't progressed for {limit:.0f}s")
                 changed = now
