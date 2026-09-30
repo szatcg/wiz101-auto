@@ -4379,11 +4379,26 @@ class Quester:
         npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
         if npc_here and await self._talk_means_fight(objective):
             return
+        # The person may be standing somewhere else than the marker (the Jade
+        # Champion by the palace entrance, the marker at the back of the room:
+        # teleporting there lost him). Seen here already: straight to them.
+        name = talk_target(objective) if npc_here else None
+        if name:
+            seen = await self._npc_named(name, near=await self._position())
+            if seen is not None and distance(seen, target) > INTERACT_RANGE:
+                logger.info(f"{name} is here, away from the marker: going to them")
+                if await self._talk_to_named(objective):
+                    return
         await self.travel(target, npc=npc_here)
         if not await wait_until_free(self.client, timeout=5):
             return  # a fight or dialogue started on arrival
 
         dist = distance(await self.client.body.position(), target)
+        in_interior = "interiors" in (zone or "").lower()
+        if (name and in_interior and dist < INTERACT_RANGE
+                and await self._npc_named(name) is None
+                and await self._walk_in_from_entrance(objective, target, zone or "")):
+            return  # not at the marker in a dungeon: walk in from the entrance first
         # A Talk To whose person isn't out here (Dworgyn, inside a building in
         # Nightside): after two talks at the marker (someone else answered),
         # the marker is a door; stop talking and go through it.
