@@ -42,12 +42,13 @@ def hit(value, target=Target.ENEMY_SINGLE, kind=EffectKind.DAMAGE):
 
 # The cards (values from the deck reads and the fights).
 CARDS = {
-    "Pixie": lambda: card("Pixie", "life", 2, Effect(EffectKind.HEAL, Target.SELF, 420)),
+    "Pixie": lambda: card("Pixie", "life", 2, Effect(EffectKind.HEAL, Target.SELF, 400)),
+    "Bloodbat": lambda: card("Bloodbat", "myth", 1, hit(85)),
     "Cyclops": lambda: card("Cyclops", "myth", 3, hit(295)),
     "Troll": lambda: card("Troll", "myth", 2, hit(190)),
     "Ether Shield": lambda: card("Ether Shield", "myth", 0, *(
         Effect(EffectKind.SHIELD, Target.SELF, -70, school=s) for s in ("life", "death"))),
-    "Minotaur": lambda: card("Minotaur", "myth", 4, hit(380)),
+    "Minotaur": lambda: card("Minotaur", "myth", 5, hit(495)),  # as the game reads it: 5 pips, 50 + 445
     "Humongofrog": lambda: card("Humongofrog", "myth", 4, hit(295, Target.ENEMY_ALL)),
     "Troll Minion": lambda: card("Troll Minion", "myth", 2, Effect(EffectKind.SUMMON, Target.SELF, 0)),
     "Myth Prism": lambda: card("Myth Prism", "myth", 0, Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)),
@@ -62,8 +63,8 @@ CARDS = {
     "Banshee": lambda: card("Banshee", "death", 3, hit(275)),
     "Ghoul": lambda: card("Ghoul", "death", 2, hit(160, kind=EffectKind.STEAL)),
     "Dark Sprite": lambda: card("Dark Sprite", "death", 1, hit(85)),
-    "Minor Fire Scorch": lambda: card("Minor Fire Scorch", "fire", 0, hit(90), item=True),
-    "Stun": lambda: card("Stun", "myth", 1, Effect(EffectKind.STUN, Target.ENEMY_SINGLE, 1), item=True),
+    "Minor Fire Scorch": lambda: card("Minor Fire Scorch", "fire", 0, hit(85), item=True),
+    "Stun": lambda: card("Stun", "myth", 0, Effect(EffectKind.STUN, Target.ENEMY_SINGLE, 1)),
 }
 
 
@@ -453,9 +454,22 @@ def fight_from_battle(battle: Battle, stats: dict, rng: random.Random) -> Fight:
                  foe_pips={e.name: rng.randint(0, 2) for e in enemies}, hit_rate=stats.get("hit_rate", {}))
 
 
+def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
+    """A chip hit (under half our best hit) that would use up a trap on `t`
+    or our blades without killing it: the Feint was for the big hit (a 0-pip
+    wand hit spent two Feints on Meowiarty)."""
+    school = c.school.lower()
+    traps = any(v > 0 and sch in ("", school) for _k, sch, v in t.incoming_effects)
+    blades = any(v > 0 and sch in ("", school) for _k, sch, v in battle.me.outgoing_effects)
+    if not (traps or blades):
+        return False
+    best = max((h.base_damage() for h in [*battle.cards, *battle.upcoming] if h.is_damage), default=0)
+    return c.base_damage() < best / 2 and hit_damage(c, battle.me, t) < t.health
+
+
 def candidates(battle: Battle) -> list[Action]:
-    """Every move this step: each castable card on each target it can take,
-    and passing."""
+    """Every move this step: each castable card on each target it can take
+    (not chip hits that would waste a trap or blade), and passing."""
     out = [Action(ActionKind.PASS, reason="rollout: pass")]
     live = battle.live_enemies
     seen = set()
@@ -463,7 +477,7 @@ def candidates(battle: Battle) -> list[Action]:
         if not c.castable or c.is_enchant:
             continue
         if c.target is Target.ENEMY_SINGLE:
-            targets = list(live)
+            targets = [t for t in live if not (c.is_damage and _wastes_setup(c, t, battle))]
         elif c.target in (Target.ALLY_SINGLE, Target.SELF):
             targets = [battle.me]
         else:

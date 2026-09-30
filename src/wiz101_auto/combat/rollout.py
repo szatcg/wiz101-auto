@@ -84,6 +84,13 @@ class RolloutPlanner:
         if brain.kind not in (ActionKind.CAST, ActionKind.PASS) or not worth_it(battle):
             return brain
         moves = sim.candidates(battle)
+        try:  # the last battle planned, to replay offline (state/rollout_battle.pkl)
+            import pickle
+            from pathlib import Path
+
+            Path("state", "rollout_battle.pkl").write_bytes(pickle.dumps((battle, brain, discards)))
+        except Exception:
+            pass
         mine = next((i for i, m in enumerate(moves) if _same(m, brain)), None)
         if mine is None or len(moves) < 2:
             return brain

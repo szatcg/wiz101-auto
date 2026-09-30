@@ -66,3 +66,16 @@ def test_planner_replaces_a_clearly_worse_move(monkeypatch):
     finally:
         planner.close()
     assert chosen.kind is ActionKind.CAST and chosen.card.index == 0 and chosen.target.name == "Brute"
+
+
+def test_planner_never_considers_a_chip_hit_on_our_feint():
+    boss = Combatant("Brute", 1200, 1200, is_enemy=True, is_boss=True, school="myth", resist={},
+                     incoming_effects=[("spell:feint", "", 0.7)])
+    chip = Card(1, "Wand Hit", school="fire", pip_cost=0, item=True,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 85)])
+    b = _battle([boss], [_hit(0, 495, 5), chip], pips=2)
+    b.cards[0].castable = False
+    moves = sim.candidates(b)
+    assert not any(m.card is chip for m in moves)
+    boss.incoming_effects = []  # nothing to waste: the chip hit is a move again
+    assert any(m.card is chip for m in sim.candidates(b))
