@@ -123,6 +123,7 @@ TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
 TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
+TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
@@ -857,14 +858,18 @@ class Quester:
         return False
 
     async def _ground_for_teleport(self, near: XYZ) -> list[tuple[float, float, float]]:
+        from .tpspots import spots
+
         zone = await self.client.zone_name() or ""
-        points = await self._landmarks() + await path_points(self.client)
+        points = await self._landmarks() + await path_points(self.client) + spots().all(zone)
         return points + self.entity_map.spots(zone, lambda _n: True, (near.x, near.y, near.z))
 
     async def _ground_points(self, zone: str, near: XYZ) -> list[tuple[float, float, float]]:
         """Points known to be on the walkable map at `near`'s height: landmarks,
         walkway markers and spots things were seen at."""
-        points = await self._landmarks() + await path_points(self.client)
+        from .tpspots import spots
+
+        points = await self._landmarks() + await path_points(self.client) + spots().all(zone)
         points += self.entity_map.spots(zone, lambda _n: True, (near.x, near.y, near.z))
         return [p for p in points if abs(p[2] - near.z) < 300 and math.dist(p[:2], (near.x, near.y)) < 3000]
 
@@ -1660,6 +1665,17 @@ class Quester:
             await self.client.teleport(XYZ(*known_door))
             await asyncio.sleep(0.8)
             if await self._zone_changed(zone) or await self.walk_through(target, zone):
+                return True
+        # A spot near it where a teleport worked before: start from there.
+        from .tpspots import spots
+
+        good = spots().near(zone or "", (target.x, target.y, target.z), TP_SPOT_NEAR)
+        if good and distance(await self._position(), XYZ(*good[0])) > 300:
+            logger.info(f"teleport refused; trying a spot a teleport worked at before "
+                        f"({good[0][0]:.0f}, {good[0][1]:.0f})")
+            await self.client.teleport(XYZ(*good[0]))
+            await asyncio.sleep(0.8)
+            if await self._zone_changed(zone):
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")

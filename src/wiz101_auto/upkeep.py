@@ -328,21 +328,31 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
 
 
 WATCH_DISTANCE = 1500.0  # waiting in place: an enemy this close gets us moving
+BUSY_MOVES = 2  # moving away this often in one wait: too busy to wait here
 
 
-async def watchful_wait(client, seconds: float) -> bool:
+async def watchful_wait(client, seconds: float) -> int:
     """Wait without standing still in an enemy's path: every second, if an
     enemy (or a fight going on) is within WATCH_DISTANCE, move somewhere clear
     (patrols walked right into the wizard while it waited for wisps). Stops
-    early if a fight starts anyway. False if it did."""
+    early once it has had to move BUSY_MOVES times (the street is too busy to
+    wait in: Hyde Park's patrols caught it anyway) or a fight starts. Returns
+    how many times it moved (BUSY_MOVES or more: leave)."""
     loop = asyncio.get_running_loop()
     end = loop.time() + seconds
+    moves = 0
     while loop.time() < end:
         if await client.in_battle():
-            return False
-        await move_to_safety(client, WATCH_DISTANCE, "(an enemy is coming)")
+            return BUSY_MOVES
+        near = await mob_positions(client)
+        me = await client.body.position()
+        if any(math.dist(p, _pt(me)) < WATCH_DISTANCE for p in near):
+            moves += 1
+            if moves >= BUSY_MOVES:
+                return moves
+            await move_to_safety(client, REST_SAFE_DISTANCE, "(an enemy is coming)")
         await asyncio.sleep(1.0)
-    return True
+    return moves
 
 
 SWEEP_MOB_DISTANCE = 1000.0  # hopping next to a mob starts a fight
@@ -567,16 +577,26 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 return True
             wisp_zone = not hub and wisp_memory().count(zone, need) >= 3
             in_time = loop.time() - started < cfg.rest_max_minutes * 60
-            if wisp_zone and fruitless >= FRUITLESS_VISITS and in_time:
+            busy = zone in barren_zones()  # patrols made waiting here impossible
+            if wisp_zone and fruitless >= FRUITLESS_VISITS and in_time and not busy:
                 # A street with wisps whose spots are empty right now: they
                 # respawn. Wait here and go round them again, rather than back
                 # to the hub (it went hub <-> Hyde Park, then rested).
                 logger.info(f"wisps here are respawning; waiting {WISP_RESPAWN_WAIT:.0f}s to go round again")
                 await move_to_safety(client, REST_SAFE_DISTANCE)
-                await watchful_wait(client, WISP_RESPAWN_WAIT)
+                if await watchful_wait(client, WISP_RESPAWN_WAIT) >= BUSY_MOVES:
+                    # Patrols keep coming: waiting here ends in a fight.
+                    note_barren(zone)
+                    hp, mana = await health_mana(client)
+                    if hp >= cfg.min_health_to_fight or close_enough(cfg, hp, mana):
+                        logger.info(f"too many patrols in {zone} to wait for wisps; "
+                                    f"{hp:.0%} health, {mana:.0%} mana: carrying on")
+                        await back_to_start()
+                        return True
+                    logger.info(f"too many patrols in {zone} to wait for wisps; healing elsewhere")
                 fruitless = 0
                 continue
-            poor_zone = hub or not wisp_zone
+            poor_zone = hub or not wisp_zone or busy
             if trip and not tripped and poor_zone:
                 # This zone lacks what is needed (health wisps, or mana after
                 # healing here): the world hub, then Recall to the mark.
@@ -618,7 +638,11 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         in_time = loop.time() - started < cfg.rest_max_minutes * 60
         if in_time and not is_hub_zone(zone) and wisp_memory().count(zone, needed_wisps(cfg, hp, mana)) >= 3:
             # Wisps beat resting: wait for the next ones to come off cooldown.
-            await watchful_wait(client, WISP_RESPAWN_WAIT / 2)
+            if await watchful_wait(client, WISP_RESPAWN_WAIT / 2) >= BUSY_MOVES:
+                note_barren(zone)
+                logger.info(f"too many patrols in {zone} to wait for wisps; carrying on")
+                await back_to_start()
+                return True
             continue
         if not rested and zone.split("/", 1)[0] in REST_WORLDS:
             # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.

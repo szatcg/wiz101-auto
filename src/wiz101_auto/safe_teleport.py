@@ -62,6 +62,9 @@ def allow_engage(client, seconds: float = 6.0):
     client._engaged_at = time.monotonic()
 
 
+LANDED = 200.0  # a teleport that ends this near its target worked
+
+
 def install(client):
     """Wrap `client.teleport` with the landing check (once)."""
     if getattr(client, "_safe_teleport", False):
@@ -158,6 +161,11 @@ def install(client):
             blocked[key] = blocked.get(key, 0) + 1
             await original(start, *args, **kwargs)
             client._teleport_aborted = True
+        elif math.dist((here.x, here.y), (dest.x, dest.y)) < LANDED:
+            # It worked: remember the spot (teleports often take a few tries).
+            from .tpspots import spots
+
+            spots().add(await client.zone_name() or "", (here.x, here.y, here.z))
         return result
 
     client.teleport = teleport
