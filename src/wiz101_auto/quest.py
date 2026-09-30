@@ -144,8 +144,7 @@ TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the tar
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
-TEAM_GONE_AFTER = 900.0  # had a team but none seen for this long: they left; leave too (4 min was too
-# short: they were finding the Bronze Eagles in another room)
+TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long (searching the rooms): they left; leave
 TEAM_TALK_TRIES = 3  # a talk step in a team dungeon: tries before it's taken as waiting on the team
 TEAM_ALONE_AFTER = 90.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
@@ -3083,12 +3082,15 @@ class Quester:
         if it went somewhere."""
         zone = await self.client.zone_name() or ""
         seen = self._mate_seen
-        if not seen or seen[0] != zone or not seen[3] or time.monotonic() - seen[2] < TEAM_LOST_AFTER:
+        if not seen or seen[0] != zone or time.monotonic() - seen[2] < TEAM_LOST_AFTER:
             return False
+        # seen[3] False: nobody seen in this room, seen[1] is where we arrived:
+        # search its doors from there (it waited in one room while the team
+        # was elsewhere).
         last = seen[1]
         key = (zone, round(last.x / 300), round(last.y / 300))
         tries = self._track_tries.get(key, 0)
-        if tries < TEAM_TRACK_TRIES:
+        if seen[3] and tries < TEAM_TRACK_TRIES:
             self._track_tries[key] = tries + 1
             trail = [p for z, p in self._mate_trail if z == zone]
             prev = trail[-2] if len(trail) >= 2 else await self._position()
@@ -3111,12 +3113,14 @@ class Quester:
             return True
         doors = await self._doors_here(zone)
         doors += [XYZ(d[0], d[1], last.z) for d, _spot in self.doors.doors.get(zone, [])]
+        side_room = "/interiors/" in zone.lower()
         for door in sorted(doors, key=lambda d: distance(d, last)):
             dkey = (zone, round(door.x / 100), round(door.y / 100))
             if dkey in self._mate_doors:
                 continue
-            self._mate_doors.add(dkey)
-            logger.info(f"the team went on; trying the door at ({door.x:.0f}, {door.y:.0f})")
+            if not side_room:
+                self._mate_doors.add(dkey)  # the main area's doors: each once (a room's way out: always)
+            logger.info(f"looking for the team: through the door at ({door.x:.0f}, {door.y:.0f})")
             await self.approach_and_walk(door, zone)
             return True
         return False
