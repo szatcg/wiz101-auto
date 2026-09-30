@@ -520,6 +520,13 @@ class Fighter(CombatHandler):
             if await self._committed(before):
                 return
             await self._log_failed_cast(snap, action, target)
+            # A window over the cards (the pet level-up) eats every click: close it.
+            from ..upkeep import clear_popups
+
+            try:
+                await clear_popups(self.client)
+            except Exception as exc:
+                logger.debug(f"clearing popups failed: {exc!r}")
             # Clicks on the leftmost card don't register at its center; probe
             # further left inside the card and keep whatever works.
             for fx in CLICK_PROBES:

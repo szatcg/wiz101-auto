@@ -798,6 +798,11 @@ async def clear_popups(client):
     if await reconnect_if_asked(client):
         return
     await close_crowns_shop(client)
+    if await ui.click_named(client, "btnPetLevelClose"):
+        # "Sir Buster has leveled up to Adult!" covered the cards mid-fight:
+        # every cast and discard missed for a round and a half.
+        logger.info("closed the pet level-up window")
+        await asyncio.sleep(0.5)
     await ui.close_chat(client)
     await ui.dismiss_notice(client)
     if await ui.is_visible(client, ui.ENDORSEMENT):
