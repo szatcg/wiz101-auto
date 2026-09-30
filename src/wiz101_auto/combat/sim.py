@@ -59,22 +59,64 @@ CARDS = {
 
 
 @dataclass
+class Spell:
+    """An enemy's spell: kind is hit, aoe, drain, dot (hit + damage over 3
+    rounds), blade (itself), trap / weak (on us), shield (itself), heal (an ally)."""
+    name: str
+    pips: int
+    kind: str
+    school: str
+    value: int
+    extra: int = 0  # dot: damage over the next rounds
+
+
+@dataclass
 class Foe:
     name: str
     health: int
     school: str
     resist: dict[str, float]
-    damage: int  # a typical hit
-    attack_chance: float = 0.5
+    spells: list[Spell]
     boss: bool = False
+    save_chance: float = 0.35  # able to afford only a cheaper attack: chance it saves up instead
+    buff_chance: float = 0.35  # chance a round goes on a 0-pip blade/trap/weakness/shield
+    accuracy: float = 0.85
+    power: float = 1.0  # its damage bonus (bosses hit harder than the spell's base)
 
 
+def _s(name, pips, kind, school, value, extra=0):
+    return Spell(name, pips, kind, school, value, extra)
+
+
+# The spells each carries (the player's list) with standard values.
 MEOWIARTY = [
-    # Calibrated: ~220 a round with all three up, ~160 with Meowiarty alone (the logs).
-    Foe("Meowiarty", 2000, "myth", {"myth": 0.8, "storm": -0.5}, 330, attack_chance=0.45, boss=True),
-    Foe("Agony Wraith", 1280, "death", {"death": 0.4, "life": -0.4}, 150, attack_chance=0.45, boss=True),
-    Foe("Clockwork Wizard", 560, "life", {"life": 0.3, "death": -0.3}, 100, attack_chance=0.45),
+    Foe("Meowiarty", 2000, "myth", {"myth": 0.8, "storm": -0.5}, [
+        _s("Storm Shield", 0, "shield", "storm", -70), _s("Weakness", 0, "weak", "", -25),
+        _s("Mythblade", 0, "blade", "myth", 35), _s("Myth Trap", 0, "trap", "myth", 30),
+        _s("Blood Bat", 1, "hit", "myth", 85), _s("Troll", 2, "hit", "myth", 200),
+        _s("Cyclops", 3, "hit", "myth", 300), _s("Humongofrog", 4, "aoe", "myth", 300),
+        _s("Snow Serpent", 2, "hit", "ice", 150), _s("Sunbird", 3, "hit", "fire", 250),
+        _s("Storm Shark", 3, "hit", "storm", 210),
+    ], boss=True, power=1.5),
+    Foe("Agony Wraith", 1280, "death", {"death": 0.4, "life": -0.4}, [
+        _s("Weakness", 0, "weak", "", -25), _s("Deathblade", 0, "blade", "death", 35),
+        _s("Curse", 0, "trap", "death", 30), _s("Death Trap", 0, "trap", "death", 25),
+        _s("Dark Sprite", 1, "hit", "death", 85), _s("Ghoul", 2, "drain", "death", 160),
+        _s("Banshee", 3, "hit", "death", 275), _s("Vampire", 4, "drain", "death", 335),
+        _s("Skeletal Pirate", 5, "hit", "death", 450), _s("Fire Elf", 2, "dot", "fire", 50, 210),
+        _s("Cyclops", 3, "hit", "myth", 300), _s("Storm Shark", 3, "hit", "storm", 210),
+    ], boss=True, power=0.9),
+    Foe("Clockwork Wizard", 560, "life", {"life": 0.3, "death": -0.3}, [
+        _s("Death Shield", 0, "shield", "death", -70), _s("Spirit Armor", 0, "shield", "myth", -25),
+        _s("Weakness", 0, "weak", "", -25), _s("Sprite", 1, "heal", "life", 200),
+        _s("Lifeblade", 0, "blade", "life", 35), _s("Life Trap", 0, "trap", "life", 30),
+        _s("Imp", 1, "hit", "life", 85), _s("Leprechaun", 2, "hit", "life", 170),
+        _s("Nature's Wrath", 3, "hit", "life", 280), _s("Seraph", 5, "hit", "life", 450),
+        _s("Evil Snowman", 3, "hit", "ice", 270), _s("Sunbird", 3, "hit", "fire", 250),
+        _s("Storm Shark", 3, "hit", "storm", 210),
+    ], power=0.9),
 ]
+DAMAGE_SCALE = 1.0  # set by calibration against the logged fights
 
 ITEMS = ["Minor Fire Scorch", "Minor Fire Scorch", "Stun", "Stun"]
 DECKS = {  # the player's deck (they choose it: Feint is the only death spell)
@@ -96,6 +138,8 @@ class Fight:
     prismed: set[str] = field(default_factory=set)
     stunned: set[str] = field(default_factory=set)
     summoned: int = 0
+    foe_pips: dict[str, int] = field(default_factory=dict)
+    dots: list = field(default_factory=list)  # our side's damage over time: [victim, per round, rounds left]
 
 
 def _use_up(effects: list, school: str) -> list:
@@ -162,21 +206,68 @@ def _enemy_turn(f: Fight, rng: random.Random):
             dmg = 180 * (1 - (t.resist or {}).get("myth", 0))
             t.health = max(0, t.health - int(dmg))
             t.is_dead = t.health <= 0
+    # Damage over time on our side.
+    for dot in f.dots:
+        dot[0].health -= dot[1]
+        dot[2] -= 1
+    f.dots = [d for d in f.dots if d[2] > 0]
     for e in f.enemies:
         if e.is_dead:
             continue
+        foe = f.foes[e.name]
+        gain = 2 if foe.boss and rng.random() < 0.3 else 1
+        pips = f.foe_pips[e.name] = min(MAX_PIPS, f.foe_pips.get(e.name, rng.randint(0, 1)) + gain)
         if e.name in f.stunned:
             f.stunned.discard(e.name)
             continue
-        if rng.random() > f.foes[e.name].attack_chance:
-            continue
         side = [f.me] + ([f.minion] if f.minion and f.minion.health > 0 else [])
-        victim = rng.choice(side)
-        school = f.foes[e.name].school
-        used = [x for x in victim.incoming_effects if x[1] in ("", school)]
-        mult = max(0.0, 1 + sum(v for _k, _s, v in used))
-        victim.health -= int(f.foes[e.name].damage * mult * rng.uniform(0.8, 1.2))
-        victim.incoming_effects = [x for x in victim.incoming_effects if x not in used]
+        # Heal a hurt ally (the Clockwork Wizard's Sprite).
+        heals = [sp for sp in foe.spells if sp.kind == "heal" and sp.pips <= pips]
+        hurt = [a for a in f.enemies if not a.is_dead and a.health < a.max_health * 0.5]
+        if heals and hurt and rng.random() < 0.7:
+            sp = heals[0]
+            f.foe_pips[e.name] = pips - sp.pips
+            if rng.random() <= foe.accuracy:
+                low = min(hurt, key=lambda a: a.health / a.max_health)
+                low.health = min(low.max_health, low.health + sp.value)
+            continue
+        buffs = [sp for sp in foe.spells if sp.pips == 0]
+        if buffs and rng.random() < foe.buff_chance:
+            sp = rng.choice(buffs)
+            if rng.random() > foe.accuracy:
+                continue
+            key = f"foe:{e.name}:{sp.name}"
+            if sp.kind == "blade":
+                e.outgoing_effects.append((key, sp.school, sp.value / 100))
+            elif sp.kind == "shield":
+                e.incoming_effects.append((key, sp.school, sp.value / 100))
+            elif sp.kind == "trap":
+                f.me.incoming_effects.append((key, sp.school, sp.value / 100))
+            elif sp.kind == "weak":
+                f.me.outgoing_effects.append((key, "", sp.value / 100))
+            continue
+        attacks = [sp for sp in foe.spells if sp.kind in ("hit", "aoe", "drain", "dot") and sp.pips <= pips]
+        if not attacks:
+            continue
+        top = max(sp.pips for sp in foe.spells if sp.kind in ("hit", "aoe", "drain", "dot"))
+        sp = rng.choice([a for a in attacks if a.pips == max(x.pips for x in attacks)])
+        if sp.pips < top and rng.random() < foe.save_chance:
+            continue  # saving up for its big one
+        f.foe_pips[e.name] = pips - sp.pips
+        if rng.random() > foe.accuracy:
+            continue  # fizzled
+        blade = [x for x in e.outgoing_effects if x[1] in ("", sp.school)]
+        e.outgoing_effects = [x for x in e.outgoing_effects if x not in blade]
+        for victim in (side if sp.kind == "aoe" else [rng.choice(side)]):
+            used = [x for x in victim.incoming_effects if x[1] in ("", sp.school)]
+            victim.incoming_effects = [x for x in victim.incoming_effects if x not in used]
+            mult = max(0.0, 1 + sum(v for _k, _s, v in blade)) * max(0.0, 1 + sum(v for _k, _s, v in used))
+            dmg = int(sp.value * foe.power * DAMAGE_SCALE * mult * rng.uniform(0.85, 1.15))
+            victim.health -= dmg
+            if sp.kind == "drain":
+                e.health = min(e.max_health, e.health + dmg // 2)
+            if sp.kind == "dot":
+                f.dots.append([victim, int(sp.extra * DAMAGE_SCALE / 3), 3])
 
 
 def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = None, seed: int = 0,
@@ -233,8 +324,16 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
     return False, MAX_ROUNDS
 
 
-def win_rate(deck, foes, strat=None, n=400) -> tuple[float, float]:
-    results = [simulate(deck, foes, strat, seed=s) for s in range(n)]
+def _one(args):
+    deck, foes, strat, seed = args
+    return simulate(deck, foes, strat, seed=seed)
+
+
+def win_rate(deck, foes, strat=None, n=400, pool=None, seed0=0) -> tuple[float, float]:
+    """(win rate, mean rounds of the wins) over `n` seeded fights; `pool`: a
+    multiprocessing pool to spread them over."""
+    jobs = [(deck, foes, strat, seed0 + s) for s in range(n)]
+    results = pool.map(_one, jobs, chunksize=16) if pool else [_one(j) for j in jobs]
     wins = [r for ok, r in results if ok]
     return len(wins) / n, (sum(wins) / len(wins) if wins else 0.0)
 

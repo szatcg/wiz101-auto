@@ -67,6 +67,9 @@ class Strategy:
     discard_junk: bool = True  # bin off-school gear attack cards to draw deck spells
     hold_big_hit_until_pips: int = 4  # wait for a trap before a 2+ pip hit, up to this many pips
     quick_fight_rounds: int = 3  # no boss and done within this many rounds: don't summon
+    aoe_max_setups: int = 4  # blades/traps played before the hit-all (tipping it into kills)
+    stun_health: float = 0.7  # stun the worst hitter once our health is below this
+    prism_early_gain: float = 2.0  # a prism multiplying our hit this much is played first
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -493,7 +496,8 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     prisms_to_come = [c for c in upcoming if _is_prism(c)]
     if prisms_to_come and not any(_is_prism(c) for c in battle.cards):
         prism = prisms_to_come[0]
-        if any(e.name not in battle.prismed and _prism_gain(prism, me, e, battle.cards) >= PRISM_EARLY_GAIN
+        gain_needed = strat.prism_early_gain
+        if any(e.name not in battle.prismed and _prism_gain(prism, me, e, battle.cards) >= gain_needed
                for e in enemies):
             want.append("prism")
     group = len(enemies) >= AOE_MIN_ENEMIES
@@ -551,7 +555,7 @@ def _setup_fx(card: Card, kind: EffectKind, school: str) -> tuple[str, str, floa
     return (f"plan:{card.name}", best.school, best.value / 100)
 
 
-def _hit_all_setup(battle: Battle, card: Card) -> Action | None:
+def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) -> Action | None:
     """Humongofrog as it stands vs. with blades/traps from the hand: if some
     of them make it kill enemies it wouldn't now, play one of the smallest such
     set (every blade boosts the whole hit, each trap only its enemy; a pip
@@ -599,7 +603,8 @@ def _hit_all_setup(battle: Battle, card: Card) -> Action | None:
         return None
     have = battle.pips + 2 * battle.power_pips
     best = None
-    for n in range(1, min(AOE_PLAN_MAX_SETUPS, len(moves)) + 1):
+    most = strat.aoe_max_setups if strat else AOE_PLAN_MAX_SETUPS
+    for n in range(1, min(most, len(moves)) + 1):
         for combo in itertools.combinations(moves, n):
             if len({id(m[0]) for m in combo}) < n:
                 continue  # one card, one use
@@ -673,7 +678,7 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         return Action(ActionKind.CAST, card, None, reason=why)
     # Blades/traps that make the hit-all kill enemies it wouldn't now: those first.
     if battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH or not card.castable:
-        tipping = _hit_all_setup(battle, card)
+        tipping = _hit_all_setup(battle, card, strat)
         if tipping:
             return tipping
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
@@ -844,7 +849,7 @@ def _prism_useless(card: Card, battle: Battle) -> bool:
     return all(_prism_gain(card, battle.me, e, battle.cards) < PRISM_GAIN for e in enemies)
 
 
-def _stun_action(battle: Battle) -> Action | None:
+def _stun_action(battle: Battle, strat: Strategy | None = None) -> Action | None:
     """Stun the most dangerous enemy (a boss first) that isn't stunned, once
     our health is below STUN_HEALTH (earlier it would only delay the
     hit-all). Not when the fight is about to end."""
@@ -855,7 +860,7 @@ def _stun_action(battle: Battle) -> Action | None:
     ]
     if not stuns or not enemies:
         return None
-    if battle.me.health_ratio >= STUN_HEALTH:
+    if battle.me.health_ratio >= (strat.stun_health if strat else STUN_HEALTH):
         return None
     if _finish_in_reach(battle):
         return None
@@ -1397,14 +1402,14 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
 
     # A long fight that's hurting us: a Stun on the hardest hitter buys a
     # round of no damage from it (two Stuns sat unused against Meowiarty).
-    stun = _stun_action(battle)
+    stun = _stun_action(battle, strat)
     if stun:
         return stun
 
     # An enemy that shrugs off our school (Meowiarty resists myth 80%, takes
     # 50% more from storm): the prism comes first, before any hit on it.
     prism = _prism_action(battle)
-    if prism and _prism_gain(prism.card, battle.me, prism.target, battle.cards) >= PRISM_EARLY_GAIN:
+    if prism and _prism_gain(prism.card, battle.me, prism.target, battle.cards) >= strat.prism_early_gain:
         return prism
 
     # Blades and traps (and the hit-all spell against groups) matter more than
