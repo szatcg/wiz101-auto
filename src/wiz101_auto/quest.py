@@ -3983,6 +3983,17 @@ class Quester:
             return
         await self._learn_door_walk()
         await clear_popups(self.client)
+        if self._grinding and not VISIT_FILE.exists() and self._main_world:
+            # Nothing left to do here: a giver from the player's list with a
+            # quest for us (MooShu: Ken Shui in the Village of Sorrow) beats
+            # grinding, or walking back into the stuck main quest.
+            target = self.givers.visit_target(self._main_world)
+            if target:
+                npc, where = target
+                self.givers._remember(where, npc)  # one try an hour, whatever happens
+                logger.info(f"nothing left to do: visiting {npc} ({where.split('/')[-1]}) "
+                            "from the quest list")
+                VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
         if VISIT_FILE.exists() and await self._visit_npc():
             return
         if await self._leave_spiral_map():

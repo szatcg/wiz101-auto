@@ -75,13 +75,14 @@ class GuideQuest:
     name: str
     after: str | None = None  # a quest that must be done first
     main: bool = False  # under a "(MAIN QUEST)" heading: the story, done in guide order
+    area: str = ""  # the heading it's under ("VILLAGE OF SORROW"): where the giver stands
 
 
 def parse_guide(text: str) -> list[GuideQuest]:
     """Quests of a guide: a quest line ("Name(170 XP)...") right under its
     giver's name; headings (upper case, "(SIDE QUEST)") and goals ("-...")
     are not givers."""
-    out, prev, main = [], "", False
+    out, prev, main, area = [], "", False, ""
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -90,11 +91,14 @@ def parse_guide(text: str) -> list[GuideQuest]:
             main = True
         elif "(SIDE QUEST)" in line.upper():
             main = False
+        heading = re.sub(r"\((MAIN|SIDE) QUEST\)", "", line, flags=re.I).strip()
+        if heading and heading.isupper() and not heading.startswith("("):
+            area = heading.replace("’", "'")
         m = _QUEST_LINE.match(line)
         if (m and prev and not prev.startswith(("-", "(")) and not prev.isupper()
                 and not _QUEST_LINE.match(prev)):
             after = _AFTER.search(line)
-            out.append(GuideQuest(prev, m["name"].strip(), after["q"].strip() if after else None, main))
+            out.append(GuideQuest(prev, m["name"].strip(), after["q"].strip() if after else None, main, area))
         prev = line
     return out
 
@@ -219,6 +223,22 @@ class QuestGivers:
         have, done = _book_and_done()
         have |= set(getattr(self.q.setbacks, "skipped", set())) | ALWAYS_SKIP
         return pending_givers(guide, have, done)
+
+    def visit_target(self, world: str) -> tuple[str, str] | None:
+        """Nothing left to do in `world`: the first giver on the player's list
+        who still has a quest for us, not asked in the last hour, with the zone
+        they stand in (from the list's area heading). (npc, zone) or None."""
+        from .quest import objective_zone
+
+        guide = load_guide(world)
+        wanted = self.wanted_givers(f"{world}/") or {}
+        for q in guide or []:
+            if norm(q.giver) not in wanted or not q.area:
+                continue
+            zone = objective_zone(f"Talk To {q.giver} in {q.area}")
+            if zone and not self._asked_recently(zone, q.giver):
+                return q.giver, zone
+        return None
 
     async def _candidates(self, zone: str, reach: float = GIVER_RANGE) -> list[tuple[float, str, XYZ]]:
         from .names import lang_name

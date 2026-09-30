@@ -87,3 +87,19 @@ Tree of Life (206 gold, 2840 XP) (after finishing “Or Call A Locksmith”)
 - Defeat Kagemoosha
 """)
     assert pending_givers(g, set(), set()) == {"kenshui": ["Be Very, Very Quiet"]}
+
+
+def test_quests_know_the_area_heading_they_are_under():
+    g = parse_guide("""VILLAGE OF SORROW
+(MAIN QUEST)
+
+Ken Shui
+Be Very, Very Quiet (100 gold, 2030 XP)
+- Defeat 10 Cursed Ronins
+
+NEWGATE PRISON (MAIN QUEST)
+Officer Ness
+Stop that cat!(400 XP, Buried Bone)
+- Locate Meowiarty’s cell
+""")
+    assert [q.area for q in g] == ["VILLAGE OF SORROW", "NEWGATE PRISON"]
