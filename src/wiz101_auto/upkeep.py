@@ -756,7 +756,27 @@ async def close_crowns_shop(client) -> bool:
     return False
 
 
+async def reconnect_if_asked(client) -> bool:
+    """"Problem: Unable to find your zone on server (connect too long?)" with
+    Reconnect / Quit: press Reconnect. True if it did."""
+    from .relog import _find_button
+
+    try:
+        button = await _find_button(client.root_window, ("reconnect",))
+    except Exception:
+        return False
+    if button is None:
+        return False
+    logger.warning("the game lost its connection ('Problem' box): pressing Reconnect")
+    await ui.click_center(client, button)
+    await asyncio.sleep(5.0)
+    await wait_for_loading(client)
+    return True
+
+
 async def clear_popups(client):
+    if await reconnect_if_asked(client):
+        return
     await close_crowns_shop(client)
     await ui.close_chat(client)
     await ui.dismiss_notice(client)

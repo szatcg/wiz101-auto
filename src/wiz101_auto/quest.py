@@ -3694,6 +3694,10 @@ class Quester:
             zone_known = False
         if not zone_known:
             from .relog import at_character_select, play_from_character_select
+            from .upkeep import reconnect_if_asked
+
+            if await reconnect_if_asked(self.client):
+                return
 
             if await at_character_select(self.client):
                 await play_from_character_select(self.client)
