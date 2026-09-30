@@ -25,7 +25,9 @@ from . import ui
 from .upkeep import is_free, mob_positions, wait_until_free
 
 TALKED_PATH = Path("state") / "npc_talked.json"
-ASK_AGAIN_HOURS = 3.0
+ASK_AGAIN_HOURS = 1.0
+ZONE_CHECKS_PATH = Path("state") / "npc_zone_checks.json"
+ZONE_RECHECK_SECONDS = 3600.0  # entering a zone not swept this long: ask every named NPC in it
 GIVER_RANGE = 2500.0  # NPCs this close are worth a quick word
 CHECK_SECONDS = 20.0  # how often to look for someone new to ask
 MOB_CLEARANCE = 700.0  # never walk up to an NPC standing by enemies
@@ -54,8 +56,23 @@ class QuestGivers:
         self.client = quester.client
         self._last_check = 0.0
         self._talked: dict[str, float] = {}
+        self._zone = ""
+        self._sweeping = False  # asking every named NPC in this zone, one after another
         try:
             self._talked = json.loads(TALKED_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+        self._zone_checks: dict[str, float] = {}
+        try:
+            self._zone_checks = json.loads(ZONE_CHECKS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    def _swept(self, zone: str):
+        self._zone_checks[zone] = time.time()
+        try:
+            ZONE_CHECKS_PATH.parent.mkdir(exist_ok=True)
+            ZONE_CHECKS_PATH.write_text(json.dumps(self._zone_checks, indent=1), encoding="utf-8")
         except Exception:
             pass
 
@@ -74,7 +91,7 @@ class QuestGivers:
         except Exception:
             pass
 
-    async def _candidates(self, zone: str) -> list[tuple[float, str, XYZ]]:
+    async def _candidates(self, zone: str, reach: float = GIVER_RANGE) -> list[tuple[float, str, XYZ]]:
         from .names import lang_name
 
         me = await self.client.body.position()
@@ -91,7 +108,7 @@ class QuestGivers:
                     continue
                 pos = await e.location()
                 d = math.dist((pos.x, pos.y), (me.x, me.y))
-                if d > GIVER_RANGE:
+                if d > reach:
                     continue
                 if not is_named_npc(await template.object_name(), display, await e.list_behavior_names()):
                     continue
@@ -105,17 +122,28 @@ class QuestGivers:
     async def ask_nearby(self) -> bool:
         """Talk to the nearest named NPC not asked yet (accepting any quest
         offered), then step back. True if it went to one."""
-        if time.monotonic() - self._last_check < CHECK_SECONDS:
+        if not self._sweeping and time.monotonic() - self._last_check < CHECK_SECONDS:
             return False
         self._last_check = time.monotonic()
         zone = await self.client.zone_name() or ""
         world = self.q._main_world
         if not zone or not world or zone.split("/", 1)[0] != world or await self.q._in_dungeon(zone):
             return False
+        if zone != self._zone:
+            # A new zone: not swept for an hour, ask everyone in it (quests
+            # unlock as the story moves on; the 2500 range alone missed them).
+            self._zone = zone
+            self._sweeping = time.time() - self._zone_checks.get(zone, 0.0) > ZONE_RECHECK_SECONDS
+            if self._sweeping:
+                logger.info(f"checking the NPCs of {zone.split('/')[-1]} for new quests")
         if not await is_free(self.client):
             return False
-        found = await self._candidates(zone)
+        found = await self._candidates(zone, float("inf") if self._sweeping else GIVER_RANGE)
         if not found:
+            if self._sweeping:
+                self._sweeping = False
+                self._swept(zone)
+                logger.info(f"asked every NPC in {zone.split('/')[-1]} for quests")
             return False
         _d, name, pos = found[0]
         self._remember(zone, name)  # once, whatever happens
