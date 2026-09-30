@@ -327,6 +327,24 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
         return False
 
 
+WATCH_DISTANCE = 1500.0  # waiting in place: an enemy this close gets us moving
+
+
+async def watchful_wait(client, seconds: float) -> bool:
+    """Wait without standing still in an enemy's path: every second, if an
+    enemy (or a fight going on) is within WATCH_DISTANCE, move somewhere clear
+    (patrols walked right into the wizard while it waited for wisps). Stops
+    early if a fight starts anyway. False if it did."""
+    loop = asyncio.get_running_loop()
+    end = loop.time() + seconds
+    while loop.time() < end:
+        if await client.in_battle():
+            return False
+        await move_to_safety(client, WATCH_DISTANCE, "(an enemy is coming)")
+        await asyncio.sleep(1.0)
+    return True
+
+
 SWEEP_MOB_DISTANCE = 1000.0  # hopping next to a mob starts a fight
 WISP_SWEEP_SPACING = 2500.0  # wisps load within roughly this range
 WISP_SWEEP_MAX = 16
@@ -555,7 +573,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # to the hub (it went hub <-> Hyde Park, then rested).
                 logger.info(f"wisps here are respawning; waiting {WISP_RESPAWN_WAIT:.0f}s to go round again")
                 await move_to_safety(client, REST_SAFE_DISTANCE)
-                await asyncio.sleep(WISP_RESPAWN_WAIT)
+                await watchful_wait(client, WISP_RESPAWN_WAIT)
                 fruitless = 0
                 continue
             poor_zone = hub or not wisp_zone
@@ -600,7 +618,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         in_time = loop.time() - started < cfg.rest_max_minutes * 60
         if in_time and not is_hub_zone(zone) and wisp_memory().count(zone, needed_wisps(cfg, hp, mana)) >= 3:
             # Wisps beat resting: wait for the next ones to come off cooldown.
-            await asyncio.sleep(WISP_RESPAWN_WAIT / 2)
+            await watchful_wait(client, WISP_RESPAWN_WAIT / 2)
             continue
         if not rested and zone.split("/", 1)[0] in REST_WORLDS:
             # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.
@@ -655,7 +673,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             last_report = loop.time()
         controller.allow_idle(10)
         await clear_popups(client)  # e.g. the minigame picker, opened by walking past its sign
-        await asyncio.sleep(5)
+        await watchful_wait(client, 5)
 
 
 _CLOSE_NAMES = (

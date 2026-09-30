@@ -87,6 +87,7 @@ class Fighter(CombatHandler):
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
         self._judged_fight = False
+        self._unknown_left = 0  # deck cards to come not yet seen
         self._fleeing = False
         self._want_flee = False  # this fight isn't needed: try to flee every round
         self._flee_spot: tuple[float, float] | None = None  # where on Flee a click worked
@@ -358,7 +359,10 @@ class Fighter(CombatHandler):
                 continue
 
             battle.upcoming = self._upcoming(battle)
-            battle.deck_known = bool(self._deck)
+            # Known only when every card still to come has been seen (after a
+            # restart Humongofrog and Cyclops weren't yet: "no attack cards
+            # left" fled a fight on its first round).
+            battle.deck_known = bool(self._deck) and not self._unknown_left
             if out_of_mana(battle):
                 # Nothing castable without mana: passing until defeated loses
                 # anyway; fleeing keeps our health.
@@ -477,11 +481,14 @@ class Fighter(CombatHandler):
             self._card_info.setdefault(_deck_name(c), c)
             in_hand[_deck_name(c)] += 1
         out = []
+        self._unknown_left = 0  # deck cards still to come that we haven't seen yet (what they do)
         for name, copies in self._deck.items():
             left = copies - self._gone[name] - in_hand[name]
             info = self._card_info.get(name)
             if left > 0 and info is not None:
                 out += [dataclasses.replace(info, index=-1, castable=True)] * left
+            elif left > 0:
+                self._unknown_left += left
         return out
 
     async def handle_combat(self):
