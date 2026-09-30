@@ -84,7 +84,10 @@ async def connect(handler: ClientHandler):
         await asyncio.wait_for(hooks._wait_for_value(hooks._base_addrs["current_root_window"], None),
                                timeout=HOOK_TIMEOUT)
         from .relog import at_character_select, play_from_character_select
+        from .upkeep import reconnect_if_asked
 
+        if await reconnect_if_asked(client):  # "Problem: Unable to find your zone" (lost connection)
+            await asyncio.sleep(3.0)
         if await at_character_select(client):
             async with client.mouse_handler:
                 await play_from_character_select(client)
