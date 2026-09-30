@@ -215,7 +215,13 @@ def _click_left_of_center(client):
     mouse.click_window = click_window
 
 
-async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Controller):
+def _team_zone(zone: str) -> bool:
+    from .teamup import is_team_up_zone
+
+    return is_team_up_zone(zone or "")
+
+
+async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Controller, adapter=None):
     while not controller.stopped.is_set():
         await controller.checkpoint()
         if await client.in_battle():
@@ -233,7 +239,11 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
                 # Losing a fight sends you back (elsewhere) with a sliver of
                 # health; winning on a sliver leaves you standing where you fought.
                 controller.record_death(fight_zone)
+                if adapter is not None and not _team_zone(fight_zone):
+                    adapter.on_defeat(list(fighter.last_enemy_names))
             elif await is_free(client):
+                if adapter is not None and not fighter.fled:
+                    adapter.on_win(list(fighter.last_enemy_names))
                 await scan_wisps(client)
                 await maintain(client, cfg.upkeep)
         await asyncio.sleep(0.3)
@@ -365,9 +375,14 @@ async def run(cfg: Config):
         fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below,
                           rollouts=c.rollouts)
         dialogue = DialoguePolicy()
+        adapter = None
+        if c.adapt_deck:
+            from .deck_adapt import DeckAdapter
+
+            adapter = DeckAdapter()  # a boss deck after a loss, the general deck after the win
         tasks = [
             asyncio.create_task(controller.watch(), name="safety"),
-            asyncio.create_task(combat_loop(client, fighter, cfg, controller), name="combat"),
+            asyncio.create_task(combat_loop(client, fighter, cfg, controller, adapter), name="combat"),
             asyncio.create_task(dialogue_loop(client, cfg.quest, controller, dialogue), name="dialogue"),
         ]
         progression = Progression(client, cfg.progression)
@@ -375,6 +390,7 @@ async def run(cfg: Config):
         quester = None
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
+            quester.deck_adapter = adapter
             if cfg.gear_checks:
                 quester.gear = GearManager(client, progression.school or "")
                 quester.gear.before_check = lambda: move_to_safety(client, 1200.0, "before checking gear")

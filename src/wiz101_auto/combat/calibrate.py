@@ -35,6 +35,7 @@ PREDICT = re.compile(r"predict: (?P<m>.*)$")
 CAST = re.compile(r"cast (?P<spell>.+?)(?: on (?P<target>.+?))? \(")
 HEAL_SPELLS = {"Pixie": 420, "Sprite": 200, "Fairy": 400}
 STATS_FILE = Path("state") / "enemy_stats.json"
+RECENT_FIGHTS = 300  # fights kept in the stats (with their world and enemies)
 
 
 @dataclass
@@ -46,6 +47,20 @@ class Round:
     action: str
     predict: dict[int, int] = field(default_factory=dict)
     bosses: set[str] = field(default_factory=set)
+    world: str = ""  # the world of the last zone logged before it ("Marleybone")
+
+
+RESISTS = re.compile(
+    r"\| INFO\s+\| (?P<name>[^|]+?) \((?P<school>[a-z]*)\): resists (?P<r>\{[^}]*\}|nothing)"
+)
+ZONE = re.compile(r"\| INFO\s+\| \[(?P<world>[A-Za-z]+)/[^\]]+\]")
+
+
+@dataclass
+class LogRead:
+    fights: list[list[Round]]
+    lost: list[bool]  # per fight: ended in our defeat
+    profiles: dict[str, dict]  # enemy -> {"school", "resist"} as last read
 
 
 def _foes(text: str) -> list[tuple[str, int, int]]:
@@ -58,11 +73,30 @@ def _foes(text: str) -> list[tuple[str, int, int]]:
 
 
 def read_fights(paths: list[Path]) -> list[list[Round]]:
+    """Rounds grouped into fights (see read_log)."""
+    return read_log(paths).fights
+
+
+def read_log(paths: list[Path]) -> LogRead:
     """Rounds grouped into fights (a new fight when the round number drops or
-    the enemies change completely). Several decisions logged for one round
-    (discards first) keep the last."""
+    the enemies change completely; several decisions logged for one round
+    keep the last), whether each was lost, and each enemy's school and
+    resists as the game reported them."""
+    import ast
+
     fights: list[list[Round]] = []
+    lost: list[bool] = []
+    profiles: dict[str, dict] = {}
     cur: list[Round] = []
+    world = ""
+
+    def close(defeated: bool = False):
+        nonlocal cur
+        if cur:
+            fights.append(cur)
+            lost.append(defeated)
+        cur = []
+
     for path in paths:
         try:
             lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -72,16 +106,27 @@ def read_fights(paths: list[Path]) -> list[list[Round]]:
             m = ROUND.search(line)
             if m:
                 r = Round(int(m["n"]), int(m["hp"]), int(m["max"]), _foes(m["foes"]), m["act"],
-                          bosses=set(re.findall(r"([^,]+?)\* \d+/\d+", m["foes"])))
-                r.bosses = {b.strip() for b in r.bosses}
+                          bosses={b.strip() for b in re.findall(r"([^,]+?)\* \d+/\d+", m["foes"])},
+                          world=world)
                 if cur and r.n == cur[-1].n:
                     cur[-1] = r
                     continue
                 names = {f[0] for f in r.foes}
                 if cur and (r.n < cur[-1].n or not names & {f[0] for f in cur[-1].foes}):
-                    fights.append(cur)
-                    cur = []
+                    close()
                 cur.append(r)
+                continue
+            z = ZONE.search(line)
+            if z:
+                world = z["world"]
+                continue
+            res = RESISTS.search(line)
+            if res:
+                try:
+                    resist = {} if res["r"] == "nothing" else ast.literal_eval(res["r"])
+                except (ValueError, SyntaxError):
+                    resist = {}
+                profiles[res["name"].strip()] = {"school": res["school"], "resist": resist}
                 continue
             p = PREDICT.search(line)
             if p and cur:
@@ -89,13 +134,15 @@ def read_fights(paths: list[Path]) -> list[list[Round]]:
                     if "=" in kv:
                         i, d = kv.split("=")
                         cur[-1].predict[int(i)] = int(d)
-            if "combat over" in line or "wizard defeated" in line:
+            if "wizard defeated" in line:
                 if cur:
-                    fights.append(cur)
-                cur = []
-    if cur:
-        fights.append(cur)
-    return fights
+                    close(True)
+                elif lost:
+                    lost[-1] = True  # "combat over" came first
+            elif "combat over" in line:
+                close()
+    close()
+    return LogRead(fights, lost, profiles)
 
 
 def measure(fights: list[list[Round]]):
@@ -134,7 +181,8 @@ def measure(fights: list[list[Round]]):
 def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
     """Save what the simulator needs: per enemy its max health, boss flag,
     per-round damage alone and shared; per spell our hit rate."""
-    fights = read_fights(paths)
+    log = read_log(paths)
+    fights = log.fights
     _ours, fizzles, theirs, shared = measure(fights)
     info: dict[str, dict] = {}
     for fight in fights:
@@ -146,8 +194,15 @@ def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
     for name, e in info.items():
         e["alone"] = theirs.get(name, [])
         e["shared"] = [round(x) for x in shared.get(name, [])]
+        e.update(log.profiles.get(name, {}))  # school, resist
     hit_rate = {s: round(1 - sum(xs) / len(xs), 3) for s, xs in fizzles.items() if len(xs) >= 5}
-    data = {"enemies": info, "hit_rate": hit_rate}
+    # The recent fights (the deck search plays against a mix of them).
+    recent = [
+        {"world": f[0].world, "enemies": sorted({n for r in f for n, _h, _m in r.foes}), "lost": lost,
+         "rounds": len(f)}
+        for f, lost in list(zip(fights, log.lost, strict=False))[-RECENT_FIGHTS:]
+    ]
+    data = {"enemies": info, "hit_rate": hit_rate, "fights": recent}
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(data, indent=0), encoding="utf-8")
     return data

@@ -66,7 +66,8 @@ class CombatConfig:
     strategy: Strategy = field(default_factory=Strategy)
     max_discards: int = 4  # per round; the hand refills at the next round, so discards draw new cards
     flee_below: float = 0.0  # 0 disables fleeing
-    rollouts: bool = True  # boss/hard fights: play each move out in the simulator and take the best
+    rollouts: bool = True  # play each move out in the simulator and take the best (not a fight-ending move)
+    adapt_deck: bool = True  # a lost fight: search a deck for those enemies, switch; the general deck after
 
 
 @dataclass

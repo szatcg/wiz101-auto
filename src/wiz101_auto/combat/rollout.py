@@ -23,7 +23,7 @@ from .model import Action, ActionKind, Battle
 ROLLOUTS = 32  # playouts per move (the same random draws for every move)
 TIME_LIMIT = 12.0  # seconds for the whole decision
 MARGIN = 0.03  # a move must beat the brain's by this much (rollout noise)
-MIN_ENEMY_HEALTH = 1500  # fights easier than this (all enemies' health) are left to the brain
+MIN_ENEMY_HEALTH = 0  # all fights (raise it to leave easy ones to the brain)
 
 _STATS: dict | None = None
 
@@ -42,10 +42,22 @@ def _eval_one(battle: Battle, index: int, strat, n: int, seed: int, discards: in
     return index, out.value, out.wins, out.deaths, out.damage
 
 
-def worth_it(battle: Battle) -> bool:
-    """A fight worth the seconds: a boss, or a lot of health to get through."""
+def worth_it(battle: Battle, brain: Action | None = None) -> bool:
+    """Every fight (the player: the simulator picks the fastest win), except
+    when the brain's move ends it now."""
     live = battle.live_enemies
-    return bool(live) and (any(e.is_boss for e in live) or sum(e.health for e in live) >= MIN_ENEMY_HEALTH)
+    if not live or sum(e.health for e in live) < MIN_ENEMY_HEALTH:
+        return False
+    hits = brain is not None and brain.kind is ActionKind.CAST and brain.card is not None
+    if hits and brain.card.is_damage:
+        from .brain import _kills_all
+
+        try:
+            if _kills_all(battle, brain):
+                return False
+        except Exception:
+            pass
+    return True
 
 
 def _same(a: Action, b: Action) -> bool:
@@ -81,7 +93,7 @@ class RolloutPlanner:
         """The brain's move, or a move that plays out clearly better."""
         from . import sim
 
-        if brain.kind not in (ActionKind.CAST, ActionKind.PASS) or not worth_it(battle):
+        if brain.kind not in (ActionKind.CAST, ActionKind.PASS) or not worth_it(battle, brain):
             return brain
         moves = sim.candidates(battle)
         try:  # the last battle planned, to replay offline (state/rollout_battle.pkl)
