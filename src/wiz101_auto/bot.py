@@ -62,6 +62,9 @@ async def close_handler(handler: ClientHandler):
             )
 
 
+WORLD_HOOKS = ("player_struct", "player_stat_struct", "current_client", "current_render_context")
+
+
 async def connect(handler: ClientHandler):
     clients = handler.get_new_clients()
     if not clients:
@@ -72,7 +75,26 @@ async def connect(handler: ClientHandler):
         logger.info(f"{len(clients)} game windows found; using the {'focused' if focused else 'first'} one")
     logger.info("activating hooks (can take a few seconds; move your wizard a step if it stalls)")
     try:
-        await asyncio.wait_for(client.activate_hooks(), timeout=HOOK_TIMEOUT)
+        hooks = client.hook_handler
+        await hooks.activate_all_hooks(wait_for_ready=False)
+        _click_left_of_center(client)
+        # The window hook fills in at character select too (the player hooks
+        # only in the world): a relog cut short left it there, and every
+        # restart then timed out. Press Play first, then wait for the rest.
+        await asyncio.wait_for(hooks._wait_for_value(hooks._base_addrs["current_root_window"], None),
+                               timeout=HOOK_TIMEOUT)
+        from .relog import at_character_select, play_from_character_select
+
+        if await at_character_select(client):
+            async with client.mouse_handler:
+                await play_from_character_select(client)
+        await asyncio.wait_for(
+            asyncio.gather(*(
+                hooks._wait_for_value(hooks._base_addrs[name], None)
+                for name in WORLD_HOOKS
+            )),
+            timeout=HOOK_TIMEOUT,
+        )
     except PatternFailed:
         await close_handler(handler)
         raise SystemExit(
@@ -91,7 +113,6 @@ async def connect(handler: ClientHandler):
     from .safe_teleport import install
 
     install(client)  # every teleport lands clear of enemies (unless meant to start a fight)
-    _click_left_of_center(client)
     return client
 
 
