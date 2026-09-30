@@ -492,6 +492,12 @@ def talk_target(objective: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def locate_target(objective: str) -> str | None:
+    """The one a "Locate Junho Shan in Hametsu Village" objective names."""
+    m = re.match(r"^\s*locate\s+(.+?)(?:\s+in\s+.+)?\s*$", objective, re.I)
+    return m.group(1).strip() if m else None
+
+
 _OPERATE = re.compile(r"^\s*(?:use|pull|push|press|activate|turn|flip)\s+(.+?)(?:\s+in\s+.+)?\s*$", re.I)
 
 
@@ -3885,6 +3891,22 @@ class Quester:
         """'Locate X': the game counts the spot when we walk into it, not when
         a teleport puts us there. Land a little off the marker and walk onto
         it, from each side in turn, until the objective moves on."""
+        # A person to locate (Junho Shan, a few steps from the marker, which
+        # sat on the teleporter beside him): go to them and talk.
+        name = locate_target(objective)
+        if name:
+            pos = await self._npc_named(name, near=await self._position())
+            if pos is not None:
+                logger.info(f"{name} is here: walking up to them")
+                await self.travel(pos, npc=True)
+                await asyncio.sleep(1.0)
+                prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+                if await self.objective() == objective and await is_free(self.client) and "talk" in prompt:
+                    await self.interact(f"Talk To {name}")  # (never the teleporter's 'activate')
+                    await asyncio.sleep(1.5)
+                if await self.objective() != objective or not await is_free(self.client):
+                    logger.success(f"located {name}")
+                    return True
         marker = await self.client.quest_position.position()
         for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
             start = XYZ(marker.x + dx * MARKER_WALK_BACK, marker.y + dy * MARKER_WALK_BACK, marker.z)
