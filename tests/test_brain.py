@@ -1053,3 +1053,17 @@ def test_blade_and_trap_together_when_one_enemy_needs_both():
     action = decide(b)
     assert action.card.name in ("Spirit Blade", "Feint")
     assert "kills 2 of 2" in action.reason
+
+
+def test_holds_cyclops_for_a_humongofrog_that_kills_both_next_round():
+    hand = [
+        Card(0, "Humongofrog", school="myth", pip_cost=4,
+             effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 490)]),
+        Card(1, "Cyclops", school="myth", pip_cost=3,
+             effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 500)]),
+    ]
+    hand[0].castable, hand[1].castable = False, True
+    wizard = Combatant("Me", 852, 1755, is_client=True, school="Myth")
+    b = Battle(me=wizard, allies=[], enemies=[enemy("A", 475), enemy("B", 475)], cards=hand, pips=3)
+    action = decide(b)
+    assert action.card is None or action.card.name != "Cyclops"

@@ -415,6 +415,7 @@ def _group_aoe(battle: Battle) -> Card | None:
 
 GROUP_SUMMON_ROUNDS = 2  # against a group, the minion comes in these first rounds
 AOE_SAVE_HEALTH = 0.5  # above this, pips go to the hit-all spell rather than a single kill
+AOE_SAVE_HEALTH_KILL_ALL = 0.3  # ... down to this when the hit-all (in hand) kills them all next round
 
 
 def _saving_for_aoe(battle: Battle, kill: Action) -> bool:
@@ -422,7 +423,20 @@ def _saving_for_aoe(battle: Battle, kill: Action) -> bool:
     card = kill.card
     if card is None or card.is_aoe or card.pip_cost < 2:
         return False
-    return _group_aoe(battle) is not None and battle.me.health_ratio >= AOE_SAVE_HEALTH
+    aoe = _group_aoe(battle)
+    if aoe is None:
+        return False
+    if battle.me.health_ratio >= AOE_SAVE_HEALTH:
+        return True
+    # Lower health, but the hit-all is in hand, affordable next round and
+    # kills them all then: still worth the round (Cyclops took one of two
+    # Scurriers at 48% health; Humongofrog a round later would take both).
+    have = battle.pips + 2 * battle.power_pips + 1
+    return (
+        battle.me.health_ratio >= AOE_SAVE_HEALTH_KILL_ALL
+        and aoe in battle.cards and have >= aoe.pip_cost
+        and all(hit_damage(aoe, battle.me, e) >= e.health for e in battle.live_enemies)
+    )
 
 
 def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
