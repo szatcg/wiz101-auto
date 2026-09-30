@@ -2951,6 +2951,18 @@ class Quester:
             logger.warning(f"farming {farm.name}: its sigil isn't learned yet; questing instead")
             return False
         self._last_progress_time = time.monotonic()  # farming isn't a stalled quest
+        if self.gear and not await self.client.in_battle():
+            # The loot of the last run (Zeus' chest, fight drops): note and try
+            # it before going back in (farming skipped the gear check entirely).
+            self.controller.allow_idle(600)
+            try:
+                await self.gear.tick()
+            except Exception as exc:
+                logger.opt(exception=exc).warning("gear check failed")
+            finally:
+                self.controller.end_idle()
+            if not await is_free(self.client):
+                return True
         if zone != entry.outside:
             # The Mark stays at the sigil (made before each Team Up): Recall is
             # the way back from another world (no gate route crosses worlds).
