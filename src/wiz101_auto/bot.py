@@ -134,8 +134,8 @@ def _client_origin(hwnd: int, awareness: int):
 
 def window_on_screen(hwnd: int) -> float:
     """Share of the game window's area that lies on some monitor (1.0 if it
-    can't be read). A window dragged mostly off the monitors (it sat below the
-    left one) broke clicks and screenshots."""
+    can't be read). The window once sat below the left monitor (3% on
+    screen): out of the player's sight."""
     import ctypes
     from ctypes import wintypes
 
@@ -247,8 +247,8 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
         info["window_on_screen"] = round(shown, 2)
         if shown < 0.5 and time.monotonic() - last_offscreen_alert > 600:
             last_offscreen_alert = time.monotonic()
-            logger.warning(f"ALERT: the game window is {100 - shown * 100:.0f}% off screen: clicks miss "
-                           "(display-scaling correction) and screenshots come out blank; move it back")
+            logger.warning(f"ALERT: the game window is {100 - shown * 100:.0f}% off screen (you may not see "
+                           "it); the bot still plays, but move it back onto a monitor to watch it")
         try:
             info.update(
                 zone=await client.zone_name(),
