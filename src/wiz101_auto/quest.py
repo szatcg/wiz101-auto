@@ -94,6 +94,7 @@ SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
 MAX_BOOK_PAGES = 30  # the quest book, read to its last page (was 5: quests went missing)
 RANK_QUESTS_EVERY = 120.0  # at most this often: quest-book rankings (on objective changes)
+NO_MAIN_ALERT_SECONDS = 1800.0  # "no main quest in the book" alert at most this often
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
 BOOK_FIELDS = {
@@ -598,6 +599,8 @@ class Quester:
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
         self._background: dict[str, asyncio.Task] = {}  # scans running beside the step
         self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
+        self._no_main_alerted = -1e9  # last "no main quest in the book" alert
+        self._last_main = ""  # the last main-story quest seen in the book
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
@@ -2061,6 +2064,17 @@ class Quester:
                 step += " (counted)" if q.counted else ""
                 logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.zone}/{q.world!r} {q.hops} hops: {step}")
             self._mainline = {q.name for _, q in all_quests if q.mainline}
+            if self._mainline:
+                self._last_main = sorted(self._mainline)[0]
+            alert_due = time.monotonic() - self._no_main_alerted > NO_MAIN_ALERT_SECONDS
+            if complete and not self._mainline and alert_due:
+                # The next main quest isn't in the book (after 'Weights and
+                # Measures', 'The Last Meow' was never offered): side quests
+                # meanwhile, but the player should know.
+                self._no_main_alerted = time.monotonic()
+                after = f" after {self._last_main!r}" if self._last_main else ""
+                logger.warning(f"ALERT: main quest stuck: no main-story quest in the book{after}; "
+                               "its giver wasn't found: doing side quests meanwhile")
             names = {q.name for _, q in all_quests}
             if self._pin_new_from is not None and complete:
                 # Class/spell quests first, then main story ('Mything Persons'
