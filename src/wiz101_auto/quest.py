@@ -2721,6 +2721,12 @@ class Quester:
                 await self.approach_and_walk(door, zone)
                 return True
             if zone == WORLD_TREE:
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    # "World Gate: Press X to Interact" opens the Spiral Map.
+                    logger.info(f"visit {npc}: opening the Spiral Map at the world gate")
+                    await self.client.send_key(Keycode.X, 0.1)
+                    await asyncio.sleep(1.5)
+                    return True
                 gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
                 logger.info(f"visit {npc}: walking into the world gate")
                 here = await self._position()
