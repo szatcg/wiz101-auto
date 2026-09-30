@@ -3250,9 +3250,15 @@ class Quester:
         doors = await self._doors_here(zone)
         doors += [XYZ(e[0][0], e[0][1], last.z) for e in self.doors.doors.get(zone, [])]
         side_room = "/interiors/" in zone.lower()
+        # Never a way out of the dungeon (the Throne Room's teleporter took it
+        # out mid-search): doors known to lead elsewhere, or by a teleporter.
+        exits = await self._entities_named_like(("teleporter",))
+        for e in self.doors.doors.get(zone, []):
+            if len(e) > 2 and e[2] and not is_team_up_zone(e[2]):
+                exits.append(XYZ(e[0][0], e[0][1], 0))
         for door in sorted(doors, key=lambda d: distance(d, last)):
             dkey = (zone, round(door.x / 100), round(door.y / 100))
-            if dkey in self._mate_doors:
+            if dkey in self._mate_doors or any(math.dist((door.x, door.y), (x.x, x.y)) < 400 for x in exits):
                 continue
             if not side_room:
                 self._mate_doors.add(dkey)  # the main area's doors: each once (a room's way out: always)
