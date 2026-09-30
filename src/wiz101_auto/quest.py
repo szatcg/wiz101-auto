@@ -3105,15 +3105,15 @@ class Quester:
                 self._standoff_tries[key] = self._standoff_tries.get(key, 0) + 1
                 if self._standoff_tries[key] > 2 and not at_fight:
                     # Teleporting there gets no closer (off the map, or the way
-                    # on is a gateway): normal travel walks the doors.
-                    return False
+                    # on is a gateway): travel walks the doors.
+                    return await self._team_travel(marker)
                 logger.info(f"heading for the boss; stopping {TEAM_STANDOFF:.0f} short at "
                             f"({stop.x:.0f}, {stop.y:.0f}) (a teammate starts the fight)")
                 await self.client.teleport(stop)
                 await asyncio.sleep(TEAM_WAIT_TICK)
                 return True
             if not at_fight:
-                return False  # a door or passage on the way: normal travel (it starts no fight here)
+                return await self._team_travel(marker)  # a door or passage on the way
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
         elif mates:
             mate = min(mates, key=lambda m: distance(m, me))
@@ -3132,6 +3132,19 @@ class Quester:
         self.controller.allow_idle(TEAM_WAIT_TICK + 10)
         try:
             await asyncio.sleep(TEAM_WAIT_TICK)
+        finally:
+            self.controller.end_idle()
+        return True
+
+    async def _team_travel(self, marker: XYZ) -> bool:
+        """On the way to the boss's room (the Sun Chamber's door): the quest's
+        travel (doors, remembered door walks). The normal step's travel for a
+        fight is off in a team dungeon (it goes onto enemies), so handing over
+        to it left the bot standing at the door."""
+        logger.info(f"heading for the boss's room: to the door at ({marker.x:.0f}, {marker.y:.0f})")
+        self.controller.allow_idle(30)
+        try:
+            await self.travel(marker)
         finally:
             self.controller.end_idle()
         return True
