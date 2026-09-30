@@ -2435,7 +2435,16 @@ class Quester:
         start = await self.client.body.position()
         zone = await self.client.zone_name() or ""
         tries = self.__dict__.setdefault("_known_spot_tries", {})
-        known = self.entity_map.spots(zone, lambda n: matches_item(item, n), (start.x, start.y, start.z))
+        # Not an enemy's name ("Supplies" also matched Otomo Supply Runner):
+        # every enemy fought is in the simulator's stats.
+        from .combat.sim import load_stats
+
+        enemies = set(load_stats().get("enemies", {}))
+
+        def is_item(name: str) -> bool:
+            return name not in enemies and matches_item(item, name)
+
+        known = self.entity_map.spots(zone, is_item, (start.x, start.y, start.z))
         known = spread_points(known, (start.x, start.y, start.z), 800.0)[:KNOWN_SPOTS_FIRST]
         known = [p for p in known if tries.get((objective, tuple(round(v) for v in p)), 0) < KNOWN_SPOT_TRIES]
         if not known:
