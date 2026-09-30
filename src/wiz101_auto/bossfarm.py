@@ -45,6 +45,19 @@ async def backpack_has(client, item: str) -> bool:
     return False
 
 
+async def mobs_named(client) -> list[tuple[str, object]]:
+    """Every enemy loaded now: (display name, position)."""
+    out = []
+    for m in await client.get_mobs():
+        try:
+            t = await m.object_template()
+            code = await t.display_name() if t else ""
+            out.append((await lang_name(client, code) if code else "", await m.location()))
+        except Exception:
+            continue
+    return out
+
+
 async def find_entity_named(client, name: str):
     """Position of an entity whose display (or object) name matches `name`."""
     want = "".join(c for c in name.lower() if c.isalpha())

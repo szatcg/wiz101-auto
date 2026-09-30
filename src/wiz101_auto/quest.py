@@ -142,6 +142,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
+LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close to it
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -191,7 +192,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
-                   "walk_in": 1, "reenter": 1}
+                   "walk_in": 1, "reenter": 1, "lone_wait": 5}
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -3843,6 +3844,24 @@ class Quester:
             return True
         return await self._talk_target_enemy(objective or "") is not None
 
+    async def _lone_target(self, name: str) -> XYZ | None:
+        """The nearest enemy called `name` with no other kind of enemy within
+        LONE_TARGET_CLEARANCE (those would join, or start the fight instead)."""
+        from .bossfarm import mobs_named
+
+        want = "".join(c for c in name.lower() if c.isalpha())
+
+        def is_target(n: str) -> bool:
+            key = "".join(c for c in n.lower() if c.isalpha())
+            return bool(key) and (want in key or key in want)
+
+        mobs = await mobs_named(self.client)
+        targets = [p for n, p in mobs if is_target(n)]
+        others = [p for n, p in mobs if not is_target(n)]
+        me = await self._position()
+        clean = [t for t in targets if all(distance(t, o) > LONE_TARGET_CLEARANCE for o in others)]
+        return min(clean, key=lambda t: distance(t, me)) if clean else None
+
     async def pull_mob(self, objective: str = ""):
         """For defeat objectives: teleport onto the enemy the objective names
         ("Defeat Gobbler Gorger ..."), else the closest mob, to start a fight."""
@@ -3861,6 +3880,16 @@ class Quester:
                     target = name
                     break
             if pos is not None:
+                # Of the ones in view, one with no other enemies by it: landing on
+                # the first Otomo Supply Runner put us among Ronin Keyholders, and
+                # they (not the runner) started six fights in a row.
+                clean = await self._lone_target(target)
+                zone_now = await self.client.zone_name() or ""
+                if clean is None and self._may_try(objective, zone_now, "lone_wait"):
+                    logger.info(f"every {target} in view has other enemies by it; waiting for a clear one")
+                    await asyncio.sleep(3.0)
+                    return
+                pos = clean or pos  # (always in company, like a boss's guards: go anyway)
                 logger.info(f"going after {target} for {objective!r}")
                 allow_engage(self.client)  # this teleport is meant to start the fight
                 await self.client.teleport(pos)
