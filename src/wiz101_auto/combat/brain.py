@@ -596,7 +596,10 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
             if c.target is Target.ENEMY_ALL:
                 moves.append((c, None, "trap", fx, tuple(id(e) for e in enemies)))
                 continue
+            keep_for = prism_target(battle) if not fx[1] else None
             for e in enemies:
+                if keep_for is not None and e.name != keep_for.name:
+                    continue  # Feint (any school) is for the prismed boss, not the adds
                 if not any(s == fx[1] and abs(v - fx[2]) < 0.005 for _k, s, v in e.incoming_effects):
                     moves.append((c, e, "trap", fx, (id(e),)))
     if not moves:
@@ -822,28 +825,64 @@ def _is_prism(card: Card) -> bool:
     return "prism" in card.name.lower() and not card.is_damage
 
 
-def _prism_gain(card: Card, me: Combatant, target: Combatant, hits: list[Card] = ()) -> float:
-    """How much harder our hit lands on `target` once the prism converts it,
-    blades and traps included: myth traps and blades only work on myth hits,
-    so a converted hit loses them (Malletmane: three myth traps up, the
-    storm hit would have done less than the myth one)."""
-    src = card.school.lower()
+PRISM_SCHOOL = "myth"  # our prisms (Myth Prism): a myth hit on the target lands as storm
+
+
+def prism_view(target: Combatant, src: str = PRISM_SCHOOL) -> Combatant:
+    """`target` as our `src` hits see it while our prism waits on it: the hit
+    lands as the opposite school, so the target's resist, traps and shields
+    for that school count, and the `src` ones don't (Meowiarty's Storm Shield
+    cuts the converted hit; our Myth Trap on him doesn't add). Our blades are
+    ours: they still count (they boost the spell as it's cast)."""
     dst = OPPOSITE.get(src)
     if not dst:
+        return target
+    swap = {src: dst, dst: src}
+    resist = None
+    if target.resist is not None:
+        resist = {**target.resist, src: target.resist.get(dst, 0.0), dst: target.resist.get(src, 0.0)}
+    effects = [(k, swap.get(s, s), v) for k, s, v in target.incoming_effects]
+    return dataclasses.replace(target, resist=resist, incoming_effects=effects,
+                               school=swap.get(target.school, target.school), unprismed=target)
+
+
+def _prism_gain(card: Card, me: Combatant, target: Combatant, hits: list[Card] = ()) -> float:
+    """How much harder our best hit lands on `target` once the prism converts
+    it, blades and traps included (prism_view: myth traps on it stop counting,
+    storm shields start to)."""
+    src = card.school.lower()
+    if not OPPOSITE.get(src):
         return 1.0
+    target = target.unprismed or target  # a prism on top of ours: judged on the enemy itself
     own = [c for c in hits if c.is_damage and c.school.lower() == src]
     hit = max(own, key=lambda c: c.base_damage()) if own else Card(
         0, "", school=src, effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 100)]
     )
     before = hit_damage(hit, me, target)
-    after = hit_damage(dataclasses.replace(hit, school=dst), me, target)
+    after = hit_damage(hit, me, prism_view(target, src))
     return after / max(0.01, before)
+
+
+def prism_target(battle: Battle) -> Combatant | None:
+    """The boss our prisms are for (Meowiarty: storm hits him 7x harder than
+    myth), while a prism is in hand or still to come; None otherwise."""
+    prisms = [c for c in [*battle.cards, *battle.upcoming] if _is_prism(c)]
+    if not prisms:
+        return None
+    best, best_gain = None, PRISM_EARLY_GAIN
+    for e in battle.live_enemies:
+        if not e.is_boss:
+            continue
+        gain = _prism_gain(prisms[0], battle.me, e, battle.cards)
+        if gain >= best_gain:
+            best, best_gain = e, gain
+    return best
 
 
 def _prism_useless(card: Card, battle: Battle) -> bool:
     """No enemy in this fight (all of them known) takes enough extra from the
     converted school: the prism will never be played here."""
-    enemies = battle.live_enemies
+    enemies = [e.unprismed or e for e in battle.live_enemies]
     if not enemies or any(e.resist is None and not e.school for e in enemies):
         return False
     return all(_prism_gain(card, battle.me, e, battle.cards) < PRISM_GAIN for e in enemies)
@@ -872,8 +911,9 @@ def _stun_action(battle: Battle, strat: Strategy | None = None) -> Action | None
 
 def _prism_action(battle: Battle) -> Action | None:
     """A prism (Myth Prism: myth -> storm) on an enemy our hit would land much
-    harder on once converted, counting blades and traps (myth ones don't work
-    on the converted hit). Once per enemy per fight: a second one adds nothing.
+    harder on once converted, counting blades and traps (myth traps don't work
+    on the converted hit). Not on one whose last prism our hits haven't used
+    yet (battle.prismed); after that hit, again (Meowiarty takes several).
     Not when nearly dead (a Myth Prism at 7 health against Meowiarty)."""
     me = battle.me
     if me.health_ratio < DESPERATE_HEALTH:
@@ -1330,6 +1370,22 @@ def out_of_attacks(battle: Battle) -> bool:
 
 
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
+    """The action for this step, with enemies holding our unused prism seen
+    as our hits will find them (prism_view): the big myth hit is worth its
+    storm damage on Meowiarty. The target maps back to the real enemy."""
+    if not battle.prismed:
+        return _decide_step(battle, strat, discards_left=discards_left)
+    real = list(battle.enemies)
+    seen = [prism_view(e) if e.name in battle.prismed and not e.is_dead else e for e in real]
+    action = _decide_step(replace(battle, enemies=seen), strat, discards_left=discards_left)
+    for r, v in zip(real, seen, strict=True):
+        if action.target is v:
+            action = replace(action, target=r)
+            break
+    return action
+
+
+def _decide_step(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
     """The action for this step. Instead of a pass (saving pips, holding a hit)
     a 0-pip card is played, since it costs nothing we're saving: a hit that
     breaks an enemy's shield, else a blade or trap, else a harmless hit."""

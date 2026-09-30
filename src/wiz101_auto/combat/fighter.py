@@ -471,7 +471,13 @@ class Fighter(CombatHandler):
 
             target = snap.members.get(id(action.target)) if action.target else None
             if "prism" in action.card.name.lower() and action.target:
-                self._prismed.add(action.target.name)  # it stays on them: one per enemy
+                self._prismed.add(action.target.name)  # waits on them for our next myth hit
+            elif action.card.is_damage and action.card.school.lower() == "myth":
+                # That hit uses the prism (a hit-all: on every enemy it lands on).
+                if action.card.is_aoe:
+                    self._prismed.clear()
+                elif action.target:
+                    self._prismed.discard(action.target.name)
             if EffectKind.SUMMON in action.card.kinds:
                 self._summons += 1
             self._gone[_deck_name(action.card)] += 1

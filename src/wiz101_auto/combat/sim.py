@@ -13,11 +13,10 @@ and spells fizzle now and then. Rough, but it ranks strategies.
 
 from __future__ import annotations
 
-import dataclasses
 import random
 from dataclasses import dataclass, field
 
-from .brain import Strategy, _is_prism, _pay, decide, hit_damage
+from .brain import Strategy, _is_prism, _pay, decide, hit_damage, prism_view
 from .model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
 
 HAND = 7
@@ -155,13 +154,15 @@ def _apply_hit(f: Fight, c: Card, targets: list[Combatant], rng: random.Random):
     for t in targets:
         school = c.school
         spell = c
+        seen, used = t, spell.school
         if t.name in f.prism_on and school == "myth":  # a hit-all too (the frog)
-            spell = dataclasses.replace(c, school="storm")
+            # Lands as storm: storm traps/shields and resist; our blades still count.
+            seen, used = prism_view(t, "myth"), "storm"
             f.prism_on.discard(t.name)
-        dmg = hit_damage(spell, f.me, t)
+        dmg = hit_damage(spell, f.me, seen)
         t.health = max(0, t.health - int(dmg))
         t.is_dead = t.health <= 0
-        t.incoming_effects = _use_up(t.incoming_effects, spell.school)
+        t.incoming_effects = _use_up(t.incoming_effects, used)
         if EffectKind.STEAL in c.kinds:
             f.me.health = min(f.me.max_health, f.me.health + int(dmg / 2))
     f.me.outgoing_effects = _use_up(f.me.outgoing_effects, c.school)
@@ -296,7 +297,7 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
         while True:
             allies = [f.minion] if f.minion and f.minion.health > 0 else []
             b = Battle(me=f.me, allies=allies, enemies=f.enemies, cards=f.hand, pips=f.pips,
-                       power_pips=f.power, round=rnd, prismed=set(f.prismed), summoned=f.summoned,
+                       power_pips=f.power, round=rnd, prismed=set(f.prism_on), summoned=f.summoned,
                        upcoming=list(f.deck), deck_known=True)
             if not b.live_enemies:
                 return True, rnd

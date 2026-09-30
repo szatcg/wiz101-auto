@@ -109,3 +109,9 @@ def test_only_the_newest_minion_stays():
     deck = ["Minion Myth 000"] * 3 + ["Minion Myth 001"] * 3
     assert cards_to_remove(plan.totals, deck) == [("Minion Myth 000", 3)]
     assert minion_rank("Minion Myth 001") > minion_rank("Minion Myth 000")
+
+
+def test_parse_deck_spec():
+    from wiz101_auto.deck import parse_deck_spec
+
+    assert parse_deck_spec("Minotaur=4, Myth Prism=5,") == {"Minotaur": 4, "Myth Prism": 5}

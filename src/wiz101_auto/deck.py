@@ -218,6 +218,62 @@ async def add_cards_by_clicks(client, builder, name: str, copies: int) -> int:
     return added
 
 
+async def _remove_cards(client, builder, name: str, copies: int) -> int:
+    """Take `copies` of `name` out of the deck by clicking them in the deck
+    list, re-reading it after each click (the list shifts). Returns how many."""
+    removed = 0
+    for _ in range(copies):
+        names = await _log_current_deck(client, builder, quiet=True) or []
+        if name not in names:
+            break
+        cells = builder.divide_rectangle(await builder.get_deck_list_rectangle(), columns=8, rows=8)
+        r = cells[names.index(name)]
+        await client.mouse_handler.click(int(r.x1 + (r.x2 - r.x1) * 0.25), int((r.y1 + r.y2) / 2))
+        await asyncio.sleep(0.6)
+        after = await _log_current_deck(client, builder, quiet=True) or []
+        if after.count(name) >= names.count(name):
+            logger.warning(f"deck: removing {name} didn't take; leaving the rest")
+            break
+        removed += 1
+        logger.info(f"deck: removed a {name}")
+    return removed
+
+
+def parse_deck_spec(spec: str) -> dict[str, int]:
+    """"Minotaur=4, Myth Prism=5" -> {"Minotaur": 4, "Myth Prism": 5}."""
+    out: dict[str, int] = {}
+    for part in spec.split(","):
+        if not part.strip():
+            continue
+        name, _, n = part.rpartition("=")
+        out[name.strip()] = int(n)
+    return out
+
+
+async def set_deck(client, want: dict[str, int]) -> dict[str, int]:
+    """Make the deck exactly `want` (spell -> copies; anything not listed goes):
+    removals first (room for the adds), then adds, all by clicks. Returns
+    the deck as read at the end."""
+    await open_spellbook(client)
+    try:
+        builder = await _attach_builder(client)
+        names = await _log_current_deck(client, builder) or []
+        for name in dict.fromkeys(names):
+            extra = names.count(name) - want.get(name, 0)
+            if extra > 0:
+                await _remove_cards(client, builder, name, extra)
+        names = await _log_current_deck(client, builder, quiet=True) or []
+        for name, n in want.items():
+            if n > names.count(name):
+                await add_cards_by_clicks(client, builder, name, n - names.count(name))
+                await asyncio.sleep(0.3)
+        await asyncio.sleep(1.5)
+        final = await _log_current_deck(client, builder) or []
+        return {n: final.count(n) for n in dict.fromkeys(final)}
+    finally:
+        await close_spellbook(client)
+
+
 async def add_to_deck(client, name: str, copies: int) -> int:
     """Open the spellbook's deck page, add `copies` of `name` by clicks, close it."""
     await open_spellbook(client)
@@ -760,19 +816,8 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
     # Remove what the plan dropped (e.g. an older minion) one card at a time,
     # re-reading the deck after each click since the list shifts.
     for name, copies in removals:
-        for _ in range(copies):
-            names = await _log_current_deck(client, builder, quiet=True) or []
-            if name not in names:
-                break
-            cells = builder.divide_rectangle(await builder.get_deck_list_rectangle(), columns=8, rows=8)
-            r = cells[names.index(name)]
-            await client.mouse_handler.click(int(r.x1 + (r.x2 - r.x1) * 0.25), int((r.y1 + r.y2) / 2))
-            await asyncio.sleep(0.6)
-            after = await _log_current_deck(client, builder, quiet=True) or []
-            if after.count(name) >= names.count(name):
-                logger.warning(f"deck: removing {name} didn't take; leaving the rest")
-                break
-            logger.info(f"deck: removed a {name}")
+        if await _remove_cards(client, builder, name, copies) < copies:
+            break
     deck_names = await _log_current_deck(client, builder, quiet=True) or deck_names
 
     # Add only what's missing (new spells, extra copies). Never clear first: if

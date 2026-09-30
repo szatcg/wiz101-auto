@@ -128,6 +128,8 @@ class Combatant:
     # same spell apart from different spells; school "" means every school.
     incoming_effects: list[tuple[str, str, float]] = field(default_factory=list)  # traps/shields
     outgoing_effects: list[tuple[str, str, float]] = field(default_factory=list)  # blades/weaknesses
+    # Set on the brain's prism view of an enemy: the enemy as it really is.
+    unprismed: Combatant | None = field(default=None, repr=False, compare=False)
 
     @property
     def health_ratio(self) -> float:

@@ -1130,3 +1130,38 @@ def test_stun_the_boss_once_hurt():
     b = _meowiarty_battle([stun, dmg_card(1, "Minor Fire Scorch", 90, pips=0)], hp=1700)
     b.round = 5
     assert decide(b, discards_left=0).card.name != "Stun"
+
+
+def test_prism_view_lands_myth_as_storm_and_keeps_our_blades():
+    from wiz101_auto.combat.brain import hit_damage, prism_view
+
+    boss = enemy("Meowiarty", 2000, school="myth", resist={"myth": 0.8, "storm": -0.5},
+                 incoming_effects=[("spell:1", "storm", -0.7), ("spell:2", "myth", 0.3)])
+    bladed = me(outgoing_effects=[("spell:3", "myth", 0.35)])
+    hit = myth_hit(0, pips=4)
+    plain = hit_damage(hit, bladed, boss)  # myth: 80% resist, myth trap +30%
+    seen = prism_view(boss)
+    prismed = hit_damage(hit, bladed, seen)  # storm: +50%, storm shield -70%, blade kept
+    assert seen.resist["myth"] == -0.5 and seen.school == "storm"
+    assert abs(prismed / plain - (1.35 * 0.3 * 1.5) / (1.35 * 1.3 * 0.2)) < 0.01
+
+
+def test_prism_again_once_the_last_one_is_used():
+    boss = enemy("Meowiarty", 2000, school="myth", resist={"myth": 0.8, "storm": -0.5})
+    cards = [myth_prism(0), myth_hit(1, pips=4, castable=False)]
+    b = battle(cards, [boss])
+    b.pips = 2
+    b.prismed = {"Meowiarty"}  # still waiting on him: not a second one
+    assert not (decide(b).card and decide(b).card.name == "Myth Prism")
+    b.prismed = set()  # our hit used it: prism him again
+    a = decide(b)
+    assert a.card.name == "Myth Prism" and a.target is boss
+
+
+def test_a_prismed_boss_is_hit_with_the_big_myth_spell():
+    boss = enemy("Meowiarty", 2000, school="myth", resist={"myth": 0.8, "storm": -0.5})
+    b = battle([myth_hit(0, pips=4)], [boss])
+    b.pips = 4
+    b.prismed = {"Meowiarty"}
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.target is boss  # the real enemy, not the view

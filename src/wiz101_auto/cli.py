@@ -120,6 +120,8 @@ def main(argv: list[str] | None = None):
     deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
     deck_p.add_argument("--add", default=None, help="add this spell to the deck (clicks only; bot stopped)")
     deck_p.add_argument("--copies", type=int, default=1)
+    deck_p.add_argument("--set", default=None, dest="deck_set",
+                        help='make the deck exactly this: "Minotaur=4, Myth Prism=5" (bot stopped)')
 
     gear_p = sub.add_parser("gear", help="try every backpack item per slot and keep the best (bot stopped)")
     gear_p.add_argument("-c", "--config", default=None)
@@ -267,7 +269,9 @@ def main(argv: list[str] | None = None):
 
     if args.command == "deck":
         _setup_logging(None, True)
-        if args.add:
+        if args.deck_set:
+            asyncio.run(_deck_set(args.deck_set))
+        elif args.add:
             asyncio.run(_deck_add(args.add, args.copies))
         else:
             asyncio.run(_deck(cfg, args.apply))
@@ -334,6 +338,24 @@ async def _deck_add(name: str, copies: int):
         async with client.mouse_handler:
             added = await add_to_deck(client, name, copies)
         print(f"added {added} of {copies} {name}")
+    finally:
+        await close_handler(handler)
+
+
+async def _deck_set(spec: str):
+    from .bot import close_handler, connect, new_handler
+    from .deck import parse_deck_spec, set_deck
+
+    want = parse_deck_spec(spec)
+    handler = new_handler()
+    try:
+        client = await connect(handler)
+        async with client.mouse_handler:
+            got = await set_deck(client, want)
+        print("deck now: " + ", ".join(f"{n} x{c}" for n, c in got.items()))
+        short = {n: c - got.get(n, 0) for n, c in want.items() if got.get(n, 0) < c}
+        if short:
+            print("short of the plan: " + ", ".join(f"{n} x{c}" for n, c in short.items()))
     finally:
         await close_handler(handler)
 
