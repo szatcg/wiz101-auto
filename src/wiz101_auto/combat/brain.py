@@ -115,16 +115,16 @@ def effect_multiplier(effects: list[tuple[str, str, float]], fallback: float, sc
 def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     """Damage if the spell lands: base damage with blades/weaknesses on the
     attacker, traps/shields on the target, and school resist/bonus. A spell
-    that hits twice (Minotaur: 50, then 445) spends every blade and trap on
-    its first hit: the second gets only the school multiplier (a Feint under
-    a Minotaur boosts the 50)."""
+    that hits twice (Minotaur: 50, then 445): our blades boost both hits, but
+    the target's traps and shields break on the first (a Feint under a
+    Minotaur boosts only the 50)."""
     blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
     trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
     school = school_multiplier(card, attacker, target)
     hits = [e.value for e in card.effects if e.kind in DAMAGE_KINDS]
     if len(hits) <= 1:
         return max(0.0, card.base_damage() * blade * trap * school)
-    return max(0.0, (hits[0] * blade * trap + sum(hits[1:])) * school)
+    return max(0.0, (hits[0] * trap + sum(hits[1:])) * blade * school)
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:

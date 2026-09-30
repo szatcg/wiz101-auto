@@ -1167,7 +1167,7 @@ def test_a_prismed_boss_is_hit_with_the_big_myth_spell():
     assert a.kind is ActionKind.CAST and a.target is boss  # the real enemy, not the view
 
 
-def test_a_two_hit_spell_spends_traps_and_blades_on_its_first_hit():
+def test_a_two_hit_spell_breaks_traps_on_its_first_hit_blades_boost_both():
     from wiz101_auto.combat.brain import hit_damage
 
     hits = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, v) for v in (50, 445)]
@@ -1176,3 +1176,5 @@ def test_a_two_hit_spell_spends_traps_and_blades_on_its_first_hit():
     bare = enemy("Brute", 2000)
     assert hit_damage(mino, me(), bare) == 495
     assert abs(hit_damage(mino, me(), feinted) - (50 * 1.7 + 445)) < 0.01  # the Feint boosts only the 50
+    bladed = me(outgoing_effects=[("spell:blade", "myth", 0.35)])
+    assert abs(hit_damage(mino, bladed, feinted) - (50 * 1.7 + 445) * 1.35) < 0.01  # the blade boosts both
