@@ -53,8 +53,8 @@ PARTY_ON_SIGIL = 2
 SIGIL_RADIUS = 300.0  # a player this near the sigil's center is standing on it
 SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
 SIGIL_COUNTDOWN_WAIT = 15.0
-SIGIL_STEP_BACK = 350.0  # stepping onto the sigil: land this far off it, then walk on
-SIGIL_CHECK_EVERY = 30.0  # while waiting: make sure we're still on the sigil this often
+SIGIL_STEP_BACK = 300.0  # stepping onto the sigil: land this far off it, then walk on
+SIGIL_CHECK_EVERY = 60.0  # while waiting: make sure we're still on the sigil this often
 SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
 NO_PLAYERS_SWITCH = 5 * 60  # nobody near the sigil this long while queued: switch realm
 SIGIL_AREA = 1500.0  # "near the sigil": players around here may be coming to go in
@@ -109,29 +109,35 @@ async def on_sigil(client) -> bool:
     return "enter" in (await ui.text_at(client, ui.NPC_RANGE_TEXT)).lower()
 
 
-async def step_onto_sigil(client, center) -> bool:
+async def step_onto_sigil(client, center, far_spot=None) -> bool:
     """Not on the sigil (it came back from a run standing beside it, and every
-    X for a party went nowhere): land a little off it and walk on, like a
-    player. True once the prompt shows."""
+    X for a party went nowhere): the prompt only comes back after leaving the
+    sigil's (large) area, so go somewhere far (`far_spot`: the quester's), land
+    short of the sigil and walk on, like a player. True once the prompt shows."""
     from wizwalker import XYZ
 
     if await on_sigil(client):
         return True
-    me = await client.body.position()
-    dx, dy = me.x - center.x, me.y - center.y
+    logger.info("team up: not on the sigil (no prompt); leaving its area and stepping back on")
+    away = await far_spot(center) if far_spot else XYZ(center.x + 2000, center.y, center.z)
+    await client.teleport(away)
+    await asyncio.sleep(1.5)
+    dx, dy = away.x - center.x, away.y - center.y
     back = SIGIL_STEP_BACK / (math.hypot(dx, dy) or 1.0)
-    logger.info("team up: not on the sigil (no prompt); stepping onto it")
     await client.teleport(XYZ(center.x + dx * back, center.y + dy * back, center.z))
-    await asyncio.sleep(0.6)
+    await asyncio.sleep(1.0)
     await client.goto(center.x, center.y)
     for _ in range(10):
         await asyncio.sleep(0.3)
         if await on_sigil(client):
             return True
+    shown = await ui.is_visible(client, ui.NPC_RANGE)
+    text = await ui.text_at(client, ui.NPC_RANGE_TEXT) if shown else ""
+    logger.warning(f"team up: still no sigil prompt (prompt window shown: {shown}, text {text!r})")
     return False
 
 
-async def _join_party_on_sigil(client, zone: str, center, last_press: list[float]) -> bool:
+async def _join_party_on_sigil(client, zone: str, center, last_press: list[float], far_spot=None) -> bool:
     """Two or more players on the sigil: press X once and stand still through
     the countdown so we go in with them. True once in the dungeon."""
     from wizwalker import Keycode
@@ -143,7 +149,7 @@ async def _join_party_on_sigil(client, zone: str, center, last_press: list[float
     if on < PARTY_ON_SIGIL:
         return False
     last_press[0] = time.monotonic()
-    if not await step_onto_sigil(client, center):
+    if not await step_onto_sigil(client, center, far_spot):
         logger.warning("team up: couldn't get the sigil's prompt; not pressing X")
         return False
     # The sigil's party beats the queue: close the Team Up screen first.
@@ -332,11 +338,11 @@ async def team_up(quester, dungeon: str) -> str:
         last_sigil_check = 0.0
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
-            if await _join_party_on_sigil(client, zone, center, last_press):
+            if await _join_party_on_sigil(client, zone, center, last_press, quester._far_spot):
                 return "in"
             if time.monotonic() - last_sigil_check > SIGIL_CHECK_EVERY:
                 last_sigil_check = time.monotonic()
-                await step_onto_sigil(client, center)
+                await step_onto_sigil(client, center, quester._far_spot)
             if USE_QUEUE and time.monotonic() - last_requeue > REQUEUE_EVERY:
                 # Not queued (a cooldown showed "TEAM UP! IN 05:51"): once the
                 # sigil offers TEAM UP! again, queue.
