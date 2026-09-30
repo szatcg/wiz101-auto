@@ -129,16 +129,13 @@ class DeckAdapter:
         if not want:
             return False
         deck, why = want
-        from .combat import sim
-        from .combat.deckopt import SIM_NAMES
         from .deck import set_deck
 
-        def unknown(name: str) -> bool:  # a card the simulator can't judge: the player's to keep
-            return SIM_NAMES.get(name, name) not in sim.CARDS
-
+        # Everything outside the plan goes, spells the game put in by itself
+        # when learned (Blinding Light) included: the player's call.
         logger.info(f"deck: switching to the {why}: {deck}")
         try:
-            got = await set_deck(client, deck, keep=unknown)
+            got = await set_deck(client, deck)
         except Exception as exc:
             logger.warning(f"deck: couldn't switch ({exc!r})")
             return False
