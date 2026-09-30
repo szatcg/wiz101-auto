@@ -246,6 +246,8 @@ class QuestGivers:
         me = await self.client.body.position()
         mobs = await mob_positions(self.client)
         wanted = self.wanted_givers(zone)
+        guide = self._guides.get(zone.split("/", 1)[0]) or []
+        listed = {norm(q.giver) for q in guide}  # givers the player's list knows about
         out = []
         for e in await self.client.get_base_entity_list():
             try:
@@ -256,11 +258,16 @@ class QuestGivers:
                 display = await lang_name(self.client, code) if code else ""
                 if not display or self._asked_recently(zone, display) or norm(display) in SKIP_GIVERS:
                     continue
-                if wanted is not None and norm(display) not in wanted:
-                    continue  # the guide says they have nothing left for us
+                who = norm(display)
+                if wanted is not None and who in listed and who not in wanted:
+                    continue  # the list says they have nothing left for us
                 pos = await e.location()
                 d = math.dist((pos.x, pos.y), (me.x, me.y))
                 if d > reach:
+                    continue
+                if wanted is not None and who not in listed and d > GIVER_RANGE:
+                    # Not on the (partial) list: asked when passing close, not
+                    # sought out (a Hametsu Village giver was walked past).
                     continue
                 if not is_named_npc(await template.object_name(), display, await e.list_behavior_names()):
                     continue
