@@ -79,27 +79,71 @@ class EntityMap:
             pass
 
 
+# Doors placed from the logs (the bot walked them): known before any walk.
+# zone -> [(door x, y), (approach x, y, z), destination zone]
+KNOWN_DOORS = {
+    "Aquila/AQ_Z01_MountOlympus": [
+        [[6681, 8306], [6523, 8137, -10], "Aquila/Interiors/AQ_Z01_Apollo_Room"],  # the Sun Chamber
+        [[-6687, 8305], [-6438, 7969, -10], "Aquila/Interiors/AQ_Z01_ArtemusRoom"],  # the Moon Chamber
+        [[3, 13710], [98, 13499, -1291], "Aquila/Interiors/AQ_Z01_HallOfWatchfulEye"],
+    ],
+}
+
+
 class DoorMemory:
-    """zone -> [(door x, y), (approach x, y, z)]: where walking in worked."""
+    """zone -> [(door x, y), (approach x, y, z), destination zone or None]:
+    where walking in worked, and where it led (so a boss's room can be routed
+    to through known doors instead of guessed at)."""
 
     def __init__(self, path: Path = DOOR_FILE):
         self.path = path
-        self.doors: dict[str, list[list[list[float]]]] = {}
+        self.doors: dict[str, list[list]] = {}
         try:
             self.doors = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
+        for zone, entries in KNOWN_DOORS.items():
+            for door, spot, dest in entries:
+                mine = next((e for e in self.doors.get(zone, []) if _dist(e[0], door) < DOOR_MATCH), None)
+                if mine is None:
+                    self.doors.setdefault(zone, []).append([door, spot, dest])
+                elif len(mine) < 3 or not mine[2]:
+                    mine[2:] = [dest]
 
     def approach(self, zone: str, door: Point) -> Point | None:
-        for (dx, dy), spot in self.doors.get(zone, []):
-            if _dist((dx, dy), door) < DOOR_MATCH:
-                return tuple(spot)
+        for e in self.doors.get(zone, []):
+            if _dist(e[0], door) < DOOR_MATCH:
+                return tuple(e[1])
         return None
 
-    def record(self, zone: str, door: Point, start: Point):
+    def leading_to(self, zone: str, dest: str) -> list[tuple[Point, Point]]:
+        """(door, approach) of this zone's known doors into `dest`."""
+        return [(tuple(e[0]), tuple(e[1])) for e in self.doors.get(zone, []) if len(e) > 2 and e[2] == dest]
+
+    def route(self, start: str, dest: str) -> list[tuple[str, Point, Point, str]]:
+        """The shortest chain of known doors from `start` to `dest`: (zone,
+        door, approach, next zone) per hop; [] when none is known."""
+        from collections import deque
+
+        queue = deque([(start, [])])
+        seen = {start}
+        while queue:
+            zone, path = queue.popleft()
+            if zone == dest:
+                return path
+            for e in self.doors.get(zone, []):
+                nxt = e[2] if len(e) > 2 else None
+                if nxt and nxt not in seen:
+                    seen.add(nxt)
+                    queue.append((nxt, path + [(zone, tuple(e[0]), tuple(e[1]), nxt)]))
+        return []
+
+    def record(self, zone: str, door: Point, start: Point, dest: str | None = None):
+        old = next((e for e in self.doors.get(zone, []) if _dist(e[0], door) < DOOR_MATCH), None)
+        dest = dest or (old[2] if old and len(old) > 2 else None)
         entries = [e for e in self.doors.get(zone, []) if _dist(e[0], door) >= DOOR_MATCH]
         spot = [round(start[0]), round(start[1]), round(start[2])]
-        entries.append([[round(door[0]), round(door[1])], spot])
+        entries.append([[round(door[0]), round(door[1])], spot, dest])
         self.doors[zone] = entries
         try:
             self.path.parent.mkdir(exist_ok=True)

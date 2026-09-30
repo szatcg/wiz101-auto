@@ -846,7 +846,8 @@ class Quester:
             last = now
         if await self._zone_changed(zone):
             if zone:
-                self.doors.record(zone, (target.x, target.y, target.z), (pos.x, pos.y, pos.z))
+                self.doors.record(zone, (target.x, target.y, target.z), (pos.x, pos.y, pos.z),
+                                  await self.client.zone_name() or None)
             return True
         return False
 
@@ -2768,7 +2769,7 @@ class Quester:
             return
         key = (old_marker.x, old_marker.y, old_marker.z)
         if self.doors.approach(old_zone, key) is None:
-            self.doors.record(old_zone, key, (spot.x, spot.y, spot.z))
+            self.doors.record(old_zone, key, (spot.x, spot.y, spot.z), zone)
             logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
 
     async def _visit_npc(self) -> bool:
@@ -3137,16 +3138,41 @@ class Quester:
         return True
 
     async def _team_travel(self, marker: XYZ) -> bool:
-        """On the way to the boss's room (the Sun Chamber's door): the quest's
-        travel (doors, remembered door walks). The normal step's travel for a
-        fight is off in a team dungeon (it goes onto enemies), so handing over
-        to it left the bot standing at the door."""
+        """On the way to the boss's room (the Sun Chamber's door): through the
+        known doors to its room if the boss's room is known (boss -> room from
+        dungeons.json, doors -> rooms from doors.json), else the quest's travel
+        (doors, remembered door walks). The normal step's travel for a fight is
+        off in a team dungeon (it goes onto enemies), so handing over to it
+        left the bot standing at the door."""
+        if await self._walk_to_boss_room():
+            return True
         logger.info(f"heading for the boss's room: to the door at ({marker.x:.0f}, {marker.y:.0f})")
         self.controller.allow_idle(30)
         try:
             await self.travel(marker)
         finally:
             self.controller.end_idle()
+        return True
+
+    async def _walk_to_boss_room(self) -> bool:
+        """The fight step's boss has a known room and a known chain of doors
+        leads there: walk the first door. True if it went (or tried)."""
+        target = defeat_target(await self.objective() or "")
+        room = DungeonMemory.load().bosses.get(target) if target else None
+        zone = await self.client.zone_name() or ""
+        if not room or room == zone:
+            return False
+        hops = self.doors.route(zone, room)
+        if not hops:
+            return False
+        _z, door, spot, nxt = hops[0]
+        logger.info(f"to {target}'s room: through the door at ({door[0]:.0f}, {door[1]:.0f}) into "
+                    f"{nxt.split('/')[-1]}")
+        await self.client.teleport(XYZ(*spot))
+        await asyncio.sleep(TELEPORT_SETTLE)
+        if await self._zone_changed(zone):
+            return True
+        await self.walk_through(XYZ(door[0], door[1], spot[2]), zone)
         return True
 
     async def _after_team_through_door(self) -> bool:
@@ -3186,10 +3212,10 @@ class Quester:
             now = await self.client.zone_name() or ""
             if now != zone:
                 logger.success(f"followed the team into {now}")
-                self.doors.record(zone, (ahead.x, ahead.y, ahead.z), (start.x, start.y, start.z))
+                self.doors.record(zone, (ahead.x, ahead.y, ahead.z), (start.x, start.y, start.z), now)
             return True
         doors = await self._doors_here(zone)
-        doors += [XYZ(d[0], d[1], last.z) for d, _spot in self.doors.doors.get(zone, [])]
+        doors += [XYZ(e[0][0], e[0][1], last.z) for e in self.doors.doors.get(zone, [])]
         side_room = "/interiors/" in zone.lower()
         for door in sorted(doors, key=lambda d: distance(d, last)):
             dkey = (zone, round(door.x / 100), round(door.y / 100))

@@ -60,3 +60,21 @@ def test_a_dungeons_rooms_share_its_area():
     first = "Marleybone/MB_BigBen/MB_CounterweightEast"
     assert in_same_area("Marleybone/MB_BigBen/MB_CounterweightWest", first)
     assert not in_same_area("Marleybone/MB_Station/MB_HydePark", first)
+
+
+def test_door_memory_routes_through_known_doors(tmp_path):
+    from wiz101_auto.entitymap import DoorMemory
+
+    mem = DoorMemory(tmp_path / "doors.json")
+    main = "Aquila/AQ_Z01_MountOlympus"
+    hall = "Aquila/Interiors/AQ_Z01_HallOfWatchfulEye"
+    forge = "Aquila/Interiors/AQ_Z01_HephaestusForge"
+    # seeded: the Sun Chamber door
+    assert mem.route(main, "Aquila/Interiors/AQ_Z01_Apollo_Room")[0][1] == (6681, 8306)
+    mem.record(hall, (8, 5068), (7, 4479, 200), forge)
+    hops = mem.route(main, forge)
+    assert [h[3] for h in hops] == [hall, forge]
+    assert mem.route(main, "Nowhere") == []
+    # an old two-element entry still answers approach()
+    mem.doors["Old"] = [[[0, 0], [10, 10, 0]]]
+    assert mem.approach("Old", (5, 5, 0)) == (10, 10, 0)
