@@ -21,6 +21,7 @@ from .dungeons import DungeonMemory
 from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading, wait_until_free
 
+RETURN_RECALL_TRIES = 2  # a heal trip's failed Recall back: tries before walking
 DUNGEON_MANA_TRIP = 0.3  # inside a dungeon, leave to refill mana only below this
 DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
 HEAL_TRIES = 4  # recover() rounds on a heal trip (a fight can cut one short)
@@ -107,9 +108,20 @@ class DungeonHealer:
             return False
         if not await is_free(self.client):
             return False
+        fails = getattr(self, "_return_fails", 0)
+        if fails >= RETURN_RECALL_TRIES:
+            # Recall keeps failing (it looped every 25 s for 5 minutes): walk.
+            logger.warning(f"Recall to {zone} failed {fails} times; walking back instead")
+            self.return_to = ""
+            self._return_fails = 0
+            await self.q.go_to_zone(zone)
+            return True
         logger.info(f"back to the marked spot in {zone} (the heal trip's Recall failed before)")
         if await self.q._recall(zone, "the marked spot"):
             self.return_to = ""
+            self._return_fails = 0
+        else:
+            self._return_fails = fails + 1
         return True
 
     async def trip(self, zone: str, why: str, mark: bool = True) -> bool:
