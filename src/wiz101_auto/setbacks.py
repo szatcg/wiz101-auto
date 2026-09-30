@@ -17,8 +17,9 @@ DEFEATS_TO_DEFER = 2  # side quests
 MAIN_DEFEATS_TO_DEFER = 5  # main-story objectives: fights have variance, keep trying
 DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
-# never ends for the bot and gives no XP.
-ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry"})
+# never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
+# be found (nor interacted with).
+ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry", "Stray Cat Strut"})
 
 
 @dataclass

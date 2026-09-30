@@ -140,10 +140,7 @@ TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fi
 TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
 # Where hard-to-find things are, from the player: item (letters only, lower
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
-FIND_HINTS = {
-    # "Face the door of the Knight's Tower and look to the left of its sigil."
-    "knightscourtcat": ("Marleybone/MB_ScotlandYard/MB_KnightsCourt", (381.0, 7335.0, -479.0), 700.0),
-}
+FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue

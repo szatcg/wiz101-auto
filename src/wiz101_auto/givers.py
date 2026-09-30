@@ -59,6 +59,9 @@ def is_named_npc(object_name: str, display: str, behaviors: list[str]) -> bool:
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
 
 GUIDE_DIR = Path("docs") / "sidequests"
+# Never asked for quests (the player's call): Prospector Zeke's are hunts for
+# hidden things (Stray Cat Strut's cats) the bot can't find.
+SKIP_GIVERS = frozenset({"prospectorzeke"})
 COMPLETED_PATH = Path("docs") / "CompletedQuests.txt"
 BOOK_PATH = Path("state") / "quest_book.json"
 _QUEST_LINE = re.compile(r"^\*?\s*(?P<name>[^(]+?)\s*\(\s*\d+\s*(gold|xp)", re.I)
@@ -128,6 +131,8 @@ def pending_givers(guide: list[GuideQuest], have: set[str], done: set[str]) -> d
     done |= {q.name for q in story[:reached]}
     out: dict[str, list[str]] = {}
     for q in guide:
+        if norm(q.giver) in SKIP_GIVERS:
+            continue
         if known(q.name, have) or known(q.name, done):
             continue
         if q.after and known(q.after, names) and not known(q.after, done):
@@ -227,7 +232,7 @@ class QuestGivers:
                     continue
                 code = await template.display_name()
                 display = await lang_name(self.client, code) if code else ""
-                if not display or self._asked_recently(zone, display):
+                if not display or self._asked_recently(zone, display) or norm(display) in SKIP_GIVERS:
                     continue
                 if wanted is not None and norm(display) not in wanted:
                     continue  # the guide says they have nothing left for us

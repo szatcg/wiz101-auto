@@ -64,3 +64,8 @@ def test_pending_givers():
     # More Crazy Cats held: Crazy Cats (what it came after) is done too.
     out = pending_givers(g, {"The Last Meow", "Gate Crashers", "More Crazy Cats"}, {"Under the Weather"})
     assert "officerdarby" not in out
+
+
+def test_prospector_zeke_is_never_a_giver_to_visit():
+    g = parse_guide("Prospector Zeke\nStray Cat Strut(176 gold, 1640 XP)\n-Locate Regent's Square Cat\n")
+    assert pending_givers(g, set(), set()) == {}
