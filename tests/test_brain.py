@@ -992,3 +992,25 @@ def test_no_minions_in_a_four_player_dungeon_even_with_one_teammate():
     b.allies = [Combatant("Ryan", 1500, 1500)]
     action = decide(b, Strategy(no_minions=True))
     assert action.kind is ActionKind.DISCARD and action.card.name == "Golem Minion"
+
+
+def test_one_pip_blade_and_trap_come_before_humongofrog():
+    def setup_cards(pips):
+        cs = [
+            Card(0, "Humongofrog", school="myth", pip_cost=4,
+                 effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 295)]),
+            Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)]),
+            Card(2, "Spirit Blade", school="balance", pip_cost=1,
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school="myth")]),
+        ]
+        for c in cs:
+            c.castable = c.pip_cost <= pips
+        return cs
+
+    wizard = Combatant("Me", 1700, 1700, is_client=True, school="Myth")
+    foes = [enemy("A", 900), enemy("B", 900)]
+    b = Battle(me=wizard, allies=[], enemies=foes, cards=setup_cards(4), pips=4)
+    assert decide(b).card.name in ("Spirit Blade", "Feint")
+    b = Battle(me=wizard, allies=[], enemies=foes, cards=setup_cards(3), pips=3)
+    assert decide(b).card.name in ("Spirit Blade", "Feint")

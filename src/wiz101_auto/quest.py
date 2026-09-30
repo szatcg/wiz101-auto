@@ -625,12 +625,29 @@ class Quester:
     async def objective(self) -> str:
         return await ui.text_at(self.client, ui.QUEST_GOAL_TEXT)
 
+    def _stop_if_asked(self, before: str, now: str):
+        """state/stop_at.json {"objective": "...", "after": "..."}: stop the bot
+        (once) when the objective turns into one containing `objective` from
+        one containing `after` (right after the last Counterweight Lever:
+        "Pull ..." -> "Defeat Sprockets ...", for the user to record from
+        there)."""
+        path = Path("state") / "stop_at.json"
+        try:
+            want = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        target, after = want.get("objective", "").lower(), want.get("after", "").lower()
+        if target and target in now.lower() and (not after or after in before.lower()):
+            path.unlink(missing_ok=True)
+            self.controller.stop(f"reached {now!r} (state/stop_at.json)")
+
     async def _note_progress(self, objective: str, zone: str | None):
         key = (objective, zone)
         if key != self._last_progress:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                self._stop_if_asked(self._last_progress[0], objective)
                 # The book's fight icon was for the old step (Katzenstein); the
                 # next ranking reads the new one. A stale flag sent the bot out
                 # of the lab to heal before talking to Grunk.

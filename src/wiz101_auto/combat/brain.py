@@ -529,6 +529,12 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
     if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
         return setup
+    if setup and setup.card is not None and battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH:
+        # A 1-pip blade or trap (Spirit Blade, Feint) before the hit-all, as
+        # long as it's still affordable next round (a pip comes each round).
+        have = battle.pips + 2 * battle.power_pips
+        if have - setup.card.pip_cost + 1 >= card.pip_cost:
+            return setup
     if not card.castable:
         return Action(ActionKind.PASS, reason=f"saving pips for {card.name} (hits all {len(enemies)})")
     blade_to_come = any(EffectKind.BLADE in c.kinds and not c.is_enchant for c in battle.upcoming)
