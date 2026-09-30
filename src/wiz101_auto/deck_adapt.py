@@ -62,6 +62,14 @@ class DeckAdapter:
         group = sorted(set(enemies))
         if not group or (self._search is not None and self._search.poll() is None):
             return
+        from .combat.sim import load_stats
+
+        known = load_stats().get("enemies", {})
+        if not any(known.get(n, {}).get("boss") for n in group):
+            # Everyday enemies (Otomo Courier, Sanzoku Outlaw): the default deck
+            # stays; a boss deck is for bosses (the player's rule).
+            logger.info(f"deck: lost to {', '.join(group)} (no boss): keeping the default deck")
+            return
         if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
             return  # already on the deck made for them (the next loss is the fight's variance)
         ADVICE_FILE.unlink(missing_ok=True)

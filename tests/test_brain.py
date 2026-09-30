@@ -148,7 +148,7 @@ def summon_card(i, pips=1):
 
 
 def test_summons_a_minion_before_attacking():
-    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Troll", 500)])
+    b = battle([dmg_card(0, "Blood Bat", 90), summon_card(1)], [enemy("Troll", 500, boss=True)])
     action = decide(b)
     assert action.kind is ActionKind.CAST and action.card.name == "Golem Minion" and action.target is None
 
@@ -185,7 +185,7 @@ def test_summons_the_newest_minion():
     summon = [Effect(EffectKind.SUMMON, Target.SELF, 0)]
     puppet = Card(0, "Golem Minion", effects=summon, template_name="Minion Myth 000")
     troll = Card(1, "Troll Minion", effects=summon, template_name="Minion Myth 001")
-    assert decide(battle([puppet, troll], [enemy("Troll", 500)])).card.name == "Troll Minion"
+    assert decide(battle([puppet, troll], [enemy("Troll", 500, boss=True)])).card.name == "Troll Minion"
 
 
 def test_finishing_the_last_enemy_beats_healing_and_summoning():
@@ -958,12 +958,14 @@ def test_plan_prefers_the_frog_kill_that_also_hits_the_boss():
     assert "Humongofrog" in plan_fight(b).text.split("|")[0]  # Kettlehead's line
 
 
-def test_group_fight_summons_first():
+def test_no_minion_in_an_everyday_group_fight():
+    """The player's rule: blades, traps and one big Humongofrog; minions only
+    against a boss."""
     summon = Card(1, "Troll Minion", pip_cost=0, effects=[Effect(EffectKind.SUMMON, Target.SELF, 0)])
     b = battle([summon, _myth(blade_card(2)), _frog(castable=False)], [enemy("A", 800), enemy("B", 1200)],
                my=_myth_me())
     b.round = 1
-    assert decide(b).card.name == "Troll Minion"
+    assert decide(b).card.name != "Troll Minion"
 
 
 def test_spare_pips_hit_while_frog_is_still_in_the_deck():

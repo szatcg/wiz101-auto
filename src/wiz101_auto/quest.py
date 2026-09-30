@@ -142,6 +142,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
+MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
 FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
@@ -1155,7 +1156,14 @@ class Quester:
                 logger.debug(f"not marking in the hub {zone}")
                 return False
             if kind != "dungeon":  # a dungeon mark belongs on its sigil
-                await move_to_safety(self.client, EXPOSED_RADIUS, "before marking")
+                # Recall lands us here later, when patrols may have wandered in
+                # (a mark among Otomo Supply Runners meant a fight on return):
+                # only somewhere well clear of every enemy, else no mark.
+                await move_to_safety(self.client, MARK_SAFE_RADIUS, "before marking")
+                me = await self._position()
+                if not clear_of(me, [XYZ(*m) for m in await mob_positions(self.client)], MARK_SAFE_RADIUS):
+                    logger.info(f"no spot here {MARK_SAFE_RADIUS:.0f} clear of enemies: not marking")
+                    return False
             if not await ui.click_named(self.client, "MarkButton"):
                 logger.debug("no Mark button to click")
                 return False

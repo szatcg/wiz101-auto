@@ -242,10 +242,18 @@ class Collector:
         if self._cache and self._cache[0] == item and now - self._cache[1] < CANDIDATE_CACHE_SECONDS:
             return self._cache[2]
         found = []
+        try:  # enemies are never the item ("Supplies" vs Otomo Supply Runner)
+            mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
+        except Exception:
+            mobs = set()
         for e in await self.client.get_base_entity_list():
             try:
                 template = await e.object_template()
                 if not template:
+                    continue
+                if mobs and await e.global_id_full() in mobs:
+                    continue
+                if "DuelistBehavior" in await e.list_behavior_names():
                     continue
                 if matches_item(item, await template.object_name()):
                     found.append(e)

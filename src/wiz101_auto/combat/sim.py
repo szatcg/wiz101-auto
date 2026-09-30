@@ -528,9 +528,12 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))
     live = battle.live_enemies
     seen = set()
+    boss = any(e.is_boss for e in live)
     for c in battle.cards:
         if not c.castable or c.is_enchant:
             continue
+        if EffectKind.SUMMON in c.kinds and not boss:
+            continue  # minions only against a boss (the player's rule)
         if c.target is Target.ENEMY_SINGLE:
             targets = [t for t in live if not (c.is_damage and _wastes_setup(c, t, battle))]
         elif c.target in (Target.ALLY_SINGLE, Target.SELF):

@@ -226,6 +226,9 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     sooner (Itennu Sokkwi: a second Troll Minion with one enemy left)."""
     if (
         not strat.summon_minions or strat.no_minions or party_full(battle)
+        # Only against a boss: in everyday fights blades, traps and one big
+        # Humongofrog are faster (the player's rule).
+        or not any(e.is_boss for e in battle.live_enemies)
         or _has_minion(battle) or battle.summoned >= 1
         or battle.me.health_ratio < DESPERATE_HEALTH  # all our pips while a hit away from dead
     ):
