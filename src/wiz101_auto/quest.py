@@ -127,6 +127,10 @@ TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
+WORLD_TREE = "WizardCity/WC_Ravenwood_Teleporter"  # inside Bartleby: the Spiral Map's world gate
+VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
+SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
+                      "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia"}
 CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
 AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
@@ -596,6 +600,7 @@ class Quester:
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
+        self._visit_tries = 0  # talk attempts for a visit_npc request
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
         self._background: dict[str, asyncio.Task] = {}  # scans running beside the step
         self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
@@ -2673,6 +2678,82 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _visit_npc(self) -> bool:
+        """state/visit_npc.json {"npc": ..., "zone": ...}: go and talk to that
+        NPC (accepting what they offer), e.g. the giver of the next main quest
+        ('The Last Meow' from Sherlock Bones in the Royal Museum). Crosses
+        worlds by the Spiral Map in the World Tree. True if it acted."""
+        try:
+            want = json.loads(VISIT_FILE.read_text(encoding="utf-8"))
+            npc, dest = want["npc"], want["zone"]
+        except (OSError, ValueError, KeyError):
+            VISIT_FILE.unlink(missing_ok=True)
+            return False
+        zone = await self.client.zone_name() or ""
+        world = dest.split("/", 1)[0]
+        if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+            from .relog import _find_button
+
+            label = SPIRAL_WORLD_NAMES.get(world, world.lower())
+            button = await _find_button(self.client.root_window, (label,))
+            if button is not None:
+                logger.info(f"visit: choosing {label.title()} on the Spiral Map")
+                await ui.click_center(self.client, button)
+                await asyncio.sleep(0.5)
+            await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
+            await asyncio.sleep(1.0)
+            await wait_for_loading(self.client)
+            return True
+        if zone.split("/", 1)[0] != world:
+            # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
+            if not zone.startswith("WizardCity/"):
+                from .trainer import go_home
+
+                logger.info(f"visit {npc}: by the dorm to Wizard City, then the World Tree to {world}")
+                return await go_home(self.client)
+            from .trainer import DORM, DORM_DOOR
+
+            if zone == DORM:
+                return await self.approach_and_walk(DORM_DOOR, DORM)
+            if zone == RAVENWOOD:
+                door = await self._entity_named_like(("bartlebymouth",)) or XYZ(*BARTLEBY_MOUTH)
+                logger.info(f"visit {npc}: into the World Tree for the Spiral Map")
+                await self.approach_and_walk(door, zone)
+                return True
+            if zone == WORLD_TREE:
+                gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
+                logger.info(f"visit {npc}: walking into the world gate")
+                here = await self._position()
+                dx, dy = here.x - gate.x, here.y - gate.y
+                back = 400 / (math.hypot(dx, dy) or 1.0)
+                await self.client.teleport(XYZ(gate.x + dx * back, gate.y + dy * back, gate.z))
+                await asyncio.sleep(TELEPORT_SETTLE)
+                await self.client.goto(gate.x, gate.y)
+                await asyncio.sleep(1.5)
+                return True
+            logger.info(f"visit {npc}: walking to Ravenwood")
+            return await self.go_to_zone(RAVENWOOD)
+        if zone != dest:
+            logger.info(f"visit {npc}: going to {dest}")
+            if not await self.go_to_zone(dest):
+                logger.warning(f"visit {npc}: no route to {dest} from {zone}")
+            return True
+        logger.info(f"visit: talking to {npc} in {dest}")
+        if self.dialogue:
+            self.dialogue.accept_offers_for(60)
+        objective = f"Talk To {npc}"
+        self._attempts = 0
+        talked = await self._talk_to_named(objective)
+        if talked or self._visit_tries >= 3:
+            VISIT_FILE.unlink(missing_ok=True)
+            self._visit_tries = 0
+            self._last_rank = -1e9  # a new quest: rank again now
+            self._ranked_for = None
+            logger.success(f"visit: talked to {npc}" if talked else f"visit: couldn't reach {npc}; giving up")
+        else:
+            self._visit_tries += 1
+        return True
+
     async def _world_tree_to_aquila(self, zone: str) -> bool:
         """Aquila from another world: the dorm button to Wizard City, walk to
         Ravenwood, into the World Tree (Bartleby's mouth door), and on from
@@ -3575,6 +3656,8 @@ class Quester:
         if not await is_free(self.client):
             return
         await clear_popups(self.client)
+        if VISIT_FILE.exists() and await self._visit_npc():
+            return
         if await self._leave_spiral_map():
             return
         if await self._dorm_to_wizard_city():
