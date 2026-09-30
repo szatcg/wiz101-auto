@@ -218,6 +218,7 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     if (
         not strat.summon_minions or strat.no_minions or party_full(battle)
         or _has_minion(battle) or battle.summoned >= 1
+        or battle.me.health_ratio < DESPERATE_HEALTH  # all our pips while a hit away from dead
     ):
         return None
     if len(battle.live_enemies) == 1 and battle.round > SUMMON_ROUNDS_ONE_ENEMY:
@@ -413,6 +414,7 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+DESPERATE_HEALTH = 0.25  # below this: no minions or prisms, only what keeps us alive or hits
 BOSS_SUMMON_ROUNDS = 3  # against a boss, the minion comes in these first rounds
 GROUP_SUMMON_ROUNDS = 2  # against a group, the minion comes in these first rounds
 AOE_SAVE_HEALTH = 0.5  # above this, pips go to the hit-all spell rather than a single kill
@@ -824,8 +826,11 @@ def _prism_useless(card: Card, battle: Battle) -> bool:
 def _prism_action(battle: Battle) -> Action | None:
     """A prism (Myth Prism: myth -> storm) on an enemy our hit would land much
     harder on once converted, counting blades and traps (myth ones don't work
-    on the converted hit). Once per enemy per fight: a second one adds nothing."""
+    on the converted hit). Once per enemy per fight: a second one adds nothing.
+    Not when nearly dead (a Myth Prism at 7 health against Meowiarty)."""
     me = battle.me
+    if me.health_ratio < DESPERATE_HEALTH:
+        return None
     for card in _castable(battle.cards):
         if not _is_prism(card) or card.pip_cost:
             continue
