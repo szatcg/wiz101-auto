@@ -51,6 +51,12 @@
   /* ---- sidebar ---- */
   .side { position: absolute; left: 1484px; top: 14px; width: 422px; height: 1052px; display: flex; flex-direction: column; gap: 12px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .farm .farmhead { display: flex; justify-content: space-between; align-items: baseline; }
+  .farm .farmhead b { font-size: 26px; }
+  .farm .set { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; }
+  .farm .setname { flex: 1; color: var(--muted); }
+  .farm .item { padding: 2px 8px; border-radius: 9px; border: 1px solid currentColor; opacity: 0.3; filter: grayscale(1); }
+  .farm .item.have { opacity: 1; filter: none; color: #ffd75a; background: rgba(255, 215, 90, 0.18); }
   .brand { display: flex; align-items: center; justify-content: space-between; }
   .brand h1 { margin: 0; font: 900 34px Cinzel, serif; letter-spacing: 3px;
     background: linear-gradient(180deg, var(--gold-2), var(--gold)); -webkit-background-clip: text; color: transparent; }
@@ -182,6 +188,11 @@
     <div class="prog"><span class="n">Spiral</span><div class="bar"><div id="oBar"></div></div><span class="p" id="oPct">0%</span></div>
   </div>
 
+  <div class="card farm" id="farm" style="display:none">
+    <div class="farmhead"><span class="label" id="farmName">Farming</span><b id="farmRuns">0</b></div>
+    <div id="farmLoot"></div>
+  </div>
+
   <div class="card grow" id="lower"></div>
 </div>
 
@@ -208,7 +219,19 @@ function renderSide() {
   const live = data.running && Date.now() / 1000 - (data.updated || 0) < 120;
   const fight = live && s.in_battle;
   $("dot").className = "dot " + (fight ? "fight" : live ? "run" : "");
-  $("state").textContent = fight ? "IN BATTLE" : live ? "QUESTING" : "PAUSED";
+  const farm = s.farm;
+  const farming = !!(farm && farm.active);
+  $("state").textContent = fight ? "IN BATTLE" : live ? (farming ? "FARMING" : "QUESTING") : "PAUSED";
+  $("farm").style.display = farming ? "" : "none";
+  if (farming) {
+    $("farmName").textContent = `Farming ${farm.dungeon} · runs`;
+    $("farmRuns").textContent = farm.runs;
+    const targets = farm.targets || [];
+    const groups = [...new Set(targets.map((t) => t.group))];
+    $("farmLoot").innerHTML = groups.map((g) => `<div class="set"><span class="setname">${esc(g)}</span>${
+      targets.filter((t) => t.group === g).map((t) =>
+        `<span class="item${t.have ? " have" : ""}" title="${esc(t.name)}">${esc(t.slot)}</span>`).join("")}</div>`).join("");
+  }
   $("level").textContent = s.level ?? "–";
   $("deaths").textContent = data.deaths ? data.deaths.total : "–";
   $("sdeaths").textContent = data.deaths ? data.deaths.session : "–";

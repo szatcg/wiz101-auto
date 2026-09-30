@@ -5,7 +5,8 @@ ends a run, whether farming is on, and how many runs are done. The bot goes
 to the dungeon's sigil, waits for a team (teamup.py), follows it through the
 dungeon joining its fights, opens the final boss's chest, counts the run and
 leaves by the world hub button for the next one. `farm` / `farm --stop` on the
-command line turn it on and off; the run count shows on the overlay.
+command line turn it on and off; the run count and the loot targets show on
+the stream page (/stream). A stuck main quest turns it on by itself.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from loguru import logger
 
 FARM_FILE = Path("state") / "farm.json"
 
-# What each farm is after (shown on the overlay, filled in as looted):
+# What each farm is after (shown on the stream page, filled in as looted):
 # (group, slot, item name).
 TARGETS = {
     "Mount Olympus": [

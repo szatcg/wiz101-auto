@@ -171,6 +171,7 @@ WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
 BOSS_CHEST_SETTLE_SECONDS = 3.0  # after a boss fight, before teleporting to its chest
 GRIND_RERANK_SECONDS = 90.0  # while grinding, re-read the quest book this often
+STUCK_TIMES_TO_FARM = 3  # a main quest found stuck this often: farm Aquila instead
 ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most hourly
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
@@ -606,6 +607,8 @@ class Quester:
         self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
         self._no_main_alerted = -1e9  # last "no main quest in the book" alert
         self._last_main = ""  # the last main-story quest seen in the book
+        self._no_main_reads = 0  # full quest-book reads (alerted) with no main quest
+        self._stuck_times: dict[str, int] = {}  # main quest -> times it was found stuck
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
@@ -1442,15 +1445,31 @@ class Quester:
         # the first outdoor zone there with enemies (before its dungeon) is used.
         return False
 
-    def _alert_main_stuck(self, quest: str, why: str):
+    def _alert_main_stuck(self, quest: str, why: str, *, hard: bool = False):
         """The main quest can't go on for now: an ALERT line (activity.log) that
         the operator's watcher turns into a phone notification. The bot keeps
-        going (side quests, experience); once per quest an hour."""
+        going; once per quest an hour. Truly stuck (`hard`: lost its fight
+        MAIN_DEFEATS_TO_DEFER times, or no main quest at all; or stuck
+        STUCK_TIMES_TO_FARM times) it farms Aquila instead of side quests."""
+        self._stuck_times[quest] = self._stuck_times.get(quest, 0) + 1
+        if hard or self._stuck_times[quest] >= STUCK_TIMES_TO_FARM:
+            self._farm_when_stuck(quest, why)
         now = time.monotonic()
         if now - self._alerted.get(quest, -1e9) < ALERT_REPEAT_SECONDS:
             return
         self._alerted[quest] = now
         logger.warning(f"ALERT: main quest {quest!r} stuck: {why}; doing side quests meanwhile")
+
+    def _farm_when_stuck(self, quest: str, why: str):
+        """The player's rule: when the main quest can't go on after real
+        effort, farm Mount Olympus (waiting for players at the sigil) rather
+        than do side quests; farming stays on until the player stops it."""
+        farm = Farm.load()
+        if farm.active:
+            return
+        farm.active = True
+        farm.save()
+        logger.warning(f"ALERT: main quest {quest!r} stuck ({why}): farming {farm.name} until stopped")
 
     async def _set_current_aside(
         self, objective: str, retry_after: float | None = STUCK_RETRY_SECONDS
@@ -1497,7 +1516,7 @@ class Quester:
                 "doing other quests meanwhile"
             )
             if main:
-                self._alert_main_stuck(quest, f"lost {objective!r} {tries} times")
+                self._alert_main_stuck(quest, f"lost {objective!r} {tries} times", hard=True)
             self._recall_pending = False  # no point recalling to it now
             self._retire_dungeon_mark()
             self._ranked_for = None
@@ -2079,7 +2098,10 @@ class Quester:
                 self._no_main_alerted = time.monotonic()
                 after = f" after {self._last_main!r}" if self._last_main else ""
                 logger.warning(f"ALERT: main quest stuck: no main-story quest in the book{after}; "
-                               "its giver wasn't found: doing side quests meanwhile")
+                               "its giver wasn't found")
+                self._no_main_reads += 1
+                if self._no_main_reads >= 2:  # two full reads 30 min apart: really none
+                    self._farm_when_stuck(self._last_main or "(none)", "no main-story quest in the book")
             names = {q.name for _, q in all_quests}
             if self._pin_new_from is not None and complete:
                 # Class/spell quests first, then main story ('Mything Persons'

@@ -43,7 +43,6 @@ ARCS = (
     ("Arc 4", ("Karamelle", "Lemuria", "Novus", "Wallaru", "Selenopolis")),
 )
 PAGE = Path(__file__).with_name("dashboard.html")
-OVERLAY = Path(__file__).with_name("overlay.html")
 STREAM = Path(__file__).with_name("stream.html")
 SERVER_STARTED = time.time()  # "live for" on the stream page
 STATUS = Path("state") / "status.json"
@@ -182,9 +181,6 @@ class _Handler(BaseHTTPRequestHandler):
             kind = "application/json"
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
-            kind = "text/html; charset=utf-8"
-        elif self.path.split("?")[0].rstrip("/") == "/overlay":
-            body = OVERLAY.read_bytes()  # for an OBS Browser Source
             kind = "text/html; charset=utf-8"
         else:
             self.send_error(404)
