@@ -112,8 +112,40 @@ def install(client):
                         f"{'it worked' if took else 'still refused'}")
         return result
 
+    async def off_map_fallback(xyz):
+        """Known ground to land on if `xyz` turns out to be off the map (the
+        clouds past the Commons' edge, where walking does nothing): only past
+        the outline of a well-known zone's ground, and not too far."""
+        ground_of = getattr(client, "_ground_points", None)
+        if ground_of is None:
+            return None
+        ground = [g for g in await ground_of(xyz) if abs(g[2] - xyz.z) < GROUND_HEIGHT]
+        nearest = min((math.dist((xyz.x, xyz.y), g[:2]) for g in ground), default=0.0)
+        known = len(ground) >= MIN_GROUND_POINTS
+        if known and OFF_MAP < nearest < MAX_SNAP and outside(xyz, ground, OUTSIDE_MARGIN):
+            return XYZ(*min(ground, key=lambda q: math.dist((xyz.x, xyz.y), q[:2])))
+        return None
+
     async def teleport(xyz, *args, **kwargs):
+        # Past the known ground isn't always off the map (a zone exit at the
+        # edge of what we've seen: snapping it 1500 away looped in the Village
+        # of Sorrow). Go there; only if we then can't walk, land on known ground.
+        try:
+            fallback = await off_map_fallback(xyz)
+        except Exception:
+            fallback = None
         result = await _teleport(xyz, *args, **kwargs)
+        if fallback is not None and not teleport_aborted(client):
+            from .upkeep import can_move
+
+            try:
+                here = await client.body.position()
+                if math.dist((here.x, here.y), (xyz.x, xyz.y)) < LANDED and not await can_move(client):
+                    logger.info(f"({xyz.x:.0f}, {xyz.y:.0f}) is off the map (can't walk there); "
+                                f"landing on known ground at ({fallback.x:.0f}, {fallback.y:.0f})")
+                    result = await _teleport(fallback, *args, **kwargs)
+            except Exception:
+                pass
         try:
             here = await client.body.position()
             client._last_landing = (time.monotonic(), here.x, here.y, here.z)  # (door learning)
@@ -154,21 +186,6 @@ def install(client):
                     for a in (i * math.pi / 4 for i in range(8))
                 ]
             hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)] + ring)
-            ground_of = getattr(client, "_ground_points", None)
-            if ground_of is not None:
-                # Off the map (the clouds past the Commons' edge, where walking
-                # does nothing): land on the nearest known ground instead.
-                ground = [g for g in await ground_of(xyz) if abs(g[2] - xyz.z) < GROUND_HEIGHT]
-                nearest = min((math.dist((xyz.x, xyz.y), g[:2]) for g in ground), default=0.0)
-                # Only with the zone well known, only a short move, and only past
-                # the outline of the ground we know: "900 from any known point"
-                # alone moved 425 landings (NPCs, wisps in unexplored corners).
-                if (len(ground) >= MIN_GROUND_POINTS and OFF_MAP < nearest < MAX_SNAP
-                        and outside(xyz, ground, OUTSIDE_MARGIN)):
-                    g = min(ground, key=lambda q: math.dist((xyz.x, xyz.y), q[:2]))
-                    logger.info(f"({xyz.x:.0f}, {xyz.y:.0f}) looks off the map; landing on known ground "
-                                f"at ({g[0]:.0f}, {g[1]:.0f})")
-                    xyz = XYZ(*g)
             start = await client.body.position()
             if clear_of(xyz, hazards, LANDING_CLEARANCE):
                 return await _arrive(xyz, start, args, kwargs)
