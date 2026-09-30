@@ -147,7 +147,7 @@ TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where 
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
 TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long (searching the rooms): they left; leave
 TEAM_TALK_TRIES = 3  # a talk step in a team dungeon: tries before it's taken as waiting on the team
-TEAM_ALONE_AFTER = 90.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
+TEAM_ALONE_AFTER = 180.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
 ON_GROUND = 500.0  # an approach spot this close to a known ground point is on the map
@@ -3017,9 +3017,15 @@ class Quester:
             await go_to_hub(self.client)
             return True
         if not self._team_with_us:
-            # No teammate seen in here yet: do nothing on our own (players on
-            # the sigil who didn't come in left it alone; it then walked into
-            # Apollo's fight following the dungeon quest).
+            # No teammate seen in here yet: no quest steps on our own (players
+            # on the sigil who didn't come in left it alone; it then walked into
+            # Apollo's fight following the dungeon quest), but look for them in
+            # the other rooms rather than wait in this one.
+            here_zone = await self.client.zone_name() or ""
+            if self._mate_seen is None or self._mate_seen[0] != here_zone:
+                self._mate_seen = (here_zone, me, now, False)
+            if await self._after_team_through_door():
+                return True
             logger.debug("no teammate seen in this dungeon yet; waiting")
             self._last_progress_time = now
             self.controller.allow_idle(TEAM_WAIT_TICK + 10)
