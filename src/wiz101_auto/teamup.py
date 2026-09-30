@@ -55,6 +55,7 @@ SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
 SIGIL_COUNTDOWN_WAIT = 15.0
 SIGIL_STEP_BACK = 300.0  # stepping onto the sigil: land this far off it, then walk on
 SIGIL_CHECK_EVERY = 60.0  # while waiting: make sure we're still on the sigil this often
+RESUME_AFTER_DEFEAT = 900.0  # defeated in the dungeon this recently: RESUME on the sigil rejoins the team
 SIGIL_RETRY = 45.0  # seconds before pressing X again if they didn't take us in
 NO_PLAYERS_SWITCH = 5 * 60  # nobody near the sigil this long while queued: switch realm
 SIGIL_AREA = 1500.0  # "near the sigil": players around here may be coming to go in
@@ -292,6 +293,42 @@ async def _click(client, words, stage: str) -> bool:
     return True
 
 
+def defeated_inside_recently(last_death, hub_zone: str, now: float) -> bool:
+    """Our last defeat was in a dungeon room of this world (not the hub itself)
+    within RESUME_AFTER_DEFEAT: the team is likely still in there."""
+    if not last_death:
+        return False
+    at, zone = last_death
+    return (bool(zone) and zone != hub_zone and zone.split("/")[0] == hub_zone.split("/")[0]
+            and now - at < RESUME_AFTER_DEFEAT)
+
+
+async def _resume_after_defeat(quester, zone: str) -> bool:
+    """Defeated in the dungeon, the team fights on inside: the sigil's RESUME
+    takes us back into that run (waiting for new players left it for good)."""
+    client = quester.client
+    if not defeated_inside_recently(quester.controller.last_death, zone or "", time.monotonic()):
+        return False
+    quester.controller.last_death = None  # one try per defeat
+    if not await _click(client, ("resume",), "sigil"):
+        logger.info("team up: no RESUME on the sigil after the defeat; waiting for players")
+        return False
+    logger.info("team up: pressed RESUME to rejoin the team's run after the defeat")
+    for _ in range(15):
+        box = await ui.modal_box(client)
+        if box is not None:
+            logger.info(f"team up: the game asks: {(await ui.modal_text(box))[:120]!r}")
+            await ui.press_modal_button(client, box, "centerButton")
+        if await client.is_loading() or await client.zone_name() != zone:
+            await wait_for_loading(client)
+            logger.success(f"team up: back in {await client.zone_name()} (resumed)")
+            return True
+        await asyncio.sleep(1.0)
+    logger.warning("team up: RESUME didn't take us back in")
+    await _dump(client, "resume")
+    return False
+
+
 async def team_up(quester, dungeon: str) -> str:
     """On the dungeon's sigil (prompt showing): press TEAM UP!, confirm what
     the game asks, and wait for a team to form and take us in. "in" once in
@@ -307,6 +344,8 @@ async def team_up(quester, dungeon: str) -> str:
         # when not queued, and pressing it opened the events window.)
         await close_events_window(client)
         logger.info("team up: waiting on the sigil for players to gather (not queueing)")
+    if await _resume_after_defeat(quester, zone):
+        return "in"
     # The form may still be open from before (a restart): fill that one in.
     form_done = not USE_QUEUE or await _fill_form(client)
     if not form_done and await queued(client):
