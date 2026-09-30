@@ -53,8 +53,24 @@ async def wait_for_loading(client, appear_timeout: float = 2.0):
         await asyncio.sleep(0.2)
 
 
+async def max_health(client) -> int:
+    """Max health as the game uses it. The stats' base + bonus can read high
+    (2548 while the game showed 1866 full: the bot kept hunting wisps at
+    "73%"); the combat read (state/my_stats.json, saved each fight) is the
+    game's own number, so the lower of the two is taken."""
+    max_hp = await client.stats.max_hitpoints()
+    try:
+        import json
+        from pathlib import Path
+
+        fought = int(json.loads(Path("state", "my_stats.json").read_text(encoding="utf-8"))["max_health"])
+    except Exception:
+        return max_hp
+    return min(max_hp, fought) if fought > 0 else max_hp
+
+
 async def health_mana(client) -> tuple[float, float]:
-    hp, max_hp = await client.stats.current_hitpoints(), await client.stats.max_hitpoints()
+    hp, max_hp = await client.stats.current_hitpoints(), await max_health(client)
     mana, max_mana = await client.stats.current_mana(), await client.stats.max_mana()
     return (hp / max_hp if max_hp else 1.0), (mana / max_mana if max_mana else 1.0)
 

@@ -21,7 +21,16 @@ from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
 from .trainer import SpellTrainer
-from .upkeep import DialoguePolicy, dialogue_loop, is_free, maintain, move_to_safety, recover, scan_wisps
+from .upkeep import (
+    DialoguePolicy,
+    dialogue_loop,
+    is_free,
+    maintain,
+    max_health,
+    move_to_safety,
+    recover,
+    scan_wisps,
+)
 from .watchdog import Watchdog
 
 HOOK_TIMEOUT = 90
@@ -230,7 +239,7 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
             await fighter.handle_combat()
             await asyncio.sleep(1.5)
             hp = await client.stats.current_hitpoints()
-            max_hp = await client.stats.max_hitpoints()
+            max_hp = await max_health(client)
             moved = await client.zone_name() != fight_zone or (
                 (await client.body.position()).distance(fight_spot) > DEFEAT_MOVE_DISTANCE
             )
@@ -267,7 +276,7 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
             info.update(
                 zone=await client.zone_name(),
                 level=await client.stats.reference_level(),
-                health=f"{await client.stats.current_hitpoints()}/{await client.stats.max_hitpoints()}",
+                health=f"{await client.stats.current_hitpoints()}/{await max_health(client)}",
                 in_battle=await client.in_battle(),
             )
         except Exception as exc:
