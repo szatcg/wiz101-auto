@@ -143,6 +143,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
+GUARDED_ITEM_HEALTH = 0.6  # above this health an item among enemies is fetched anyway
 FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
@@ -2445,10 +2446,16 @@ class Quester:
             known = spread_points(known, (start.x, start.y, start.z), 800.0)[:KNOWN_SPOTS_FIRST]
             if known:
                 logger.info(f"looking for {item!r} where it was seen before ({len(known)} spot(s))")
+            hp, _mana = await health_mana(self.client)
             for p in known:
                 if not await is_free(self.client):
                     return True
-                if not await self._clear_spot(XYZ(*p)):
+                if hp >= GUARDED_ITEM_HEALTH:
+                    # Guarded (the Stolen Weapons among Sanzoku bandits): landing
+                    # clear and jumping back meant never picking it up. Land by it;
+                    # a guard that attacks gets fought, then it's collected.
+                    allow_close_landing(self.client, 8.0)
+                elif not await self._clear_spot(XYZ(*p)):
                     continue
                 await self.client.teleport(XYZ(p[0] + 200, p[1], p[2]))
                 await asyncio.sleep(1.0)
