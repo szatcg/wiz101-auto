@@ -25,6 +25,9 @@ from loguru import logger
 from wizwalker import XYZ
 
 OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
+OUTSIDE_MARGIN = 300.0  # ... and past the known ground's outline by this much (not just an unseen corner)
+RETRY_WAIT = 2.0  # a teleport the game didn't pick up in WizWalker's 0.6 s: once more, waiting this long
+NOT_TAKEN = 5.0  # moved less than this: the teleport didn't happen
 GROUND_HEIGHT = 400.0  # ground points at about the destination's height count
 MIN_GROUND_POINTS = 25  # judge only with enough of the zone known
 MAX_SNAP = 1600.0  # never move a landing further than this
@@ -42,6 +45,13 @@ def same_level(spot, hazards: list) -> list:
     """Hazards on the same level as `spot`: those far above or below it (under
     an elevated platform) can't reach it."""
     return [h for h in hazards if abs(h.z - spot.z) < OTHER_LEVEL]
+
+
+def outside(p, ground: list, margin: float) -> bool:
+    """`p` lies past the box around the known ground points by `margin`."""
+    xs, ys = [g[0] for g in ground], [g[1] for g in ground]
+    return (p.x < min(xs) - margin or p.x > max(xs) + margin
+            or p.y < min(ys) - margin or p.y > max(ys) + margin)
 
 
 def teleport_aborted(client) -> bool:
@@ -69,8 +79,33 @@ def install(client):
     """Wrap `client.teleport` with the landing check (once)."""
     if getattr(client, "_safe_teleport", False):
         return
-    original = client.teleport
+    wizwalker_teleport = client.teleport
     blocked: dict[tuple[int, int], int] = {}
+
+    async def original(xyz, *args, **kwargs):
+        """WizWalker's teleport hands the spot to the game and waits 0.6 s for
+        it to be picked up, then quietly drops it: the wizard doesn't move
+        (logged as 'rejected' 400 times). Once more with a longer wait."""
+        try:
+            before = await client.body.position()
+        except Exception:
+            return await wizwalker_teleport(xyz, *args, **kwargs)
+        result = await wizwalker_teleport(xyz, *args, **kwargs)
+        far = math.dist((before.x, before.y), (xyz.x, xyz.y)) > NOT_TAKEN * 10
+        try:
+            after = await client.body.position()
+        except Exception:
+            return result
+        if far and math.dist((after.x, after.y), (before.x, before.y)) < NOT_TAKEN:
+            try:
+                await wizwalker_teleport(xyz, *args, purge_on_after_unuser_fixer_timeout=RETRY_WAIT, **kwargs)
+            except TypeError:  # a teleport without WizWalker's options (tests)
+                await wizwalker_teleport(xyz, *args, **kwargs)
+            again = await client.body.position()
+            took = math.dist((again.x, again.y), (before.x, before.y)) >= NOT_TAKEN
+            logger.info(f"teleport to ({xyz.x:.0f}, {xyz.y:.0f}) didn't happen; retried with a longer wait: "
+                        f"{'it worked' if took else 'still refused'}")
+        return result
 
     async def teleport(xyz, *args, **kwargs):
         result = await _teleport(xyz, *args, **kwargs)
@@ -120,9 +155,11 @@ def install(client):
                 # does nothing): land on the nearest known ground instead.
                 ground = [g for g in await ground_of(xyz) if abs(g[2] - xyz.z) < GROUND_HEIGHT]
                 nearest = min((math.dist((xyz.x, xyz.y), g[:2]) for g in ground), default=0.0)
-                # Only with the zone well known, and only a short move: in a
-                # sparsely known zone it moved landings 2000 away.
-                if len(ground) >= MIN_GROUND_POINTS and OFF_MAP < nearest < MAX_SNAP:
+                # Only with the zone well known, only a short move, and only past
+                # the outline of the ground we know: "900 from any known point"
+                # alone moved 425 landings (NPCs, wisps in unexplored corners).
+                if (len(ground) >= MIN_GROUND_POINTS and OFF_MAP < nearest < MAX_SNAP
+                        and outside(xyz, ground, OUTSIDE_MARGIN)):
                     g = min(ground, key=lambda q: math.dist((xyz.x, xyz.y), q[:2]))
                     logger.info(f"({xyz.x:.0f}, {xyz.y:.0f}) looks off the map; landing on known ground "
                                 f"at ({g[0]:.0f}, {g[1]:.0f})")

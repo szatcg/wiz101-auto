@@ -63,3 +63,48 @@ def test_enemies_on_another_level_are_ignored():
     below = [XYZ(100, 0, 0), XYZ(200, 0, 480)]
     kept = same_level(platform, below)
     assert [(h.x, h.z) for h in kept] == [(200, 480)]
+
+
+def test_off_the_map_only_past_the_known_grounds_outline():
+    from wiz101_auto.safe_teleport import outside
+
+    ground = [(x, y, 0) for x in range(-2000, 2001, 500) for y in range(-2000, 2001, 500)]
+    assert not outside(XYZ(1900, -1900, 0), ground, 300)  # an unseen corner inside the map
+    assert outside(XYZ(0, -2600, 0), ground, 300)  # past the edge: the clouds
+
+
+class _MovingBody:
+    def __init__(self):
+        self.p = XYZ(0, 0, 0)
+
+    async def position(self):
+        return self.p
+
+
+class LazyGame(FakeClient):
+    """Drops the first teleport (the game didn't pick it up in time)."""
+
+    def __init__(self):
+        super().__init__([])
+        self.body = _MovingBody()
+        self.calls = 0
+
+    async def zone_name(self):
+        return "Test/Zone"
+
+    async def teleport(self, xyz, **kwargs):
+        self.calls += 1
+        if self.calls > 1:
+            self.body.p = xyz
+        self.landed.append(xyz)
+
+
+def test_a_teleport_the_game_dropped_is_tried_again(tmp_path, monkeypatch):
+    import wiz101_auto.tpspots as tpspots
+
+    monkeypatch.setattr(tpspots, "_SPOTS", tpspots.TeleportSpots(tmp_path / "spots.json"), raising=False)
+    monkeypatch.setattr(tpspots, "spots", lambda: tpspots._SPOTS)
+    c = LazyGame()
+    install(c)
+    asyncio.run(c.teleport(XYZ(3000, 0, 0)))
+    assert c.calls == 2 and (c.body.p.x, c.body.p.y) == (3000, 0)
