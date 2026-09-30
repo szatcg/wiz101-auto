@@ -1840,6 +1840,11 @@ class Quester:
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
             return False
         prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+        if objective.lower().startswith("locate") and "activate" in prompt:
+            # A Locate is done by walking to the spot; the pad beside Junho
+            # Shan sent us back to the village entrance every time.
+            logger.info(f"not pressing X on '{prompt}': a Locate only needs us there")
+            return False
         logger.info(f"interacting: {prompt or '(no text)'}")
 
         if "to enter" in prompt:
@@ -1938,6 +1943,12 @@ class Quester:
         """Several tries on the same objective with no change: the tracked quest
         is probably blocked on another active quest, so switch to that one."""
         self._attempts = getattr(self, "_attempts", 0) + 1
+        if self._attempts >= SWITCH_QUEST_AFTER and getattr(self, "_active_is_main", False):
+            # Not the main story: the next slot in the book may be in another
+            # world (Locate Junho Shan -> Emily Chesterfield in Marleybone).
+            # Its own fallbacks (and the stall rule) handle it.
+            self._attempts = 0
+            return
         if self._attempts >= SWITCH_QUEST_AFTER:
             self._attempts = 0
             await asyncio.sleep(2.0)  # let a late objective update land first
@@ -2262,6 +2273,7 @@ class Quester:
             where = f"{entry.world}, {entry.hops} hops" if entry.hops is not None else entry.world
             logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest in {where})")
             self._active_quest = entry.name
+            self._active_is_main = entry.mainline
             return True
         finally:
             await self._close_quest_book()
@@ -3869,6 +3881,23 @@ class Quester:
                 return
             await asyncio.sleep(3.0)
 
+    async def _locate_by_walking(self, objective: str) -> bool:
+        """'Locate X': the game counts the spot when we walk into it, not when
+        a teleport puts us there. Land a little off the marker and walk onto
+        it, from each side in turn, until the objective moves on."""
+        marker = await self.client.quest_position.position()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            start = XYZ(marker.x + dx * MARKER_WALK_BACK, marker.y + dy * MARKER_WALK_BACK, marker.z)
+            await self.client.teleport(start)
+            await asyncio.sleep(TELEPORT_SETTLE)
+            await self.client.goto(marker.x, marker.y)
+            await asyncio.sleep(1.5)
+            if await self.objective() != objective or not await is_free(self.client):
+                logger.success(f"located by walking in: {objective!r}")
+                return True
+        logger.info(f"walked onto the marker from every side; {objective!r} still open")
+        return False
+
     async def _walk_onto_marker(self) -> bool:
         """Near the quest marker: back off in each direction in turn and walk
         onto it, which triggers boss spawns and cutscenes. True if a fight or
@@ -4414,6 +4443,9 @@ class Quester:
             return
         if wrong_talker:
             logger.info(f"{talk_target(objective)} isn't out here; the marker must be a door")
+        if dist < INTERACT_RANGE and objective.lower().startswith("locate"):
+            await self._locate_by_walking(objective)
+            return
         if dist < INTERACT_RANGE and not wrong_talker and await self.interact(objective):
             await self._count_attempt()
             return
