@@ -413,6 +413,10 @@ async def run(cfg: Config):
                 fighter.unneeded_fight = quester.unneeded_fight
             fighter.may_flee = quester.may_flee
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
+            from .prompt_watch import prompt_loop
+
+            # The right person's talk prompt: X at once, not at the step's next look.
+            tasks.append(asyncio.create_task(prompt_loop(client, quester, controller), name="prompt"))
         watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):
             watchdog = Watchdog(
