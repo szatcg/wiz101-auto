@@ -144,6 +144,8 @@ DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone c
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
 STILL_WINDOW = 4.0  # ... looks this close together count
+DOOR_NEAR = 900.0  # this close to a door marker: walk through it (travel stops short)
+DOOR_TRIES = 3  # a team door walk that changes nothing this often: look elsewhere
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
@@ -626,6 +628,7 @@ class Quester:
         self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._prev_mates: tuple[float, list] = (0.0, [])  # (when, teammate positions) at the last look
         self._team_talks: dict[str, int] = {}  # team dungeon talk objective -> tries
+        self._door_tries: dict[tuple[str, int, int], int] = {}  # team door walks per door
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._prev_step: tuple[str, XYZ | None] | None = None  # (zone, quest marker) at the last step
         self._visit_tries = 0  # talk attempts for a visit_npc request
@@ -3194,10 +3197,28 @@ class Quester:
         left the bot standing at the door."""
         if await self._walk_to_boss_room():
             return True
+        zone = await self.client.zone_name() or ""
+        key = (zone, round(marker.x / 100), round(marker.y / 100))
+        tries = self._door_tries[key] = self._door_tries.get(key, 0) + 1
+        if tries > DOOR_TRIES:
+            # Going nowhere (it tried the Watchful Eye's door 77 times): look
+            # for the team elsewhere instead.
+            if tries == DOOR_TRIES + 1:
+                logger.info(f"the door at ({marker.x:.0f}, {marker.y:.0f}) goes nowhere; "
+                            "looking for the team")
+            if await self._after_team_through_door():
+                return True
+            if tries > DOOR_TRIES * 4:
+                self._door_tries[key] = 0  # try it again after a while
+            return False
         logger.info(f"heading for the boss's room: to the door at ({marker.x:.0f}, {marker.y:.0f})")
         self.controller.allow_idle(30)
         try:
-            await self.travel(marker)
+            if distance(await self._position(), marker) < DOOR_NEAR:
+                # Already at it: travel says "arrived" and never goes through.
+                await self.walk_through(marker, zone)
+            else:
+                await self.travel(marker)
         finally:
             self.controller.end_idle()
         return True
