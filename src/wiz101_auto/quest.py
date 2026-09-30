@@ -104,6 +104,11 @@ FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different fl
 # Dungeons where a pulled lever needs time (Counterweight East: the
 # counterweight must reach the top before Sprockets spawns): zone -> seconds.
 LEVER_WAITS = {"Marleybone/MB_BigBen/MB_CounterweightEast": 8.0}
+# Dungeons whose boss the bot leaves to the player once the levers are pulled.
+HAND_OVER_BOSS_ZONES = {
+    "Marleybone/MB_BigBen/MB_CounterweightEast",
+    "Marleybone/MB_BigBen/MB_CounterweightWest",
+}
 BOSS_SPAWN_WAIT = 8.0  # after the last lever, before walking up to the boss
 GATE_FRONT = 250.0  # land this far in front of the gate the last lever opened
 GATE_BEYOND = 400.0  # and walk this far past it
@@ -2863,6 +2868,14 @@ class Quester:
         near = [c for c in circles if distance(c, marker) < CIRCLE_NEAR_MARKER]
         if not near:
             return False
+        zone_now = await self.client.zone_name() or ""
+        if zone_now in HAND_OVER_BOSS_ZONES:
+            # Sprockets and Bellows: walking up to their circle froze the wizard
+            # in a 0-opponent battle every time. The levers are done: the user
+            # takes it from here.
+            where = zone_now.split("/")[-1]
+            self.controller.stop(f"levers done in {where}; handing the boss over to the player")
+            return True
         circle = min(near, key=lambda c: distance(c, marker))
         zone = await self.client.zone_name() or ""
         below = self._floor_below(zone, circle)
