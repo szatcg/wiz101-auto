@@ -171,7 +171,9 @@ def install(client):
     client.teleport = teleport
     client._safe_teleport = True
 
-    walk = client.goto
+    walk = getattr(client, "goto", None)
+    if walk is None:
+        return
 
     async def goto(x, y, *args, **kwargs):
         # WizWalker's yaw maths does acos() of a value a hair past -1 when the
