@@ -2780,6 +2780,61 @@ class Quester:
             self.doors.record(old_zone, key, (spot.x, spot.y, spot.z), zone)
             logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
 
+    async def _to_world(self, world: str, why: str) -> bool:
+        """One step toward another world: by the dorm to Wizard City, into the
+        World Tree (Ravenwood, Bartleby's mouth), its world gate, the Spiral
+        Map. True if it acted; False once in `world` (off the map)."""
+        zone = await self.client.zone_name() or ""
+        if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+            from .relog import _find_button
+
+            label = SPIRAL_WORLD_NAMES.get(world, world.lower())
+            button = await _find_button(self.client.root_window, (label,))
+            if button is not None:
+                logger.info(f"{why}: choosing {label.title()} on the Spiral Map")
+                await ui.click_center(self.client, button)
+                await asyncio.sleep(0.5)
+            await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
+            await asyncio.sleep(1.0)
+            await wait_for_loading(self.client)
+            return True
+        if zone.split("/", 1)[0] != world:
+            # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
+            if not zone.startswith("WizardCity/"):
+                from .trainer import go_home
+
+                logger.info(f"{why}: by the dorm to Wizard City, then the World Tree to {world}")
+                return await go_home(self.client)
+            from .trainer import DORM, DORM_DOOR
+
+            if zone == DORM:
+                return await self.approach_and_walk(DORM_DOOR, DORM)
+            if zone == RAVENWOOD:
+                door = await self._entity_named_like(("bartlebymouth",)) or XYZ(*BARTLEBY_MOUTH)
+                logger.info(f"{why}: into the World Tree for the Spiral Map")
+                await self.approach_and_walk(door, zone)
+                return True
+            if zone == WORLD_TREE:
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    # "World Gate: Press X to Interact" opens the Spiral Map.
+                    logger.info(f"{why}: opening the Spiral Map at the world gate")
+                    await self.client.send_key(Keycode.X, 0.1)
+                    await asyncio.sleep(1.5)
+                    return True
+                gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
+                logger.info(f"{why}: walking into the world gate")
+                here = await self._position()
+                dx, dy = here.x - gate.x, here.y - gate.y
+                back = 400 / (math.hypot(dx, dy) or 1.0)
+                await self.client.teleport(XYZ(gate.x + dx * back, gate.y + dy * back, gate.z))
+                await asyncio.sleep(TELEPORT_SETTLE)
+                await self.client.goto(gate.x, gate.y)
+                await asyncio.sleep(1.5)
+                return True
+            logger.info(f"{why}: walking to Ravenwood")
+            return await self.go_to_zone(RAVENWOOD)
+        return False
+
     async def _visit_npc(self) -> bool:
         """state/visit_npc.json {"npc": ..., "zone": ...}: go and talk to that
         NPC (accepting what they offer), e.g. the giver of the next main quest
@@ -2793,54 +2848,8 @@ class Quester:
             return False
         zone = await self.client.zone_name() or ""
         world = dest.split("/", 1)[0]
-        if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
-            from .relog import _find_button
-
-            label = SPIRAL_WORLD_NAMES.get(world, world.lower())
-            button = await _find_button(self.client.root_window, (label,))
-            if button is not None:
-                logger.info(f"visit: choosing {label.title()} on the Spiral Map")
-                await ui.click_center(self.client, button)
-                await asyncio.sleep(0.5)
-            await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
-            await asyncio.sleep(1.0)
-            await wait_for_loading(self.client)
+        if await self._to_world(world, f"visit {npc}"):
             return True
-        if zone.split("/", 1)[0] != world:
-            # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
-            if not zone.startswith("WizardCity/"):
-                from .trainer import go_home
-
-                logger.info(f"visit {npc}: by the dorm to Wizard City, then the World Tree to {world}")
-                return await go_home(self.client)
-            from .trainer import DORM, DORM_DOOR
-
-            if zone == DORM:
-                return await self.approach_and_walk(DORM_DOOR, DORM)
-            if zone == RAVENWOOD:
-                door = await self._entity_named_like(("bartlebymouth",)) or XYZ(*BARTLEBY_MOUTH)
-                logger.info(f"visit {npc}: into the World Tree for the Spiral Map")
-                await self.approach_and_walk(door, zone)
-                return True
-            if zone == WORLD_TREE:
-                if await ui.is_visible(self.client, ui.NPC_RANGE):
-                    # "World Gate: Press X to Interact" opens the Spiral Map.
-                    logger.info(f"visit {npc}: opening the Spiral Map at the world gate")
-                    await self.client.send_key(Keycode.X, 0.1)
-                    await asyncio.sleep(1.5)
-                    return True
-                gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
-                logger.info(f"visit {npc}: walking into the world gate")
-                here = await self._position()
-                dx, dy = here.x - gate.x, here.y - gate.y
-                back = 400 / (math.hypot(dx, dy) or 1.0)
-                await self.client.teleport(XYZ(gate.x + dx * back, gate.y + dy * back, gate.z))
-                await asyncio.sleep(TELEPORT_SETTLE)
-                await self.client.goto(gate.x, gate.y)
-                await asyncio.sleep(1.5)
-                return True
-            logger.info(f"visit {npc}: walking to Ravenwood")
-            return await self.go_to_zone(RAVENWOOD)
         if zone != dest:
             logger.info(f"visit {npc}: going to {dest}")
             if not await self.go_to_zone(dest):
@@ -3836,6 +3845,9 @@ class Quester:
             # No gate route: switch, unless we're just inside a building of the
             # same world (walking out may find one). Another world: no gates lead there.
             routable = gate_toward(zone, target_zone, self._bad_gates)
+            if not routable and other_world and target_zone.split("/")[0] in SPIRAL_WORLD_NAMES:
+                # Another world (Marleybone from Aquila): by the Spiral Map.
+                return await self._to_world(target_zone.split("/")[0], f"to {target_zone}")
             if not routable and (other_world or "interiors" not in zone.lower()):
                 logger.warning(f"no route from {zone} to {target_zone}; setting this quest aside")
                 return await self._set_current_aside(objective)
