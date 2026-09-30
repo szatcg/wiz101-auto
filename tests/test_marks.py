@@ -66,3 +66,14 @@ def test_never_recall_to_a_hub_mark():
     m = Mark("Krokotopia/KT_Hub", "Defeat Krokopatra", "room")
     here = "Krokotopia/KT_Pyramid/KT_AltarOfKings"
     assert not recall_is_faster(here, None, m, lambda a, b: 1, "Defeat Krokopatra")
+
+
+def test_mark_for_the_same_objective_in_another_world_is_not_the_place():
+    mark = Mark(zone="WizardCity/WC_Streets/WC_Cyclops", kind="travel",
+                objective="Defeat Street Sweeper in The Ironworks")
+    here = "WizardCity/WC_Streets/WC_OldeTown"
+    dest = "Marleybone/MB_Station/MB_Ironworks"
+    assert not recall_is_faster(here, dest, mark, lambda a, b: None, mark.objective)
+    same = Mark(zone="Marleybone/MB_Museum", kind="travel", objective="Talk To X")
+    none = lambda a, b: None  # noqa: E731
+    assert recall_is_faster("Marleybone/MB_Station", "Marleybone/MB_Yard", same, none, "Talk To X")
