@@ -30,7 +30,7 @@ TEAM_UP_NAMES = ("mount olympus",)
 TEAM_UP_WORDS = ("team up!", "team up")
 # Queue with Team Up too (besides watching the sigil for a party gathering;
 # a party on the sigil wins: the Team Up screen is closed to go in with them).
-USE_QUEUE = True
+USE_QUEUE = False  # the player's choice: Team Up teams left mid-run; go in with players at the sigil
 REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
