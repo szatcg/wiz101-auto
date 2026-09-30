@@ -2930,6 +2930,12 @@ class Quester:
             self.dialogue.accept_offers_for(60)
         objective = f"Talk To {npc}"
         self._attempts = 0
+        if await self._find_npc(npc) is None:
+            # Nowhere in the zone: not a talk failure (those get a few tries).
+            VISIT_FILE.unlink(missing_ok=True)
+            self._visit_tries = 0
+            logger.warning(f"visit: {npc} isn't anywhere in {dest.split('/')[-1]}; giving up")
+            return True
         talked = await self._talk_to_named(objective)
         if talked or self._visit_tries >= 3:
             VISIT_FILE.unlink(missing_ok=True)
@@ -3649,6 +3655,37 @@ class Quester:
             await asyncio.sleep(0.5)
             await self.interact(objective)
         return True
+
+    async def _find_npc(self, name: str) -> XYZ | None:
+        """An NPC who isn't loaded here yet (no quest marker points at them:
+        Ken Shui, visited for his quests): where they were seen before, then
+        landmarks across the zone, checking at each stop. Ends near them."""
+        pos = await self._npc_named(name, near=await self._position())
+        if pos is not None:
+            return pos
+        zone = await self.client.zone_name() or ""
+        start = await self._position()
+        want = _norm_name(name)
+        seen = self.entity_map.spots(zone, lambda n: _norm_name(n) == want, (start.x, start.y, start.z))
+        spots = seen[:3] + spread_points(
+            await self._landmarks() + floor_points(await path_points(self.client), start.z),
+            (start.x, start.y, start.z), FAR_SWEEP_SPACING,
+        )[:FAR_SWEEP_MAX]
+        logger.info(f"looking for {name} around {zone.split('/')[-1]} ({len(spots)} spots)")
+        for p in spots:
+            if not await is_free(self.client):
+                return None
+            spot = XYZ(*p)
+            if not await self._clear_spot(spot):
+                continue
+            await self.client.teleport(spot)
+            await asyncio.sleep(0.6)
+            await scan_entities(self.client, zone, self.entity_map)
+            pos = await self._npc_named(name, near=await self._position())
+            if pos is not None:
+                logger.success(f"found {name} at ({pos.x:.0f}, {pos.y:.0f})")
+                return pos
+        return None
 
     async def _npc_named(self, name: str, near: XYZ | None = None):
         """Position of an entity named exactly `name` that isn't an enemy
