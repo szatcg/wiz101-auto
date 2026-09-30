@@ -26,6 +26,7 @@ from wizwalker import XYZ
 
 OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
 OUTSIDE_MARGIN = 300.0  # ... and past the known ground's outline by this much (not just an unseen corner)
+WALK_CLEARANCE = 600.0  # a walk whose straight path passes an enemy closer than this isn't taken
 RETRY_WAIT = 2.0  # a teleport the game didn't pick up in WizWalker's 0.6 s: once more, waiting this long
 NOT_TAKEN = 5.0  # moved less than this: the teleport didn't happen
 GROUND_HEIGHT = 400.0  # ground points at about the destination's height count
@@ -45,6 +46,16 @@ def same_level(spot, hazards: list) -> list:
     """Hazards on the same level as `spot`: those far above or below it (under
     an elevated platform) can't reach it."""
     return [h for h in hazards if abs(h.z - spot.z) < OTHER_LEVEL]
+
+
+def segment_distance(p, a, b) -> float:
+    """Distance from point `p` to the segment a-b (2D)."""
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    length2 = dx * dx + dy * dy
+    t = 0.0 if length2 == 0 else max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / length2))
+    return math.dist(p, (ax + t * dx, ay + t * dy))
 
 
 def outside(p, ground: list, margin: float) -> bool:
@@ -244,6 +255,27 @@ def install(client):
         return
 
     async def goto(x, y, *args, **kwargs):
+        # A walk runs straight at its target, into whatever stands on the way
+        # (backing off Scout Tower 3's marker walked into an Otomo Mercenary).
+        # Unless heading into a fight on purpose, no walk passes an enemy.
+        try:
+            meant = time.monotonic() < max(getattr(client, "_engage_until", 0.0),
+                                           getattr(client, "_close_ok_until", 0.0))
+            if not meant and not await client.in_battle():
+                from .upkeep import mob_positions
+
+                me = await client.body.position()
+                mobs = same_level(me, [XYZ(*m) for m in await mob_positions(client)])
+                near = [m for m in mobs
+                        if segment_distance((m.x, m.y), (me.x, me.y), (x, y)) < WALK_CLEARANCE]
+                if near:
+                    m = min(near, key=lambda q: math.dist((q.x, q.y), (me.x, me.y)))
+                    logger.info(f"not walking to ({x:.0f}, {y:.0f}): an enemy by the way "
+                                f"at ({m.x:.0f}, {m.y:.0f})")
+                    client._teleport_aborted = True
+                    return None
+        except Exception as exc:
+            logger.debug(f"walk check failed ({exc!r}); walking")
         # WizWalker's yaw maths does acos() of a value a hair past -1 when the
         # target is exactly in line (straight along an axis): ValueError. A
         # target nudged by a unit walks the same way.

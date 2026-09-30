@@ -108,3 +108,27 @@ def test_a_teleport_the_game_dropped_is_tried_again(tmp_path, monkeypatch):
     install(c)
     asyncio.run(c.teleport(XYZ(3000, 0, 0)))
     assert c.calls == 2 and (c.body.p.x, c.body.p.y) == (3000, 0)
+
+
+def test_segment_distance():
+    from wiz101_auto.safe_teleport import segment_distance
+
+    assert segment_distance((500, 300), (0, 0), (1000, 0)) == 300  # beside the path
+    assert segment_distance((1500, 0), (0, 0), (1000, 0)) == 500  # past its end
+
+
+def test_a_walk_past_an_enemy_is_not_taken():
+    class Walker(FakeClient):
+        def __init__(self):
+            super().__init__([(800, 100)])
+            self.walked = []
+
+        async def goto(self, x, y):
+            self.walked.append((x, y))
+
+    c = Walker()
+    install(c)
+    asyncio.run(c.goto(1000, 0))  # straight past the enemy at (800, 100)
+    assert c.walked == []
+    asyncio.run(c.goto(-1000, 0))  # the other way: clear
+    assert c.walked == [(-1000, 0)]

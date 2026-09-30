@@ -3956,6 +3956,7 @@ class Quester:
             start = XYZ(marker.x + dx * MARKER_WALK_BACK, marker.y + dy * MARKER_WALK_BACK, marker.z)
             await self.client.teleport(start)
             await asyncio.sleep(TELEPORT_SETTLE)
+            allow_engage(self.client)  # walking onto it is meant to bring the boss out
             await self.client.goto(marker.x, marker.y)
             await asyncio.sleep(2.0)
             if not await is_free(self.client):
