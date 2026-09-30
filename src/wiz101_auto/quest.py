@@ -138,6 +138,12 @@ TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
 TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
+# Where hard-to-find things are, from the player: item (letters only, lower
+# case) -> (zone, (x, y, z) of a landmark, radius to search around it).
+FIND_HINTS = {
+    # "Face the door of the Knight's Tower and look to the left of its sigil."
+    "knightscourtcat": ("Marleybone/MB_ScotlandYard/MB_KnightsCourt", (381.0, 7335.0, -479.0), 700.0),
+}
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
 DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
@@ -2343,12 +2349,49 @@ class Quester:
             await asyncio.sleep(0.2)
         await wait_until_free(self.client, timeout=15)
 
+    async def _search_hint(self, item: str, objective: str) -> bool:
+        """The player told us where `item` is (FIND_HINTS): once per objective,
+        stand at points in rings around that landmark (a Locate is done by
+        coming close; a prompt there gets an X). True if it searched."""
+        hint = FIND_HINTS.get("".join(ch for ch in item.lower() if ch.isalnum()))
+        zone = await self.client.zone_name() or ""
+        if not hint or hint[0] != zone or getattr(self, "_hinted_for", None) == objective:
+            return False
+        self._hinted_for = objective
+        _zone, (cx, cy, cz), radius = hint
+        logger.info(f"looking for {item!r} where the player said: around ({cx:.0f}, {cy:.0f})")
+        for r in (radius * 0.45, radius):
+            for k in range(8):
+                a = k * math.pi / 4
+                spot = XYZ(cx + r * math.cos(a), cy + r * math.sin(a), cz)
+                if not await is_free(self.client):
+                    return True
+                if not await self._clear_spot(spot):
+                    continue
+                await self.client.teleport(spot)
+                await asyncio.sleep(0.8)
+                if await self.objective() != objective:
+                    logger.success(f"found {item}")
+                    return True
+                if await self.collector.collect_once(item, self._press_collect):
+                    return True
+                if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    await self.client.send_key(Keycode.X, 0.1)
+                    await asyncio.sleep(1.5)
+                    if await self.objective() != objective:
+                        logger.success(f"found {item} (pressed X at it)")
+                        return True
+        logger.info(f"{item!r} wasn't around the spot the player gave; searching the zone")
+        return True
+
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
         if await self.collector.collect_once(item, self._press_collect):
             await asyncio.sleep(0.5)
             if await self.objective() != objective:
                 logger.success(f"collected {item}")
+            return True
+        if await self._search_hint(item, objective):
             return True
         # Nothing matching in view: look around the zone once per objective.
         if getattr(self, "_swept_for", None) != objective:
