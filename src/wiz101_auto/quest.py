@@ -12,6 +12,7 @@ Combat itself is handled concurrently by the Fighter task.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import math
 import random
@@ -92,9 +93,13 @@ STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
 MAX_BOOK_PAGES = 30  # the quest book, read to its last page (was 5: quests went missing)
-RANK_QUESTS_EVERY = 60.0  # at most this often: quest-book rankings (on objective changes)
+RANK_QUESTS_EVERY = 120.0  # at most this often: quest-book rankings (on objective changes)
 # Quest book window paths (mapped by Deimos).
 QUEST_LIST = ["WorldView", "DeckConfiguration", "wndQuestList"]
+BOOK_FIELDS = {
+    "txtName", "txtWorld", "txtGoal", "txtGoalObjective1", "txtZone", "txtReward1Amount",
+    "imgEncounter", "txtGoalCounter", "imgActivityQuestType", "LeftMainline", "imgActiveQuest",
+}
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
@@ -128,6 +133,8 @@ TEAM_APPROACH = 2500.0  # farther than this from the boss's marker: go closer
 TEAM_STANDOFF = 1300.0  # ... stopping this far from it (the team starts the fight)
 TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fight
 TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
+TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
+TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
@@ -589,6 +596,8 @@ class Quester:
         self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
+        self._background: dict[str, asyncio.Task] = {}  # scans running beside the step
+        self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
@@ -652,6 +661,21 @@ class Quester:
         if target and target in now.lower() and (not after or after in before.lower()):
             path.unlink(missing_ok=True)
             self.controller.stop(f"reached {now!r} (state/stop_at.json)")
+
+    def _in_background(self, kind: str, make) -> None:
+        """Run `make()` (a coroutine factory) as a background task, one per kind
+        at a time; errors are only logged."""
+        task = self._background.get(kind)
+        if task is not None and not task.done():
+            return
+
+        async def run():
+            try:
+                await make()
+            except Exception as exc:
+                logger.debug(f"background {kind} scan failed: {exc!r}")
+
+        self._background[kind] = asyncio.create_task(run())
 
     async def _note_progress(self, objective: str, zone: str | None):
         key = (objective, zone)
@@ -853,7 +877,7 @@ class Quester:
                 continue  # an enemy stands there: landing on it starts a fight
             before = await self._position()
             await self.client.teleport(spot)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone):
                 return True
             if distance(await self._position(), before) <= BOUNCE_DISTANCE and distance(before, spot) > 50:
@@ -982,7 +1006,7 @@ class Quester:
             await asyncio.sleep(1.0)
         elif distance(await self._position(), sigil) > SIGIL_RANGE:
             await self.client.teleport(sigil)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
         await wait_for_loading(self.client)
         if not await is_free(self.client):
             logger.info("pulled into a fight near the sigil; will try again after it")
@@ -1580,7 +1604,7 @@ class Quester:
             if not await self._clear_spot(spot):
                 continue
             await self.client.teleport(spot)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone):
                 return True
             if distance(await self._position(), target) < 50:
@@ -1631,7 +1655,7 @@ class Quester:
             if spot is not None:
                 logger.info(f"enemies near the destination; landing {distance(spot, target):.0f} away")
                 await self.client.teleport(spot)
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(TELEPORT_SETTLE)
                 if await self._zone_changed(zone):
                     return True
                 await self.client.goto(target.x, target.y)
@@ -1642,7 +1666,7 @@ class Quester:
                 # Didn't get there on foot (a wall, a door): fall back to the usual way.
 
         await self.client.teleport(target)
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(TELEPORT_SETTLE)
         if await self._zone_changed(zone):
             return True  # the teleport itself went through a zone transition
         if distance(await self._position(), start) > BOUNCE_DISTANCE:
@@ -1668,7 +1692,7 @@ class Quester:
         if known_door is not None:
             logger.info("a door walked through before: going to where that walk started")
             await self.client.teleport(XYZ(*known_door))
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone) or await self.walk_through(target, zone):
                 return True
         # A spot near it where a teleport worked before: start from there.
@@ -1679,7 +1703,7 @@ class Quester:
             logger.info(f"teleport refused; trying a spot a teleport worked at before "
                         f"({good[0][0]:.0f}, {good[0][1]:.0f})")
             await self.client.teleport(XYZ(*good[0]))
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone):
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
@@ -1750,7 +1774,13 @@ class Quester:
             # This is the NPC the quest helper sent us to: accept what they offer.
             self.dialogue.accept_offers_for(30)
         await self.client.send_key(Keycode.X, 0.1)
-        await asyncio.sleep(1.0)
+        # Move on as soon as something opens (dialogue, a menu, a loading
+        # screen), not after a set second.
+        for _ in range(10):
+            await asyncio.sleep(0.1)
+            opened = not await is_free(self.client) or await self.services.is_open()
+            if opened or await self.client.is_loading():
+                break
 
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")
@@ -1766,7 +1796,7 @@ class Quester:
             # several quests first show a services menu to pick from.
             quiet_since = time.monotonic()
             picks = 0
-            while time.monotonic() - quiet_since < 3.0:
+            while time.monotonic() - quiet_since < TALK_QUIET_SECONDS:
                 await self.controller.checkpoint()
                 if picks < 3 and await self.services.is_open():
                     if self.dialogue:
@@ -1782,7 +1812,7 @@ class Quester:
                 await asyncio.sleep(0.2)
 
         await wait_for_loading(self.client)
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
 
         if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             # World gate: the quest destination is preselected, just go.
@@ -1854,6 +1884,86 @@ class Quester:
             await asyncio.sleep(0.8)
 
     async def _read_quest_page(self) -> list[QuestEntry]:
+        """The quest book page on screen. Read the fast way (each slot's
+        fields in one walk); the first page of a run is also read the old way
+        (a lookup from the root per field) and a mismatch switches back to it."""
+        if self._book_reader == "slow":
+            return await self._read_quest_page_slow()
+        fast = await self._read_quest_page_fast()
+        if self._book_reader == "check":
+            slow = await self._read_quest_page_slow()
+            if [dataclasses.astuple(q) for q in fast] != [dataclasses.astuple(q) for q in slow]:
+                logger.warning(f"fast quest book read differs ({[q.name for q in fast]} vs "
+                               f"{[q.name for q in slow]}); reading it the slow way")
+                self._book_reader = "slow"
+                return slow
+            self._book_reader = "fast"
+        return fast
+
+    async def _turn_page(self, button: list[str]) -> bool | None:
+        """Click a quest book page button and wait until the page shows other
+        quests (not a set time). None if the button wasn't there; False if the
+        page still looked the same after 1.5 s (the first/last page, or slow)."""
+        first = await self._first_book_name()
+        if not await ui.click(self.client, button):
+            return None
+        for _ in range(15):
+            await asyncio.sleep(0.1)
+            if await self._first_book_name() != first:
+                return True
+        return False
+
+    async def _first_book_name(self) -> str:
+        panel = await ui.window_at(self.client, QUEST_LIST)
+        if panel is None:
+            return ""
+        slot = (await ui.find_named(panel, {"wndQuestInfo0"}, max_depth=2)).get("wndQuestInfo0")
+        if slot is None:
+            return ""
+        return await ui.window_text((await ui.find_named(slot, {"txtName"}, max_depth=4)).get("txtName"))
+
+    async def _read_quest_page_fast(self) -> list[QuestEntry]:
+        zone = await self.client.zone_name() or ""
+        panel = await ui.window_at(self.client, QUEST_LIST)
+        if panel is None:
+            return []
+        slots = await ui.find_named(panel, {f"wndQuestInfo{i}" for i in range(MAX_QUEST_SLOTS)}, max_depth=2)
+        out = []
+        for i in range(MAX_QUEST_SLOTS):
+            slot = slots.get(f"wndQuestInfo{i}")
+            if slot is None:
+                continue
+            base = slot
+            for part in ("questInfoWindow", "wndQuestInfo"):
+                base = (await ui.find_named(base, {part}, max_depth=2)).get(part) if base else None
+            if base is None:
+                continue
+            w = await ui.find_named(base, BOOK_FIELDS, max_depth=4)
+            name = await ui.window_text(w.get("txtName"))
+            if not name:
+                continue
+            world = await ui.window_text(w.get("txtWorld"))
+            reward = await ui.window_text(w.get("txtReward1Amount"))
+            out.append(
+                QuestEntry(
+                    slot=i,
+                    name=name,
+                    world=world,
+                    goal=await ui.window_text(w.get("txtGoal")),
+                    zone=await ui.window_text(w.get("txtZone")),
+                    target=await ui.window_text(w.get("txtGoalObjective1")),
+                    fight=await ui.window_visible(w.get("imgEncounter")),
+                    counted=await ui.window_visible(w.get("txtGoalCounter")),
+                    hops=hops_to_place(zone, world) if world else None,
+                    activity=await ui.window_visible(w.get("imgActivityQuestType")),
+                    mainline=await ui.window_visible(w.get("LeftMainline")),
+                    active=await ui.window_visible(w.get("imgActiveQuest")),
+                    reward=int(reward) if reward.strip().isdigit() else 0,
+                )
+            )
+        return out
+
+    async def _read_quest_page_slow(self) -> list[QuestEntry]:
         zone = await self.client.zone_name() or ""
         out = []
         for i in range(MAX_QUEST_SLOTS):
@@ -1917,10 +2027,11 @@ class Quester:
                     break
                 pages = page + 1
                 all_quests += [(page, e) for e in entries]
-                if not await ui.click(self.client, page_button):
+                if await self._turn_page(page_button) is None:
                     complete = True
                     break
-                await asyncio.sleep(0.6)
+                # (Unchanged after the wait: the next read finds nothing new
+                # and ends it; a slow page still gets read.)
             activities = {q.name for _, q in all_quests if q.activity}
             self._wanted_items = {  # main-story/spell quests only: side quests are ignored
                 collect_item_name(q.goal): q.name
@@ -2022,11 +2133,10 @@ class Quester:
                 logger.info(f"quest priority: continuing {entry.name!r}")
                 return False
             for _ in range(pages):
-                await ui.click(self.client, back_button)
-                await asyncio.sleep(0.4)
+                if not await self._turn_page(back_button):
+                    break  # the first page already
             for _ in range(page):
-                await ui.click(self.client, page_button)
-                await asyncio.sleep(0.6)
+                await self._turn_page(page_button)
             info = [*QUEST_LIST, f"wndQuestInfo{entry.slot}", "questInfoWindow", "wndQuestInfo"]
             slot = [*info, "btnActivate"]
             for attempt in range(TRACK_TRIES):
@@ -2180,7 +2290,7 @@ class Quester:
                 if not await self._clear_spot(XYZ(*p)):
                     continue  # an enemy is there: landing on it starts a fight
                 await self.client.teleport(XYZ(*p))
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(TELEPORT_SETTLE)
                 if await self.collector.collect_once(item, self._press_collect):
                     return True
             await self.client.teleport(start)
@@ -2342,7 +2452,7 @@ class Quester:
         dx, dy = here.x - pos.x, here.y - pos.y
         length = math.hypot(dx, dy) or 1.0
         await self.client.teleport(XYZ(pos.x + dx / length * 200, pos.y + dy / length * 200, pos.z))
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(TELEPORT_SETTLE)
         await self.client.goto(pos.x, pos.y)
         await self._press_x_here(zone, adjust=True)
         return True
@@ -2836,7 +2946,7 @@ class Quester:
             logger.info(f"the team went on; following their tracks from ({last.x:.0f}, {last.y:.0f}) "
                         f"toward ({ahead.x:.0f}, {ahead.y:.0f})")
             await self.client.teleport(last)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             start = await self._position()
             await self.client.goto(ahead.x, ahead.y)
             await asyncio.sleep(1.5)
@@ -2921,14 +3031,14 @@ class Quester:
             logger.info(f"walking through the gate at ({gate.x:.0f}, {gate.y:.0f}, {gate.z:.0f}) "
                         "and up the stairs")
             await self.client.teleport(front)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             await self.client.goto(beyond.x, beyond.y)
             await asyncio.sleep(0.5)
             await self._walk_route_to(circle, zone)
         else:
             if below is None or distance(await self._position(), start) > NEAR_START:
                 await self.client.teleport(start)
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(TELEPORT_SETTLE)
             if below is not None:
                 await self._walk_route_to(circle, zone)
         allow_engage(self.client)
@@ -3268,7 +3378,7 @@ class Quester:
         for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
             start = XYZ(marker.x + dx * MARKER_WALK_BACK, marker.y + dy * MARKER_WALK_BACK, marker.z)
             await self.client.teleport(start)
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(TELEPORT_SETTLE)
             await self.client.goto(marker.x, marker.y)
             await asyncio.sleep(2.0)
             if not await is_free(self.client):
@@ -3336,7 +3446,7 @@ class Quester:
                     dx, dy = me.x - pos.x, me.y - pos.y
                     back = CIRCLE_WALK_FROM / (math.hypot(dx, dy) or 1.0)
                     await self.client.teleport(XYZ(pos.x + dx * back, pos.y + dy * back, pos.z))
-                    await asyncio.sleep(0.8)
+                    await asyncio.sleep(TELEPORT_SETTLE)
                     allow_engage(self.client)
                     await self.client.goto(pos.x, pos.y)
                     await self._hold_for_fight()
@@ -3445,12 +3555,15 @@ class Quester:
             return
         if await self._dorm_to_wizard_city():
             return
+        # Noting what's around and where wisps spawn (~3 s each) runs beside
+        # the step, not in its way.
         if time.monotonic() - self._last_entity_scan > ENTITY_SCAN_SECONDS:
             self._last_entity_scan = time.monotonic()
-            await scan_entities(self.client, await self.client.zone_name() or "", self.entity_map)
+            zone_scan = await self.client.zone_name() or ""
+            self._in_background("entities", lambda: scan_entities(self.client, zone_scan, self.entity_map))
         if time.monotonic() - self._last_wisp_scan > WISP_SCAN_SECONDS:
-            await scan_wisps(self.client)  # learn wisp spawn points while questing
             self._last_wisp_scan = time.monotonic()
+            self._in_background("wisps", lambda: scan_wisps(self.client))  # learn wisp spawn points
         await self._note_defeats()
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).

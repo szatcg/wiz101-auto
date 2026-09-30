@@ -336,7 +336,7 @@ class Collector:
         logger.info(f"boss loot chest {name!r} ({spot.distance(me):.0f} away): opening it")
         back = XYZ(me.x, me.y, me.z)
         await self.client.teleport(XYZ(spot.x + WALK_IN, spot.y, spot.z))
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(0.4)
         await self.client.goto(spot.x, spot.y)
         await asyncio.sleep(0.3)
         await press_interact()

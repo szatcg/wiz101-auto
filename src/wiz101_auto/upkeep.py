@@ -179,7 +179,7 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
         for spot in spots:
             before = await health_mana(client)
             await client.teleport(XYZ(*spot))
-            await asyncio.sleep(0.8)
+            await asyncio.sleep(0.4)
             remaining = [_pt(await w.location()) for w in await scan_wisps(client)]
             after = await health_mana(client)
             if after[0] >= 0.99 and after[1] >= 0.99:
@@ -225,7 +225,7 @@ async def _visit_known_spot(client, cfg: UpkeepConfig, zone: str, need) -> bool:
     wisp_memory().mark_visited(zone, spot)
     logger.info(f"checking a known {wisp_memory().kind_of(zone, spot)} wisp spawn point")
     await client.teleport(XYZ(*spot))
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(0.4)
     if await collect_wisps(client, cfg):
         wisp_memory().found(zone, spot)
     elif wisp_memory().missed(zone, spot):
@@ -249,7 +249,7 @@ async def sweep_for_wisps(client, cfg: UpkeepConfig) -> int:
         if not await is_free(client):
             break
         await client.teleport(XYZ(*p))
-        await asyncio.sleep(0.8)
+        await asyncio.sleep(0.4)
         await scan_wisps(client)
     found = len(wisp_memory().spots.get(zone, [])) - before
     logger.info(f"found {found} new wisp spawn point(s)")
@@ -279,7 +279,7 @@ async def unstick(client) -> bool:
         spots = sorted((p for p in spots if math.dist(p, me) > 150), key=lambda p: math.dist(p, me))
         for p in spots[:8]:
             await client.teleport(XYZ(*p))
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(0.4)
             if await can_move(client):
                 logger.success(f"unstuck: now at ({p[0]:.0f}, {p[1]:.0f})")
                 return True
@@ -320,7 +320,7 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
         spot = min(candidates, key=lambda p: math.dist(p, _pt(me)))
         logger.info(f"enemies close by: moving somewhere clear {why}")
         await client.teleport(XYZ(*spot))
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.4)
         return True
     except Exception as exc:
         logger.debug(f"could not find a safe spot: {exc}")
@@ -522,6 +522,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     tripped = False  # tried a heal trip through the hub
     travelled = False
     fruitless = 0  # remembered spots visited in a row without gaining anything
+    grabbed_in_view = False  # past the fight thresholds: wisps in view taken once
     swept: set[str] = set()
     while True:
         await controller.checkpoint()
@@ -530,6 +531,17 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         hp, mana = await health_mana(client)
         if cfg.recovered(hp, mana):
             logger.success(f"recovered to {hp:.0%} health, {mana:.0%} mana")
+            await back_to_start()
+            return True
+        if not cfg.needs_recovery(hp, mana):
+            # Fit to fight again: take the wisps in view, but no visiting spots,
+            # waiting for respawns or trips for the last few percent (standing
+            # around for those is slow and where patrols caught the wizard).
+            if cfg.collect_wisps and not grabbed_in_view and await collect_wisps(client, cfg):
+                grabbed_in_view = True
+                await asyncio.sleep(0.3)
+                continue
+            logger.success(f"healed to {hp:.0%} health, {mana:.0%} mana: good enough, going on")
             await back_to_start()
             return True
 

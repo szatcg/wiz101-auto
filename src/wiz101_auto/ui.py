@@ -277,6 +277,51 @@ async def click_center(client, window) -> None:
     await button_click(client, int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2))
 
 
+async def find_named(window, names: set[str], max_depth: int = 8) -> dict:
+    """One walk of `window`'s subtree: the shallowest window of each wanted
+    name. Reading many fields of one panel this way beats a `window_at` from
+    the root for each (the quest book: ~2 s a page that way)."""
+    found: dict = {}
+    level = [window]
+    for _ in range(max_depth):
+        nxt = []
+        for w in level:
+            try:
+                kids = await w.children()
+            except Exception:
+                continue
+            for k in kids:
+                try:
+                    name = await k.name()
+                except Exception:
+                    continue
+                if name in names and name not in found:
+                    found[name] = k
+                nxt.append(k)
+        if len(found) == len(names) or not nxt:
+            break
+        level = nxt
+    return found
+
+
+async def window_text(w) -> str:
+    if w is None:
+        return ""
+    try:
+        return _TAGS.sub("", await w.maybe_text() or "").strip()
+    except Exception:
+        return ""
+
+
+async def window_visible(w) -> bool:
+    if w is None:
+        return False
+    try:
+        return await w.is_visible()
+    except Exception:
+        return False
+
+
 async def is_visible(client, path: list[str]) -> bool:
     w = await window_at(client, path)
     if w is None:
