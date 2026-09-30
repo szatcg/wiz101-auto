@@ -170,3 +170,18 @@ def install(client):
 
     client.teleport = teleport
     client._safe_teleport = True
+
+    walk = client.goto
+
+    async def goto(x, y, *args, **kwargs):
+        # WizWalker's yaw maths does acos() of a value a hair past -1 when the
+        # target is exactly in line (straight along an axis): ValueError. A
+        # target nudged by a unit walks the same way.
+        try:
+            return await walk(x, y, *args, **kwargs)
+        except ValueError as exc:
+            if "range from -1" not in str(exc):
+                raise
+            return await walk(x + 1.0, y + 1.0, *args, **kwargs)
+
+    client.goto = goto
