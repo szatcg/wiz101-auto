@@ -127,6 +127,9 @@ while the bot is stopped.
 | `watchdog.py` | 15 s stall detection and escalating recovery |
 | `combat/brain.py`, `combat/model.py` | pure turn logic (unit tested) |
 | `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
+| `combat/calibrate.py` | reads `activity.log`: our predicted vs real damage, our hit rates, each enemy's damage per round → `state/enemy_stats.json` (rebuilt at every start; `python -m wiz101_auto.combat.calibrate` prints the report) |
+| `combat/sim.py` | Monte Carlo fights with the real brain; enemies hit as logged; can start from the live battle. Compare decks with `win_rate` |
+| `combat/rollout.py` | boss/hard fights: each move played out in the simulator in worker processes (~3 s), the brain's move replaced when another is clearly better (`combat.rollouts`) |
 | `gear.py` | new backpack item: tries just it against what is worn; level-up: retries items that could not be worn before. `state/gear.json` remembers items already beaten (never retried) |
 | `trainer.py` | trips to the school professor (Go Home, dorm door, school door) at `progression.train_levels`; trains new spells |
 | `bossfarm.py`, `dungeons.py` | `mode: boss` (`boss_farm.boss`, `until_item`, `max_runs`): repeat a learned dungeon boss |

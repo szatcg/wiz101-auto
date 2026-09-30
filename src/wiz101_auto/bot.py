@@ -353,6 +353,15 @@ async def run(cfg: Config):
             await stack.enter_async_context(client.mouse_handler)
 
         c = cfg.combat
+        try:
+            # The simulator's enemies and hit rates, from every fight logged so far (~0.1 s).
+            from pathlib import Path as _Path
+
+            from .combat.calibrate import write_stats
+
+            write_stats([_Path("activity.log")])
+        except Exception as exc:
+            logger.debug(f"enemy stats not refreshed: {exc!r}")
         fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below,
                           rollouts=c.rollouts)
         dialogue = DialoguePolicy()
