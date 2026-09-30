@@ -1067,3 +1067,22 @@ def test_holds_cyclops_for_a_humongofrog_that_kills_both_next_round():
     b = Battle(me=wizard, allies=[], enemies=[enemy("A", 475), enemy("B", 475)], cards=hand, pips=3)
     action = decide(b)
     assert action.card is None or action.card.name != "Cyclops"
+
+
+def test_boss_fight_summons_first_and_keeps_its_big_hits():
+    hand = [
+        dmg_card(0, "Cyclops", 295, pips=3),
+        dmg_card(1, "Minotaur", 330, pips=3),
+        summon_card(2),
+        dmg_card(3, "Minor Fire Scorch", 90, pips=0),
+    ]
+    b = Battle(me=me(hp=1778, max_hp=1778), allies=[], cards=hand, pips=2, power_pips=1,
+               enemies=[enemy("Meowiarty", 2000, boss=True), enemy("Clockwork Wizard", 560),
+                        enemy("Agony Wraith", 1280, boss=True)])
+    b.upcoming = [trap_card(9)]
+    b.deck_known = True
+    first = decide(b, discards_left=2)
+    assert first.kind is ActionKind.CAST and first.card.name == "Golem Minion"
+    b.round = 5  # past the summon rounds: digging may go, but not for the big hits
+    later = decide(b, discards_left=2)
+    assert not (later.kind is ActionKind.DISCARD and later.card.name in ("Cyclops", "Minotaur"))

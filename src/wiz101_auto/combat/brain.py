@@ -413,6 +413,7 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+BOSS_SUMMON_ROUNDS = 3  # against a boss, the minion comes in these first rounds
 GROUP_SUMMON_ROUNDS = 2  # against a group, the minion comes in these first rounds
 AOE_SAVE_HEALTH = 0.5  # above this, pips go to the hit-all spell rather than a single kill
 AOE_SAVE_HEALTH_KILL_ALL = 0.3  # ... down to this when the hit-all (in hand) kills them all next round
@@ -498,6 +499,17 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
             c for c in battle.cards
             if not c.is_damage and not c.is_heal and not c.is_enchant
             and not ({EffectKind.BLADE, EffectKind.TRAP, EffectKind.SHIELD} & set(c.kinds))
+        ]
+    if any(e.is_boss for e in enemies):
+        # A boss has a lot of health: the deck runs dry before it does (it
+        # passed with 5+2 pips and nothing to cast against Meowiarty after
+        # digging away Cyclops, Minotaur and the Troll Minion). Big hits and
+        # the minion stay; only cheap hits may go.
+        minions_ok = not (strat.no_minions or party_full(battle))
+        singles = [
+            c for c in singles
+            if not (c.is_damage and c.pip_cost >= 2)
+            and not (EffectKind.SUMMON in c.kinds and minions_ok)
         ]
     if not group:
         if len(singles) < 2:
@@ -1325,6 +1337,16 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         junk = _junk_discard(battle, strat)
         if junk:
             return junk
+
+    # A boss fight is long: the minion comes out first (the player's order:
+    # minion, then Feint/blades/traps, then the big hits).
+    if (
+        any(e.is_boss for e in battle.live_enemies) and battle.round <= BOSS_SUMMON_ROUNDS
+        and not (plan_fight(battle, strat).skip_summon or _finish_in_reach(battle))
+    ):
+        summon = _summon_action(battle, strat)
+        if summon:
+            return summon
 
     # Blades and traps (and the hit-all spell against groups) matter more than
     # another single hit: dig for them.
