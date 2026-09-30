@@ -79,7 +79,7 @@ class Foe:
     spells: list[Spell]
     boss: bool = False
     save_chance: float = 0.35  # able to afford only a cheaper attack: chance it saves up instead
-    buff_chance: float = 0.35  # chance a round goes on a 0-pip blade/trap/weakness/shield
+    buff_chance: float = 0.45  # chance a round goes on a 0-pip blade/trap/weakness/shield
     accuracy: float = 0.85
     power: float = 1.0  # its damage bonus (bosses hit harder than the spell's base)
 
@@ -97,7 +97,7 @@ MEOWIARTY = [
         _s("Cyclops", 3, "hit", "myth", 300), _s("Humongofrog", 4, "aoe", "myth", 300),
         _s("Snow Serpent", 2, "hit", "ice", 150), _s("Sunbird", 3, "hit", "fire", 250),
         _s("Storm Shark", 3, "hit", "storm", 210),
-    ], boss=True, power=1.5),
+    ], boss=True, power=1.0),
     Foe("Agony Wraith", 1280, "death", {"death": 0.4, "life": -0.4}, [
         _s("Weakness", 0, "weak", "", -25), _s("Deathblade", 0, "blade", "death", 35),
         _s("Curse", 0, "trap", "death", 30), _s("Death Trap", 0, "trap", "death", 25),
@@ -105,7 +105,7 @@ MEOWIARTY = [
         _s("Banshee", 3, "hit", "death", 275), _s("Vampire", 4, "drain", "death", 335),
         _s("Skeletal Pirate", 5, "hit", "death", 450), _s("Fire Elf", 2, "dot", "fire", 50, 210),
         _s("Cyclops", 3, "hit", "myth", 300), _s("Storm Shark", 3, "hit", "storm", 210),
-    ], boss=True, power=0.9),
+    ], boss=True, power=0.7),
     Foe("Clockwork Wizard", 560, "life", {"life": 0.3, "death": -0.3}, [
         _s("Death Shield", 0, "shield", "death", -70), _s("Spirit Armor", 0, "shield", "myth", -25),
         _s("Weakness", 0, "weak", "", -25), _s("Sprite", 1, "heal", "life", 200),
@@ -114,9 +114,9 @@ MEOWIARTY = [
         _s("Nature's Wrath", 3, "hit", "life", 280), _s("Seraph", 5, "hit", "life", 450),
         _s("Evil Snowman", 3, "hit", "ice", 270), _s("Sunbird", 3, "hit", "fire", 250),
         _s("Storm Shark", 3, "hit", "storm", 210),
-    ], power=0.9),
+    ], power=0.7),
 ]
-DAMAGE_SCALE = 1.0  # set by calibration against the logged fights
+DAMAGE_SCALE = 1.0  # powers and buff_chance set so fights last as logged (death ~round 14)
 
 ITEMS = ["Minor Fire Scorch", "Minor Fire Scorch", "Stun", "Stun"]
 DECKS = {  # the player's deck (they choose it: Feint is the only death spell)
