@@ -501,7 +501,10 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     if focus.trap_count < strat.max_traps and not in_hand(EffectKind.TRAP) and to_come(EffectKind.TRAP):
         want.append("trap")
     prisms_to_come = [c for c in upcoming if _is_prism(c)]
-    if prisms_to_come and not any(_is_prism(c) for c in battle.cards):
+    # Only against a boss (Meowiarty): in an everyday fight it binned a
+    # Minotaur to dig for a prism against two bandits.
+    boss_fight = any(e.is_boss for e in enemies)
+    if boss_fight and prisms_to_come and not any(_is_prism(c) for c in battle.cards):
         prism = prisms_to_come[0]
         gain_needed = strat.prism_early_gain
         if any(e.name not in battle.prismed and _prism_gain(prism, me, e, battle.cards) >= gain_needed
