@@ -31,9 +31,9 @@ FIGHTS_PER_DECK = 1000  # simulated fights per deck compared (fewer: noise beats
 WIN_WEIGHT = 30.0  # score = WIN_WEIGHT x win rate - mean rounds - SIZE_COST x cards: 1% of wins = 0.3 rounds
 SIZE_COST = 0.03  # per card: a thin deck (the combo drawn early) wins a tie (the player's rule)
 THIN_START = {"Humongofrog": 3, "Mythblade": 3, "Spirit Blade": 2, "Feint": 2, "Pixie": 3, "Minotaur": 2}
-# The default deck (the player's rules): no minions (too slow for everyday
+# The default deck (the player's rules): no prisms (a myth boss's niche), no minions (too slow for everyday
 # fights; a boss deck may have them), a single-target hit, some heals.
-GENERAL_EXCLUDE = {"Troll Minion", "Cyclops Minion"}
+GENERAL_EXCLUDE = {"Troll Minion", "Cyclops Minion", "Myth Prism"}  # prisms: only a boss deck (a myth boss)
 GENERAL_NEEDS = {"single": 1, "heals": 2}
 HEALS = {"Pixie"}
 SINGLE_HITS = {"Minotaur", "Cyclops", "Troll", "Banshee", "Vampire", "Ghoul"}
