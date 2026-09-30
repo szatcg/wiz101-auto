@@ -250,15 +250,18 @@ def parse_deck_spec(spec: str) -> dict[str, int]:
     return out
 
 
-async def set_deck(client, want: dict[str, int]) -> dict[str, int]:
-    """Make the deck exactly `want` (spell -> copies; anything not listed goes):
-    removals first (room for the adds), then adds, all by clicks. Returns
-    the deck as read at the end."""
+async def set_deck(client, want: dict[str, int], keep=None) -> dict[str, int]:
+    """Make the deck exactly `want` (spell -> copies; anything not listed goes,
+    unless `keep(name)` says to leave it: cards the simulator can't judge, like
+    the player's Blinding Light): removals first (room for the adds), then
+    adds, all by clicks. Returns the deck as read at the end."""
     await open_spellbook(client)
     try:
         builder = await _attach_builder(client)
         names = await _log_current_deck(client, builder) or []
         for name in dict.fromkeys(names):
+            if name not in want and keep is not None and keep(name):
+                continue
             extra = names.count(name) - want.get(name, 0)
             if extra > 0:
                 await _remove_cards(client, builder, name, extra)
