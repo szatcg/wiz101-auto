@@ -142,6 +142,8 @@ TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits f
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
 DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
+STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
+STILL_WINDOW = 4.0  # ... looks this close together count
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
@@ -622,6 +624,7 @@ class Quester:
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._mate_last_seen = 0.0  # when a teammate was last in sight
+        self._prev_mates: tuple[float, list] = (0.0, [])  # (when, teammate positions) at the last look
         self._team_talks: dict[str, int] = {}  # team dungeon talk objective -> tries
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
         self._prev_step: tuple[str, XYZ | None] | None = None  # (zone, quest marker) at the last step
@@ -3050,8 +3053,17 @@ class Quester:
                 self.controller.end_idle()
             return True
         circles = sorted((XYZ(*c) for c in await duel_circles(self.client)), key=lambda c: distance(c, me))
-        fight = team_fight_at(circles, mates)
-        if fight is None and mates:
+        # Only teammates standing still count as fighting (locked in a battle):
+        # teammates walking by Apollo's circle were taken for a fight, and it
+        # walked onto the circle with none started.
+        prev_time, prev = self._prev_mates
+        still = []
+        if now - prev_time < STILL_WINDOW:
+            still = [m for m in mates if any(distance(m, q) < STILL_RANGE for q in prev)]
+        self._prev_mates = (now, list(mates))
+        fight = team_fight_at(circles, still)
+        mates_for_mobs = still
+        if fight is None and mates_for_mobs:
             # No duel circle listed there: a teammate beside an enemy is fighting it.
             mobs = []
             for mob in await self.sprinter.get_mobs():
@@ -3059,7 +3071,7 @@ class Quester:
                     mobs.append(await mob.location())
                 except Exception:
                     continue
-            fight = team_fight_at(sorted(mobs, key=lambda m: distance(m, me)), mates)
+            fight = team_fight_at(sorted(mobs, key=lambda m: distance(m, me)), mates_for_mobs)
         logger.debug(f"team: {len(mates)} teammate(s), {len(circles)} circle(s), fight at {fight}")
         if fight is not None:
             logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
@@ -3078,7 +3090,9 @@ class Quester:
         # Only this dungeon's own non-fight steps are done as usual (talks,
         # pick-ups); a quest from elsewhere would walk away from the team.
         here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
-        fight_step = is_combat_objective(objective or "") or self._step_is_fight
+        # The step's own words decide (the book's fight icon is the whole quest's:
+        # 'Talk To Athena' was taken for a fight and routed to "her room").
+        fight_step = is_combat_objective(objective or "")
         # Straight on to the next fight's room after each fight (known doors),
         # to wait by its circle rather than arrive after it started.
         if here and fight_step and await self._walk_to_boss_room():
