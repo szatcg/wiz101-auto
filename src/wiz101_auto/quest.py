@@ -143,6 +143,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
+KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
 GUARDED_ITEM_HEALTH = 0.6  # above this health an item among enemies is fetched anyway
 FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
@@ -2428,6 +2429,40 @@ class Quester:
         logger.info(f"{item!r} wasn't around the spot the player gave; searching the zone")
         return True
 
+    async def _fetch_from_known_spots(self, item: str, objective: str) -> bool:
+        """Go to spots where `item` was seen (nearest first), each at most
+        KNOWN_SPOT_TRIES times for this objective. With health to spare, land
+        by it even among its guards (a guard that attacks gets fought). True
+        if it went somewhere (or a fight started)."""
+        start = await self.client.body.position()
+        zone = await self.client.zone_name() or ""
+        tries = self.__dict__.setdefault("_known_spot_tries", {})
+        known = self.entity_map.spots(zone, lambda n: matches_item(item, n), (start.x, start.y, start.z))
+        known = spread_points(known, (start.x, start.y, start.z), 800.0)[:KNOWN_SPOTS_FIRST]
+        known = [p for p in known if tries.get((objective, tuple(round(v) for v in p)), 0) < KNOWN_SPOT_TRIES]
+        if not known:
+            return False
+        logger.info(f"looking for {item!r} where it was seen before ({len(known)} spot(s))")
+        hp, _mana = await health_mana(self.client)
+        for p in known:
+            if not await is_free(self.client):
+                return True
+            key = (objective, tuple(round(v) for v in p))
+            tries[key] = tries.get(key, 0) + 1
+            if hp >= GUARDED_ITEM_HEALTH:
+                # Guarded (the Stolen Weapons among Sanzoku bandits): land by it.
+                allow_close_landing(self.client, 8.0)
+            elif not await self._clear_spot(XYZ(*p)):
+                continue
+            await self.client.teleport(XYZ(p[0] + 200, p[1], p[2]))
+            await asyncio.sleep(1.0)
+            await scan_entities(self.client, zone, self.entity_map)
+            if not await is_free(self.client):
+                return True  # a guard: fight it, then back here
+            if await self.collector.collect_once(item, self._press_collect):
+                return True
+        return True
+
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
         if await self.collector.collect_once(item, self._press_collect):
@@ -2437,31 +2472,15 @@ class Quester:
             return True
         if await self._search_hint(item, objective):
             return True
+        # Where it was seen before, each spot up to KNOWN_SPOT_TRIES times per
+        # objective (a guard fight there cut the first look short: after
+        # winning, the bot went sweeping instead of back to the item).
+        if await self._fetch_from_known_spots(item, objective):
+            return True
         # Nothing matching in view: look around the zone once per objective.
         if getattr(self, "_swept_for", None) != objective:
             self._swept_for = objective
             start = await self.client.body.position()
-            zone = await self.client.zone_name() or ""
-            known = self.entity_map.spots(zone, lambda n: matches_item(item, n), (start.x, start.y, start.z))
-            known = spread_points(known, (start.x, start.y, start.z), 800.0)[:KNOWN_SPOTS_FIRST]
-            if known:
-                logger.info(f"looking for {item!r} where it was seen before ({len(known)} spot(s))")
-            hp, _mana = await health_mana(self.client)
-            for p in known:
-                if not await is_free(self.client):
-                    return True
-                if hp >= GUARDED_ITEM_HEALTH:
-                    # Guarded (the Stolen Weapons among Sanzoku bandits): landing
-                    # clear and jumping back meant never picking it up. Land by it;
-                    # a guard that attacks gets fought, then it's collected.
-                    allow_close_landing(self.client, 8.0)
-                elif not await self._clear_spot(XYZ(*p)):
-                    continue
-                await self.client.teleport(XYZ(p[0] + 200, p[1], p[2]))
-                await asyncio.sleep(1.0)
-                await scan_entities(self.client, zone, self.entity_map)
-                if await self.collector.collect_once(item, self._press_collect):
-                    return True
             points = sweep_points((start.x, start.y, start.z), [], 0)
             logger.info(f"searching the zone for {item!r} ({len(points)} spots)")
             for p in points:
