@@ -132,6 +132,39 @@ def _client_origin(hwnd: int, awareness: int):
     return pt.x, pt.y
 
 
+def window_on_screen(hwnd: int) -> float:
+    """Share of the game window's area that lies on some monitor (1.0 if it
+    can't be read). A window dragged mostly off the monitors (it sat below the
+    left one) broke clicks and screenshots."""
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    try:
+        r = wintypes.RECT()
+        if not user32.GetWindowRect(hwnd, ctypes.byref(r)):
+            return 1.0
+        area = max(1, (r.right - r.left) * (r.bottom - r.top))
+        monitors: list[tuple[int, int, int, int]] = []
+        proc = ctypes.WINFUNCTYPE(ctypes.c_int, wintypes.HMONITOR, wintypes.HDC,
+                                  ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
+
+        def add(_h, _dc, m, _lp):
+            monitors.append((m.contents.left, m.contents.top, m.contents.right, m.contents.bottom))
+            return 1
+
+        user32.EnumDisplayMonitors(None, None, proc(add), 0)
+        covered = 0
+        for left, top, right, bottom in monitors:
+            w = min(r.right, right) - max(r.left, left)
+            h = min(r.bottom, bottom) - max(r.top, top)
+            if w > 0 and h > 0:
+                covered += w * h
+        return min(1.0, covered / area)
+    except Exception:
+        return 1.0
+
+
 def dpi_click_offset(hwnd: int) -> tuple[int, int]:
     """What to add to a client position so the game sees the click there.
 
@@ -207,8 +240,15 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
     from .service import write_status
 
     started = time.time()
+    last_offscreen_alert = 0.0
     while not controller.stopped.is_set():
         info = {"state": "paused" if controller.paused else "running", "uptime_s": int(time.time() - started)}
+        shown = window_on_screen(client.window_handle)
+        info["window_on_screen"] = round(shown, 2)
+        if shown < 0.5 and time.monotonic() - last_offscreen_alert > 600:
+            last_offscreen_alert = time.monotonic()
+            logger.warning(f"ALERT: the game window is {100 - shown * 100:.0f}% off screen: clicks miss "
+                           "(display-scaling correction) and screenshots come out blank; move it back")
         try:
             info.update(
                 zone=await client.zone_name(),
