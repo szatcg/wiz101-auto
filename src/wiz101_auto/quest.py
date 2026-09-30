@@ -2761,6 +2761,8 @@ class Quester:
         if not prev or not prev[0] or not zone or zone == prev[0] or prev[1] is None:
             return
         old_zone, old_marker = prev
+        if is_hub(zone) or zone.split("/", 1)[0] != old_zone.split("/", 1)[0] or self._recall_pending:
+            return  # the hub button, a Recall or a relog, not a door (Throne Room -> hub after Zeus)
         land = getattr(self.client, "_last_landing", None)
         if not land or time.monotonic() - land[0] > 60:
             return
