@@ -1504,7 +1504,14 @@ class Quester:
         if not objective:
             return
         # Every loss counts, not only on "Defeat X": "Talk To Willie Marks" is
-        # a boss fight too.
+        # a boss fight too. But on "Defeat X" a loss to others (two Scurriers
+        # met while healing) isn't a loss to X.
+        target = defeat_target(objective)
+        fought = self.fighter.last_enemy_names if self.fighter else []
+        if target and fought and not any(target.lower() in n.lower() or n.lower() in target.lower()
+                                         for n in fought):
+            logger.info(f"defeated by {', '.join(fought)}, not {target}: not counted against {objective!r}")
+            return
         level = await self.client.stats.reference_level()
         quest = self._active_quest
         main = quest in self._mainline
@@ -2549,9 +2556,10 @@ class Quester:
         # Fleeing costs all our mana (then minutes of recovery): a small fight
         # (one or two ordinary enemies, healthy) is cheaper won. Only big ones
         # (a boss, 3+ enemies, or 2 when hurt) are fled.
-        hp_now, _mana = await health_mana(self.client)
+        hp_now, mana_now = await health_mana(self.client)
         big = has_boss or len(names) >= 3 or (len(names) >= 2 and hp_now < 0.5)
-        if not big:
+        fit = hp_now >= 0.5 and mana_now >= 0.2  # (at 10% health, 0 mana it passed until defeated)
+        if not big and fit:
             logger.info(f"fight with {', '.join(names)} isn't needed, but fleeing would cost all our mana: "
                         "fighting it")
             return False

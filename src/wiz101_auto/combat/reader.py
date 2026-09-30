@@ -289,6 +289,10 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
         c.is_minion = await member.is_minion()
     except Exception:
         pass
+    try:
+        c.is_stunned = await member.is_stunned()
+    except Exception:
+        pass
     await _read_school_stats(c, participant)
     try:
         for eff in await participant.hanging_effects():
@@ -311,6 +315,12 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
                 c.shield_count += 1
     except Exception as exc:
         logger.debug(f"hanging effects unreadable for {c.name}: {exc}")
+    # One blade spell (Spirit Blade: myth, life and death parts) is one blade,
+    # and only the parts that boost our own school count: its life/death
+    # leftovers, still hanging after the myth part was used, blocked the
+    # second copy for ten rounds against Meowiarty.
+    mine = (c.school or "").lower()
+    c.blade_count = len({k for k, s, v in c.outgoing_effects if v > 0 and (not s or not mine or s == mine)})
     _log_effects(c)
     return c
 

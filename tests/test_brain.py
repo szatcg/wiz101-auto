@@ -1086,3 +1086,47 @@ def test_boss_fight_summons_first_and_keeps_its_big_hits():
     b.round = 5  # past the summon rounds: digging may go, but not for the big hits
     later = decide(b, discards_left=2)
     assert not (later.kind is ActionKind.DISCARD and later.card.name in ("Cyclops", "Minotaur"))
+
+
+def _meowiarty_battle(hand, pips=2, power=1, hp=1778):
+    boss = enemy("Meowiarty", 2000, boss=True)
+    boss.school, boss.resist = "myth", {"myth": 0.8, "storm": -0.5}
+    wraith = enemy("Agony Wraith", 1280, boss=True)
+    wraith.school = "death"
+    wizard = me(hp=hp, max_hp=1778)
+    wizard.school = "myth"
+    return Battle(me=wizard, allies=[], enemies=[boss, wraith], cards=hand, pips=pips, power_pips=power)
+
+
+def test_prism_first_on_a_boss_that_resists_our_school():
+    prism = Card(0, "Myth Prism", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    hand = [prism, Card(1, "Cyclops", school="myth", pip_cost=3,
+                        effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 295)])]
+    b = _meowiarty_battle(hand)
+    b.round = 5
+    action = decide(b, discards_left=0)
+    assert action.card.name == "Myth Prism" and action.target.name == "Meowiarty"
+
+
+def test_trap_goes_on_the_enemy_the_frog_hurts_not_the_resistant_boss():
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 300)])
+    trap = Card(1, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, school="myth")])
+    frog.castable = False
+    b = _meowiarty_battle([frog, trap], pips=1, power=0)
+    b.round = 5
+    action = decide(b, discards_left=0)
+    assert action.card.name == "Myth Trap" and action.target.name == "Agony Wraith"
+
+
+def test_stun_the_boss_once_hurt():
+    stun = Card(0, "Stun", school="myth", pip_cost=1,
+                effects=[Effect(EffectKind.STUN, Target.ENEMY_SINGLE, 1)])
+    b = _meowiarty_battle([stun, dmg_card(1, "Minor Fire Scorch", 90, pips=0)], hp=900)
+    b.round = 5
+    assert decide(b, discards_left=0).card.name == "Stun"
+    b = _meowiarty_battle([stun, dmg_card(1, "Minor Fire Scorch", 90, pips=0)], hp=1700)
+    b.round = 5
+    assert decide(b, discards_left=0).card.name != "Stun"

@@ -19,6 +19,26 @@ from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
+CARD_INFO = Path("state") / "card_info.pkl"
+
+
+def _load_card_info() -> dict:
+    import pickle
+
+    try:
+        return pickle.loads(CARD_INFO.read_bytes())
+    except Exception:
+        return {}
+
+
+def _save_card_info(info: dict) -> None:
+    import pickle
+
+    try:
+        CARD_INFO.parent.mkdir(exist_ok=True)
+        CARD_INFO.write_bytes(pickle.dumps({k: dataclasses.replace(v, index=-1) for k, v in info.items()}))
+    except Exception as exc:
+        logger.debug(f"could not save card info: {exc!r}")
 CLICK_PROBES = (0.1, 0.5)  # fallbacks if the default click point stops working
 
 
@@ -75,6 +95,7 @@ class Fighter(CombatHandler):
         self.combat_ended_at = 0.0  # monotonic time the last fight ended
         self.fled = False  # the last fight ended by fleeing (not a defeat)
         self.last_boss_names: list[str] = []  # bosses in the current/last fight (farm runs end on one)
+        self.last_enemy_names: list[str] = []  # enemies of the current/last fight
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
@@ -82,7 +103,10 @@ class Fighter(CombatHandler):
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
         self._deck: dict[str, int] = {}
-        self._card_info: dict[str, Card] = {}  # deck spell name -> a card seen in hand (for planning)
+        # deck spell name -> a card seen in hand (for planning); kept across
+        # restarts (after one, Humongofrog wasn't known to be still in the
+        # deck and the pips went on a Minotaur instead).
+        self._card_info: dict[str, Card] = _load_card_info()
         self._card_click_x = 0.25  # the hit area sits left of the reported card rect
         # async (battle) -> bool, set by the bot in quest mode; True means flee.
         self.unneeded_fight = None
@@ -171,6 +195,7 @@ class Fighter(CombatHandler):
     async def _remember_bosses(self, battle):
         """Bosses fought inside a dungeon: remember which dungeon (for boss farming)."""
         bosses = [e.name for e in battle.enemies if e.is_boss]
+        self.last_enemy_names = [e.name for e in battle.enemies]
         if bosses:
             self.last_boss_names = bosses
         try:
@@ -478,7 +503,9 @@ class Fighter(CombatHandler):
         still able to come), known from cards seen in hand before."""
         in_hand: Counter[str] = Counter()
         for c in battle.cards:
-            self._card_info.setdefault(_deck_name(c), c)
+            if _deck_name(c) not in self._card_info:
+                self._card_info[_deck_name(c)] = c
+                _save_card_info(self._card_info)
             in_hand[_deck_name(c)] += 1
         out = []
         self._unknown_left = 0  # deck cards still to come that we haven't seen yet (what they do)

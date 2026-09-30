@@ -454,9 +454,15 @@ def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
         dmg = hit_damage(card, me, e)
         return dmg < e.health <= dmg * boost
 
+    def gain(e: Combatant) -> float:
+        # What a trap there adds to the hit: little on an enemy that resists it
+        # (Meowiarty resists myth 80%: traps on him were wasted on the frog).
+        dmg = hit_damage(card, me, e)
+        return min(dmg * boost, e.health) - min(dmg, e.health)
+
     return min(
         battle.live_enemies,
-        key=lambda e: (not tipped(e), e.trap_count, -(e.health - hit_damage(card, me, e))),
+        key=lambda e: (not tipped(e), e.trap_count, -gain(e)),
     )
 
 
@@ -484,6 +490,12 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
         want.append("blade")
     if focus.trap_count < strat.max_traps and not in_hand(EffectKind.TRAP) and to_come(EffectKind.TRAP):
         want.append("trap")
+    prisms_to_come = [c for c in upcoming if _is_prism(c)]
+    if prisms_to_come and not any(_is_prism(c) for c in battle.cards):
+        prism = prisms_to_come[0]
+        if any(e.name not in battle.prismed and _prism_gain(prism, me, e, battle.cards) >= PRISM_EARLY_GAIN
+               for e in enemies):
+            want.append("prism")
     group = len(enemies) >= AOE_MIN_ENEMIES
     frog_in_hand = any(c.is_aoe and c.is_damage for c in battle.cards)
     if group and not frog_in_hand and any(c.is_aoe and c.is_damage for c in upcoming):
@@ -701,14 +713,21 @@ def _pick_enchant(battle: Battle, attack_card: Card) -> Card | None:
     return max(enchants, key=lambda c: sum(e.value for e in c.effects))
 
 
-def _is_duplicate(card: Card, kind: EffectKind, effects: list[tuple[str, str, float]]) -> bool:
+def _is_duplicate(card: Card, kind: EffectKind, effects: list[tuple[str, str, float]],
+                  mine: str = "") -> bool:
     """Is this blade/trap already hanging (same school and size)? Copies of one
-    spell don't stack: a second one adds nothing to the next hit."""
-    school = card.school.lower()
+    spell don't stack: a second one adds nothing to the next hit. Each part is
+    judged by its own school (Spirit Blade is a Balance card with myth, life
+    and death blades), and only parts that boost `mine` (our school) count."""
     for e in card.effects:
         if e.kind is not kind:
             continue
-        if any(s == school and abs(v - e.value / 100) < 0.005 for _k, s, v in effects):
+        if mine and e.school and e.school.lower() != mine:
+            continue  # boosts another school: irrelevant to our hits
+        # A part without a school boosts every school (Feint); hanging, it may
+        # show as "all" or under the card's school.
+        schools = {e.school.lower()} if e.school else {"", card.school.lower()}
+        if any(s in schools and abs(v - e.value / 100) < 0.005 for _k, s, v in effects):
             return True
     return False
 
@@ -727,7 +746,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
     blades = [
         c for c in castable
         if EffectKind.BLADE in c.kinds and not c.is_enchant
-        and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects)
+        and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, battle.me.school.lower())
     ]
     if blades and me.blade_count < strat.max_blades:
         card = max(blades, key=_power)
@@ -739,7 +758,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
         traps = [
             c for c in castable
             if EffectKind.TRAP in c.kinds and not c.is_enchant
-            and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects)
+            and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects, battle.me.school.lower())
         ]
         if traps and target.trap_count < strat.max_traps:
             card = max(traps, key=_power)
@@ -789,6 +808,8 @@ def _relevant_shield(battle: Battle) -> Action | None:
     return None
 
 
+STUN_HEALTH = 0.7  # stun only when our health is below this
+PRISM_EARLY_GAIN = 2.0  # a prism this good (7x on Meowiarty) is played first, and dug for
 PRISM_GAIN = 1.25  # the converted school must hit this much harder to be worth a prism
 
 
@@ -821,6 +842,27 @@ def _prism_useless(card: Card, battle: Battle) -> bool:
     if not enemies or any(e.resist is None and not e.school for e in enemies):
         return False
     return all(_prism_gain(card, battle.me, e, battle.cards) < PRISM_GAIN for e in enemies)
+
+
+def _stun_action(battle: Battle) -> Action | None:
+    """Stun the most dangerous enemy (a boss first) that isn't stunned, once
+    our health is below STUN_HEALTH (earlier it would only delay the
+    hit-all). Not when the fight is about to end."""
+    enemies = [e for e in battle.live_enemies if not e.is_stunned]
+    stuns = [
+        c for c in _castable(battle.cards)
+        if EffectKind.STUN in c.kinds and not c.is_damage and not c.treasure
+    ]
+    if not stuns or not enemies:
+        return None
+    if battle.me.health_ratio >= STUN_HEALTH:
+        return None
+    if _finish_in_reach(battle):
+        return None
+    target = max(enemies, key=lambda e: (e.is_boss, e.max_health))
+    card = min(stuns, key=lambda c: c.pip_cost)
+    t = None if card.target is Target.ENEMY_ALL else target
+    return Action(ActionKind.CAST, card, t, reason=f"stun {target.name} (a round of no damage from it)")
 
 
 def _prism_action(battle: Battle) -> Action | None:
@@ -974,14 +1016,14 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     if me.blade_count < max(strat.max_blades, FREE_TRAP_LIMIT):
         for c in free:
             if EffectKind.BLADE in c.kinds:
-                dup = _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects)
+                dup = _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, battle.me.school.lower())
                 target = me if c.target in (Target.ALLY_SINGLE,) else None
                 action = Action(ActionKind.CAST, c, target, reason="free blade while saving pips")
                 options.append((dup, 0, action))
     if focus and focus.trap_count < max(strat.max_traps, FREE_TRAP_LIMIT):
         for c in free:
             if EffectKind.TRAP in c.kinds:
-                dup = _is_duplicate(c, EffectKind.TRAP, focus.incoming_effects)
+                dup = _is_duplicate(c, EffectKind.TRAP, focus.incoming_effects, battle.me.school.lower())
                 t = None if c.target is Target.ENEMY_ALL else focus
                 why = f"free trap on {focus.name} while saving pips"
                 options.append((dup, 1, Action(ActionKind.CAST, c, t, reason=why)))
@@ -1352,6 +1394,18 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         summon = _summon_action(battle, strat)
         if summon:
             return summon
+
+    # A long fight that's hurting us: a Stun on the hardest hitter buys a
+    # round of no damage from it (two Stuns sat unused against Meowiarty).
+    stun = _stun_action(battle)
+    if stun:
+        return stun
+
+    # An enemy that shrugs off our school (Meowiarty resists myth 80%, takes
+    # 50% more from storm): the prism comes first, before any hit on it.
+    prism = _prism_action(battle)
+    if prism and _prism_gain(prism.card, battle.me, prism.target, battle.cards) >= PRISM_EARLY_GAIN:
+        return prism
 
     # Blades and traps (and the hit-all spell against groups) matter more than
     # another single hit: dig for them.
