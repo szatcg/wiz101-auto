@@ -144,7 +144,6 @@ FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
-GUARDED_ITEM_HEALTH = 0.6  # above this health an item among enemies is fetched anyway
 FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
@@ -2431,9 +2430,8 @@ class Quester:
 
     async def _fetch_from_known_spots(self, item: str, objective: str) -> bool:
         """Go to spots where `item` was seen (nearest first), each at most
-        KNOWN_SPOT_TRIES times for this objective. With health to spare, land
-        by it even among its guards (a guard that attacks gets fought). True
-        if it went somewhere (or a fight started)."""
+        KNOWN_SPOT_TRIES times for this objective; never into its guards (no
+        fights the quest doesn't ask for). True if it went somewhere."""
         start = await self.client.body.position()
         zone = await self.client.zone_name() or ""
         tries = self.__dict__.setdefault("_known_spot_tries", {})
@@ -2443,25 +2441,26 @@ class Quester:
         if not known:
             return False
         logger.info(f"looking for {item!r} where it was seen before ({len(known)} spot(s))")
-        hp, _mana = await health_mana(self.client)
+        went = False
         for p in known:
             if not await is_free(self.client):
                 return True
             key = (objective, tuple(round(v) for v in p))
             tries[key] = tries.get(key, 0) + 1
-            if hp >= GUARDED_ITEM_HEALTH:
-                # Guarded (the Stolen Weapons among Sanzoku bandits): land by it.
-                allow_close_landing(self.client, 8.0)
-            elif not await self._clear_spot(XYZ(*p)):
+            if not await self._clear_spot(XYZ(*p)):
+                # Guards on it (the Stolen Weapons among Sanzoku bandits): no
+                # fight (the player's rule); this spot waits for another try.
+                tries[key] -= 1
                 continue
             await self.client.teleport(XYZ(p[0] + 200, p[1], p[2]))
             await asyncio.sleep(1.0)
+            went = True
             await scan_entities(self.client, zone, self.entity_map)
             if not await is_free(self.client):
-                return True  # a guard: fight it, then back here
+                return True
             if await self.collector.collect_once(item, self._press_collect):
                 return True
-        return True
+        return went
 
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
