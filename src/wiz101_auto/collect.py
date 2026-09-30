@@ -23,7 +23,7 @@ BOSS_CHEST_RANGE = 3000.0  # the chest appears in the boss room
 LOOT_RANGE = 2000.0  # free pickups this close are worth the small detour
 WALK_IN = 150.0  # distance to land from an item before walking onto it
 
-_VERBS = r"(?:collect|find|gather|get|retrieve|recover|pick up)"
+_VERBS = r"(?:collect|destroy|find|gather|get|retrieve|recover|pick up)"
 _OBJECTIVE = re.compile(rf"^\s*{_VERBS}\s+(.+?)(?:\s+(?:in|at|from|on)\s+.*)?\s*$", re.I)
 _SKIP = ("wisp", "duelcircle", "player object", "basic positional", "basic ambient", "teleportpad", "sigil")
 
@@ -42,7 +42,9 @@ def _norm(s: str) -> str:
 def matches_item(item: str, *names: str) -> bool:
     """True if any of the entity's names refers to the item (e.g. 'Cog' vs 'WC_Cog_01')."""
     item = re.sub(r"^(the|a|an|some)\s+", "", item.strip(), flags=re.I)
-    target = _norm(item.rstrip("s")) or _norm(item)
+    # Plurals: "Supplies" -> "supply" (the game's "Supply Crate"), "Cogs" -> "cog".
+    single = item[:-3] + "y" if item.lower().endswith("ies") else item.rstrip("s")
+    target = _norm(single) or _norm(item)
     if len(target) < 3:
         return False
     for name in names:

@@ -175,3 +175,11 @@ def test_rare_chests_are_not_picked_up():
 
     assert not is_collectable("MB-Chest-Rare-001")  # locked: the Shockalock minigame
     assert is_collectable("KT-Chest-Boss-001")
+
+
+def test_destroy_objectives_and_ies_plurals():
+    from wiz101_auto.collect import collect_item_name, matches_item
+
+    assert collect_item_name("Destroy Supplies in Tatakai Outpost (0 of 4)") == "Supplies"
+    assert matches_item("Supplies", "Supply Crate")
+    assert matches_item("Cogs", "WC_Cog_01")
