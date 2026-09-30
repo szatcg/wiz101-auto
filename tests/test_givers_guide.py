@@ -69,3 +69,21 @@ def test_pending_givers():
 def test_prospector_zeke_is_never_a_giver_to_visit():
     g = parse_guide("Prospector Zeke\nStray Cat Strut(176 gold, 1640 XP)\n-Locate Regent's Square Cat\n")
     assert pending_givers(g, set(), set()) == {}
+
+
+def test_a_new_worlds_story_starts_at_its_first_quest():
+    g = parse_guide("""(MAIN QUEST)
+
+Ken Shui
+Be Very, Very Quiet (100 gold, 2030 XP)
+- Defeat 10 Cursed Ronins
+
+Ken Shui
+Or Call A Locksmith (100 gold, 2030 XP) (after finishing “Be Very, Very Quiet”)
+- Collect Spectral Key
+
+Yishin Chen
+Tree of Life (206 gold, 2840 XP) (after finishing “Or Call A Locksmith”)
+- Defeat Kagemoosha
+""")
+    assert pending_givers(g, set(), set()) == {"kenshui": ["Be Very, Very Quiet"]}

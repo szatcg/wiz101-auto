@@ -129,7 +129,8 @@ def pending_givers(guide: list[GuideQuest], have: set[str], done: set[str]) -> d
         done |= more
     story = [q for q in guide if q.main]
     reached = max((i for i, q in enumerate(story) if known(q.name, have | done)), default=-1)
-    done |= {q.name for q in story[:reached]}
+    if reached > 0:  # (-1: none reached yet; story[:-1] would mark all but the last)
+        done |= {q.name for q in story[:reached]}
     out: dict[str, list[str]] = {}
     for q in guide:
         if norm(q.giver) in SKIP_GIVERS:

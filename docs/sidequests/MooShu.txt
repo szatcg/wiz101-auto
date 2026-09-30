@@ -1,0 +1,98 @@
+MooShu quests by quest giver (from the player's list; givers.py reads it).
+
+Format (same as Marleybone.txt):
+Quest giver
+Quest name(reward)   (after finishing "X") = X must be done first
+- Goals
+
+VILLAGE OF SORROW
+(MAIN QUEST)
+
+Ken Shui
+Be Very, Very Quiet (100 gold, 2030 XP)
+- Defeat 10 Cursed Ronins
+
+Ken Shui
+Or Call A Locksmith (100 gold, 2030 XP) (after finishing “Be Very, Very Quiet”)
+- Collect Spectral Key from Sorrow Whisperer to enter the town dojo
+
+Ken Shui
+Spiritual Awakening (2535 XP) (after finishing “Or Call A Locksmith”)
+- Talk to Ting Yin inside the town dojo but Usunoki will attack us in there
+
+Ken Shui
+Chain Request (450 XP) (after finishing “Spiritual Awakening”)
+- Talk to Xihong Bi to forge a Soul Chain
+
+Xihong Bi
+Soooooul Chain (2030 XP) (after finishing “Chain Request”)
+- Collect 10 Dark Souls from Waling Deads
+- Forge Dark Souls
+
+Xihong Bi
+A Good Forgery (206 gold, 2840 XP) (after finishing “Soooooul Chain”)
+- Show Soul Chain to Ken Shui
+
+Ken Shui
+Smells Like Spirit (103 gold, 2270 XP, shoes) (after finishing “A Good Forgery”)
+- Capture Oyotomi the Defiler and put him in Spirit Cage
+
+Ken Shui
+Carried Away (206 gold, 2840 XP) (after finishing “Smells Like Spirit”)
+- Take captured spirit to Hideo Kebo at Yoshihito Temple
+
+(SIDE QUEST)
+
+Wavebringer
+Tainted Forest (2030 XP) (must complete Mossback's quest at Ancient Burial Grounds first)
+- Collect 10 Tainted Barks from Befouled Woodwalkers
+
+Wavebringer
+Forest Spirit (206 gold, 2840 XP) (after finishing “Tainted Forest”)
+- Use Bark to clean Oakheart
+
+Yunuo Ma
+Out of Order (100 gold, 2030 XP)
+- Collect Stolen Message from Death Soldier
+
+Yunuo Ma
+Message From Beyond (206 Gold, 2840 XP) (after finishing “Out of Order”)
+- Deliver Stolen Message to Jade Champion at Jade Palace
+
+Wei Pei
+Clean Sweep (100 gold, 2030 XP)
+- Defeat 10 Walking Deads
+
+Wei Pei
+Clean House (206 gold, 2840 XP, hat) (after finishing “Clean Sweep”)
+- Light all three candles in Fushiko's house
+- We have to fight a pair of enemies after each candle and the last one is Fushiko.
+  No friend can help us in here because this is a one man quest
+
+TREE OF LIFE
+(MAIN QUEST)
+
+Hideo Kebo
+Left Behind (450 XP) (after finishing “Carried Away”)
+- Talk to Hideo Kebo and locate Tree of Life
+
+Hideo Kebo
+Question of Faith (103 gold, 2840 XP) (after finishing “Left Behind”)
+- Talk to Yishin Chen
+- Locate and defeat Nomoonaga to get the Dagger of Shadows
+
+Yishin Chen
+Tree of Life (206 gold, 2840 XP) (after finishing “Question of Faith”)
+- Use Dagger of Shadows on Tree of Life to open portal
+- Defeat Kagemoosha
+
+(SIDE QUEST)
+
+Oakheart
+The Great Forest (103 gold, 2270 XP) (after finishing “Forest Spirit”)
+- Collect 3 Pure Seeds from Kogani Death Crawlers
+
+Oakheart
+Everlasting Forest (2840 XP, robe, ring) (after finishing “The Great Forest”)
+- Plant 3 Pure Seeds in Fertile Earth
+- Meet Oakheart, Wavebringer, and Mossback in a dojo at Jade Palace
