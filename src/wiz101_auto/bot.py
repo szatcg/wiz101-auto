@@ -353,7 +353,8 @@ async def run(cfg: Config):
             await stack.enter_async_context(client.mouse_handler)
 
         c = cfg.combat
-        fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below)
+        fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below,
+                          rollouts=c.rollouts)
         dialogue = DialoguePolicy()
         tasks = [
             asyncio.create_task(controller.watch(), name="safety"),

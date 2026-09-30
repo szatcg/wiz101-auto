@@ -85,9 +85,16 @@ def _deck_name(card) -> str:
 FLEE_FILE = Path("state") / "flee.request"  # created by the user: flee this fight
 
 class Fighter(CombatHandler):
-    def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0):
+    def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0,
+                 rollouts: bool = True):
         super().__init__(client)
         self.strategy = strategy
+        # Hard fights: each move played out in the simulator (combat/rollout.py).
+        self.planner = None
+        if rollouts:
+            from .rollout import RolloutPlanner
+
+            self.planner = RolloutPlanner()
         self.max_discards = max_discards
         self.flee_below = flee_below
         self.fights = 0
@@ -436,6 +443,8 @@ class Fighter(CombatHandler):
             battle.prismed = set(self._prismed)
             battle.summoned = self._summons
             action = decide(battle, self.strategy, discards_left=discards_left)
+            if self.planner is not None:
+                action = await self.planner.choose(battle, action, self.strategy, discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies

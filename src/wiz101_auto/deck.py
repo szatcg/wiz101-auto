@@ -269,6 +269,8 @@ async def set_deck(client, want: dict[str, int]) -> dict[str, int]:
                 await asyncio.sleep(0.3)
         await asyncio.sleep(1.5)
         final = await _log_current_deck(client, builder) or []
+        if final:
+            save_deck_counts(final)  # fights plan with what's in the deck now
         return {n: final.count(n) for n in dict.fromkeys(final)}
     finally:
         await close_spellbook(client)

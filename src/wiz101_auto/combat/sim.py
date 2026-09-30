@@ -13,14 +13,20 @@ and spells fizzle now and then. Rough, but it ranks strategies.
 
 from __future__ import annotations
 
+import copy
+import dataclasses
+import json
 import random
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .brain import Strategy, _is_prism, _pay, decide, hit_damage, prism_view
-from .model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+from .model import Action, ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
 
 HAND = 7
-ACCURACY = 0.85
+ACCURACY = 0.8  # our spells' hit rate when the logs have too few casts of one
+SHIELD_ON_QUIET_ROUND = 0.05  # a round without damage: chance it shields (Meowiarty: 2 in 80 rounds logged)
+MIN_SAMPLES = 8  # rounds of an enemy needed before its own numbers are trusted
 POWER_PIP_CHANCE = 0.35
 MAX_PIPS = 7
 MAX_ROUNDS = 40
@@ -85,6 +91,10 @@ class Foe:
     buff_chance: float = 0.55  # chance a round goes on a 0-pip blade/trap/weakness/shield
     accuracy: float = 0.85
     power: float = 1.0  # its damage bonus (bosses hit harder than the spell's base)
+    # What it really did to us per round (state/enemy_stats.json, from the
+    # logs; 0 = a round of buffing or saving pips). When set, its attacks are
+    # drawn from these (`spells` still give its 0-pip buffs, e.g. Storm Shield).
+    samples: list[int] = field(default_factory=list)
 
 
 def _s(name, pips, kind, school, value, extra=0):
@@ -94,7 +104,7 @@ def _s(name, pips, kind, school, value, extra=0):
 # The spells each carries (the player's list) with standard values.
 MEOWIARTY = [
     Foe("Meowiarty", 2000, "myth", {"myth": 0.8, "storm": -0.5}, [
-        _s("Storm Shield", 0, "shield", "storm", -70), _s("Weakness", 0, "weak", "", -25),
+        _s("Storm Shield", 0, "shield", "storm", -80), _s("Weakness", 0, "weak", "", -25),
         _s("Mythblade", 0, "blade", "myth", 35), _s("Myth Trap", 0, "trap", "myth", 30),
         _s("Blood Bat", 1, "hit", "myth", 85), _s("Troll", 2, "hit", "myth", 200),
         _s("Cyclops", 3, "hit", "myth", 300), _s("Humongofrog", 4, "aoe", "myth", 300),
@@ -143,6 +153,7 @@ class Fight:
     summoned: int = 0
     foe_pips: dict[str, int] = field(default_factory=dict)
     dots: list = field(default_factory=list)  # our side's damage over time: [victim, per round, rounds left]
+    hit_rate: dict[str, float] = field(default_factory=dict)  # per spell, from the logs (else ACCURACY)
 
 
 def _use_up(effects: list, school: str) -> list:
@@ -172,7 +183,7 @@ def _cast(f: Fight, action, rng: random.Random):
     c = action.card
     f.hand = [h for h in f.hand if h is not c]
     kinds = set(c.kinds)
-    if rng.random() > ACCURACY and not (kinds & {EffectKind.HEAL}):
+    if rng.random() > f.hit_rate.get(c.name, ACCURACY) and not (kinds & {EffectKind.HEAL}):
         return  # fizzled
     if c.is_damage:
         targets = f.enemies if c.is_aoe else [action.target]
@@ -237,6 +248,21 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 low = min(hurt, key=lambda a: a.health / a.max_health)
                 low.health = min(low.max_health, low.health + sp.value)
             continue
+        if foe.samples:
+            dmg = rng.choice(foe.samples)
+            if dmg <= 0:
+                # A round without damage: it may put up a shield (Storm Shield
+                # against our prismed hits). Its blades/traps are in the samples.
+                shields = [sp for sp in foe.spells if sp.kind == "shield"]
+                if shields and rng.random() < SHIELD_ON_QUIET_ROUND:
+                    sp = rng.choice(shields)
+                    e.incoming_effects.append((f"foe:{e.name}:{sp.name}", sp.school, sp.value / 100))
+                continue
+            victim = f.me
+            ours = [x for x in victim.incoming_effects if x[2] < 0 and x[1] in ("", foe.school)]
+            victim.incoming_effects = [x for x in victim.incoming_effects if x not in ours]
+            victim.health -= int(dmg * max(0.0, 1 + sum(v for _k, _s, v in ours)))
+            continue
         buffs = [sp for sp in foe.spells if sp.pips == 0]
         if buffs and rng.random() < foe.buff_chance:
             sp = rng.choice(buffs)
@@ -276,75 +302,249 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 f.dots.append([victim, int(sp.extra * DAMAGE_SCALE / 3), 3])
 
 
-def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = None, seed: int = 0,
-             items: list[str] = ITEMS, hp: int = 1778) -> tuple[bool, int]:
-    """One fight. (won, rounds)."""
-    rng = random.Random(seed)
-    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in items]
-    rng.shuffle(cards)
-    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist={})
-    enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
-                         resist=dict(x.resist)) for x in foes]
-    f = Fight(me, enemies, {x.name: x for x in foes}, cards)
-    f.pips, f.power = (1, 1) if rng.random() < 0.5 else (0, 2)
-    for rnd in range(1, MAX_ROUNDS + 1):
-        while len(f.hand) < HAND and f.deck:
-            f.hand.append(f.deck.pop())
-        for i, c in enumerate(f.hand):
-            c.index = i
-            c.castable = _pay(c, "myth", f.pips, f.power) is not None
-        discards = 2
-        while True:
+def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first: Action | None = None,
+           discards: int = 2) -> bool:
+    """Our turn of round `rnd` (the hand already drawn): the brain decides
+    (after `first`, a move forced on it: the rollout's candidate), then the
+    enemies act and we gain a pip. True once the fight is over."""
+    for i, c in enumerate(f.hand):
+        c.index = i
+        c.castable = _pay(c, "myth", f.pips, f.power) is not None
+    while True:
+        if first is not None:
+            action, first = first, None
+        else:
             allies = [f.minion] if f.minion and f.minion.health > 0 else []
             b = Battle(me=f.me, allies=allies, enemies=f.enemies, cards=f.hand, pips=f.pips,
                        power_pips=f.power, round=rnd, prismed=set(f.prism_on), summoned=f.summoned,
                        upcoming=list(f.deck), deck_known=True)
             if not b.live_enemies:
-                return True, rnd
+                return True
             action = decide(b, strat, discards_left=discards)
-            if action.kind is ActionKind.DISCARD and discards > 0:
-                f.hand = [h for h in f.hand if h is not action.card]
-                discards -= 1
-                continue
-            if action.kind is ActionKind.CAST and action.card is not None:
-                paid = _pay(action.card, "myth", f.pips, f.power)
-                if paid is not None:
-                    f.pips, f.power = paid
-                    _cast(f, action, rng)
-            break
-        if not [e for e in f.enemies if not e.is_dead]:
-            return True, rnd
-        _enemy_turn(f, rng)
-        if f.me.health <= 0:
-            return False, rnd
-        gained = 1
-        if rng.random() < POWER_PIP_CHANCE:
-            f.power += gained
+        if action.kind is ActionKind.DISCARD and discards > 0:
+            f.hand = [h for h in f.hand if h is not action.card]
+            discards -= 1
+            continue
+        if action.kind is ActionKind.CAST and action.card is not None:
+            paid = _pay(action.card, "myth", f.pips, f.power)
+            if paid is not None:
+                f.pips, f.power = paid
+                _cast(f, action, rng)
+        break
+    if not [e for e in f.enemies if not e.is_dead]:
+        return True
+    _enemy_turn(f, rng)
+    if f.me.health <= 0:
+        return True
+    if rng.random() < POWER_PIP_CHANCE:
+        f.power += 1
+    else:
+        f.pips += 1
+    while f.pips + f.power > MAX_PIPS:
+        if f.pips:
+            f.pips -= 1
         else:
-            f.pips += gained
-        while f.pips + f.power > MAX_PIPS:
-            if f.pips:
-                f.pips -= 1
-            else:
-                f.power -= 1
-    return False, MAX_ROUNDS
+            f.power -= 1
+    return False
+
+
+def _run(f: Fight, rng: random.Random, strat: Strategy | None, start: int, first: Action | None = None,
+         discards: int = 2, drawn: bool = False, horizon: int = MAX_ROUNDS) -> tuple[bool, int]:
+    """Play on from round `start` (`drawn`: its hand is already in f.hand) to
+    the end, or for `horizon` rounds. (won, rounds played); not won and
+    alive = still going at the horizon."""
+    for rnd in range(start, start + horizon):
+        if not drawn:
+            while len(f.hand) < HAND and f.deck:
+                f.hand.append(f.deck.pop())
+        drawn = False
+        if _round(f, rng, strat, rnd, first, discards):
+            return f.me.health > 0, rnd - start + 1
+        first, discards = None, 2
+    return False, horizon
+
+
+def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = None, seed: int = 0,
+             items: list[str] = ITEMS, hp: int = 1843, stats: dict | None = None) -> tuple[bool, int]:
+    """One fight from the start. (won, rounds). `stats` (state/enemy_stats.json)
+    gives the enemies their logged damage and our spells their hit rates."""
+    rng = random.Random(seed)
+    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in items]
+    rng.shuffle(cards)
+    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist={})
+    if stats:
+        foes = [with_samples(x, stats) for x in foes]
+    enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
+                         resist=dict(x.resist)) for x in foes]
+    f = Fight(me, enemies, {x.name: x for x in foes}, cards, hit_rate=(stats or {}).get("hit_rate", {}))
+    f.pips, f.power = (1, 1) if rng.random() < 0.5 else (0, 2)
+    return _run(f, rng, strat, 1)
 
 
 def _one(args):
-    deck, foes, strat, seed = args
-    return simulate(deck, foes, strat, seed=seed)
+    deck, foes, strat, seed, stats = args
+    return simulate(deck, foes, strat, seed=seed, stats=stats)
 
 
-def win_rate(deck, foes, strat=None, n=400, pool=None, seed0=0) -> tuple[float, float]:
+def win_rate(deck, foes, strat=None, n=400, pool=None, seed0=0, stats=None) -> tuple[float, float]:
     """(win rate, mean rounds of the wins) over `n` seeded fights; `pool`: a
     multiprocessing pool to spread them over."""
-    jobs = [(deck, foes, strat, seed0 + s) for s in range(n)]
+    jobs = [(deck, foes, strat, seed0 + s, stats) for s in range(n)]
     results = pool.map(_one, jobs, chunksize=16) if pool else [_one(j) for j in jobs]
     wins = [r for ok, r in results if ok]
     return len(wins) / n, (sum(wins) / len(wins) if wins else 0.0)
 
 
+# --- enemies from the logs -------------------------------------------------
+
+STATS_FILE = Path("state") / "enemy_stats.json"
+KNOWN_SPELLS = {x.name: x.spells for x in MEOWIARTY}  # the player's lists: shields and all
+
+
+def load_stats(path: Path = STATS_FILE) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def samples_for(name: str, max_health: int, boss: bool, stats: dict) -> list[int]:
+    """Its own logged rounds (alone, else alone and shared) when there are
+    enough; else those of enemies like it (boss or not, similar health)."""
+    enemies = stats.get("enemies", {})
+    own = enemies.get(name)
+    if own:
+        if len(own["alone"]) >= MIN_SAMPLES:
+            return list(own["alone"])
+        mixed = own["alone"] + own["shared"]
+        if len(mixed) >= MIN_SAMPLES:
+            return mixed
+    alike = [
+        x for e in enemies.values()
+        if e["boss"] == boss and max_health * 0.6 <= e["max_health"] <= max_health * 1.6
+        for x in e["alone"]
+    ]
+    if len(alike) >= MIN_SAMPLES:
+        return alike
+    return [x for e in enemies.values() if e["boss"] == boss for x in e["alone"]] or [0, 100]
+
+
+def with_samples(foe: Foe, stats: dict) -> Foe:
+    return dataclasses.replace(foe, samples=samples_for(foe.name, foe.health, foe.boss, stats))
+
+
+def fight_from_battle(battle: Battle, stats: dict, rng: random.Random) -> Fight:
+    """The live fight as a simulation: our health, pips, hand and the rest of
+    the deck (shuffled), the enemies as they stand (health, school, resist,
+    effects) with their logged damage; prisms waiting on them."""
+    me = copy.deepcopy(battle.me)
+    enemies = [copy.deepcopy(e) for e in battle.enemies]
+    foes = {}
+    for e in enemies:
+        foes[e.name] = Foe(e.name, e.max_health, e.school or "", dict(e.resist or {}),
+                           KNOWN_SPELLS.get(e.name, []), boss=e.is_boss,
+                           samples=samples_for(e.name, e.max_health, e.is_boss, stats))
+    hand = [copy.copy(c) for c in battle.cards]
+    deck = [copy.copy(c) for c in battle.upcoming]
+    rng.shuffle(deck)
+    minion = next((copy.deepcopy(a) for a in battle.allies if a.is_minion and a.health > 0), None)
+    return Fight(me, enemies, foes, deck, hand=hand, pips=battle.pips, power=battle.power_pips,
+                 minion=minion, prism_on=set(battle.prismed), summoned=battle.summoned,
+                 foe_pips={e.name: rng.randint(0, 2) for e in enemies}, hit_rate=stats.get("hit_rate", {}))
+
+
+def candidates(battle: Battle) -> list[Action]:
+    """Every move this step: each castable card on each target it can take,
+    and passing."""
+    out = [Action(ActionKind.PASS, reason="rollout: pass")]
+    live = battle.live_enemies
+    seen = set()
+    for c in battle.cards:
+        if not c.castable or c.is_enchant:
+            continue
+        if c.target is Target.ENEMY_SINGLE:
+            targets = list(live)
+        elif c.target in (Target.ALLY_SINGLE, Target.SELF):
+            targets = [battle.me]
+        else:
+            targets = [None]
+        for t in targets:
+            key = (c.name, t.name if t else None)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(Action(ActionKind.CAST, c, t, reason="rollout"))
+    return out
+
+
+HORIZON = 10  # rounds a rollout looks ahead
+
+
+def rollout_value(won: bool, dead: bool, rounds: int, horizon: int, damage: float, kills: float,
+                  health: float) -> float:
+    """How good the end of a rollout is (0..~1.3): a win above anything else,
+    sooner and healthier better; else progress (share of the enemies' health
+    taken, share of them killed) and our health; dying counts least."""
+    if won:
+        return 1.0 + 0.2 * (horizon - rounds) / horizon + 0.1 * health
+    if dead:
+        return 0.3 * damage + 0.1 * kills - 0.2
+    return 0.5 * damage + 0.15 * kills + 0.3 * health
+
+
+@dataclass
+class Outcome:
+    action: Action
+    value: float  # mean rollout_value
+    wins: float  # share of the rollouts won within the horizon
+    deaths: float  # share where we died
+    damage: float  # mean share of the enemies' health taken
+
+    @property
+    def score(self) -> float:
+        return self.value
+
+
+def _rollout(battle: Battle, action: Action, strat, stats: dict, seed: int, discards: int,
+             horizon: int = HORIZON) -> tuple[bool, bool, float]:
+    """(won, died, value) of one playout of `action`."""
+    rng = random.Random(seed)
+    f = fight_from_battle(battle, stats, rng)
+    start_hp = sum(max(0, e.health) for e in f.enemies)
+    first = action
+    if action.card is not None:
+        card = f.hand[battle.cards.index(action.card)]
+        target = None
+        if action.target is not None:
+            target = f.me if action.target is battle.me else next(
+                (e for e in f.enemies if e.name == action.target.name), None)
+        first = Action(action.kind, card, target, reason=action.reason)
+    won, rounds = _run(f, rng, strat, battle.round, first, discards, drawn=True, horizon=horizon)
+    dead = f.me.health <= 0
+    left = sum(max(0, e.health) for e in f.enemies)
+    alive_before = sum(1 for e in battle.enemies if not e.is_dead and e.health > 0)
+    kills = sum(1 for e in f.enemies if e.health <= 0) - (len(battle.enemies) - alive_before)
+    health = max(0, f.me.health) / max(1, f.me.max_health)
+    value = rollout_value(won, dead, rounds, horizon, 1 - left / max(1, start_hp),
+                          kills / max(1, alive_before), health)
+    return won, dead, value, 1 - left / max(1, start_hp)
+
+
+def evaluate(battle: Battle, actions: list[Action], strat=None, stats: dict | None = None, n: int = 40,
+             seed0: int = 0, discards: int = 2, horizon: int = HORIZON) -> list[Outcome]:
+    """Each move played out `n` times for `horizon` rounds (the same random
+    draws for every move, so they compare fairly), the brain playing on."""
+    stats = stats if stats is not None else load_stats()
+    out = []
+    for a in actions:
+        results = [_rollout(battle, a, strat, stats, seed0 + s, discards, horizon) for s in range(n)]
+        out.append(Outcome(a, sum(r[2] for r in results) / n, sum(r[0] for r in results) / n,
+                           sum(r[1] for r in results) / n, sum(r[3] for r in results) / n))
+    return sorted(out, key=lambda o: -o.score)
+
+
 if __name__ == "__main__":
+    stats = load_stats()
     for name, deck in DECKS.items():
-        rate, rounds = win_rate(deck, MEOWIARTY)
+        rate, rounds = win_rate(deck, MEOWIARTY, stats=stats)
         print(f"{name:22s} win {rate:5.1%}  (wins take {rounds:.1f} rounds)")

@@ -417,6 +417,7 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+HAND_SIZE = 7  # cards in a full hand
 DESPERATE_HEALTH = 0.25  # below this: no minions or prisms, only what keeps us alive or hits
 BOSS_SUMMON_ROUNDS = 3  # against a boss, the minion comes in these first rounds
 GROUP_SUMMON_ROUNDS = 2  # against a group, the minion comes in these first rounds
@@ -695,7 +696,12 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
             return setup
     if not card.castable:
         return Action(ActionKind.PASS, reason=f"saving pips for {card.name} (hits all {len(enemies)})")
-    blade_to_come = any(EffectKind.BLADE in c.kinds and not c.is_enchant for c in battle.upcoming)
+    # A pass draws nothing with a full hand (cards come only for cards used):
+    # waiting on a blade still in the deck then waits forever (two passes at
+    # 7 pips against Meowiarty's trio while it hit us for 400).
+    blade_to_come = len(battle.cards) < HAND_SIZE and any(
+        EffectKind.BLADE in c.kinds and not c.is_enchant for c in battle.upcoming
+    )
     if (
         battle.me.blade_count == 0 and blade_to_come
         and battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH
@@ -925,8 +931,9 @@ def _prism_action(battle: Battle) -> Action | None:
         if not OPPOSITE.get(src) or not any(c.is_damage and c.school.lower() == src for c in battle.cards):
             continue
         best, best_gain = None, PRISM_GAIN
+        keep_for = prism_target(battle)  # prisms are few: all of them for that boss
         for t in battle.live_enemies:
-            if t.name in battle.prismed:
+            if t.name in battle.prismed or (keep_for is not None and t.name != keep_for.name):
                 continue
             gain = _prism_gain(card, me, t, battle.cards)
             if gain >= best_gain and t.health > 150:

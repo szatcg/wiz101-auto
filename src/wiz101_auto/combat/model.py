@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from functools import cached_property
 
 
 class EffectKind(Enum):
@@ -65,7 +66,7 @@ class Card:
     item: bool = False  # granted by gear (e.g. a wand's off-school spells)
     template_name: str = ""  # e.g. 'Minion Myth 001' (display names lack the number)
 
-    @property
+    @cached_property  # effects never change after a card is made
     def target(self) -> Target:
         # The primary target is the first effect that has one.
         for e in self.effects:
@@ -73,23 +74,23 @@ class Card:
                 return e.target
         return Target.NONE
 
-    @property
-    def kinds(self) -> set[EffectKind]:
-        return {e.kind for e in self.effects}
+    @cached_property
+    def kinds(self) -> frozenset[EffectKind]:
+        return frozenset(e.kind for e in self.effects)
 
-    @property
+    @cached_property
     def is_enchant(self) -> bool:
         return self.target is Target.SPELL
 
-    @property
+    @cached_property
     def is_damage(self) -> bool:
         return bool(self.kinds & DAMAGE_KINDS) and not self.is_enchant
 
-    @property
+    @cached_property
     def is_aoe(self) -> bool:
         return any(e.target is Target.ENEMY_ALL and e.kind in DAMAGE_KINDS for e in self.effects)
 
-    @property
+    @cached_property
     def is_heal(self) -> bool:
         return bool(self.kinds & HEAL_KINDS)
 
