@@ -142,6 +142,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
+WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
@@ -187,7 +188,8 @@ ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most ho
 STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow another quest
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
-APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2}
+APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
+                   "walk_in": 1, "reenter": 1}
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -3656,6 +3658,54 @@ class Quester:
             await self.interact(objective)
         return True
 
+    async def _walk_in_from_entrance(self, objective: str, target: XYZ, zone: str) -> bool:
+        """In a dungeon, the person to talk to isn't at the marker (the Jade
+        Champion in the Emperor's Throne Room: the palace was empty after a
+        teleport straight to it). Scenes like that start on walking in, so
+        once per objective: back to the entrance, walk to the marker in legs,
+        looking for them after each. True if it found and talked to them."""
+        name = talk_target(objective)
+        entry = DungeonMemory.load().dungeons.get(zone)
+        if not name or entry is None or not entry.spawn or not self._may_try(objective, zone, "walk_in"):
+            return False
+        spawn = XYZ(*entry.spawn)
+        logger.info(f"{name} isn't at the marker: walking in from the entrance, as a player would")
+        await self.client.teleport(spawn)
+        await asyncio.sleep(1.0)
+        for i in range(1, WALK_IN_LEGS + 1):
+            leg = XYZ(spawn.x + (target.x - spawn.x) * i / WALK_IN_LEGS,
+                      spawn.y + (target.y - spawn.y) * i / WALK_IN_LEGS, spawn.z)
+            await self.client.goto(leg.x, leg.y)
+            await asyncio.sleep(0.5)
+            if not await is_free(self.client) or await self.client.zone_name() != zone:
+                return True  # a scene, dialogue or fight started, or a door took us on
+            pos = await self._npc_named(name, near=await self._position())
+            if pos is not None:
+                logger.success(f"{name} appeared on the way in")
+                return await self._talk_to_named(objective)
+        logger.info(f"walked in from the entrance; still no {name}")
+        return False
+
+    async def _reenter_for_npc(self, objective: str, zone: str) -> bool:
+        """The person still isn't in this dungeon (its copy came up without
+        the Jade Champion): leave (Recall to the mark at its entrance, else
+        walk out) and go back in for a fresh copy. Once per objective."""
+        entry = DungeonMemory.load().dungeons.get(zone)
+        if entry is None or not entry.sigil or not self._may_try(objective, zone, "reenter"):
+            return False
+        logger.info(f"{talk_target(objective)} isn't in this copy of {zone.split('/')[-1]}: "
+                    "leaving and going back in")
+        out = False
+        if self._mark and self._mark.zone == entry.outside:
+            out = await self._recall(entry.outside, "the mark at the dungeon's entrance")
+        if not out:
+            await self.go_to_zone(entry.outside)
+        if await self.client.zone_name() != entry.outside:
+            logger.warning("couldn't get out of the dungeon to go back in")
+            return False
+        await self._enter_by_sigil(XYZ(*entry.sigil), entry.outside)
+        return True
+
     async def _find_npc(self, name: str) -> XYZ | None:
         """An NPC who isn't loaded here yet (no quest marker points at them:
         Ken Shui, visited for his quests): where they were seen before, then
@@ -4342,6 +4392,11 @@ class Quester:
             talk_marker and dist < INTERACT_RANGE and not self._may_try(objective, zone or "", "talk_marker")
             and talk_target(objective) and await self._npc_named(talk_target(objective)) is None
         )
+        if wrong_talker and (
+            await self._walk_in_from_entrance(objective, target, zone or "")
+            or await self._reenter_for_npc(objective, zone or "")
+        ):
+            return
         if wrong_talker:
             logger.info(f"{talk_target(objective)} isn't out here; the marker must be a door")
         if dist < INTERACT_RANGE and not wrong_talker and await self.interact(objective):
