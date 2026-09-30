@@ -380,6 +380,26 @@ def _errand_hops(q: QuestEntry) -> int:
     return ERRAND_UNKNOWN_HOPS if q.hops is None else q.hops
 
 
+TEAM_STATE = Path("state") / "team.json"
+TEAM_STATE_FRESH = 600.0  # a teammate seen in a team dungeon this recently survives a restart
+
+
+def _save_team_state(zone: str, _now: float) -> None:
+    try:
+        TEAM_STATE.write_text(json.dumps({"dungeon": zone.split("/")[0], "at": time.time()}),
+                              encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _team_state_recent(zone: str) -> bool:
+    try:
+        data = json.loads(TEAM_STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return data.get("dungeon") == zone.split("/")[0] and time.time() - data.get("at", 0) < TEAM_STATE_FRESH
+
+
 def in_same_area(zone: str, first_room: str) -> bool:
     """A zone under the same area as a dungeon's first room (one of its rooms)."""
     area = first_room.rsplit("/", 1)[0]
@@ -1034,7 +1054,11 @@ class Quester:
             if self.upkeep.needs_recovery(hp, mana):
                 logger.info(f"{hp:.0%} health, {mana:.0%} mana: healing before entering the dungeon")
                 await recover(self.client, self.upkeep, self.controller, self.go_to_zone)
-                return False
+                hp2, mana2 = await health_mana(self.client)
+                if self.upkeep.needs_recovery(hp2, mana2) and (hp2, mana2) != (hp, mana):
+                    return False  # healing is under way: come back to the sigil after
+                # Nothing to heal with here and "enough to go on" (84%): enter
+                # rather than loop sigil <-> heal (it did, at 82-84%).
         dungeon = self._dungeon_at(zone or "", sigil)
         if dungeon in TEAM_UP_DUNGEONS:
             # Too hard alone: only with a team (the Team Up button on the sigil).
@@ -2964,6 +2988,12 @@ class Quester:
         now = time.monotonic()
         if mates:
             self._team_with_us = True  # seen one in here: we have a team
+            self._mate_last_seen = now
+            _save_team_state(await self.client.zone_name() or "", now)
+        elif not self._team_with_us and _team_state_recent(await self.client.zone_name() or ""):
+            # A restart inside the dungeon forgot the team (it then left after
+            # 90 s as "alone"): a teammate was seen here minutes ago.
+            self._team_with_us = True
             self._mate_last_seen = now
         gone = self._team_with_us and now - self._mate_last_seen > TEAM_GONE_AFTER
         if self._team_alone_since is None:
