@@ -1014,3 +1014,42 @@ def test_one_pip_blade_and_trap_come_before_humongofrog():
     assert decide(b).card.name in ("Spirit Blade", "Feint")
     b = Battle(me=wizard, allies=[], enemies=foes, cards=setup_cards(3), pips=3)
     assert decide(b).card.name in ("Spirit Blade", "Feint")
+
+
+def _frog_hand(pips, blade_school="myth", trap_school=""):
+    cs = [
+        Card(0, "Humongofrog", school="myth", pip_cost=4,
+             effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 300)]),
+        Card(1, "Feint", school="death", pip_cost=1,
+             effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70, school=trap_school)]),
+        Card(2, "Spirit Blade", school="balance", pip_cost=1,
+             effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school=blade_school)]),
+    ]
+    for c in cs:
+        c.castable = c.pip_cost <= pips
+    return cs
+
+
+def _frog_battle(hand, pips, *hps):
+    wizard = Combatant("Me", 1700, 1700, is_client=True, school="Myth")
+    foes = [enemy(f"E{i}", hp) for i, hp in enumerate(hps)]
+    return Battle(me=wizard, allies=[], enemies=foes, cards=hand, pips=pips)
+
+
+def test_humongofrog_that_kills_all_goes_now():
+    b = _frog_battle(_frog_hand(4), 4, 250, 280)
+    assert decide(b).card.name == "Humongofrog"
+
+
+def test_a_blade_that_tips_humongofrog_into_killing_both_comes_first():
+    b = _frog_battle(_frog_hand(4), 4, 380, 390)  # 300 alone; 405 with Spirit Blade
+    action = decide(b)
+    assert action.card.name == "Spirit Blade"
+    assert "kills 2 of 2" in action.reason
+
+
+def test_blade_and_trap_together_when_one_enemy_needs_both():
+    b = _frog_battle(_frog_hand(5), 5, 380, 600)  # 600 needs blade and Feint: 300*1.35*1.7
+    action = decide(b)
+    assert action.card.name in ("Spirit Blade", "Feint")
+    assert "kills 2 of 2" in action.reason

@@ -496,6 +496,107 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     return Action(ActionKind.DISCARD, card, reason=f"digging for a {' / '.join(want)}")
 
 
+AOE_PLAN_MAX_SETUPS = 4  # blades/traps looked at together before one hit-all
+
+
+def _setup_fx(card: Card, kind: EffectKind, school: str) -> tuple[str, str, float] | None:
+    """The blade/trap `card` would hang for a `school` spell, as an effect
+    tuple (key, school, value); None if it doesn't boost that school. Uses the
+    effect's own school: Spirit Blade is a Balance card with Myth/Life/Death
+    blades, Feint a Death card whose trap boosts every school."""
+    fits = [e for e in card.effects if e.kind is kind and e.school in ("", school)]
+    if not fits:
+        return None
+    best = max(fits, key=lambda e: e.value)
+    return (f"plan:{card.name}", best.school, best.value / 100)
+
+
+def _hit_all_setup(battle: Battle, card: Card) -> Action | None:
+    """Humongofrog as it stands vs. with blades/traps from the hand: if some
+    of them make it kill enemies it wouldn't now, play one of the smallest such
+    set (every blade boosts the whole hit, each trap only its enemy; a pip
+    comes each round and the hit-all must still be affordable after). None
+    when no set adds a kill (then the usual set-up/cast rules apply)."""
+    import itertools
+
+    me = battle.me
+    enemies = battle.live_enemies
+    school = card.school.lower()
+
+    def outcome(out_fx: list, in_fx: dict[int, list]) -> tuple[int, float]:
+        attacker = Combatant(**{**me.__dict__, "outgoing_effects": out_fx})
+        kills, total = 0, 0.0
+        for e in enemies:
+            victim = Combatant(**{**e.__dict__, "incoming_effects": in_fx[id(e)]})
+            dmg = hit_damage(card, attacker, victim)
+            kills += dmg >= e.health
+            total += min(dmg, e.health)
+        return kills, total
+
+    base_in = {id(e): list(e.incoming_effects) for e in enemies}
+    now_kills, _ = outcome(list(me.outgoing_effects), base_in)
+    if now_kills == len(enemies):
+        return None
+    moves = []  # (card, target, kind, fx, hits)
+    for c in battle.cards:
+        if c.is_enchant or c is card:
+            continue
+        if EffectKind.BLADE in c.kinds:
+            fx = _setup_fx(c, EffectKind.BLADE, school)
+            if fx and not any(s == fx[1] and abs(v - fx[2]) < 0.005 for _k, s, v in me.outgoing_effects):
+                moves.append((c, me if c.target is Target.ALLY_SINGLE else None, "blade", fx, ()))
+        if EffectKind.TRAP in c.kinds:
+            fx = _setup_fx(c, EffectKind.TRAP, school)
+            if not fx:
+                continue
+            if c.target is Target.ENEMY_ALL:
+                moves.append((c, None, "trap", fx, tuple(id(e) for e in enemies)))
+                continue
+            for e in enemies:
+                if not any(s == fx[1] and abs(v - fx[2]) < 0.005 for _k, s, v in e.incoming_effects):
+                    moves.append((c, e, "trap", fx, (id(e),)))
+    if not moves:
+        return None
+    have = battle.pips + 2 * battle.power_pips
+    best = None
+    for n in range(1, min(AOE_PLAN_MAX_SETUPS, len(moves)) + 1):
+        for combo in itertools.combinations(moves, n):
+            if len({id(m[0]) for m in combo}) < n:
+                continue  # one card, one use
+            order = sorted(combo, key=lambda m: m[0].pip_cost)
+            pips, ok = have, True
+            for m in order:
+                if m[0].pip_cost > pips:
+                    ok = False
+                    break
+                pips = pips - m[0].pip_cost + 1
+            if not ok or pips < card.pip_cost:
+                continue  # the hit-all wouldn't be affordable right after
+            out_fx = list(me.outgoing_effects)
+            in_fx = {k: list(v) for k, v in base_in.items()}
+            for _c, _t, kind, fx, hits in order:
+                if kind == "blade":
+                    if fx[0] not in {k for k, _s, _v in out_fx}:
+                        out_fx.append(fx)
+                else:
+                    for h in hits:
+                        if fx[0] not in {k for k, _s, _v in in_fx[h]}:
+                            in_fx[h].append(fx)
+            kills, total = outcome(out_fx, in_fx)
+            key = (kills, -n, -sum(m[0].pip_cost for m in combo), total)
+            if best is None or key > best[0]:
+                best = (key, order)
+    if best is None or best[0][0] <= now_kills:
+        return None
+    (kills, n, _c, _t), order = best
+    first = order[0]
+    c, target, kind, _fx, _hits = first
+    if not c.castable:
+        return None
+    why = f"{kind} so {card.name} kills {kills} of {len(enemies)} (now {now_kills}; {-n} set-up card(s))"
+    return Action(ActionKind.CAST, c, target, reason=why)
+
+
 def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
     """Several enemies and a hit-all spell in hand (Humongofrog): blade
     ourselves, trap the enemies, then one hit clears the board. Pips are
@@ -526,6 +627,15 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
                 return Action(ActionKind.CAST, card, target, reason=why)
         return Action(ActionKind.PASS, reason=f"saving pips for {coming.name} (still in the deck)")
     card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
+    if card.castable and all(hit_damage(card, battle.me, e) >= e.health for e in enemies):
+        total = sum(e.health for e in enemies)
+        why = f"{card.name} kills all {len(enemies)} (~{total:.0f})"
+        return Action(ActionKind.CAST, card, None, reason=why)
+    # Blades/traps that make the hit-all kill enemies it wouldn't now: those first.
+    if battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH or not card.castable:
+        tipping = _hit_all_setup(battle, card)
+        if tipping:
+            return tipping
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
     if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
         return setup
