@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import time
 from collections import Counter
 from pathlib import Path
@@ -83,6 +84,20 @@ def _deck_name(card) -> str:
 
 
 FLEE_FILE = Path("state") / "flee.request"  # created by the user: flee this fight
+
+MY_STATS = Path("state") / "my_stats.json"
+
+
+def _save_my_stats(me) -> None:
+    """Our wizard as the game reads it (max health, gear's damage bonus and
+    resists), for the simulator's fights from the start (sim.simulate)."""
+    try:
+        data = {"max_health": me.max_health, "damage_bonus": dict(me.damage_bonus),
+                "resist": dict(me.resist or {}), "school": me.school}
+        MY_STATS.write_text(json.dumps(data), encoding="utf-8")
+    except Exception:
+        pass
+
 
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0,
@@ -442,6 +457,7 @@ class Fighter(CombatHandler):
                 self._last_plan = plan
             battle.prismed = set(self._prismed)
             battle.summoned = self._summons
+            _save_my_stats(battle.me)
             action = decide(battle, self.strategy, discards_left=discards_left)
             if self.planner is not None:
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)

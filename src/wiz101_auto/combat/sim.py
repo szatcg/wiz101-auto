@@ -20,13 +20,15 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .brain import Strategy, _is_prism, _pay, decide, hit_damage, prism_view
+from .brain import Strategy, _is_prism, _pay, _prism_gain, decide, hit_damage, prism_view
 from .model import Action, ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
 
 HAND = 7
 ACCURACY = 0.8  # our spells' hit rate when the logs have too few casts of one
 SHIELD_ON_QUIET_ROUND = 0.05  # a round without damage: chance it shields (Meowiarty: 2 in 80 rounds logged)
 MIN_SAMPLES = 8  # rounds of an enemy needed before its own numbers are trusted
+MAX_MINION_HIT = 1000  # a minion hit above this is a template id, not damage
+PRISM_WORTH = 1.25  # a prism move only where the converted hit lands this much harder
 POWER_PIP_CHANCE = 0.35
 MAX_PIPS = 7
 MAX_ROUNDS = 40
@@ -209,7 +211,10 @@ def _cast(f: Fight, action, rng: random.Random):
                 f.me.incoming_effects.append((f"sim:{c.name}:{e.school}", e.school, e.value / 100))
     elif EffectKind.SUMMON in kinds:
         if not (f.minion and f.minion.health > 0):  # one out at a time
-            power = int(max((e.value for e in c.effects if e.kind is EffectKind.SUMMON), default=0)) or 180
+            # The simulator's own minion cards carry its hit; a card read from the
+            # game carries the minion's template id there (36060): a Troll's 180.
+            power = int(max((e.value for e in c.effects if e.kind is EffectKind.SUMMON), default=0))
+            power = power if 0 < power <= MAX_MINION_HIT else 180
             f.minion = Combatant("Troll Guardian", 900, 900, is_minion=True, school="myth",
                                  damage_bonus={"power": power})
         f.summoned += 1
@@ -226,6 +231,11 @@ def _enemy_turn(f: Fight, rng: random.Random):
         if live:
             t = rng.choice(live)
             dmg = f.minion.damage_bonus.get("power", 180) * (1 - (t.resist or {}).get("myth", 0))
+            # Its hit breaks a trap on the target, our Feint too.
+            traps = [x for x in t.incoming_effects if x[2] > 0 and x[1] in ("", "myth")]
+            if traps:
+                dmg *= 1 + traps[0][2]
+                t.incoming_effects = [x for x in t.incoming_effects if x is not traps[0]]
             t.health = max(0, t.health - int(dmg))
             t.is_dead = t.health <= 0
     # Damage over time on our side.
@@ -376,7 +386,10 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
     rng = random.Random(seed)
     cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in items]
     rng.shuffle(cards)
-    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist={})
+    mine = load_my_stats()  # the wizard as last read in a fight: gear's damage bonus and all
+    hp = mine.get("max_health", hp)
+    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist=mine.get("resist", {}),
+                   damage_bonus=mine.get("damage_bonus", {}))
     if stats:
         foes = [with_samples(x, stats) for x in foes]
     enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
@@ -404,6 +417,16 @@ def win_rate(deck, foes, strat=None, n=400, pool=None, seed0=0, stats=None) -> t
 
 STATS_FILE = Path("state") / "enemy_stats.json"
 KNOWN_SPELLS = {x.name: x.spells for x in MEOWIARTY}  # the player's lists: shields and all
+
+
+MY_STATS_FILE = Path("state") / "my_stats.json"
+
+
+def load_my_stats(path: Path = MY_STATS_FILE) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def load_stats(path: Path = STATS_FILE) -> dict:
@@ -486,6 +509,13 @@ def candidates(battle: Battle) -> list[Action]:
             targets = [battle.me]
         else:
             targets = [None]
+        if _is_prism(c):
+            # Only where it converts to something the target is weak to (not a
+            # prism on the Death wraith).
+            targets = [
+                t for t in targets
+                if t is not None and _prism_gain(c, battle.me, t, battle.cards) >= PRISM_WORTH
+            ]
         for t in targets:
             key = (c.name, t.name if t else None)
             if key in seen:

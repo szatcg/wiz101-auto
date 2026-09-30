@@ -79,3 +79,30 @@ def test_planner_never_considers_a_chip_hit_on_our_feint():
     assert not any(m.card is chip for m in moves)
     boss.incoming_effects = []  # nothing to waste: the chip hit is a move again
     assert any(m.card is chip for m in sim.candidates(b))
+
+
+def test_a_game_minion_card_summons_a_troll_strength_minion():
+    import random
+
+    from wiz101_auto.combat.model import Action as Act
+
+    foe = Combatant("Brute", 1200, 1200, is_enemy=True, is_boss=True, school="fire", resist={})
+    game_card = Card(0, "Troll Minion", school="myth", pip_cost=2,
+                     effects=[Effect(EffectKind.SUMMON, Target.SELF, 36060, school="myth")])  # a template id
+    b = _battle([foe], [game_card])
+    f = sim.fight_from_battle(b, STATS, random.Random(1))
+    f.hit_rate = {"Troll Minion": 1.0}
+    sim._cast(f, Act(ActionKind.CAST, f.hand[0], f.me), random.Random(1))
+    assert f.minion.damage_bonus["power"] == 180
+
+
+def test_no_prism_move_on_an_enemy_without_a_storm_weakness():
+    other = Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)
+    prism = Card(1, "Myth Prism", school="myth", pip_cost=0, effects=[other])
+    wraith = Combatant("Agony Wraith", 1280, 1280, is_enemy=True, is_boss=True, school="death",
+                       resist={"death": 0.4, "life": -0.4})
+    cat = Combatant("Meowiarty", 2000, 2000, is_enemy=True, is_boss=True, school="myth",
+                    resist={"myth": 0.8, "storm": -0.5})
+    b = _battle([wraith, cat], [_hit(0, 495, 5), prism])
+    targets = [m.target.name for m in sim.candidates(b) if m.card is prism]
+    assert targets == ["Meowiarty"]
