@@ -705,6 +705,9 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         except Exception as exc:  # max copies, deck full, or UI hiccup
             logger.debug(f"add {name} x{copies} stopped: {exc}")
         await asyncio.sleep(0.3)
+    if not missing and not removals:
+        logger.info("deck: nothing changed (adding and removing are off)")
+        return known, plan
     await asyncio.sleep(1.5)  # the deck list lags a moment behind removals
     final = await _log_current_deck(client, builder) or []
     logger.success(f"deck updated ({before} -> {len(final)} cards)")
