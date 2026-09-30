@@ -73,6 +73,15 @@ def install(client):
     blocked: dict[tuple[int, int], int] = {}
 
     async def teleport(xyz, *args, **kwargs):
+        result = await _teleport(xyz, *args, **kwargs)
+        try:
+            here = await client.body.position()
+            client._last_landing = (time.monotonic(), here.x, here.y, here.z)  # (door learning)
+        except Exception:
+            pass
+        return result
+
+    async def _teleport(xyz, *args, **kwargs):
         from .quest import clear_of, safe_landing
         from .upkeep import mob_positions
 

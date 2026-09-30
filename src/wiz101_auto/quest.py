@@ -140,6 +140,7 @@ TEAM_CIRCLE_NEAR = 1500.0  # a duel circle this near the marker is the boss's fi
 TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on entering, then this often
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
+DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
 TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where they were last seen
@@ -603,6 +604,7 @@ class Quester:
         self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._team_talks: dict[str, int] = {}  # team dungeon talk objective -> tries
         self._standoff_tries: dict[tuple[str, int, int], int] = {}  # teleports toward a boss stop point
+        self._prev_step: tuple[str, XYZ | None] | None = None  # (zone, quest marker) at the last step
         self._visit_tries = 0  # talk attempts for a visit_npc request
         self._team_ranked = -1e9  # last quest-book read inside a team dungeon
         self._background: dict[str, asyncio.Task] = {}  # scans running beside the step
@@ -2719,6 +2721,32 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _learn_door_walk(self):
+        """The zone changed since the last step while heading for a quest
+        marker: the last teleport before it is a way through that marker's
+        door. Saved (state/doors.json) and used first next time (it got stuck
+        at the Sun Chamber door, then got in some other way and forgot how)."""
+        try:
+            zone = await self.client.zone_name() or ""
+            marker = await self.client.quest_position.position()
+        except Exception:
+            return
+        prev = self._prev_step
+        self._prev_step = (zone, marker if distance(marker, XYZ(0, 0, 0)) > 1 else None)
+        if not prev or not prev[0] or not zone or zone == prev[0] or prev[1] is None:
+            return
+        old_zone, old_marker = prev
+        land = getattr(self.client, "_last_landing", None)
+        if not land or time.monotonic() - land[0] > 60:
+            return
+        spot = XYZ(land[1], land[2], land[3])
+        if distance(spot, old_marker) > DOOR_LEARN_RANGE:
+            return
+        key = (old_marker.x, old_marker.y, old_marker.z)
+        if self.doors.approach(old_zone, key) is None:
+            self.doors.record(old_zone, key, (spot.x, spot.y, spot.z))
+            logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
+
     async def _visit_npc(self) -> bool:
         """state/visit_npc.json {"npc": ..., "zone": ...}: go and talk to that
         NPC (accepting what they offer), e.g. the giver of the next main quest
@@ -3721,6 +3749,7 @@ class Quester:
                 return
         if not await is_free(self.client):
             return
+        await self._learn_door_walk()
         await clear_popups(self.client)
         if VISIT_FILE.exists() and await self._visit_npc():
             return
