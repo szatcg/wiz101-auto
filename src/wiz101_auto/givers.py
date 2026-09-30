@@ -6,7 +6,14 @@ quest's world the bot walks up to each named NPC near it once (ambient
 townsfolk, "MB-AmbLady-I", are skipped) and talks: the dialogue loop accepts
 whatever is offered. More quests in the book means kills and turn-ins made on
 the way count twice. Who was asked is kept in state/npc_talked.json and asked
-again after a few hours (new quests open up as others are done).
+again after an hour (new quests open up as others are done), and entering a
+zone not checked for an hour asks everyone in it.
+
+A world with a guide (docs/sidequests/<World>.txt: quest giver, then quest
+line, "(after finishing “X”)" for what must come first) narrows that to the
+givers who still have something to hand out: a quest of theirs that isn't in
+the quest book, isn't in docs/CompletedQuests.txt, isn't skipped, and whose
+"after finishing" quest is done.
 """
 
 from __future__ import annotations
@@ -16,6 +23,8 @@ import json
 import math
 import re
 import time
+from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from loguru import logger
@@ -49,6 +58,103 @@ def is_named_npc(object_name: str, display: str, behaviors: list[str]) -> bool:
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
 
+GUIDE_DIR = Path("docs") / "sidequests"
+COMPLETED_PATH = Path("docs") / "CompletedQuests.txt"
+BOOK_PATH = Path("state") / "quest_book.json"
+_QUEST_LINE = re.compile(r"^\*?\s*(?P<name>[^(]+?)\s*\(\s*\d+\s*(gold|xp)", re.I)
+_AFTER = re.compile(r"after finishing\s*[“\"]\s*\*?\s*(?P<q>[^”\"]+?)\s*[”\"]", re.I)
+
+
+@dataclass(frozen=True)
+class GuideQuest:
+    giver: str
+    name: str
+    after: str | None = None  # a quest that must be done first
+    main: bool = False  # under a "(MAIN QUEST)" heading: the story, done in guide order
+
+
+def parse_guide(text: str) -> list[GuideQuest]:
+    """Quests of a guide: a quest line ("Name(170 XP)...") right under its
+    giver's name; headings (upper case, "(SIDE QUEST)") and goals ("-...")
+    are not givers."""
+    out, prev, main = [], "", False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if "(MAIN QUEST)" in line.upper():
+            main = True
+        elif "(SIDE QUEST)" in line.upper():
+            main = False
+        m = _QUEST_LINE.match(line)
+        if (m and prev and not prev.startswith(("-", "(")) and not prev.isupper()
+                and not _QUEST_LINE.match(prev)):
+            after = _AFTER.search(line)
+            out.append(GuideQuest(prev, m["name"].strip(), after["q"].strip() if after else None, main))
+        prev = line
+    return out
+
+
+def norm(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def same_quest(a: str, b: str) -> bool:
+    """The guide's spelling vs the game's ("Gate Crushers"/"Gate Crashers",
+    "Mail Calll"), without "More Crazy Cats" matching "Crazy Cats"."""
+    a, b = norm(a), norm(b)
+    return a == b or (min(len(a), len(b)) >= 6 and SequenceMatcher(None, a, b).ratio() >= 0.9)
+
+
+def pending_givers(guide: list[GuideQuest], have: set[str], done: set[str]) -> dict[str, list[str]]:
+    """Giver (normalized name) -> their quests we can still get: not held or
+    skipped (`have`), not done, and what must come first is done (an "after"
+    that isn't a quest of the guide, e.g. "The Ironworks", counts as done)."""
+    names = [q.name for q in guide]
+
+    def known(x: str, pool) -> bool:
+        return any(same_quest(x, y) for y in pool)
+
+    # Done without being logged (CompletedQuests.txt is recent): what a held or
+    # done quest came after, and every story quest before the furthest one.
+    done = set(done)
+    for _ in range(len(guide)):
+        more = {q.after for q in guide if q.after and known(q.name, have | done) and q.after not in done}
+        if not more:
+            break
+        done |= more
+    story = [q for q in guide if q.main]
+    reached = max((i for i, q in enumerate(story) if known(q.name, have | done)), default=-1)
+    done |= {q.name for q in story[:reached]}
+    out: dict[str, list[str]] = {}
+    for q in guide:
+        if known(q.name, have) or known(q.name, done):
+            continue
+        if q.after and known(q.after, names) and not known(q.after, done):
+            continue
+        out.setdefault(norm(q.giver), []).append(q.name)
+    return out
+
+
+def load_guide(world: str) -> list[GuideQuest] | None:
+    try:
+        return parse_guide((GUIDE_DIR / f"{world}.txt").read_text(encoding="utf-8"))
+    except OSError:
+        return None
+
+
+def _book_and_done() -> tuple[set[str], set[str]]:
+    have: set[str] = set()
+    try:
+        have = {q["name"] for q in json.loads(BOOK_PATH.read_text(encoding="utf-8")).get("quests", [])}
+    except Exception:
+        pass
+    try:
+        done = {ln.strip() for ln in COMPLETED_PATH.read_text(encoding="utf-8").splitlines() if ln.strip()}
+    except OSError:
+        done = set()
+    return have, done
+
 
 class QuestGivers:
     def __init__(self, quester):
@@ -62,6 +168,7 @@ class QuestGivers:
             self._talked = json.loads(TALKED_PATH.read_text(encoding="utf-8"))
         except Exception:
             pass
+        self._guides: dict[str, list[GuideQuest] | None] = {}
         self._zone_checks: dict[str, float] = {}
         try:
             self._zone_checks = json.loads(ZONE_CHECKS_PATH.read_text(encoding="utf-8"))
@@ -91,11 +198,27 @@ class QuestGivers:
         except Exception:
             pass
 
+    def wanted_givers(self, zone: str) -> dict[str, list[str]] | None:
+        """Givers with quests still to get in this zone's world, per its guide;
+        None without a guide (ask every named NPC)."""
+        world = zone.split("/", 1)[0]
+        if world not in self._guides:
+            self._guides[world] = load_guide(world)
+        guide = self._guides[world]
+        if guide is None:
+            return None
+        from .setbacks import ALWAYS_SKIP
+
+        have, done = _book_and_done()
+        have |= set(getattr(self.q.setbacks, "skipped", set())) | ALWAYS_SKIP
+        return pending_givers(guide, have, done)
+
     async def _candidates(self, zone: str, reach: float = GIVER_RANGE) -> list[tuple[float, str, XYZ]]:
         from .names import lang_name
 
         me = await self.client.body.position()
         mobs = await mob_positions(self.client)
+        wanted = self.wanted_givers(zone)
         out = []
         for e in await self.client.get_base_entity_list():
             try:
@@ -106,6 +229,8 @@ class QuestGivers:
                 display = await lang_name(self.client, code) if code else ""
                 if not display or self._asked_recently(zone, display):
                     continue
+                if wanted is not None and norm(display) not in wanted:
+                    continue  # the guide says they have nothing left for us
                 pos = await e.location()
                 d = math.dist((pos.x, pos.y), (me.x, me.y))
                 if d > reach:
@@ -135,7 +260,12 @@ class QuestGivers:
             self._zone = zone
             self._sweeping = time.time() - self._zone_checks.get(zone, 0.0) > ZONE_RECHECK_SECONDS
             if self._sweeping:
-                logger.info(f"checking the NPCs of {zone.split('/')[-1]} for new quests")
+                wanted = self.wanted_givers(zone)
+                who = ""
+                if wanted is not None:
+                    who = (f" (guide: {sum(map(len, wanted.values()))} quests from {len(wanted)} "
+                           f"givers left in {zone.split('/')[0]}: {', '.join(sorted(wanted))})")
+                logger.info(f"checking the NPCs of {zone.split('/')[-1]} for new quests{who}")
         if not await is_free(self.client):
             return False
         found = await self._candidates(zone, float("inf") if self._sweeping else GIVER_RANGE)

@@ -1,0 +1,495 @@
+Marleybone quests by quest giver (from a player's guide; givers.py reads it).
+
+Format:
+Quest giver
+Quest name(reward)Gold, XP,Furniture   (after finishing "X") = X must be done first
+- Goals
+*means the quest name is wrong because I missed it :P
+
+REGENT’S SQUARE
+(MAIN QUEST)
+
+Sergeant Major Talbot
+Missing Souls(150 XP, 1 extra potion)
+-Talk to Private Kinchley in Wolfminster Abbey
+
+Private Kinchley
+Sarcophagus Search (170 XP)
+-Talk to Clancy Pembroke in Royal Museum
+
+Clancy Pembroke
+Not So Fast... (170 XP)
+-Talk to Mayor Pimsbury in Digmoore Station
+
+Mayor Pimsbury
+A Cat-Tastrohphy(55 gold, 170 XP)
+-Talk to Sherlock Bones in Digmoore Station
+
+Sherlock Bones
+Back up for Bones(170 XP)
+-Talk to Ms Conrail in Hyde Park
+
+Sherlock Bones
+Out of Control(180 XP) (after finishing main quest line in Hyde Park)
+-Talk to Ms Marphely in Chelsea Court
+
+Sherlock Bones
+A Private Meeting(60 Gold, 385 XP, Framed Map) (after finishing main quest line in Chelsea Court)
+-Talk to Sherlock Bones and Baxter in 221 B.Barker Street
+-Talk back to Sherlock Bones in Digmoore Station
+
+Sherlock Bones
+Internal Investigation(63 Gold, 205 XP, Framed Map)
+-Talk to Baxter in the Ironworks
+
+Sherlock Bones
+Ring the Alarm(136 Gold, 230 XP)
+-Talk to Watson in Scotland Yard Roof (after finishing The Ironworks)
+
+ROYAL MUSEUM
+
+Clancy Pembroke
+Stolen Away(68 Gold, 245 XP) (after finishing Katzenstein's lab)
+-Talk to Gus in Counterweight East
+-Defeat Sprockets
+-Talk back to Clancy Pembroke
+
+Clancy Pembroke
+Weights and Measures( 245 XP) (after finishing Counterweight West)
+-Talk to Sally Newflower in Counterweight West
+-Defeat Bellows
+-Talk back to Clancy Pembroke
+
+Sherlock Bones
+The Last Meow(88 Gold, 1640 XP, Ring, Robe, Krokotolian Scarab)
+-Defeat Meowiarty in Big Ben (after finishing the East and West Counterweights)
+- Talk back to Sherlock Bones
+
+Sherlock Bones
+Bad News...(176 Gold, 265 XP, Telescope) (after finishing “The Last Meow”)
+- Talk to Merle Ambrose
+
+(SIDE QUEST)
+
+Prospector Zeke
+Stray Cat Strut(176 gold, 1640 XP, Training Point,Jail Cell )
+-Locate Regent's Square Cat
+-Locate Digmoore Station Cat
+-Locate Hyde Park Cat
+-Locate Chelsea Court Cat
+-Locate Ironworks Cat
+-Locate Scotland Yard Roof Cat
+-Locate Knight's Court Cat
+-Locate Katz Lab Cat
+-Locate Big Ben Cat
+-Talk back to Prospector Zeke
+
+Henry Wellingbrook
+Reading into the Past(83 gold, 1360 XP, Athame,Maple Bookcase,Guardhouse )
+-Read book in Hyde Park
+-Read book in Chelsea Court
+-Read book in Ironworks
+-Read book in Scotland Yard
+-Read book in Newgate Prison
+-Read book in Katzenstein's lab
+-Read book in Big Ben
+
+Mayor Pimsbury
+Special Request(55 gold, 170 XP)
+-Talk to Floyd Kinkaid in Regent’s Sq Post Office Central
+
+Floyd Kinkaid
+The Krok Express(170 XP)(after finishing “Special Request”)
+-Talk to Private Primwell and Private Archibald in Palace of Fire
+-Talk back to Floyd Kinkaid
+
+Floyd Kinkaid
+Next Round(110 gold, 1260 XP, Envelope Furniture)(after finishing “The Krok Express”)
+-Talk to Lieutenant Standish, Private Livingston and Private Farnsworth in Palace of Fire
+-Talk back to Floyd Kinkaid
+
+Mayor Pimsbury
+Under the weather(83 gold, 245 XP)
+-Talk to Houghe Warner in Regent’s Square Hat Shop
+
+Houghe Warner
+Down in the park(83 gold, 500 XP)(after finishing “Under the weather”)
+-Locate Unicorn Way park in Unicorn to collect berries
+-Talk back to Houghe Warner
+
+Houghe Warner
+Getting Water(83 gold, 510 XP)(after finishing “Down in the park”)
+-Locate Well in Krokotopia Oasis
+-Talk to Kelvin the ice tree in Ravenwood
+-Talk back to Houghe Warner
+
+Houghe Warner
+Final Delivery(166 gold, 1580 XP, shoes, Blue Foodcart) (after finishing “Getting water”)
+-Talk to Mayor Pimsbury in Digmoore Station
+
+Abigail Doolittle
+Policemen’s Ball(63 gold, 400 XP)(after finishing “The Ironworks”)
+-Gather 5 crates in the Ironworks
+-Talk back to Abigail Doolittle
+
+Abigail Doolittle
+Party Planning(63 gold, 220 XP)(after finishing “Policemen’s Ball”)
+-Talk to Ms.Marphely in Chelsea Court, Ms Conrail, Lady Desane and Emily Chesterfield in Hyde Park
+-Talk back to Abigail Doolittle
+
+Abigail Doolittle
+Invitation to the Ball(68 gold, 230 XP) (after finishing “Party Planning”)
+-Talk to Sherlock Bones and Officer Barkly in Digmoore Station. Talk to Officer Darby in Hyde Park
+-Talk back to Abigail Doolittle
+
+Abigail Doolittle
+Given' Em the Brush(150 gold, 1480 XP, Robe, Rack of Bobbie Helmets )(after finishing “Invitation to the Ball”)
+-Defeat 4 Streets at Pavillion in Ironworks
+-Talk back to Abigail Doolittle
+
+Reed Trever
+Mail Calll(63 gold, 205 XP)
+-Talk to Floyd Kinkaid, Andrew Coleman, Edwin Vintry and and George Dowgate
+-Talk back to Reed Trever
+
+Reed Trever
+Speedy Delivery(136 gold, 460 XP, Shoes, Post Box Furniture)(after finishing “Mail Call ”)
+-Use 8 mailboxes
+-Talk back to Reed Trever
+
+Henry Wellingbrook
+Extra Reading(58 Gold, 180 XP)
+-Talk to Harold Argleston in Wizard City
+
+Harold Argleston
+*Extra Reading(60 Gold, 195 XP)(after finishing “Extra Reading ”)
+-Talk to Regina Flametalon in Golem Court
+
+Regina Flametalon
+Book Crooks(60 Gold, 960 XP)(after finishing “*Extra Reading ”)
+-Defeat Fire Elf and collect Library book in Firecat Alley
+-Talk to Harold Argleston
+
+Harold Argleston
+Another Delivery(120 Gold, 1200 XP, Ring, Park Bench Furniture) (after finishing “Book Crooks ”)
+-Talk to Henry Wellingbrook
+
+Henry Wellingbrook
+As the Bone Turns(63 gold, 205 XP)
+-Talk to Emily Chesterfield in Hyde Park
+-Talk back to Henry Wellingbrook
+
+Henry Wellingbrook
+Young and the Boneless(220 XP)(after finishing “As the Bone turns”)
+-Talk to Ms. Marphely in Chesea Court
+-Talk back to Henry Wellingbrook
+
+Henry Wellingbrook
+Bone and the Beautiful(126 Gold, 1260 XP, Hat, Monnet and BlueBonnet Flowerbed )(after finishing “Young and the Boneless”)
+-Talk to Ms. Marphely in Chesea Court
+-Talk back to Henry Wellingbrook
+
+HYDE PARK
+(MAIN QUEST)
+
+Ms Conrail
+Garden Secret(55 Gold, 850 XP)(after finishing “Back up for Bones”)
+-Find Baxter in Hyde Park( note: you will have to fight an enemy near the greenhouse)
+-Talk back to Ms Conrail
+
+Ms Conrail
+House Hunt(55 Gold, 850 XP)
+-Find Baxter in First Safe house, Second Safe house and Third Safe house
+-Talk back to Ms Conrail
+
+Ms Conrail
+Springing the Snitch(55 Gold, 1090 XP)
+-Defeat and talk to Willie Marks
+-Talk back to Ms Conrail
+
+Ms Conrail
+The Right Tools(55 Gold, 865 XP)
+-Defeat Hooligans and collect 6 Lockpicks
+-Talk back to Ms Conrail
+
+Ms Conrail
+Open says me(116 Gold, 1140 XP, Ring, Practice Mannequin)
+-Talk to Baxter( you have to defeat Gearhead first)
+-Talk back to Ms Conrail
+-Talk to Sherlock Bones
+
+(SIDE QUEST)
+Officer Darby
+Crazy Cats(55 Gold, 850 XP)
+-Defeat 8 O’Leary Scurrier
+-Talk back to Officer Darby
+
+Officer Darby
+More Crazy Cats(55 Gold, 865 XP) (after finishing “Watch your step”)
+-Defeat 8 O’Leary Burglars
+-Talk back to Officer Darby
+
+Officer Darby
+Go for the boss(116 Gold, 1140 XP, Hat, Cat wanted poster) (after finishing “More Crazy Cats”)
+-Defeat Sammy O’Leary
+-Talk back to Officer Darby
+
+Mr.Rowley
+Watch your step(55 Gold, 865 XP)
+-Defeat Hooligan and collect Pocket Watch
+-Talk back to Mr.Rowley
+
+Mr.Rowley
+Crime Reporting(1090 XP)(after finishing “Watch your step”)
+-Talk to Officer Darby in Hyde Park
+
+Officer Darby
+When it rains... (55 Gold, 865 XP) (after finishing “Crime reporting”)
+-Talk to Emily Chesterfield
+-Defeat O’Leary Burglar and collect Umbrella
+-Talk to Emily Chesterfield
+-Talk back to Officer Darby
+
+Officer Darby
+It Pours (88 Gold, 1065 XP, Crate of Hotdogs) (after finishing “When it rains...”)
+-Locate warehouse( note: have to defeat Patches O’Leary there)
+-Talk back to Officer Darby
+
+Emily Chesterfield
+Box from Krok(55 Gold, 170 XP)
+-Talk to Reed Trever in Regent’s Square
+-Talk to Edwin Vintry in Regent’s Square
+-Talk back to Emily Chesterfied
+
+Emily Chesterfield
+Scarfing it up(170 XP) (after finishing “Box from Krok”)
+-Talk to Tracy Castleton in Digmoore Station
+-Talk to Stuart Goddard
+-Talk to Tracy Castleton
+-Talk back to Emily Chesterfield
+
+Emily Chesterfield
+Reckless Necklace(110 gold, 1065 XP, Enclosed Wall Lamp) (after finishing “Scarfing it up”)
+-Talk to Ms. Marphely in Chelsea Court
+-Talk to Jared Banks in Jewellery Shop
+-Talk to Ms.Marphely in Chelsea Court
+
+Lady Desane
+Flower Fiends(55 Gold, 350 XP)
+-Collect 8 potted plants
+-Talk back to Lady Desane
+
+Lady Desane
+Bring back the Blossom(116 Gold, 365 XP, Hat, Potted Flower Arrangement)(after finishing “Flower Fiends”)
+-Get Mystical Flower
+-Talk back to Lady Desane
+
+CHELSEA COURT
+(MAIN QUEST)
+
+Ms Marphely
+For whom the bell Tolls (58 Gold, 365 XP)(after finishing “Out of Control”)
+-Locate Chelsea Clock tower in Chelsea Court
+-Talk back to Ms Marphely
+
+Ms Marphely
+A Guide.... (180 XP)
+-Talk to William Pugsby
+
+William Pugsby
+Keeper of Secrets (58 Gold, 1140 XP)
+-Defeat Shakes O’Leary
+-Talk back to William Pugsby
+
+William Pugsby
+The Only one left (60 Gold, 1200 XP, Hat)
+-Defeat Timmy Icepick
+-Talk back to William Pugsby
+
+William Pugsby
+Sweet Success (60 Gold, 195 XP, Dog Playball)
+-Talk to Ms Marphely
+
+Ms Marphely
+Password, Please! (60 Gold, 1200 XP, Ring)
+-Locate Chelsea Clocktower( You have to defeat Potbelly there)
+-Talk to Baxter there
+-Talk back to Ms Marphely
+
+Ms Marphely
+Freedom At Last (126 Gold, 205 XP, Can of Tuna)
+-Talk to Sherlock Bones in Digmoore Station
+
+(SIDE QUEST)
+Lord Barker
+There Goes the Hood (60 Gold, 960 XP,)
+-Defeat 8 Ruffians
+-Talk back to Lord Barker
+
+Ernest Heldings
+A Test Of Metal (60 Gold, 960 XP,)
+-Defeat Gearhead and collect Internal Gear
+-Talk back to Ernest Heldings
+
+Ernest Heldings
+*A Test Of Metal (126 Gold, 1005 XP, Shoes, Dogs playing cards painting)(after finishing “A Test of Metal”)
+-Defeat Gearhead and collect Clockwork Key
+-Talk back to Ernest Heldings
+
+THE IRONWORKS
+
+Baxter
+No Entry(63 Gold, 1005 XP)
+-Defeat O’Leary Napper and collect Golden Key
+-Talk back to Baxter
+-Locate Gate door in the Ironworks
+
+Baxter
+Gate Crushers(63 Gold, 1360 XP)
+-Talk to Baxter
+-Defeat Nails O’Leary (Tip: Combination is Snake, Bird and Beetle)
+-Talk back to Baxter
+
+Baxter
+Purloin the Plans(63 Gold, 400 XP)
+-Talk to Baxter
+-Collect Plans in the Ironworks
+-Talk back to Baxter
+
+Baxter
+Bully the Boss(435 XP)
+-Locate Pops’OLeary
+-Talk back to Baxter
+
+Baxter
+Knock On Wood(136 Gold, 1430 XP)
+-Defeat Brady the Sneak (Tip: Step on Bird, Moon, Tree, Beetle to unlock the door on the way)
+-Return to Factory Door
+-Defeat Pops’O Leary
+-Talk back to Baxter
+
+SCOTLAND YARD ROOF
+(MAIN QUEST)
+
+Watson
+Ring the Alarm(68 Gold, 230 XP) (after Ironworks)
+-Talk to Officer Ness in Newgate Prison
+
+Watson
+Scatching Post(63 Gold, 220 XP, Scotland Yard Sign)(after Newgate Prison)
+-Talk to Sergeant Steeg in Knight’s Court
+
+Watson
+Weird Science(75 Gold, 1435 XP,)(after Knight’s Court)
+-Talk to Watson in Katzenstein’s Lab
+
+Watson
+Fetch Bones!(160 Gold, 245 XP)
+-Talk to Sherlock Bones in Royal Museum
+
+NEWGATE PRISON (MAIN QUEST)
+
+Officer Ness
+Stop that cat!(400 XP, Buried Bone)
+-Locate Meowiarty’s cell
+-Talk to Officer Malone
+-Defeat Gibson O’Leary
+-Defeat Agony Wraith
+-Talk back to Watson
+
+KNIGHT’S COURT
+(MAIN QUEST)
+
+Sergeant Steeg
+*Ring the Alarm(68 Gold, 1430 XP)
+-Talk to Linda Milltop
+-Defeat Jacques the Scratcher
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Cat Scratch Fever(63 Gold, 970 XP)
+-Defeat 8 Deadly Scratchers
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Investigation....(68 Gold, 230 XP)
+-Talk to Catherine Dalton in Knight’s Court
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Location, Location...(68 Gold, 230 XP, Soda Barrels)
+-Talk to Amy Brooks in Knight’s Court
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Cross Examination (75 Gold, 230 XP)
+-Talk to Angus Crankenhop in Regent’s Square at Burt’s
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Doctor of Deception (75 Gold, 1435 XP, Ring, Arched Counter)
+-Locate Knight’s Tower
+-Defeat Jacques the Scratcher
+-Talk back to Sergeant Steeg
+
+Sergeant Steeg
+Case Closed! (150 Gold, 230 XP)
+-Talk to Watson in Scotland Yard Roof
+
+KATZENSTEIN’S LAB
+
+Watson
+The Right Combination(75 Gold, 1480 XP)
+-Defeat Firegut
+-Open Locked Door (Clue: Sun, Bird, Tree, bug)
+-Talk back to Watson
+
+Watson
+Gate is Enough(80 Gold, 1520 XP)
+-Defeat Clanker (Clue: Tree, Sun, Bird, Beetle)
+-Talk back to Watson
+-Open Locked Door
+
+Watson
+If you build it....(75 Gold, 475 XP)
+-Talk to Grunk
+-Collect 3 Crates
+
+Grunk
+It’s Alive(160 Gold, 485 XP)
+-Use Computer
+-Use Power Lever
+-Use Charger Lever
+-Talk to Wooden Construct
+
+COUNTERWEIGHT EAST
+
+Gus
+Metal Madness(75 Gold, 1480 XP)
+-Talk to Gus in Counterweight East
+-Pull 4 levels
+
+Gus
+Beat the Bully(75 Gold, 1480 XP)
+-Defeat old Smokey
+-Talk back to Gus
+-Talk to Dusha Doxen
+
+COUNTERWEIGHT WEST
+
+Sally Newflower
+More Metal Madness (80 Gold, 1520 XP)
+-Talk to Sally Newflower in Counterweight West
+-Pull 4 Levers
+
+BIG BEN
+
+Travis Pawman
+Stealthy Stuff(83 Gold, 255 XP)
+-Talk to Travis Pawman
+
+Jack Thistleberry
+Keys to Success(500 XP, Marleybone Flag)
+-Open Wooden Chest
+-Open Silver Chest
+-Open Golden Chest
