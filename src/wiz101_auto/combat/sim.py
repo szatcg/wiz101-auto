@@ -48,9 +48,11 @@ CARDS = {
     "Troll": lambda: card("Troll", "myth", 2, hit(190)),
     "Ether Shield": lambda: card("Ether Shield", "myth", 0, *(
         Effect(EffectKind.SHIELD, Target.SELF, -70, school=s) for s in ("life", "death"))),
-    "Minotaur": lambda: card("Minotaur", "myth", 5, hit(495)),  # as the game reads it: 5 pips, 50 + 445
+    "Minotaur": lambda: card("Minotaur", "myth", 5, hit(50), hit(445)),  # as the game reads it: two hits
     "Humongofrog": lambda: card("Humongofrog", "myth", 4, hit(295, Target.ENEMY_ALL)),
-    "Troll Minion": lambda: card("Troll Minion", "myth", 2, Effect(EffectKind.SUMMON, Target.SELF, 0)),
+    "Troll Minion": lambda: card("Troll Minion", "myth", 2, Effect(EffectKind.SUMMON, Target.SELF, 180)),
+    # A guess until it's been seen in a fight: a stronger minion than the Troll.
+    "Cyclops Minion": lambda: card("Cyclops Minion", "myth", 3, Effect(EffectKind.SUMMON, Target.SELF, 260)),
     "Myth Prism": lambda: card("Myth Prism", "myth", 0, Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)),
     "Myth Trap": lambda: card("Myth Trap", "myth", 0,
                               Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, school="myth")),
@@ -207,7 +209,9 @@ def _cast(f: Fight, action, rng: random.Random):
                 f.me.incoming_effects.append((f"sim:{c.name}:{e.school}", e.school, e.value / 100))
     elif EffectKind.SUMMON in kinds:
         if not (f.minion and f.minion.health > 0):  # one out at a time
-            f.minion = Combatant("Troll Guardian", 900, 900, is_minion=True, school="myth")
+            power = int(max((e.value for e in c.effects if e.kind is EffectKind.SUMMON), default=0)) or 180
+            f.minion = Combatant("Troll Guardian", 900, 900, is_minion=True, school="myth",
+                                 damage_bonus={"power": power})
         f.summoned += 1
     elif EffectKind.STUN in kinds and action.target:
         f.stunned.add(action.target.name)
@@ -221,7 +225,7 @@ def _enemy_turn(f: Fight, rng: random.Random):
         live = [e for e in f.enemies if not e.is_dead]
         if live:
             t = rng.choice(live)
-            dmg = 180 * (1 - (t.resist or {}).get("myth", 0))
+            dmg = f.minion.damage_bonus.get("power", 180) * (1 - (t.resist or {}).get("myth", 0))
             t.health = max(0, t.health - int(dmg))
             t.is_dead = t.health <= 0
     # Damage over time on our side.

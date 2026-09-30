@@ -1165,3 +1165,14 @@ def test_a_prismed_boss_is_hit_with_the_big_myth_spell():
     b.prismed = {"Meowiarty"}
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.target is boss  # the real enemy, not the view
+
+
+def test_a_two_hit_spell_spends_traps_and_blades_on_its_first_hit():
+    from wiz101_auto.combat.brain import hit_damage
+
+    hits = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, v) for v in (50, 445)]
+    mino = Card(0, "Minotaur", school="myth", pip_cost=5, effects=hits)
+    feinted = enemy("Brute", 2000, incoming_effects=[("spell:feint", "", 0.7)])
+    bare = enemy("Brute", 2000)
+    assert hit_damage(mino, me(), bare) == 495
+    assert abs(hit_damage(mino, me(), feinted) - (50 * 1.7 + 445)) < 0.01  # the Feint boosts only the 50

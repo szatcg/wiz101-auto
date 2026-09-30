@@ -29,6 +29,7 @@ from dataclasses import dataclass, replace
 
 from ..deck_plan import minion_rank
 from .model import (
+    DAMAGE_KINDS,
     Action,
     ActionKind,
     Battle,
@@ -113,12 +114,17 @@ def effect_multiplier(effects: list[tuple[str, str, float]], fallback: float, sc
 
 def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     """Damage if the spell lands: base damage with blades/weaknesses on the
-    attacker, traps/shields on the target, and school resist/bonus."""
+    attacker, traps/shields on the target, and school resist/bonus. A spell
+    that hits twice (Minotaur: 50, then 445) spends every blade and trap on
+    its first hit: the second gets only the school multiplier (a Feint under
+    a Minotaur boosts the 50)."""
     blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
     trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
-    mult = blade * trap
-    mult *= school_multiplier(card, attacker, target)
-    return max(0.0, card.base_damage() * mult)
+    school = school_multiplier(card, attacker, target)
+    hits = [e.value for e in card.effects if e.kind in DAMAGE_KINDS]
+    if len(hits) <= 1:
+        return max(0.0, card.base_damage() * blade * trap * school)
+    return max(0.0, (hits[0] * blade * trap + sum(hits[1:])) * school)
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:
