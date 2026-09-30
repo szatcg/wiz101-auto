@@ -48,7 +48,7 @@ from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, s
 from .npc import ServicesMenu
 from .questlist import CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
-from .setbacks import DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
+from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
@@ -411,7 +411,8 @@ def in_same_area(zone: str, first_room: str) -> bool:
 
 
 def dungeon_quest(
-    quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset()
+    quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset(),
+    skipped: set[str] = frozenset(),
 ) -> QuestEntry | None:
     """Inside a dungeon, a side quest set there (its book area is this dungeon,
     e.g. one handed out on entering) comes before the main quest: the main
@@ -428,9 +429,11 @@ def dungeon_quest(
 
     # Set aside or not: we're in its dungeon now, which is what it waited on
     # (Into the Clouds, set aside while no team came, then the team took us in).
+    # Skipped for good (No Entry: the Ironworks dungeon never ends) never is.
+    never = set(skipped) | ALWAYS_SKIP
     local = [
         q for q in quests
-        if not q.mainline and q.world
+        if not q.mainline and q.world and q.name not in never
         and (zone_of(q.world) == zone or named_here(q.world)
              or (zone_of(q.world) is None and q.world in main_areas))
     ]
@@ -2186,7 +2189,8 @@ class Quester:
             if is_team_up_zone(here) or await self._in_dungeon(here):
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
-                local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside)
+                local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
+                                      self.setbacks.skipped)
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False

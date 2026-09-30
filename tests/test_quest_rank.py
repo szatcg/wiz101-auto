@@ -255,3 +255,16 @@ def test_a_team_dungeons_quest_counts_in_every_room():
     main = QuestEntry(0, "Stolen Away", mainline=True, world="Counterweight East")
     run = QuestEntry(1, "Wisdom and Grace", world="Mount Olympus")
     assert dungeon_quest([main, run], "Aquila/Interiors/AQ_Z01_Apollo_Room", lambda a: None) is run
+
+
+def test_dungeon_quest_never_picks_a_skipped_quest():
+    from wiz101_auto.quest import dungeon_quest
+
+    zone = "Marleybone/MB_Station/MB_Ironworks"
+    area = "The Ironworks"
+    quests = [QuestEntry(0, "No Entry", world=area), QuestEntry(1, "Purloin the Plans", world=area)]
+    zones = {area: zone}
+    assert dungeon_quest(quests, zone, zones.get).name == "Purloin the Plans"
+    assert dungeon_quest(quests[:1], zone, zones.get) is None
+    odd = [QuestEntry(0, "Odd Job", world=area)]
+    assert dungeon_quest(odd, zone, zones.get, skipped={"Odd Job"}) is None
