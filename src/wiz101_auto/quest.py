@@ -359,6 +359,12 @@ def _errand_hops(q: QuestEntry) -> int:
     return ERRAND_UNKNOWN_HOPS if q.hops is None else q.hops
 
 
+def in_same_area(zone: str, first_room: str) -> bool:
+    """A zone under the same area as a dungeon's first room (one of its rooms)."""
+    area = first_room.rsplit("/", 1)[0]
+    return zone.startswith(area + "/") and area.count("/") >= 1
+
+
 def dungeon_quest(
     quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset()
 ) -> QuestEntry | None:
@@ -1151,7 +1157,10 @@ class Quester:
         if is_hub(zone) or zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
             self._dungeon = None
             return False
-        return True
+        # Its rooms share the first room's area (Marleybone/MB_BigBen/...);
+        # another street of the world is not in it (Hyde Park, visited to heal,
+        # counted as the dungeon and its side quest was taken up).
+        return zone == first_room or in_same_area(zone, first_room)
 
     def _keep_dungeon_mark(self, objective: str) -> bool:
         """The dungeon mark is still wanted: a defeat awaits a Recall, we're
@@ -3470,6 +3479,8 @@ class Quester:
             self._team_with_us = False
         # After a defeat by a boss we marked beside: go back first and heal
         # there (Katzenstein's Lab), not slowly out in the hub.
+        if self.healer and self.healer.return_to and await self.healer.retry_return():
+            return
         fight_mark = bool(self._mark and self._mark.kind == "fight")
         if self._recall_pending and fight_mark and await self._recall_to_mark():
             return

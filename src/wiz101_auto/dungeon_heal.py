@@ -19,10 +19,11 @@ from loguru import logger
 from . import ui
 from .dungeons import DungeonMemory
 from .marks import RETURN_KINDS
-from .upkeep import health_mana, is_free, recover, wait_for_loading
+from .upkeep import health_mana, is_free, recover, wait_for_loading, wait_until_free
 
 DUNGEON_MANA_TRIP = 0.3  # inside a dungeon, leave to refill mana only below this
 DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
+HEAL_TRIES = 4  # recover() rounds on a heal trip (a fight can cut one short)
 TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 30 minutes
 # The compass's teleport buttons: "GoHomeButton" goes to the current world's
 # hub (the Oasis in Krokotopia); "GotoDormButton" goes to the dorm.
@@ -62,6 +63,7 @@ class DungeonHealer:
         self.client = quester.client
         self.cfg = cfg  # UpkeepConfig
         self._busy = False
+        self.return_to = ""  # a heal trip's Recall back failed: the marked zone to return to
 
     @property
     def busy(self) -> bool:
@@ -95,6 +97,21 @@ class DungeonHealer:
             return True
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
+    async def retry_return(self) -> bool:
+        """A heal trip's Recall back failed (a fight): try again now we're
+        free, before anything else. True if it acted."""
+        zone = self.return_to
+        here = await self.client.zone_name() or ""
+        if not zone or here == zone or not self.q._mark or self.q._mark.zone != zone:
+            self.return_to = ""
+            return False
+        if not await is_free(self.client):
+            return False
+        logger.info(f"back to the marked spot in {zone} (the heal trip's Recall failed before)")
+        if await self.q._recall(zone, "the marked spot"):
+            self.return_to = ""
+        return True
+
     async def trip(self, zone: str, why: str, mark: bool = True) -> bool:
         """Mark here (unless marked already), heal from the hub, Recall back.
         True if it went."""
@@ -122,15 +139,22 @@ class DungeonHealer:
         try:
             if not await go_to_hub(self.client):
                 logger.warning("the hub button didn't move us; healing where we are")
-            await recover(self.client, self.cfg, self.q.controller, self.q.go_to_zone)
+            for _ in range(HEAL_TRIES):
+                # A fight that starts while healing (Hyde Park's patrols) ends
+                # recover() early: wait it out and go on healing, then Recall.
+                await wait_until_free(self.client)
+                if await recover(self.client, self.cfg, self.q.controller, self.q.go_to_zone):
+                    break
             hp, mana = await health_mana(self.client)
             took = (time.monotonic() - started) / 60
             logger.info(f"healed to {hp:.0%} health, {mana:.0%} mana in {took:.0f} min; recalling back")
+            await wait_until_free(self.client)
             if not await self.q._recall(zone, "the marked spot"):
                 # (A fight started while leaving: try again after it.)
                 logger.warning("could not recall back; will try again when free")
                 self.q._recall_blocked_until = 0.0
                 self.q._recalled_for = ""
+                self.return_to = zone
         finally:
             self._busy = False
             self.q.controller.end_idle()

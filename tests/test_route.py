@@ -52,3 +52,11 @@ def test_realm_names_and_rotation():
     assert next_realm(names, ["Ambrose"]) == "Cooper"
     assert next_realm(names, names) == "Ambrose"  # all tried: start over
     assert next_realm([], []) is None
+
+
+def test_a_dungeons_rooms_share_its_area():
+    from wiz101_auto.quest import in_same_area
+
+    first = "Marleybone/MB_BigBen/MB_CounterweightEast"
+    assert in_same_area("Marleybone/MB_BigBen/MB_CounterweightWest", first)
+    assert not in_same_area("Marleybone/MB_Station/MB_HydePark", first)
