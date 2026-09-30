@@ -2546,6 +2546,15 @@ class Quester:
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
             return False
+        # Fleeing costs all our mana (then minutes of recovery): a small fight
+        # (one or two ordinary enemies, healthy) is cheaper won. Only big ones
+        # (a boss, 3+ enemies, or 2 when hurt) are fled.
+        hp_now, _mana = await health_mana(self.client)
+        big = has_boss or len(names) >= 3 or (len(names) >= 2 and hp_now < 0.5)
+        if not big:
+            logger.info(f"fight with {', '.join(names)} isn't needed, but fleeing would cost all our mana: "
+                        "fighting it")
+            return False
 
         # Fleeing the same enemies again and again on one objective means they
         # stand in the way (Desert Golems on the road to Akori's Chamber): fight.
