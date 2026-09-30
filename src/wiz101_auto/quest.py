@@ -1497,7 +1497,7 @@ class Quester:
         effort, farm Mount Olympus (waiting for players at the sigil) rather
         than do side quests; farming stays on until the player stops it."""
         farm = Farm.load()
-        if farm.active:
+        if farm.active or farm.complete:
             return
         farm.active = True
         farm.save()
@@ -2966,6 +2966,21 @@ class Quester:
                 self.controller.end_idle()
             if not await is_free(self.client):
                 return True
+        from .farm import load_looted
+
+        if farm.targets_done(load_looted()):
+            # The whole set is in (the player's goal): stop farming for good,
+            # and level on Marleybone side quests; the stuck main quest (The
+            # Last Meow: Meowiarty) stays skipped until the player says.
+            farm.active, farm.complete = False, True
+            farm.save()
+            skip = self._last_main or "The Last Meow"
+            self.setbacks.skipped.add(skip)
+            self.setbacks.save()
+            self._last_rank = -1e9
+            logger.success(f"ALERT: {farm.name}: the whole set is in after {farm.runs} runs; farming done. "
+                           f"Levelling on side quests ({skip!r} skipped)")
+            return False
         if zone != entry.outside:
             # The Mark stays at the sigil (made before each Team Up): Recall is
             # the way back from another world (no gate route crosses worlds).

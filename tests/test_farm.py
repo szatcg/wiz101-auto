@@ -13,12 +13,14 @@ def test_farm_runs_end_on_the_final_boss_and_count(tmp_path):
 
 
 def test_targets_fill_in_as_looted():
-    from wiz101_auto.farm import target_status
+    from wiz101_auto.farm import Farm, target_status
 
-    looted = {"Zeus' Conjurer Hood": {"slot": "Hat"}, "Sky Iron Hasta": {"slot": "Wand"}}
+    looted = {"Helmet of Zeus' Will": {"slot": "Hat"}, "Zeus' Armor of Supremacy": {"slot": "Robe"}}
     status = {t["name"]: t["have"] for t in target_status("Mount Olympus", looted)}
-    assert status["Zeus' Conjurer Hood"] and status["Sky Iron Hasta"]
-    assert not status["Zeus' Conjurer Raiment"] and not status["Senator's Conjurer Tunic"]
+    assert status["Helmet of Zeus' Will"] and status["Zeus' Armor of Supremacy"]
+    assert not status["Boots of Zeus' Lore"]
+    assert not Farm().targets_done(looted)
+    assert Farm().targets_done({**looted, "Boots of Zeus' Lore": {"slot": "Shoes"}})
 
 
 def test_raiment_is_a_robe_and_hasta_a_wand():

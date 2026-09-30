@@ -22,14 +22,10 @@ FARM_FILE = Path("state") / "farm.json"
 # What each farm is after (shown on the stream page, filled in as looted):
 # (group, slot, item name).
 TARGETS = {
-    "Mount Olympus": [
-        ("Zeus' Conjurer", "Hat", "Zeus' Conjurer Hood"),
-        ("Zeus' Conjurer", "Robe", "Zeus' Conjurer Raiment"),
-        ("Zeus' Conjurer", "Shoes", "Zeus' Conjurer Slippers"),
-        ("Senator's Conjurer", "Hat", "Senator's Conjurer Hood"),
-        ("Senator's Conjurer", "Robe", "Senator's Conjurer Tunic"),
-        ("Senator's Conjurer", "Shoes", "Senator's Conjurer Shoes"),
-        ("Ares", "Wand", "Sky Iron Hasta"),
+    "Mount Olympus": [  # the player's Zeus set: farming stops once all are looted
+        ("Zeus", "Hat", "Helmet of Zeus' Will"),
+        ("Zeus", "Robe", "Zeus' Armor of Supremacy"),
+        ("Zeus", "Shoes", "Boots of Zeus' Lore"),
     ],
 }
 
@@ -62,6 +58,7 @@ class Farm:
     final_boss: str = "Zeus Sky Father"
     active: bool = False
     runs: int = 0
+    complete: bool = False  # every target looted: farming is done (a stuck main quest won't restart it)
 
     @classmethod
     def load(cls, path: Path | None = None) -> Farm:
@@ -81,6 +78,10 @@ class Farm:
         self.save(path)
         logger.success(f"{self.name} run {self.runs} done")
         return self.runs
+
+    def targets_done(self, looted: dict) -> bool:
+        status = target_status(self.name, looted)
+        return bool(status) and all(t["have"] for t in status)
 
     def ends_run(self, boss_names: list[str]) -> bool:
         """The fight just won had the boss that ends a run."""
