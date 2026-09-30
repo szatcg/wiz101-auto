@@ -658,9 +658,15 @@ async def find_spell_entries(client, list_window) -> list[SpellEntry]:
     # entries reads every third card), so keep the one yielding the most spells.
     best: tuple[list[SpellEntry], tuple] | None = None
     for offset in range(0x200, 0x480, 8):
-        for gap in (16, 8):
+        # A vector is start, end, capacity: start..end is the list. Start..capacity
+        # (gap 16) also "works" but reads stale slots past the end: after
+        # removals the last spell counted again (Vampire x3 for one). The end
+        # pointer (gap 8) wins whenever it's valid.
+        for gap in (8, 16):
             p = await pair(offset, gap)
             if p is None:
+                continue
+            if gap == 16 and await pair(offset, 8) is not None:
                 continue
             base = [(8, o, True) for o in SPELL_PTR_OFFSETS]  # vector of pointers
             base += [(size, o, False) for size in ENTRY_SIZES for o in SPELL_PTR_OFFSETS]
