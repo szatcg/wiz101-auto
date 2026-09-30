@@ -118,6 +118,8 @@ def main(argv: list[str] | None = None):
     deck_p = sub.add_parser("deck", help="show the planned deck from known spells, optionally apply it")
     deck_p.add_argument("-c", "--config", default=None)
     deck_p.add_argument("--apply", action="store_true", help="actually rebuild the in-game deck")
+    deck_p.add_argument("--add", default=None, help="add this spell to the deck (clicks only; bot stopped)")
+    deck_p.add_argument("--copies", type=int, default=1)
 
     gear_p = sub.add_parser("gear", help="try every backpack item per slot and keep the best (bot stopped)")
     gear_p.add_argument("-c", "--config", default=None)
@@ -265,7 +267,10 @@ def main(argv: list[str] | None = None):
 
     if args.command == "deck":
         _setup_logging(None, True)
-        asyncio.run(_deck(cfg, args.apply))
+        if args.add:
+            asyncio.run(_deck_add(args.add, args.copies))
+        else:
+            asyncio.run(_deck(cfg, args.apply))
         return
 
     if args.command == "gear":
@@ -315,6 +320,20 @@ async def _gear(cfg):
         school = cfg.progression.school or await current_school(client)
         async with client.mouse_handler:
             await GearManager(client, school).optimise("requested from the terminal")
+    finally:
+        await close_handler(handler)
+
+
+async def _deck_add(name: str, copies: int):
+    from .bot import close_handler, connect, new_handler
+    from .deck import add_to_deck
+
+    handler = new_handler()
+    try:
+        client = await connect(handler)
+        async with client.mouse_handler:
+            added = await add_to_deck(client, name, copies)
+        print(f"added {added} of {copies} {name}")
     finally:
         await close_handler(handler)
 

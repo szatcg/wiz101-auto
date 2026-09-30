@@ -161,6 +161,73 @@ async def close_spellbook(client) -> bool:
     return False
 
 
+CARDS_PER_PAGE = 6  # the spell list shows 2 x 3 cards a page
+PAGE_UP, PAGE_DOWN = "PageUp", "PageDown"
+
+
+async def add_cards_by_clicks(client, builder, name: str, copies: int) -> int:
+    """Add `copies` of `name` to the deck by clicking it in the All tab of the
+    spell list. Pages are turned with the PageUp/PageDown buttons; nothing is
+    written to the game's memory (WizWalker's add_by_name wrote a page index
+    into the list control at an offset this client doesn't use, and the game
+    closed twice). Every click is checked against the deck: a click that adds
+    nothing, or the wrong card, stops it. Returns how many were added."""
+    await builder.show_tab("Cards_All")
+    entries = await builder.get_spell_list(attempts=3, diagnostics=False)
+    names = []
+    for entry in entries:
+        info = await _spell_info(entry)
+        names.append(info.name if info else None)
+    if name not in names:
+        logger.warning(f"deck: {name} isn't in the spell list ({len([n for n in names if n])} spells read)")
+        return 0
+    index = names.index(name)
+    page, slot = divmod(index, CARDS_PER_PAGE)
+    page_window = builder._deck_config_window
+    up = await _first_visible(page_window, PAGE_UP)
+    down = await _first_visible(page_window, PAGE_DOWN)
+    if up is None or down is None:
+        logger.warning("deck: no PageUp/PageDown buttons on the deck page")
+        return 0
+    for _ in range(len(names) // CARDS_PER_PAGE + 1):  # back to the first page
+        await ui.click_center(client, up)
+        await asyncio.sleep(0.25)
+    for _ in range(page):
+        await ui.click_center(client, down)
+        await asyncio.sleep(0.35)
+    cells = builder.divide_rectangle(await builder.get_spell_list_rectangle())
+    x, y = cells[slot].center()
+    added = 0
+    for _ in range(copies):
+        before = await _log_current_deck(client, builder, quiet=True) or []
+        await ui.button_click(client, int(x), int(y))
+        await asyncio.sleep(0.8)
+        after = await _log_current_deck(client, builder, quiet=True) or []
+        if after.count(name) == before.count(name) + 1:
+            added += 1
+            logger.info(f"deck: added {name} ({after.count(name)} now)")
+            continue
+        extra = [n for n in set(after) if after.count(n) > before.count(n)]
+        if extra:
+            logger.warning(f"deck: clicking for {name} added {', '.join(extra)} instead (page {page + 1}, "
+                           f"slot {slot + 1}); stopping")
+        else:
+            logger.warning(f"deck: clicking {name} (page {page + 1}, slot {slot + 1}) added nothing "
+                           "(max copies or deck full?); stopping")
+        break
+    return added
+
+
+async def add_to_deck(client, name: str, copies: int) -> int:
+    """Open the spellbook's deck page, add `copies` of `name` by clicks, close it."""
+    await open_spellbook(client)
+    try:
+        builder = await _attach_builder(client)
+        return await add_cards_by_clicks(client, builder, name, copies)
+    finally:
+        await close_spellbook(client)
+
+
 async def rebuild_deck(
     client, school: str, policy: DeckPolicy, *, dry_run: bool = False
 ) -> tuple[list[SpellInfo], DeckPlan]:
@@ -639,8 +706,26 @@ async def _log_current_deck(client, builder, *, quiet: bool = False) -> list[str
         return None
 
 
+async def _dump_deck_page(client) -> None:
+    """The deck page's windows (its spell list, page arrows, deck list) to
+    state/deck_config_window.txt: adding cards by clicks needs their names."""
+    from pathlib import Path
+
+    try:
+        page = (await client.root_window.get_windows_with_name("DeckConfiguration") or [None])[0]
+        if page is None:
+            return
+        lines = await ui.dump_tree(page, max_depth=8, only_visible=False, with_types=True)
+        Path("state").mkdir(exist_ok=True)
+        out = Path("state") / "deck_config_window.txt"
+        out.write_text("\n".join(lines), encoding="utf-8", errors="replace")
+    except Exception as exc:
+        logger.debug(f"could not save the deck page layout: {exc!r}")
+
+
 async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: bool):
     builder = await _attach_builder(client)
+    await _dump_deck_page(client)
     deck_names = await _log_current_deck(client, builder)
     if deck_names:
         save_deck_counts(deck_names)  # the fighter plans with what's left of it
@@ -699,11 +784,9 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
         logger.warning(f"deck: please add by hand (automatic adding is off): {wanted}")
         missing = []
     for name, copies in missing:
-        try:
-            await builder.add_by_name(name, copies)
-            logger.info(f"deck: adding {name} x{copies}")
-        except Exception as exc:  # max copies, deck full, or UI hiccup
-            logger.debug(f"add {name} x{copies} stopped: {exc}")
+        # Clicks only (WizWalker's add_by_name wrote to game memory and crashed it).
+        if await add_cards_by_clicks(client, builder, name, copies) < copies:
+            break  # a click went wrong: leave the rest for a look
         await asyncio.sleep(0.3)
     if not missing and not removals:
         logger.info("deck: nothing changed (adding and removing are off)")
