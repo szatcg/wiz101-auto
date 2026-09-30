@@ -142,6 +142,7 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
+FROZEN_REFUSALS = 2  # teleports refused even after a long wait, in a row: is the wizard frozen?
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
 DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
@@ -4181,9 +4182,13 @@ class Quester:
         # or wall from a teleport (walking then does nothing).
         now = time.monotonic()
         stalled = now - self._last_progress_time > STUCK_CHECK_AFTER
-        if stalled and now - self._last_stuck_check > STUCK_CHECK_EVERY:
+        # Teleports refused even after a long wait, twice running: check now
+        # (a frozen wizard took 40 s of tries before the relog).
+        frozen = getattr(self.client, "_refused_in_row", 0) >= FROZEN_REFUSALS
+        if frozen or (stalled and now - self._last_stuck_check > STUCK_CHECK_EVERY):
             self._last_stuck_check = now
-            if await unstick(self.client):
+            self.client._refused_in_row = 0
+            if await unstick(self.client, frozen=frozen):
                 return
         if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
             self._last_status = time.monotonic()

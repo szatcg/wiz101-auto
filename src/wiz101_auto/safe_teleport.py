@@ -96,6 +96,8 @@ def install(client):
             after = await client.body.position()
         except Exception:
             return result
+        if far and math.dist((after.x, after.y), (before.x, before.y)) >= NOT_TAKEN:
+            client._refused_in_row = 0
         if far and math.dist((after.x, after.y), (before.x, before.y)) < NOT_TAKEN:
             try:
                 await wizwalker_teleport(xyz, *args, purge_on_after_unuser_fixer_timeout=RETRY_WAIT, **kwargs)
@@ -103,6 +105,9 @@ def install(client):
                 await wizwalker_teleport(xyz, *args, **kwargs)
             again = await client.body.position()
             took = math.dist((again.x, again.y), (before.x, before.y)) >= NOT_TAKEN
+            # Refused even with the long wait, twice running: the wizard is frozen
+            # (it couldn't walk either; a relog fixed it). The quest step checks.
+            client._refused_in_row = 0 if took else getattr(client, "_refused_in_row", 0) + 1
             logger.info(f"teleport to ({xyz.x:.0f}, {xyz.y:.0f}) didn't happen; retried with a longer wait: "
                         f"{'it worked' if took else 'still refused'}")
         return result

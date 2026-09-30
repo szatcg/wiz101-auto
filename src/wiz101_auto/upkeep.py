@@ -267,13 +267,17 @@ async def can_move(client) -> bool:
     return moved > STUCK_MOVE_DISTANCE
 
 
-async def unstick(client) -> bool:
+async def unstick(client, frozen: bool = False) -> bool:
     """If the wizard can't walk (clipped into geometry after a teleport), move it
-    to the nearest on-map landmark it can walk from. True if it was stuck."""
+    to the nearest on-map landmark it can walk from. True if it was stuck.
+    `frozen`: teleports are being refused too: straight to the relog."""
     try:
         if await can_move(client):
             return False
         me = _pt(await client.body.position())
+        if frozen:
+            logger.warning(f"wizard frozen at ({me[0]:.0f}, {me[1]:.0f}): can't walk or teleport; relogging")
+            return await _relog_out(client)
         logger.warning(f"wizard seems stuck at ({me[0]:.0f}, {me[1]:.0f}): can't walk; moving to a landmark")
         spots = away_from(await landmarks(client), await mob_positions(client), 400.0)
         spots = sorted((p for p in spots if math.dist(p, me) > 150), key=lambda p: math.dist(p, me))

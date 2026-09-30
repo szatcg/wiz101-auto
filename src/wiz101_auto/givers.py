@@ -9,9 +9,10 @@ the way count twice. Who was asked is kept in state/npc_talked.json and asked
 again after an hour (new quests open up as others are done), and entering a
 zone not checked for an hour asks everyone in it.
 
-A world with a guide (docs/sidequests/<World>.txt: quest giver, then quest
-line, "(after finishing “X”)" for what must come first) narrows that to the
-givers who still have something to hand out: a quest of theirs that isn't in
+Only a world with a guide (docs/sidequests/<World>.txt, from the player:
+quest giver, then quest line, "(after finishing “X”)" for what must come
+first) is asked at all, and only the givers who still have something to hand
+out: a quest of theirs that isn't in
 the quest book, isn't in docs/CompletedQuests.txt, isn't skipped, and whose
 "after finishing" quest is done.
 """
@@ -258,6 +259,10 @@ class QuestGivers:
         zone = await self.client.zone_name() or ""
         world = self.q._main_world
         if not zone or not world or zone.split("/", 1)[0] != world or await self.q._in_dungeon(zone):
+            return False
+        if load_guide(zone.split("/", 1)[0]) is None:
+            # Only where the player gave a side-quest list (docs/sidequests/<World>.txt):
+            # elsewhere NPCs aren't asked at all (Wizard City's, on the way through).
             return False
         if zone != self._zone:
             # A new zone: not swept for an hour, ask everyone in it (quests
