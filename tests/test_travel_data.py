@@ -168,3 +168,10 @@ def test_door_memory(tmp_path):
     d.record("K/Hub", (3697, 6190, -220), (3400, 6000, -220))
     assert DoorMemory(tmp_path / "d.json").approach("K/Hub", (3700, 6200, -220)) == (3400, 6000, -220)
     assert d.approach("K/Hub", (0, 0, 0)) is None
+
+
+def test_rare_chests_are_not_picked_up():
+    from wiz101_auto.collect import is_collectable
+
+    assert not is_collectable("MB-Chest-Rare-001")  # locked: the Shockalock minigame
+    assert is_collectable("KT-Chest-Boss-001")

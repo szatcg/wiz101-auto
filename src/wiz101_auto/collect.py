@@ -162,6 +162,10 @@ def is_collectable(object_name: str) -> bool:
     name = (object_name or "").strip().lower().replace(" ", "")
     if not name:
         return False
+    if "chest" in name and "rare" in name and not name.startswith("wc-"):
+        # Locked (MB-Chest-Rare-001): X on it opened the Shockalock lock-picking
+        # minigame. Wizard City's rare chests open like any other.
+        return False
     return name.startswith("collect_") or bool(_CHEST_RE.search(name)) or bool(_REAGENT_RE.match(name))
 
 

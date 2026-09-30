@@ -144,6 +144,7 @@ FIND_HINTS = {
     # "Face the door of the Knight's Tower and look to the left of its sigil."
     "knightscourtcat": ("Marleybone/MB_ScotlandYard/MB_KnightsCourt", (381.0, 7335.0, -479.0), 700.0),
 }
+MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
 TELEPORT_SETTLE = 0.4  # after a jump (the safe-teleport wrapper already waits for arrival)
 TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialogue
 DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
@@ -2349,6 +2350,30 @@ class Quester:
             await asyncio.sleep(0.2)
         await wait_until_free(self.client, timeout=15)
 
+    async def _leave_minigame(self, zone: str | None) -> bool:
+        """In a minigame's zone (ThePhantomZoneWorld/Shockalock, opened by X on
+        a locked chest): no quest needs one. Its close button if there is one,
+        else a relog (it's the reliable way out). True if we were in one."""
+        if not (zone or "").startswith(MINIGAME_WORLD):
+            return False
+        from .relog import _dump, _find_button, relog
+
+        logger.warning(f"in a minigame ({zone.split('/')[-1]}); leaving it")
+        await _dump(self.client, "minigame")
+        words = ("close", "exit", "quit", "leave", "cancel", "x")
+        button = await _find_button(self.client.root_window, words)
+        if button is not None:
+            logger.info(f"minigame: clicking {await button.name() or 'close'!r}")
+            await ui.click_center(self.client, button)
+            for _ in range(10):
+                await asyncio.sleep(0.5)
+                if not (await self.client.zone_name() or "").startswith(MINIGAME_WORLD):
+                    logger.success("left the minigame")
+                    return True
+        logger.info("minigame: no way out on screen (windows in state/relog_minigame.txt); relogging")
+        await relog(self.client)
+        return True
+
     async def _search_hint(self, item: str, objective: str) -> bool:
         """The player told us where `item` is (FIND_HINTS): once per objective,
         stand at points in rings around that landmark (a Locate is done by
@@ -4152,6 +4177,8 @@ class Quester:
             return
         if objective and self._last_progress[0] and objective != self._last_progress[0]:
             await self._travel_mark(objective, zone or "")
+        if await self._leave_minigame(zone):
+            return
         await self._note_progress(objective, zone)
         # Stalled on one objective: make sure we aren't wedged inside a building
         # or wall from a teleport (walking then does nothing).
