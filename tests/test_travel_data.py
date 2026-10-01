@@ -183,3 +183,9 @@ def test_destroy_objectives_and_ies_plurals():
     assert collect_item_name("Destroy Supplies in Tatakai Outpost (0 of 4)") == "Supplies"
     assert matches_item("Supplies", "Supply Crate")
     assert matches_item("Cogs", "WC_Cog_01")
+
+
+def test_burn_objectives_are_object_pickups():
+    from wiz101_auto.collect import collect_item_name
+
+    assert collect_item_name("Burn Scout Tower in Tatakai Outpost (0 of 3)") == "Scout Tower"

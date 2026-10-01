@@ -23,7 +23,7 @@ BOSS_CHEST_RANGE = 3000.0  # the chest appears in the boss room
 LOOT_RANGE = 2000.0  # free pickups this close are worth the small detour
 WALK_IN = 150.0  # distance to land from an item before walking onto it
 
-_VERBS = r"(?:collect|destroy|find|gather|get|retrieve|recover|pick up)"
+_VERBS = r"(?:collect|destroy|burn|light|find|gather|get|retrieve|recover|pick up)"
 _OBJECTIVE = re.compile(rf"^\s*{_VERBS}\s+(.+?)(?:\s+(?:in|at|from|on)\s+.*)?\s*$", re.I)
 _SKIP = ("wisp", "duelcircle", "player object", "basic positional", "basic ambient", "teleportpad", "sigil")
 
