@@ -197,7 +197,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 8, "collect_sigil": 2}
+                   "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2}
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -216,6 +216,7 @@ def _real_marker(m: XYZ) -> bool:
     return abs(m.x) > 1 or abs(m.y) > 1
 
 
+KNOWN_DOOR_NEAR_MARKER = 1500.0  # a learned door this close to a Defeat marker leads to the target
 MOMENTUM_SECONDS = 180.0  # a quest whose objective moved on this recently is kept over a re-ranking
 LAND_BESIDE_RADII = (150.0, 300.0)  # a refused teleport onto a marker in this zone: rings around it
 _FIND = re.compile(r"(?i)^\s*find\s+(.+?)(?:\s+in\s+[A-Z].*)?\s*$")
@@ -4198,6 +4199,20 @@ class Quester:
                     else:
                         await self.travel(marker)
                     return
+                # A door walked through before, by the marker (Nomoonaga's tower
+                # gate in the Tree of Life, into MS_Death3_T4): through it.
+                if _real_marker(marker) and self._may_try(objective, zone_now, "known_door"):
+                    near_doors = [e for e in self.doors.doors.get(zone_now, [])
+                                  if math.dist(e[0][:2], (marker.x, marker.y)) < KNOWN_DOOR_NEAR_MARKER]
+                    if near_doors:
+                        door, spot = near_doors[0][0], near_doors[0][1]
+                        logger.info(f"{target} not in view: through the door by the marker "
+                                    f"({door[0]:.0f}, {door[1]:.0f}), walked through before")
+                        await self.client.teleport(XYZ(*spot))
+                        await asyncio.sleep(TELEPORT_SETTLE)
+                        if not await self._zone_changed(zone_now):
+                            await self.walk_through(XYZ(door[0], door[1], spot[2]), zone_now)
+                        return
                 # A Spirit World portal by the marker (Tomugawa the Evil, Ancient
                 # Burial Grounds): light every ritual candle around it, then X
                 # at the portal brings the fight (the player's directions).
@@ -4247,7 +4262,9 @@ class Quester:
                 # in from the entrance (Usunoki in the Town Dojo: teleporting to
                 # Ting Yin skipped it): that first, before any sweep.
                 in_dungeon = await self._in_dungeon(zone_now)
-                if in_dungeon and await self._walk_in_from_entrance(objective, marker, zone_now):
+                if in_dungeon and "/interiors/" in zone_now.lower() and await self._walk_in_from_entrance(
+                    objective, marker, zone_now
+                ):
                     return
                 if self._may_try(objective, zone_now, "sweep"):
                     await self._look_for(target)
