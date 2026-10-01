@@ -196,7 +196,8 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
-                   "use_walk": 2}
+                   "use_walk": 2, "collect_marker": 3}
+COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
 _USE_OBJECT = re.compile(r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull)\s")
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
@@ -2511,6 +2512,19 @@ class Quester:
             return True
         if await self._search_hint(item, objective):
             return True
+        # The quest marker points at the next one: far from it, go there first.
+        # (Diseased Mushrooms in Kishibe Village lay 34000 east; the old
+        # sightings and landmarks were all near the entrance, among the guards,
+        # and 20 minutes went to fights there before the quest was set aside.)
+        marker = await self.client.quest_position.position()
+        zone = await self.client.zone_name() or ""
+        if (distance(marker, XYZ(0, 0, 0)) > 1
+                and distance(await self._position(), marker) > COLLECT_MARKER_RANGE
+                and self._may_try(objective, zone, "collect_marker")):
+            logger.info(f"no {item!r} in view: going to the quest marker "
+                        f"({distance(await self._position(), marker):.0f} away)")
+            await self.travel(marker)
+            return True
         # Where it was seen before, each spot up to KNOWN_SPOT_TRIES times per
         # objective (a guard fight there cut the first look short: after
         # winning, the bot went sweeping instead of back to the item).
@@ -3003,7 +3017,12 @@ class Quester:
         if zone != dest:
             logger.info(f"visit {npc}: going to {dest}")
             if not await self.go_to_zone(dest):
-                logger.warning(f"visit {npc}: no route to {dest} from {zone}")
+                # Not reachable yet (Village of Sorrow before the story opens
+                # it): drop the visit (the giver waits an hour) rather than
+                # asking for a route every second.
+                logger.warning(f"visit {npc}: no route to {dest} from {zone}; dropping the visit")
+                VISIT_FILE.unlink(missing_ok=True)
+                self._visit_tries = 0
             return True
         logger.info(f"visit: talking to {npc} in {dest}")
         if self.dialogue:
