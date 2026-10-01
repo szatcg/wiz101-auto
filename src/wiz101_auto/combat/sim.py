@@ -557,7 +557,8 @@ def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
     school = c.school.lower()
     traps = any(v > 0 and sch in ("", school) for _k, sch, v in t.incoming_effects)
     blades = any(v > 0 and sch in ("", school) for _k, sch, v in battle.me.outgoing_effects)
-    if not (traps or blades):
+    prismed = t.name in battle.prismed  # (the prism turns only the next hit: a chip hit spends it)
+    if not (traps or blades or prismed):
         return False
     best = max((h.base_damage() for h in [*battle.cards, *battle.upcoming] if h.is_damage), default=0)
     return c.base_damage() < best / 2 and hit_damage(c, battle.me, t) < t.health
