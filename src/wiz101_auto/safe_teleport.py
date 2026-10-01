@@ -26,6 +26,8 @@ from wizwalker import XYZ
 
 OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
 OUTSIDE_MARGIN = 300.0  # ... and past the known ground's outline by this much (not just an unseen corner)
+WALK_MAX_SECONDS = 20.0  # no single walk holds W longer than this
+WALK_MIN_SPEED = 250.0  # units/second a walk is given at the least (normal is ~500)
 WITH_TARGET = 700.0  # an enemy this close to one we're after joins that fight: not a stranger
 WALK_CLEARANCE = 600.0  # a walk whose straight path passes an enemy closer than this isn't taken
 RETRY_WAIT = 2.0  # a teleport the game didn't pick up in WizWalker's 0.6 s: once more, waiting this long
@@ -311,14 +313,36 @@ def install(client):
                     return None
         except Exception as exc:
             logger.debug(f"walk check failed ({exc!r}); walking")
+        # WizWalker holds W for distance / (speed x a multiplier read from the
+        # game); a bad read made one walk hold W for 4.5 minutes into a wall.
+        # Cap it to a sane time for the distance, and let go of W if it runs over.
+        try:
+            here = await client.body.position()
+            seconds = min(WALK_MAX_SECONDS, 2.0 + math.dist((here.x, here.y), (x, y)) / WALK_MIN_SPEED)
+        except Exception:
+            seconds = WALK_MAX_SECONDS
+
+        async def go(tx, ty):
+            try:
+                return await asyncio.wait_for(walk(tx, ty, *args, **kwargs), seconds)
+            except TimeoutError:
+                logger.info(f"walk to ({tx:.0f}, {ty:.0f}) ran over {seconds:.0f}s; stopping it")
+                try:
+                    from wizwalker import Keycode
+
+                    await client.send_key(Keycode.W, 0.05)  # (lets go of the held W)
+                except Exception:
+                    pass
+                return None
+
         # WizWalker's yaw maths does acos() of a value a hair past -1 when the
         # target is exactly in line (straight along an axis): ValueError. A
         # target nudged by a unit walks the same way.
         try:
-            return await walk(x, y, *args, **kwargs)
+            return await go(x, y)
         except ValueError as exc:
             if "range from -1" not in str(exc):
                 raise
-            return await walk(x + 1.0, y + 1.0, *args, **kwargs)
+            return await go(x + 1.0, y + 1.0)
 
     client.goto = goto
