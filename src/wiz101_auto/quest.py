@@ -987,6 +987,11 @@ class Quester:
                 return False  # a fight started on the way
             gate = gate_toward(zone, dest, self._bad_gates)
             if not gate:
+                # No gate leads there (an instance: Khin-Pao in Kishibe's
+                # MS_Plague2_T1): a door walked through before does. Go to
+                # its zone by the gates, then through it.
+                if await self._through_known_door(zone or "", dest, max_hops):
+                    continue
                 return False
             pos, next_zone = gate
             logger.info(f"heading to {dest}: gate to {next_zone}")
@@ -1004,6 +1009,26 @@ class Quester:
                 self._bad_gates.add((zone, next_zone))
             await wait_for_loading(self.client)
         return await self.client.zone_name() == dest
+
+    async def _through_known_door(self, zone: str, dest: str, max_hops: int) -> bool:
+        """Toward `dest` by a door learned earlier (state/doors.json): through
+        it when we're in its zone, else to its zone first. True if it moved."""
+        hops = self.doors.route(zone, dest)
+        if hops:
+            _z, door, spot, nxt = hops[0]
+            logger.info(f"heading to {dest}: through the door at ({door[0]:.0f}, {door[1]:.0f}) into "
+                        f"{nxt.split('/')[-1]}")
+            await self.client.teleport(XYZ(*spot))
+            await asyncio.sleep(TELEPORT_SETTLE)
+            if not await self._zone_changed(zone):
+                await self.walk_through(XYZ(door[0], door[1], spot[2]), zone)
+            await wait_for_loading(self.client)
+            return await self.client.zone_name() != zone
+        entry = next((z for z in self.doors.doors if z != zone and self.doors.leading_to(z, dest)), None)
+        if entry and gate_toward(zone, entry, self._bad_gates) and max_hops > 1:
+            logger.info(f"heading to {dest}: its door is in {entry.split('/')[-1]}; going there first")
+            return await self.go_to_zone(entry, max_hops - 1) and True
+        return False
 
     async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
         """Use a gate by pressing X at it (WizSprinter's xNoWait/xSkipRide
