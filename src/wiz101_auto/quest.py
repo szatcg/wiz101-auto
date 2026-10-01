@@ -1871,15 +1871,17 @@ class Quester:
         # 5 minutes. Walk up to it and press X.
         if (objective and _USE_OBJECT.match(objective)
                 and self._may_try(objective, zone or "", "use_walk")):
-            # Inside an instance, the room's enemies first: the Mantra 2 tablet
-            # opens only once the Kakeda Shadows are beaten (one at a time:
-            # combat/fighter.ONE_AT_A_TIME).
+            logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
+            if await self._use_object_at(target):
+                return True
+            # No prompt anywhere around it: inside an instance the room's
+            # enemies may have to go first (the Mantra 2 tablet opens only once
+            # the Kakeda Shadows are beaten, one at a time:
+            # combat/fighter.ONE_AT_A_TIME). Then the object again.
             if "/interiors/" in (zone or "").lower() and await self._fight_guards(
                 target, "object", reach=float("inf")
             ):
-                return True
-            logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
-            if await self._use_object_at(target):
+                logger.info("the object gave no prompt; fought the room's enemies first")
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
