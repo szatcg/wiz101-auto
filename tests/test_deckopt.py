@@ -9,3 +9,11 @@ def test_a_boss_resisting_myth_seeds_prisms():
     cards = ["Myth Prism", "Humongofrog"]
     assert seed_prisms({"Humongofrog": 3}, cards, [([haru], 1)])["Myth Prism"] == 3
     assert "Myth Prism" not in seed_prisms({"Humongofrog": 3}, cards, [([grunt], 1)])
+
+
+def test_boss_decks_keep_two_heals():
+    from wiz101_auto.combat.deckopt import allowed, with_heals
+
+    assert not allowed({"Humongofrog": 3, "Myth Prism": 3}, general=False)
+    assert allowed({"Humongofrog": 3, "Pixie": 2}, general=False)
+    assert with_heals({"Humongofrog": 3}, ["Pixie", "Humongofrog"], 2) == {"Humongofrog": 3, "Pixie": 2}

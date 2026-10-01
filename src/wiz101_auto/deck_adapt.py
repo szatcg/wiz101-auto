@@ -52,6 +52,15 @@ SWITCH_RETRIES = 2  # an interrupted deck switch is tried again this often
 CACHED_LOSSES_BEFORE_SEARCH = 2  # a remembered deck that loses this often: search again
 
 
+def _usable(entry: dict | None) -> bool:
+    """A remembered boss deck that keeps the rules (2 heals: the ones from
+    before the rule had none, and lost)."""
+    from .combat.deckopt import BOSS_NEEDS, HEALS
+
+    deck = (entry or {}).get("deck") or {}
+    return bool(deck) and sum(deck.get(c, 0) for c in HEALS) >= BOSS_NEEDS["heals"]
+
+
 def _known_spells() -> set[str]:
     return set(_read(PROGRESS_FILE).get("known_spells", []))
 
@@ -99,7 +108,7 @@ class DeckAdapter:
             self._save()
             if self.mode["losses"] < CACHED_LOSSES_BEFORE_SEARCH:
                 return
-        elif cached and cached.get("deck"):
+        elif _usable(cached):
             logger.info(f"deck: lost to {', '.join(group)}; putting in the deck that was found for them")
             self._pending = (cached["deck"], f"boss deck vs {key} (remembered)", group)
             return
@@ -156,7 +165,7 @@ class DeckAdapter:
             return  # (an everyday enemy of a boss's group: Imitsu Defouler with Plague Oni)
         for key, entry in _read(BOSS_DECKS).items():
             group = key.split(",")
-            if boss in group and entry.get("deck"):
+            if boss in group and _usable(entry):
                 if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
                     return  # (in already)
                 logger.info(f"deck: {boss} is next; putting in the deck found for {key}")

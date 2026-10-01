@@ -40,12 +40,27 @@ HEALS = {"Pixie"}
 SINGLE_HITS = {"Minotaur", "Cyclops", "Troll", "Banshee", "Vampire", "Ghoul"}
 
 
+# A boss deck keeps heals too: the searched ones dropped every Pixie and
+# the wizard fell to Plague Oni and Haru at 6-80 health with nothing to heal.
+BOSS_NEEDS = {"heals": 2}
+
+
 def allowed(deck: dict[str, int], general: bool) -> bool:
-    """A default deck keeps the player's rules; a boss deck is free."""
+    """A default deck keeps the player's rules; a boss deck keeps its heals."""
+    heals = sum(deck.get(c, 0) for c in HEALS)
     if not general:
-        return True
+        return heals >= BOSS_NEEDS["heals"]
     return (sum(deck.get(c, 0) for c in SINGLE_HITS) >= GENERAL_NEEDS["single"]
-            and sum(deck.get(c, 0) for c in HEALS) >= GENERAL_NEEDS["heals"])
+            and heals >= GENERAL_NEEDS["heals"])
+
+
+def with_heals(start: dict[str, int], cards: list[str], needs: int) -> dict[str, int]:
+    """The search's start with enough Pixies (one card at a time it could
+    never reach a deck the rules allow)."""
+    have = sum(start.get(c, 0) for c in HEALS)
+    if have >= needs or "Pixie" not in cards:
+        return start
+    return {**start, "Pixie": start.get("Pixie", 0) + needs - have}
 BETTER_BY = 0.05  # a change is kept when it scores this much better (same fights)
 ADVICE_FILE = Path("state") / "deck_advice.json"
 GENERAL_FILE = Path("state") / "deck_general.json"
@@ -238,6 +253,7 @@ def main(argv=None):
                 pass
         if args.vs:
             start = seed_prisms(start, cards, mix)
+        start = with_heals(start, cards, BOSS_NEEDS["heals"] if args.vs else GENERAL_NEEDS["heals"])
         deck, rate, rounds = search(start, cards, mix, stats, pool, general=not args.vs,
                                     seconds=args.minutes * 60, log=lambda s: print(s, flush=True))
     print(f"BEST {what}: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}", flush=True)

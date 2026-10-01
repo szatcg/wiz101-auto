@@ -43,11 +43,11 @@ def test_a_remembered_boss_deck_goes_in_before_its_fight(tmp_path, monkeypatch):
     monkeypatch.setattr(deck_adapt, "BOSS_DECKS", tmp_path / "boss.json")
     monkeypatch.setattr(deck_adapt, "MODE_FILE", tmp_path / "mode.json")
     (tmp_path / "boss.json").write_text(json.dumps(
-        {"Haru,Ronin Blademaster": {"deck": {"Myth Prism": 3}, "win": 0.9}}), encoding="utf-8")
+        {"Haru,Ronin Blademaster": {"deck": {"Myth Prism": 3, "Pixie": 2}, "win": 0.9}}), encoding="utf-8")
     a = deck_adapt.DeckAdapter()
     a._bosses = {"Haru"}
     a.prepare_for("Ronin Blademaster")  # not a boss: nothing
     assert a.wanted() is None
     a.prepare_for("Haru")
     deck, why = a.wanted()
-    assert deck == {"Myth Prism": 3} and "remembered" in why
+    assert deck == {"Myth Prism": 3, "Pixie": 2} and "remembered" in why
