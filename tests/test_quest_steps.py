@@ -25,3 +25,10 @@ def test_pick_goal_skips_text_of_an_old_goal():
     assert pick_goal(["Defeat Sandor", "Talk To Sandor"], 2, known) == "Defeat Sandor"
     assert pick_goal(["A", "B"], None, {}) == "B"
     assert pick_goal([], 3, known) == ""
+
+
+def test_side_world_story_is_not_main():
+    from wiz101_auto.quest import QuestEntry, in_side_world
+
+    assert in_side_world(QuestEntry(0, "Face Your Fate", world="Savarstaad Pass", zone="Grizzleheim"))
+    assert not in_side_world(QuestEntry(0, "Going Portal", world="The Atheneum", zone="Dragonspyre"))

@@ -46,7 +46,7 @@ from .farm import Farm
 from .givers import QuestGivers
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
-from .questlist import CompletionTracker, load_quest_list, norm
+from .questlist import SIDE_WORLDS, CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
@@ -324,6 +324,15 @@ def quest_world(q: QuestEntry) -> str | None:
     if zone:
         return zone.split("/", 1)[0]
     return q.zone.replace(" ", "") or None
+
+
+def in_side_world(q: QuestEntry) -> bool:
+    """A quest of an optional side world (Grizzleheim, Wintertusk, ...): the
+    game marks their story as main-story, but the bot's main story is the
+    arcs' worlds ('Face Your Fate' in Savarstaad Pass took over from
+    Dragonspyre)."""
+    world = quest_world(q)
+    return any(same_world(world, w) for w in SIDE_WORLDS)
 
 
 def same_world(a: str | None, b: str | None) -> bool:
@@ -2409,6 +2418,9 @@ class Quester:
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
+            for _, q in all_quests:
+                if q.mainline and in_side_world(q):
+                    q.mainline = False  # (a side world's story: a side quest here)
             activities = {q.name for _, q in all_quests if q.activity}
             self._wanted_items = {  # main-story/spell quests only: side quests are ignored
                 collect_item_name(q.goal): q.name
