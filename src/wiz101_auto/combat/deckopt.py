@@ -326,7 +326,7 @@ def main(argv=None):
         start = with_heals(start, cards, BOSS_NEEDS["heals"] if args.vs else GENERAL_NEEDS["heals"])
         starts = [start]
         if args.vs:
-            seed = with_heals(single_target_seed(cards), cards, BOSS_NEEDS["heals"])
+            seed = seed_prisms(with_heals(single_target_seed(cards), cards, BOSS_NEEDS["heals"]), cards, mix)
             if seed and seed != start:
                 starts.append(seed)
         best = None
