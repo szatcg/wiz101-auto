@@ -33,3 +33,21 @@ def test_winning_brings_the_general_deck_back(tmp_path, monkeypatch):
     assert a.wanted() is None
     a.on_win(["Meowiarty", "Agony Wraith"])
     assert a.wanted() == ({"Humongofrog": 3}, "general deck")
+
+
+def test_a_remembered_boss_deck_goes_in_before_its_fight(tmp_path, monkeypatch):
+    import json
+
+    from wiz101_auto import deck_adapt
+
+    monkeypatch.setattr(deck_adapt, "BOSS_DECKS", tmp_path / "boss.json")
+    monkeypatch.setattr(deck_adapt, "MODE_FILE", tmp_path / "mode.json")
+    (tmp_path / "boss.json").write_text(json.dumps(
+        {"Haru,Ronin Blademaster": {"deck": {"Myth Prism": 3}, "win": 0.9}}), encoding="utf-8")
+    a = deck_adapt.DeckAdapter()
+    a._bosses = {"Haru"}
+    a.prepare_for("Ronin Blademaster")  # not a boss: nothing
+    assert a.wanted() is None
+    a.prepare_for("Haru")
+    deck, why = a.wanted()
+    assert deck == {"Myth Prism": 3} and "remembered" in why

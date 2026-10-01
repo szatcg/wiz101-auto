@@ -43,6 +43,13 @@ def _read(path: Path) -> dict:
 
 
 PROGRESS_FILE = Path("state") / "progress.json"
+# Boss decks found so far, per enemy group ("Haru,Ronin Blademaster"): put in
+# before that boss's fight, or right after a loss to it, instead of a new
+# search (Shirataki Temple went Haru, Plague Oni, Haru: the Plague Oni deck
+# lost to Haru while the deck that beat Haru was forgotten).
+BOSS_DECKS = Path("state") / "boss_decks.json"
+SWITCH_RETRIES = 2  # an interrupted deck switch is tried again this often
+CACHED_LOSSES_BEFORE_SEARCH = 2  # a remembered deck that loses this often: search again
 
 
 def _known_spells() -> set[str]:
@@ -58,6 +65,9 @@ class DeckAdapter:
         self._wins = 0
         # Spells already weighed for the default deck (kept across restarts).
         self._known = set(self.mode.get("weighed") or _known_spells())
+        self._pending: tuple[dict[str, int], str, list[str]] | None = None  # (deck, why, vs)
+        self._bosses: set[str] | None = None  # boss names in the stats (read once)
+        self._switch_retries = 0
 
     def _save(self):
         try:
@@ -80,8 +90,19 @@ class DeckAdapter:
             # stays; a boss deck is for bosses (the player's rule).
             logger.info(f"deck: lost to {', '.join(group)} (no boss): keeping the default deck")
             return
+        key = ",".join(group)
+        cached = _read(BOSS_DECKS).get(key)
         if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
-            return  # already on the deck made for them (the next loss is the fight's variance)
+            # Already on the deck made for them: one loss is the fight's
+            # variance; losing again with it, search anew.
+            self.mode["losses"] = self.mode.get("losses", 0) + 1
+            self._save()
+            if self.mode["losses"] < CACHED_LOSSES_BEFORE_SEARCH:
+                return
+        elif cached and cached.get("deck"):
+            logger.info(f"deck: lost to {', '.join(group)}; putting in the deck that was found for them")
+            self._pending = (cached["deck"], f"boss deck vs {key} (remembered)", group)
+            return
         ADVICE_FILE.unlink(missing_ok=True)
         try:  # the search simulates from the stats: with this fight in them (a new boss)
             from .combat.calibrate import write_stats
@@ -122,12 +143,43 @@ class DeckAdapter:
             self._save()
             logger.info(f"deck: beat {', '.join(enemies)}; back to the general deck at the next calm moment")
 
+    def prepare_for(self, boss: str):
+        """A fight with `boss` is next (a Defeat objective): put in the deck
+        found for its group before it, if there is one."""
+        if not boss or self._pending:
+            return
+        if self._bosses is None:
+            from .combat.sim import load_stats
+
+            self._bosses = {n for n, e in load_stats().get("enemies", {}).items() if e.get("boss")}
+        if boss not in self._bosses:
+            return  # (an everyday enemy of a boss's group: Imitsu Defouler with Plague Oni)
+        for key, entry in _read(BOSS_DECKS).items():
+            group = key.split(",")
+            if boss in group and entry.get("deck"):
+                if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
+                    return  # (in already)
+                logger.info(f"deck: {boss} is next; putting in the deck found for {key}")
+                self._pending = (entry["deck"], f"boss deck vs {key} (remembered)", group)
+                return
+
     def wanted(self) -> tuple[dict[str, int], str] | None:
         """The deck to put in now, if any: (spell -> copies, why)."""
+        if self._pending:
+            deck, why, vs = self._pending
+            self._pending = None
+            self._search_vs = vs
+            return deck, why
         if self._search is not None and self._search.poll() is not None:
             self._search = None
             advice = _read(ADVICE_FILE)
             if advice.get("deck") and sorted(advice.get("vs", "").split(",")) == self._search_vs:
+                cache = _read(BOSS_DECKS)
+                cache[",".join(self._search_vs)] = advice
+                try:
+                    BOSS_DECKS.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+                except OSError:
+                    pass
                 return advice["deck"], (f"boss deck vs {advice['vs']} (simulated: win {advice['win']:.0%} in "
                                         f"~{advice['rounds']:.1f} rounds)")
         if self._improve is not None and self._improve.poll() is not None:
@@ -173,7 +225,11 @@ class DeckAdapter:
             return False
         deck, why = want
         from .deck import set_deck
+        from .upkeep import is_free, move_to_safety
 
+        # A fight starting mid-switch (an Imitsu Defouler walked up while the
+        # spellbook was open) left the deck half built: move clear first.
+        await move_to_safety(client, 1500.0, "before changing the deck")
         # Everything outside the plan goes, spells the game put in by itself
         # when learned (Blinding Light) included: the player's call.
         logger.info(f"deck: switching to the {why}: {deck}")
@@ -181,10 +237,18 @@ class DeckAdapter:
             got = await set_deck(client, deck)
         except Exception as exc:
             logger.warning(f"deck: couldn't switch ({exc!r})")
-            return False
+            got = {}
         short = {n: c - got.get(n, 0) for n, c in deck.items() if got.get(n, 0) < c}
         if short:
             logger.warning(f"deck: short of the plan: {short}")
+        if (not got or len(short) > 1 or not await is_free(client)) and self._switch_retries < SWITCH_RETRIES:
+            # Interrupted (a fight, nothing read): again at the next calm moment.
+            self._switch_retries += 1
+            self._pending = (deck, why, self._search_vs or [])
+            logger.info(f"deck: the switch didn't finish; trying again "
+                        f"({self._switch_retries}/{SWITCH_RETRIES})")
+            return True
+        self._switch_retries = 0
         if why.startswith("boss"):
             self.mode = {"deck": "boss", "vs": self._search_vs, "at": time.time()}
         else:

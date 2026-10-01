@@ -4557,6 +4557,12 @@ class Quester:
             await asyncio.sleep(2.0)
             return
 
+        # A boss fight next with a deck found for it before: that deck first.
+        adapter = getattr(self, "deck_adapter", None)
+        if adapter is not None and objective and is_combat_objective(objective):
+            for name in defeat_names(objective):
+                adapter.prepare_for(name)
+
         # The objective names a place in another world ('Talk To Rila Samoosuke
         # in Jade Palace' from Wizard City): the dorm, Ravenwood, the World Tree's
         # gate and the Spiral Map. Following the marker there walked at the
