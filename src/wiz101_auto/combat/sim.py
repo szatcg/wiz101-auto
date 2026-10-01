@@ -550,6 +550,20 @@ def fight_from_battle(battle: Battle, stats: dict, rng: random.Random) -> Fight:
                  minion_share=minion_share(stats))
 
 
+OVERKILL = 2.5  # a big hit doing this many times a target's health is wasted on it...
+OVERKILL_PIPS = 4  # ...when it costs this much and a tougher enemy is still up
+
+
+def _overkill(c: Card, t: Combatant, battle: Battle) -> bool:
+    """A big single hit thrown at a small enemy while a tougher one stands
+    (Stone Colossus for ~2400 on a 606-health Gloom Fairy, the boss at 1018):
+    it was the boss's hit."""
+    if c.pip_cost < OVERKILL_PIPS:
+        return False
+    tougher = any(e is not t and e.health > t.health for e in battle.live_enemies)
+    return tougher and hit_damage(c, battle.me, t) > OVERKILL * t.health
+
+
 def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
     """A chip hit (under half our best hit) that would use up a trap on `t`
     or our blades without killing it: the Feint was for the big hit (a 0-pip
@@ -592,7 +606,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
         if EffectKind.SUMMON in c.kinds and not boss:
             continue  # minions only against a boss (the player's rule)
         if c.target is Target.ENEMY_SINGLE:
-            targets = [t for t in live if not (c.is_damage and _wastes_setup(c, t, battle))]
+            targets = [t for t in live if not (c.is_damage and (_wastes_setup(c, t, battle)
+                                                                 or _overkill(c, t, battle)))]
         elif c.target in (Target.ALLY_SINGLE, Target.SELF):
             targets = [battle.me]
         else:

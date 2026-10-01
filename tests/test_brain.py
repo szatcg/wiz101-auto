@@ -1234,3 +1234,13 @@ def test_kakeda_shadows_are_killed_one_at_a_time():
     assert one_at_a_time(b)
     a = decide(b)
     assert a.card.name != "Humongofrog"
+
+
+def test_rollouts_keep_the_big_hit_for_the_boss():
+    from wiz101_auto.combat.sim import candidates
+
+    colossus = dmg_card(0, "Stone Colossus", 1800, pips=6)
+    b = battle([colossus], [enemy("Ember Everburn", 1018, boss=True), enemy("Gloom Fairy", 606)])
+    b.pips = 7
+    targets = {a.target.name for a in candidates(b) if a.card and a.card.name == "Stone Colossus"}
+    assert targets == {"Ember Everburn"}
