@@ -4556,6 +4556,17 @@ class Quester:
             await asyncio.sleep(2.0)
             return
 
+        # The objective names a place in another world ('Talk To Rila Samoosuke
+        # in Jade Palace' from Wizard City): the dorm, Ravenwood, the World Tree's
+        # gate and the Spiral Map. Following the marker there walked at the
+        # world gate as if it were a door for five minutes.
+        place = objective_zone(objective) if objective else None
+        # (From Wizard City only, where the World Tree is: a place name shared by
+        # two worlds, a Throne Room, mustn't send the bot across the Spiral.)
+        if place and zone.startswith("WizardCity/") and place.split("/", 1)[0] != "WizardCity":
+            if await self._to_world(place.split("/", 1)[0], f"{objective!r} is in {place.split('/', 1)[0]}"):
+                return
+
         if await self._try_switch_puzzle(objective, zone or ""):
             return
 
