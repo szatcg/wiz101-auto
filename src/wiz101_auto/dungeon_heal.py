@@ -91,11 +91,9 @@ class DungeonHealer:
             took = await visit_known_spot(self.client, self.cfg, zone, needed_wisps(self.cfg, hp, mana))
         if took:
             return True
-        m = self.q._mark
-        if m and m.kind == "fight" and m.zone == zone:
-            # Marked beside the boss: heal here (wisps, rest), don't leave.
-            await recover(self.client, self.cfg, self.q.controller)
-            return True
+        # (Marked beside the boss: the trip keeps that mark and Recalls to it.
+        # Healing in place with no wisps left the wizard at 2% in the Emperor's
+        # Palace, retrying every 3 seconds.)
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
     async def retry_return(self) -> bool:

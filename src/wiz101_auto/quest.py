@@ -1376,6 +1376,7 @@ class Quester:
         spot is marked already, the objective keeps us here, or `force`
         (resting here gave nothing at all)."""
         if not self.healer:
+            logger.debug("heal trip: no healer")
             return False
         zone = await self.client.zone_name() or ""
         if is_hub(zone):
@@ -1388,6 +1389,7 @@ class Quester:
         dest = objective_zone(objective) if objective else None
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
         if not zone or not (marked or coming_back or force):
+            logger.debug(f"heal trip: not coming back here ({objective!r}, dest {dest}, marked {marked})")
             return False
         # Never over a fight or dungeon mark still wanted for this objective:
         # the trip Recalls to it instead. An old one (Willie Marks's, done) is
@@ -1396,7 +1398,10 @@ class Quester:
         if self._mark and self._mark.zone != zone and self._mark.zone in DungeonMemory.load().dungeons:
             keep = True  # a spot inside a dungeon we're out of: keep it, Recall to it
         why = f"not enough wisps here for {objective!r}"
-        return await self.healer.trip(zone, why, mark=not (marked or keep))
+        went = await self.healer.trip(zone, why, mark=not (marked or keep))
+        if not went:
+            logger.debug(f"heal trip: the healer didn't go (busy {self.healer.busy}, mark {self._mark})")
+        return went
 
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
