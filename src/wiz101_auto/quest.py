@@ -197,7 +197,8 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2}
+                   "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
+                   "zone_first": 3}
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -4815,6 +4816,19 @@ class Quester:
         if place and zone.startswith("WizardCity/") and place.split("/", 1)[0] != "WizardCity":
             if await self._to_world(place.split("/", 1)[0], f"{objective!r} is in {place.split('/', 1)[0]}"):
                 return
+
+        # The objective's place is another zone the gates lead to: there by its
+        # gates first ('Talk To Mavra Flamewing in Plaza of Conquests': the
+        # Cathedral's marker pointed at a door that wouldn't open, minutes of
+        # walking at it). Not from inside a dungeon or a room (its quest is
+        # often 'in' the zone outside: Usunoki in the Town Dojo).
+        place = objective_zone(objective) if objective else None
+        if (place and zone and place != zone and "/interiors/" not in zone.lower()
+                and not await self._in_dungeon(zone) and gate_toward(zone, place, self._bad_gates)
+                and self._may_try(objective, zone, "zone_first")):
+            logger.info(f"{objective!r} is in {place.split('/')[-1]}: there by its gates first")
+            await self.go_to_zone(place)
+            return
 
         if await self._try_switch_puzzle(objective, zone or ""):
             return
