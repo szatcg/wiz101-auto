@@ -51,3 +51,22 @@ def test_a_remembered_boss_deck_goes_in_before_its_fight(tmp_path, monkeypatch):
     a.prepare_for("Haru")
     deck, why = a.wanted()
     assert deck == {"Myth Prism": 3, "Pixie": 2} and "remembered" in why
+
+
+def test_searching_for_only_while_the_search_runs():
+    import time
+
+    from wiz101_auto.deck_adapt import DeckAdapter
+
+    class Running:
+        def poll(self):
+            return None
+
+    a = DeckAdapter.__new__(DeckAdapter)
+    a._search, a._search_vs, a._search_started = Running(), ["Sea Lord"], time.time()
+    assert a.searching_for("Sea Lord")
+    assert not a.searching_for("Cyrus Drake")
+    a._search_started = time.time() - 3600
+    assert not a.searching_for("Sea Lord")
+    a._search = None
+    assert not a.searching_for("Sea Lord")

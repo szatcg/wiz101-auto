@@ -26,6 +26,7 @@ from .combat.deckopt import ADVICE_FILE, GENERAL_FILE, SIZE_COST, WIN_WEIGHT
 
 MODE_FILE = Path("state") / "deck_mode.json"
 SEARCH_MINUTES = 6.0
+SEARCH_WAIT_MINUTES = 12  # longest wait for a boss's search before fighting it anyway
 IMPROVE_EVERY = 25  # wins between searches improving the default deck
 CANDIDATE_FILE = Path("state") / "deck_general_candidate.json"
 
@@ -70,6 +71,7 @@ class DeckAdapter:
         self.mode = _read(MODE_FILE) or {"deck": "general", "vs": None}
         self._search: subprocess.Popen | None = None
         self._search_vs: list[str] | None = None
+        self._search_started = 0.0
         self._improve: subprocess.Popen | None = None
         self._wins = 0
         # Spells already weighed for the default deck (kept across restarts).
@@ -121,6 +123,7 @@ class DeckAdapter:
             logger.debug(f"deck: stats rebuild failed: {exc}")
         logger.info(f"deck: lost to {', '.join(group)}; searching a deck for them ({SEARCH_MINUTES:.0f} min)")
         self._search_vs = group
+        self._search_started = time.time()
         self._search = subprocess.Popen(
             [sys.executable, "-m", "wiz101_auto.combat.deckopt", "--vs", ",".join(group),
              "--minutes", str(SEARCH_MINUTES), "--out", str(ADVICE_FILE)],
@@ -151,6 +154,15 @@ class DeckAdapter:
             self.mode = {"deck": "general-pending", "vs": None}
             self._save()
             logger.info(f"deck: beat {', '.join(enemies)}; back to the general deck at the next calm moment")
+
+    def searching_for(self, boss: str) -> bool:
+        """A deck search against `boss`'s group is running (and hasn't run
+        past SEARCH_WAIT_MINUTES): wait for it rather than fight again with
+        the deck that lost (the Sea Lord, fought again a minute after the
+        first loss with the search 1 minute into its 6)."""
+        if self._search is None or self._search.poll() is not None or boss not in (self._search_vs or []):
+            return False
+        return time.time() - self._search_started < SEARCH_WAIT_MINUTES * 60
 
     def prepare_for(self, boss: str):
         """A fight with `boss` is next (a Defeat objective): put in the deck

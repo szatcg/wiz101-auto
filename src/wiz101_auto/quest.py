@@ -4829,6 +4829,13 @@ class Quester:
         if adapter is not None and objective and is_combat_objective(objective):
             for name in defeat_names(objective):
                 adapter.prepare_for(name)
+                if adapter.searching_for(name) and await is_free(self.client):
+                    if time.monotonic() - getattr(self, "_search_wait_logged", 0.0) > 60:
+                        self._search_wait_logged = time.monotonic()
+                        logger.info(f"waiting for the deck search against {name} before fighting it again")
+                    self.controller.allow_idle(30)
+                    await asyncio.sleep(10.0)
+                    return
 
         # The objective names a place in another world ('Talk To Rila Samoosuke
         # in Jade Palace' from Wizard City): the dorm, Ravenwood, the World Tree's
