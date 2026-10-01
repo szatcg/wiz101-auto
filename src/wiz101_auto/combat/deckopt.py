@@ -33,7 +33,8 @@ SIZE_COST = 0.03  # per card: a thin deck (the combo drawn early) wins a tie (th
 THIN_START = {"Humongofrog": 3, "Mythblade": 3, "Spirit Blade": 2, "Feint": 2, "Pixie": 3, "Minotaur": 2}
 # The default deck (the player's rules): no prisms (a myth boss's niche), no minions (too slow for everyday
 # fights; a boss deck may have them), a single-target hit, some heals.
-GENERAL_EXCLUDE = {"Troll Minion", "Cyclops Minion", "Myth Prism"}  # prisms: only a boss deck (a myth boss)
+# Prisms: only a boss deck (a myth boss). Blinding Light: the player keeps it out.
+GENERAL_EXCLUDE = {"Troll Minion", "Cyclops Minion", "Myth Prism", "Blinding Light"}
 GENERAL_NEEDS = {"single": 1, "heals": 2}
 HEALS = {"Pixie"}
 SINGLE_HITS = {"Minotaur", "Cyclops", "Troll", "Banshee", "Vampire", "Ghoul"}

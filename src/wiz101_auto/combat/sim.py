@@ -101,6 +101,9 @@ def _game_cards() -> dict:
     for name, c in read.items():
         if name in CARDS or not c.effects or EffectKind.SUMMON in c.kinds or c.item:
             continue
+        if name.lower().startswith("collectessence"):
+            continue  # (not a combat spell)
+        c = dataclasses.replace(c, school=(c.school or "").lower())  # 'Myth' -> 'myth', as above
         out[name] = (lambda c=c: copy.copy(c))
     return out
 

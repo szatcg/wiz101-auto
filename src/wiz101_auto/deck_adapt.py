@@ -56,7 +56,8 @@ class DeckAdapter:
         self._search_vs: list[str] | None = None
         self._improve: subprocess.Popen | None = None
         self._wins = 0
-        self._known = _known_spells()
+        # Spells already weighed for the default deck (kept across restarts).
+        self._known = set(self.mode.get("weighed") or _known_spells())
 
     def _save(self):
         try:
@@ -156,6 +157,8 @@ class DeckAdapter:
             self._known = known or self._known
             return
         self._known = known
+        self.mode["weighed"] = sorted(known)
+        self._save()
         logger.info(f"deck: new spells {', '.join(sorted(new))}: weighing them for the default deck")
         if self._improve is not None and self._improve.poll() is None:
             self._improve.kill()  # (its pool didn't have them)
