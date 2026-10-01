@@ -151,6 +151,20 @@ class DoorMemory:
         except OSError:
             pass
 
+    def forget(self, zone: str, dest: str) -> int:
+        """Drop `zone`'s learned doors into `dest` (a wrong way: the NPC
+        wasn't behind it). Returns how many."""
+        entries = self.doors.get(zone, [])
+        keep = [e for e in entries if not (len(e) > 2 and e[2] == dest)]
+        if len(keep) == len(entries):
+            return 0
+        self.doors[zone] = keep
+        try:
+            self.path.write_text(json.dumps(self.doors), encoding="utf-8")
+        except OSError:
+            pass
+        return len(entries) - len(keep)
+
 
 async def scan(client, zone: str, emap: EntityMap) -> int:
     """Record every named thing around the wizard. Returns new spots."""

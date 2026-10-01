@@ -3906,6 +3906,10 @@ class Quester:
         if zone != st["home"]:
             back = st["home"] if depth <= 1 else None
             logger.info(f"no {name} behind these doors; going back")
+            # The learned door that brought us here was the wrong way (Mavra
+            # Flamewing: travel took it again and again for minutes).
+            if self.doors.forget(st["home"], zone):
+                logger.info(f"forgot the door from {st['home'].split('/')[-1]} into {zone.split('/')[-1]}")
             if back and await self.go_to_zone(back):
                 return True
             # One layer in: back out the way we came (the arrival gate is learned).
