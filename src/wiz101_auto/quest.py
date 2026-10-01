@@ -142,6 +142,9 @@ TEAM_RERANK_SECONDS = 120.0  # in a team dungeon: read the quest book on enterin
 # case) -> (zone, (x, y, z) of a landmark, radius to search around it).
 FIND_HINTS: dict[str, tuple[str, tuple[float, float, float], float]] = {}
 MINIGAME_WORLD = "ThePhantomZoneWorld"  # minigames' zones (Shockalock): never where a quest is
+SEEK_SPOTS = 12  # remembered spots of a Defeat target looked at, nearest first
+SEEK_NEAR = 600.0  # a remembered spot closer than this: already looked
+SEEK_CLEAR = 1200.0  # no other kind of enemy this close to a spot we go to
 LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close to it
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
@@ -3844,6 +3847,40 @@ class Quester:
             return True
         return await self._talk_target_enemy(objective or "") is not None
 
+    async def _seek_target(self, objective: str, zone: str) -> bool:
+        """'Defeat X' with no X in view: rather than the quest marker (for the
+        Supply Runners it sat among Ronin Keyholders, whose patrols walked into
+        us there), go to the nearest spot X was seen that has no other kind of
+        enemy near it now, then after a lone X from there. True if it acted."""
+        from .bossfarm import find_entity_named, mobs_named
+        from .safe_teleport import is_target
+
+        names = defeat_names(objective)
+        if not names or any([await find_entity_named(self.client, n) for n in names]):
+            return False  # in view: pull_mob goes after it
+        me = await self._position()
+        seen = self.entity_map.spots(zone, lambda n: is_target(n, names), (me.x, me.y, me.z))
+        if not seen:
+            return False
+        strangers = [p for n, p in await mobs_named(self.client) if not is_target(n, names)]
+        for spot in seen[:SEEK_SPOTS]:
+            s = XYZ(*spot)
+            if distance(s, me) < SEEK_NEAR or any(distance(s, o) < SEEK_CLEAR for o in strangers):
+                continue
+            logger.info(f"looking for {names[0]} where it was seen, clear of other enemies "
+                        f"({s.x:.0f}, {s.y:.0f})")
+            await self.client.teleport(s)
+            await asyncio.sleep(1.0)
+            if await self.client.in_battle():
+                return True
+            target = await self._lone_target(names[0])
+            if target is not None:
+                allow_engage(self.client)  # a lone one in view: go
+                await self.client.teleport(target)
+                await asyncio.sleep(3.0)
+            return True
+        return False
+
     async def _lone_target(self, name: str) -> XYZ | None:
         """The nearest enemy called `name` with no other kind of enemy within
         LONE_TARGET_CLEARANCE (those would join, or start the fight instead)."""
@@ -4502,6 +4539,8 @@ class Quester:
         if await self._use_named_object(objective):
             return
         # An NPC here: inch toward it. Elsewhere the marker is a door on the way.
+        if is_combat_objective(objective) and await self._seek_target(objective, zone or ""):
+            return
         npc_here = "talk" in objective.lower() and objective_zone(objective) in (None, zone)
         if npc_here and await self._talk_means_fight(objective):
             return
