@@ -177,6 +177,24 @@ def search(start: dict[str, int], cards: list[str], mix, stats: dict, pool=None,
     return deck, rate, rounds
 
 
+PRISM_RESIST = 0.5  # a boss resisting our school this much: the search starts with prisms
+PRISM_SEED = 3
+
+
+def seed_prisms(start: dict[str, int], cards: list[str], mix, school: str = "myth") -> dict[str, int]:
+    """Against a boss that resists our school (Haru, Meowiarty: myth 80%) the
+    boss deck search starts with Myth Prisms in (a prism turns the next hit on
+    it into the opposite school, which it's weak to). One card at a time, the
+    hill climb never got there by itself. The search may still drop them."""
+    prism = f"{school.title()} Prism"
+    if prism not in cards or start.get(prism, 0) >= PRISM_SEED:
+        return start
+    resists = any(f.boss and f.resist.get(school, 0) >= PRISM_RESIST for foes, _w in mix for f in foes)
+    if not resists:
+        return start
+    return {**start, prism: PRISM_SEED}
+
+
 def main(argv=None):
     import multiprocessing as mp
 
@@ -218,6 +236,8 @@ def main(argv=None):
                 start = to_sim(json.loads(Path(args.start).read_text(encoding="utf-8")).get("deck", {}))
             except (OSError, ValueError):
                 pass
+        if args.vs:
+            start = seed_prisms(start, cards, mix)
         deck, rate, rounds = search(start, cards, mix, stats, pool, general=not args.vs,
                                     seconds=args.minutes * 60, log=lambda s: print(s, flush=True))
     print(f"BEST {what}: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}", flush=True)
