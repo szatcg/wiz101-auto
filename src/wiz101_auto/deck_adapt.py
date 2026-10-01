@@ -42,6 +42,13 @@ def _read(path: Path) -> dict:
         return {}
 
 
+PROGRESS_FILE = Path("state") / "progress.json"
+
+
+def _known_spells() -> set[str]:
+    return set(_read(PROGRESS_FILE).get("known_spells", []))
+
+
 class DeckAdapter:
     def __init__(self):
         self.mode = _read(MODE_FILE) or {"deck": "general", "vs": None}
@@ -49,6 +56,7 @@ class DeckAdapter:
         self._search_vs: list[str] | None = None
         self._improve: subprocess.Popen | None = None
         self._wins = 0
+        self._known = _known_spells()
 
     def _save(self):
         try:
@@ -138,8 +146,25 @@ class DeckAdapter:
             self._save()
         return None
 
+    def _check_new_spells(self):
+        """Spells just learned (a trainer trip, a quest reward): search the
+        default deck again with them in the pool; they go in, or replace
+        cards, only if the simulated fights come out better."""
+        known = _known_spells()
+        new = known - self._known
+        if not new or not self._known:
+            self._known = known or self._known
+            return
+        self._known = known
+        logger.info(f"deck: new spells {', '.join(sorted(new))}: weighing them for the default deck")
+        if self._improve is not None and self._improve.poll() is None:
+            self._improve.kill()  # (its pool didn't have them)
+            self._improve = None
+        self._improve_default()
+
     async def tick(self, client) -> bool:
         """Between fights: put in the deck that's due. True if it did."""
+        self._check_new_spells()
         want = self.wanted()
         if not want:
             return False

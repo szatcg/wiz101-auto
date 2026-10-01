@@ -68,6 +68,30 @@ async def _spell_info(entry) -> SpellInfo | None:
         return None
 
 
+SPELL_CARDS = Path("state") / "spell_cards.pkl"  # known spells as read from the game, for the simulator
+
+
+def save_spell_cards(known: list[SpellInfo]) -> None:
+    """Keep what each known spell does (pips, school, effects, as the game
+    has it) so the simulator and deck search can weigh spells it has no
+    values for (a newly trained Stone Colossus)."""
+    import dataclasses
+    import pickle
+
+    if not known:
+        return
+    try:
+        old = pickle.loads(SPELL_CARDS.read_bytes()) if SPELL_CARDS.exists() else {}
+    except Exception:
+        old = {}
+    old.update({s.card.name: dataclasses.replace(s.card, index=-1) for s in known if s.card.effects})
+    try:
+        SPELL_CARDS.parent.mkdir(exist_ok=True)
+        SPELL_CARDS.write_bytes(pickle.dumps(old))
+    except OSError:
+        pass
+
+
 async def read_known_spells(builder: DeckBuilder) -> list[SpellInfo]:
     spells = []
     if hasattr(builder, "read_all_known"):
@@ -797,6 +821,7 @@ async def _rebuild_open(client, school: str, policy: DeckPolicy, *, dry_run: boo
     if deck_names:
         save_deck_counts(deck_names)  # the fighter plans with what's left of it
     known = await read_known_spells(builder)
+    save_spell_cards(known)
     plan = plan_deck(known, school, policy)
     logger.info(f"known spells: {', '.join(s.name for s in known) or '(none)'}")
     logger.info(f"deck plan: {plan.describe()}")

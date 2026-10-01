@@ -84,6 +84,31 @@ CARDS = {
 }
 
 
+# Spells with no values above (newly trained: Stone Colossus, Earthquake...)
+# as the game reads them at the spellbook check (state/spell_cards.pkl):
+# minions and spells with no effects aside.
+SPELL_CARDS = Path("state") / "spell_cards.pkl"
+
+
+def _game_cards() -> dict:
+    import pickle
+
+    try:
+        read = pickle.loads(SPELL_CARDS.read_bytes())
+    except Exception:
+        return {}
+    out = {}
+    for name, c in read.items():
+        if name in CARDS or not c.effects or EffectKind.SUMMON in c.kinds or c.item:
+            continue
+        out[name] = (lambda c=c: copy.copy(c))
+    return out
+
+
+GAME_CARDS = _game_cards()
+CARDS.update(GAME_CARDS)
+
+
 @dataclass
 class Spell:
     """An enemy's spell: kind is hit, aoe, drain, dot (hit + damage over 3
