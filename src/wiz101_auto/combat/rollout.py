@@ -23,6 +23,10 @@ from .model import Action, ActionKind, Battle
 ROLLOUTS = 32  # playouts per move (the same random draws for every move)
 TIME_LIMIT = 12.0  # seconds for the whole decision
 MARGIN = 0.03  # a move must beat the brain's by this much (rollout noise)
+# Passing or discarding instead of the brain's cast needs a clear win: small
+# edges for 'pass' over 6 rounds (2 Humongofrogs and 5 pips in hand) lost a
+# fight to two Imitsu Defoulers.
+IDLE_MARGIN = 0.15
 MIN_ENEMY_HEALTH = 0  # all fights (raise it to leave easy ones to the brain)
 
 _STATS: dict | None = None
@@ -136,7 +140,9 @@ class RolloutPlanner:
             v, w, d, dmg = values[i]
             return f"{moves[i].describe()[:60]} (value {v:+.2f}, won {w:.0%}, died {d:.0%}, dmg {dmg:.0%})"
 
-        if best != mine and values[best][0] > values[mine][0] + MARGIN:
+        idle = moves[best].kind in (ActionKind.PASS, ActionKind.DISCARD) and brain.kind is ActionKind.CAST
+        margin = IDLE_MARGIN if idle else MARGIN
+        if best != mine and values[best][0] > values[mine][0] + margin:
             logger.info(f"rollouts ({took:.1f}s): {line(best)} beats the brain's {line(mine)}")
             chosen = moves[best]
             return Action(chosen.kind, chosen.card, chosen.target,

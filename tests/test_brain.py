@@ -1198,6 +1198,14 @@ def test_keeps_heals_against_a_boss_at_full_health():
 
     cards = [dmg_card(0, "Fire Cat", 100), heal_card(1, "Pixie", 400)]
     b = battle(cards, [enemy("War Oni", 1600, boss=True)], my=me(hp=1912, max_hp=1912))
-    b.upcoming = ["Fire Cat"]
+    b.upcoming = [dmg_card(9, "Fire Cat", 100)] * 4
     binned = {a.card.name for a in candidates(b, discards=2) if a.kind is ActionKind.DISCARD}
     assert "Pixie" not in binned and "Fire Cat" in binned
+
+
+def test_no_rollout_discards_with_the_deck_nearly_out():
+    from wiz101_auto.combat.sim import candidates
+
+    b = battle([dmg_card(0, "Fire Cat", 100)], [enemy("A", 600)])
+    b.upcoming = [dmg_card(9, "Fire Cat", 100)] * 2
+    assert not [a for a in candidates(b, discards=2) if a.kind is ActionKind.DISCARD]

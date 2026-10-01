@@ -535,12 +535,17 @@ def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
     return c.base_damage() < best / 2 and hit_damage(c, battle.me, t) < t.health
 
 
+MIN_DECK_TO_DISCARD = 4  # rollouts don't bin cards with fewer left in the deck
+
+
 def candidates(battle: Battle, discards: int = 0) -> list[Action]:
     """Every move this step: each castable card on each target it can take
     (not chip hits that would waste a trap or blade), passing, and (with
     `discards` left) binning each kind of card for a new draw."""
     out = [Action(ActionKind.PASS, reason="rollout: pass")]
-    if discards > 0 and battle.upcoming:
+    # (Not with the deck nearly out: binning 8 cards in a fight emptied it,
+    # and a hand of what's left can't be redrawn.)
+    if discards > 0 and len(battle.upcoming) >= MIN_DECK_TO_DISCARD:
         binned = set()
         # A boss can take most of our health in one hit (War Oni: 1100): its
         # heals are never binned, however full our health is now.
