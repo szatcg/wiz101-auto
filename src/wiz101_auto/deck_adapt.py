@@ -56,7 +56,7 @@ class DeckAdapter:
         except OSError:
             pass
 
-    def on_defeat(self, enemies: list[str]):
+    def on_defeat(self, enemies: list[str], bosses: set[str] = frozenset()):
         """A lost fight: search a deck for exactly this group (once per group
         at a time; the search runs as its own process)."""
         group = sorted(set(enemies))
@@ -65,7 +65,8 @@ class DeckAdapter:
         from .combat.sim import load_stats
 
         known = load_stats().get("enemies", {})
-        if not any(known.get(n, {}).get("boss") for n in group):
+        # (A boss new to the stats, War Oni, is known from the battle's own flag.)
+        if not any(n in bosses or known.get(n, {}).get("boss") for n in group):
             # Everyday enemies (Otomo Courier, Sanzoku Outlaw): the default deck
             # stays; a boss deck is for bosses (the player's rule).
             logger.info(f"deck: lost to {', '.join(group)} (no boss): keeping the default deck")
@@ -73,6 +74,12 @@ class DeckAdapter:
         if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
             return  # already on the deck made for them (the next loss is the fight's variance)
         ADVICE_FILE.unlink(missing_ok=True)
+        try:  # the search simulates from the stats: with this fight in them (a new boss)
+            from .combat.calibrate import write_stats
+
+            write_stats([Path("activity.log")])
+        except Exception as exc:
+            logger.debug(f"deck: stats rebuild failed: {exc}")
         logger.info(f"deck: lost to {', '.join(group)}; searching a deck for them ({SEARCH_MINUTES:.0f} min)")
         self._search_vs = group
         self._search = subprocess.Popen(

@@ -204,6 +204,21 @@ def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
     return None
 
 
+def _drain_heal(battle: Battle, strat: Strategy) -> Action | None:
+    """Low with no heal to cast: a drain (Vampire) heals by half the damage
+    it deals, so it's the heal (on the enemy it hurts most)."""
+    if battle.me.health_ratio >= heal_threshold(battle, strat):
+        return None
+    drains = [c for c in _castable(battle.cards) if EffectKind.STEAL in c.kinds and not c.is_enchant]
+    live = battle.live_enemies
+    if not drains or not live:
+        return None
+    card, target = max(((c, e) for c in drains for e in live),
+                       key=lambda ce: min(hit_damage(ce[0], battle.me, ce[1]), ce[1].health))
+    return Action(ActionKind.CAST, card, target,
+                  reason=f"health {battle.me.health}/{battle.me.max_health}: draining to heal")
+
+
 PARTY_SIZE = 4  # places on our side of the duel circle
 
 
@@ -985,8 +1000,8 @@ def _discard_action(battle: Battle, strat: Strategy) -> Action | None:
             score += 50
         if EffectKind.SUMMON in c.kinds:
             score += 40 if _has_minion(battle) else -100
-        if c.is_heal and me.health_ratio > 0.9:
-            score += 20
+        if c.is_heal and me.health_ratio > 0.9 and not any(e.is_boss for e in battle.live_enemies):
+            score += 20  # (a boss can take most of our health in one hit: heals stay)
         if EffectKind.BLADE in c.kinds and me.blade_count >= strat.max_blades:
             score += 30
         if c.is_enchant:
@@ -1441,7 +1456,7 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     # before our spell lands (the enemy may act first, and spells can fizzle):
     # then heal first and kill next round.
     kill = _kill_action(battle)
-    heal = _best_heal(battle, strat)
+    heal = _best_heal(battle, strat) or _drain_heal(battle, strat)
     if kill and _kills_all(battle, kill):
         return kill  # ending the fight beats any heal, however low we are
 

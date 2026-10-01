@@ -150,6 +150,7 @@ class Fighter(CombatHandler):
         self.fled = False  # the last fight ended by fleeing (not a defeat)
         self.last_boss_names: list[str] = []  # bosses in the current/last fight (farm runs end on one)
         self.last_enemy_names: list[str] = []  # enemies of the current/last fight
+        self.last_bosses: set[str] = set()  # which of them the game marks as bosses
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
@@ -250,6 +251,7 @@ class Fighter(CombatHandler):
         """Bosses fought inside a dungeon: remember which dungeon (for boss farming)."""
         bosses = [e.name for e in battle.enemies if e.is_boss]
         self.last_enemy_names = [e.name for e in battle.enemies]
+        self.last_bosses = {e.name for e in battle.enemies if e.is_boss}
         if bosses:
             self.last_boss_names = bosses
         try:

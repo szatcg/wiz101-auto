@@ -1180,3 +1180,24 @@ def test_a_two_hit_spell_breaks_traps_on_its_first_hit_blades_boost_both():
     assert abs(hit_damage(mino, me(), feinted) - (50 * 1.7 + 445)) < 0.01  # the Feint boosts only the 50
     bladed = me(outgoing_effects=[("spell:blade", "myth", 0.35)])
     assert abs(hit_damage(mino, bladed, feinted) - (50 * 1.7 + 445) * 1.35) < 0.01  # the blade boosts both
+
+
+def test_drains_to_heal_when_low_without_a_heal():
+    # 50/1912 vs War Oni: Vampire heals by draining, chip hits don't
+    vamp = Card(1, "Vampire", pip_cost=4, effects=[Effect(EffectKind.STEAL, Target.ENEMY_SINGLE, 335)])
+    cards = [dmg_card(0, "Minor Fire Scorch", 20, pips=0), vamp, dmg_card(2, "Humongofrog", 500, pips=4,
+                                                                          target=Target.ENEMY_ALL)]
+    b = battle(cards, [enemy("War Oni", 723, boss=True)], my=me(hp=50, max_hp=1912))
+    b.pips = 5
+    a = decide(b)
+    assert a.card.name == "Vampire"
+
+
+def test_keeps_heals_against_a_boss_at_full_health():
+    from wiz101_auto.combat.sim import candidates
+
+    cards = [dmg_card(0, "Fire Cat", 100), heal_card(1, "Pixie", 400)]
+    b = battle(cards, [enemy("War Oni", 1600, boss=True)], my=me(hp=1912, max_hp=1912))
+    b.upcoming = ["Fire Cat"]
+    binned = {a.card.name for a in candidates(b, discards=2) if a.kind is ActionKind.DISCARD}
+    assert "Pixie" not in binned and "Fire Cat" in binned

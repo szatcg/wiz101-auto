@@ -542,8 +542,11 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
     out = [Action(ActionKind.PASS, reason="rollout: pass")]
     if discards > 0 and battle.upcoming:
         binned = set()
+        # A boss can take most of our health in one hit (War Oni: 1100): its
+        # heals are never binned, however full our health is now.
+        keep_heals = any(e.is_boss for e in battle.live_enemies)
         for c in battle.cards:
-            if c.name not in binned and not c.treasure:
+            if c.name not in binned and not c.treasure and not (keep_heals and c.is_heal):
                 binned.add(c.name)
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))
     live = battle.live_enemies
