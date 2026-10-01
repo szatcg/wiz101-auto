@@ -20,7 +20,7 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .brain import Strategy, _is_prism, _pay, _prism_gain, decide, hit_damage, prism_view
+from .brain import Strategy, _is_prism, _overkill, _pay, _prism_gain, decide, hit_damage, prism_view
 from .model import Action, ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
 
 HAND = 7
@@ -548,20 +548,6 @@ def fight_from_battle(battle: Battle, stats: dict, rng: random.Random) -> Fight:
                  minion=minion, prism_on=set(battle.prismed), summoned=battle.summoned,
                  foe_pips={e.name: rng.randint(0, 2) for e in enemies}, hit_rate=stats.get("hit_rate", {}),
                  minion_share=minion_share(stats))
-
-
-OVERKILL = 2.5  # a big hit doing this many times a target's health is wasted on it...
-OVERKILL_PIPS = 4  # ...when it costs this much and a tougher enemy is still up
-
-
-def _overkill(c: Card, t: Combatant, battle: Battle) -> bool:
-    """A big single hit thrown at a small enemy while a tougher one stands
-    (Stone Colossus for ~2400 on a 606-health Gloom Fairy, the boss at 1018):
-    it was the boss's hit."""
-    if c.pip_cost < OVERKILL_PIPS:
-        return False
-    tougher = any(e is not t and e.health > t.health for e in battle.live_enemies)
-    return tougher and hit_damage(c, battle.me, t) > OVERKILL * t.health
 
 
 def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:

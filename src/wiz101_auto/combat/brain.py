@@ -266,6 +266,19 @@ def _summon_action(battle: Battle, strat: Strategy) -> Action | None:
     return Action(ActionKind.CAST, card, None, reason="summon minion")
 
 
+OVERKILL = 2.5  # a big single hit doing this many times a target's health is wasted on it...
+OVERKILL_PIPS = 4  # ...when it costs this much and a tougher enemy is still up
+
+
+def _overkill(card: Card, target: Combatant, battle: Battle) -> bool:
+    """Stone Colossus (~2064) to finish a 700-health Kakeda Shadow while
+    Tomugawa had 1357 left: that was the boss's hit."""
+    if card.pip_cost < OVERKILL_PIPS:
+        return False
+    tougher = any(e is not target and e.health > target.health for e in battle.live_enemies)
+    return tougher and hit_damage(card, battle.me, target) > OVERKILL * target.health
+
+
 def _kill_action(battle: Battle) -> Action | None:
     """A cast that finishes off at least one enemy if it lands: most kills first,
     then the cheapest spell (keep pips), then the weakest target."""
@@ -279,6 +292,8 @@ def _kill_action(battle: Battle) -> Action | None:
             kills = [t for t in victims if hit_damage(card, battle.me, t) >= t.health]
             if not kills:
                 continue
+            if target is not None and _overkill(card, target, battle):
+                continue  # the boss's big hit isn't spent on a small enemy
             # Same number of kills: the one that also hurts the survivors most
             # (Humongofrog over Ether Golem), then the cheapest.
             spill = sum(min(hit_damage(card, battle.me, t), t.health) for t in victims if t not in kills)

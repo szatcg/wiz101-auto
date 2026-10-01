@@ -1906,9 +1906,8 @@ class Quester:
             if await self._use_object_at(target):
                 return True
             # No prompt anywhere around it: inside an instance the room's
-            # enemies may have to go first (the Mantra 2 tablet opens only once
-            # the Kakeda Shadows are beaten, one at a time:
-            # combat/fighter.ONE_AT_A_TIME). Then the object again.
+            # enemies may have to go first (the Mantra 2 tablet opened once the
+            # Kakeda Shadows were beaten). Then the object again.
             if "/interiors/" in (zone or "").lower() and await self._fight_guards(
                 target, "object", reach=float("inf")
             ):
