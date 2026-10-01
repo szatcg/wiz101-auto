@@ -1209,3 +1209,17 @@ def test_no_rollout_discards_with_the_deck_nearly_out():
     b = battle([dmg_card(0, "Fire Cat", 100)], [enemy("A", 600)])
     b.upcoming = [dmg_card(9, "Fire Cat", 100)] * 2
     assert not [a for a in candidates(b, discards=2) if a.kind is ActionKind.DISCARD]
+
+
+def test_no_second_prism_on_a_prismed_enemy():
+    from wiz101_auto.combat.sim import candidates
+
+    prism = Card(1, "Myth Prism", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    haru = enemy("Haru", 1480, boss=True)
+    haru.resist = {"myth": 0.8, "storm": -0.5}
+    b = battle([prism, dmg_card(0, "Cyclops", 300, pips=3)], [haru])
+    before = [a for a in candidates(b) if a.card and a.card.name == "Myth Prism"]
+    b.prismed = {"Haru"}
+    after = [a for a in candidates(b) if a.card and a.card.name == "Myth Prism"]
+    assert before and not after

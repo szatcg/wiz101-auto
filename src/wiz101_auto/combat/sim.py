@@ -599,9 +599,12 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
         if _is_prism(c):
             # Only where it converts to something the target is weak to (not a
             # prism on the Death wraith).
+            # Not on one prismed already and not hit since: a second prism
+            # changes nothing (Haru took three in a row, no hit between).
             targets = [
                 t for t in targets
-                if t is not None and _prism_gain(c, battle.me, t, battle.cards) >= PRISM_WORTH
+                if t is not None and t.name not in battle.prismed
+                and _prism_gain(c, battle.me, t, battle.cards) >= PRISM_WORTH
             ]
         for t in targets:
             key = (c.name, t.name if t else None)
