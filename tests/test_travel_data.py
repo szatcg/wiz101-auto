@@ -189,3 +189,13 @@ def test_burn_objectives_are_object_pickups():
     from wiz101_auto.collect import collect_item_name
 
     assert collect_item_name("Burn Scout Tower in Tatakai Outpost (0 of 3)") == "Scout Tower"
+
+
+def test_zone_jump_marks_time():
+    import time
+
+    from wiz101_auto.travel_data import last_zone_jump, note_zone_jump
+
+    before = time.monotonic()
+    note_zone_jump()
+    assert last_zone_jump() >= before

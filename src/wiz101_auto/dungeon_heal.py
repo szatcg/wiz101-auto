@@ -33,7 +33,10 @@ DORM_BUTTON = "GotoDormButton"
 
 
 async def _press(client, button: str) -> bool:
+    from .travel_data import note_zone_jump
+
     before = await client.zone_name()
+    note_zone_jump()
     if not await ui.click_named(client, button):
         return False
     await asyncio.sleep(1.0)

@@ -76,8 +76,11 @@ DORM_BUTTON = "GotoDormButton"
 async def go_home(client) -> bool:
     """Press the dorm button (usable any time, from any world): lands in the
     dorm. A few tries: a click right after logging back in didn't take."""
+    from .travel_data import note_zone_jump
+
     zone = await client.zone_name()
     for _ in range(3):
+        note_zone_jump()
         if not await ui.click_named(client, DORM_BUTTON):
             logger.warning("no dorm button to click")
             return False

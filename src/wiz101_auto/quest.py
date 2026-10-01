@@ -56,7 +56,9 @@ from .travel_data import (
     gate_kind,
     gate_toward,
     hops_to_place,
+    last_zone_jump,
     learn_gate,
+    note_zone_jump,
     objective_zone,
     press_x_gate,
     quest_spots,
@@ -1505,7 +1507,13 @@ class Quester:
         front of the gate back: remember it (the data files miss some gates)."""
         zone = await self.client.zone_name() or ""
         prev, deaths = self._zone_before, self.controller.deaths
-        self._zone_before = zone
+        seen = getattr(self, "_zone_before_seen", 0.0)
+        self._zone_before, self._zone_before_seen = zone, time.monotonic()
+        if last_zone_jump() > seen:
+            # The hub button, Go Home or a Recall moved us since the last look
+            # (a heal trip's hub button "learned" Cathedral -> Plaza of Conquests).
+            self._teleported = False
+            return
         if not prev or prev == zone or deaths != self._deaths_before or self._teleported:
             self._deaths_before, self._teleported = deaths, False
             return  # first look, same zone, or a defeat/recall moved us
@@ -1788,6 +1796,7 @@ class Quester:
         try:
             for attempt in range(2):
                 timer = await ui.named_text(self.client, "txtRecallTimer")
+                note_zone_jump()
                 if not await ui.click_named(self.client, "RecallButton"):
                     logger.warning("no Recall button to click")
                     return False
@@ -4824,7 +4833,8 @@ class Quester:
         # often 'in' the zone outside: Usunoki in the Town Dojo).
         place = objective_zone(objective) if objective else None
         if (place and zone and place != zone and "/interiors/" not in zone.lower()
-                and not await self._in_dungeon(zone) and gate_toward(zone, place, self._bad_gates)
+                and not await self._in_dungeon(zone)
+                and (gate_toward(zone, place, self._bad_gates) or self.doors.route(zone, place))
                 and self._may_try(objective, zone, "zone_first")):
             logger.info(f"{objective!r} is in {place.split('/')[-1]}: there by its gates first")
             await self.go_to_zone(place)

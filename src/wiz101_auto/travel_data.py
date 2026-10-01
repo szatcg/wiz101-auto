@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from pathlib import Path
 
 import wizwalker
@@ -57,6 +58,19 @@ def _load_learned(gates: Gates):
             add_gate(gates, frm, to, XYZ(x, y, z))
     except Exception:
         pass
+
+
+_last_jump = [0.0]
+
+
+def note_zone_jump():
+    """A teleport between zones (hub button, Go Home, Recall) is about to
+    happen: the arrival that follows is not a walked gate."""
+    _last_jump[0] = time.monotonic()
+
+
+def last_zone_jump() -> float:
+    return _last_jump[0]
 
 
 def learn_gate(from_zone: str, to_zone: str, pos: XYZ) -> bool:
