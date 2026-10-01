@@ -216,6 +216,7 @@ def _real_marker(m: XYZ) -> bool:
     return abs(m.x) > 1 or abs(m.y) > 1
 
 
+MOMENTUM_SECONDS = 180.0  # a quest whose objective moved on this recently is kept over a re-ranking
 LAND_BESIDE_RADII = (150.0, 300.0)  # a refused teleport onto a marker in this zone: rings around it
 _FIND = re.compile(r"(?i)^\s*find\s+(.+?)(?:\s+in\s+[A-Z].*)?\s*$")
 _GO_TO = re.compile(r"(?i)^\s*go\s+to\s")
@@ -649,6 +650,7 @@ class Quester:
         self.controller = controller
         self.sprinter = client  # SprintyClient (bot.new_handler)
         self._last_progress = (None, None)
+        self._momentum: tuple[str, float] | None = None  # the quest that last moved on, and when
         self._last_progress_time = time.monotonic()
         self.objectives_completed = 0
         self.gear = None  # GearManager, set by the bot
@@ -784,6 +786,8 @@ class Quester:
                 # next ranking reads the new one. A stale flag sent the bot out
                 # of the lab to heal before talking to Grunk.
                 self._step_is_fight = False
+            if self._last_progress[0] and objective and self._active_quest:
+                self._momentum = (self._active_quest, time.monotonic())  # mid-way through it
             self._last_progress = key
             self._last_progress_time = time.monotonic()
             self._attempts = 0
@@ -2408,6 +2412,15 @@ class Quester:
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
             chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside, prev_names, complete)
+            # Mid-way through a quest (its objective moved on minutes ago): keep
+            # it. 'Left Behind' was at Nomoonaga's Tower when a ranking outside
+            # the dungeon switched to the pinned 'Oni No Death'.
+            if self._momentum and time.monotonic() - self._momentum[1] < MOMENTUM_SECONDS:
+                busy = next((q for _, q in all_quests if q.name == self._momentum[0]), None)
+                if busy is not None and busy is not chosen and busy.name not in set_aside:
+                    logger.info(f"keeping {busy.name!r}: mid-way through it "
+                                f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
+                    chosen, self._grinding = busy, False
             if is_team_up_zone(here) or await self._in_dungeon(here):
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
