@@ -201,6 +201,15 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
+def use_spots() -> list[tuple[float, float]]:
+    """Where to stand to use an object, as offsets from it: on it, a few
+    feet off, then rings of 8 at 120, 200 and 300."""
+    out = [(0.0, 0.0), (0.0, -60.0), (0.0, 60.0), (-60.0, 0.0), (60.0, 0.0)]
+    for r in (120.0, 200.0, 300.0):
+        out += [(r * math.cos(i * math.pi / 4), r * math.sin(i * math.pi / 4)) for i in range(8)]
+    return out
+
+
 def _real_marker(m: XYZ) -> bool:
     """A quest marker that points somewhere: (0, 0, z) is none (the Town
     Dojo's marker sat on the room's center, under Ting Yin, for Usunoki)."""
@@ -2025,6 +2034,11 @@ class Quester:
             # Shan sent us back to the village entrance every time.
             logger.info(f"not pressing X on '{prompt}': a Locate only needs us there")
             return False
+        if "talk" in prompt and operate_target(objective):
+            # "Use Forge": the prompt is the NPC beside it (Xihong Bi), not the
+            # Forge; talking to them again looped for minutes.
+            logger.info(f"not pressing X on '{prompt}': the objective is to use something")
+            return False
         logger.info(f"interacting: {prompt or '(no text)'}")
 
         if "to enter" in prompt:
@@ -3061,17 +3075,24 @@ class Quester:
         me = await self._position()
         if distance(me, pos) > USE_OBJECT_RANGE:
             logger.info(f"going right up to the {name}")
-        for dx, dy in ((0, -90), (0, 90), (-90, 0), (90, 0), (60, 60), (-60, -60)):
+        # The object's own spot first, then a few feet off, then rings around
+        # it (the player's order). A 'talk' prompt there is the NPC beside it
+        # (Xihong Bi at the Forge): pressing X talked to them again, in a loop.
+        for dx, dy in use_spots():
             await self.client.teleport(XYZ(pos.x + dx, pos.y + dy, pos.z))
             await asyncio.sleep(0.6)
             for nudge in (None, (Keycode.W, 0.15), (Keycode.S, 0.15)):
                 if nudge:
                     await self.client.send_key(*nudge)
                     await asyncio.sleep(0.2)
-                if await ui.is_visible(self.client, ui.NPC_RANGE):
-                    await self.interact(objective)
-                    await self._after_pull(objective)
-                    return True
+                if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                    continue
+                prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+                if "talk" in prompt and "talk" not in objective.lower():
+                    break  # someone else's prompt: another spot
+                await self.interact(objective)
+                await self._after_pull(objective)
+                return True
         logger.info(f"no prompt at the {name}")
         return False
 
