@@ -207,6 +207,7 @@ def _real_marker(m: XYZ) -> bool:
     return abs(m.x) > 1 or abs(m.y) > 1
 
 
+LAND_BESIDE_RADII = (150.0, 300.0)  # a refused teleport onto a marker in this zone: rings around it
 _FIND = re.compile(r"(?i)^\s*find\s+(.+?)(?:\s+in\s+[A-Z].*)?\s*$")
 _GO_TO = re.compile(r"(?i)^\s*go\s+to\s")
 _USE_OBJECT = re.compile(
@@ -924,6 +925,22 @@ class Quester:
             logger.info("pressing X at the spirit portal")
             await self._use_object_at(portal)
         return True
+
+    async def _land_beside(self, target: XYZ, mobs: list[XYZ]) -> bool:
+        """Teleport to spots around `target` (150, then 300 away, 8
+        directions; clear of enemies) until one takes. True once there."""
+        for radius in LAND_BESIDE_RADII:
+            for i in range(8):
+                a = i * math.pi / 4
+                spot = XYZ(target.x + radius * math.cos(a), target.y + radius * math.sin(a), target.z)
+                if mobs and not clear_of(spot, mobs, MOB_CLEARANCE):
+                    continue
+                await self.client.teleport(spot)
+                await asyncio.sleep(0.5)
+                if distance(await self._position(), spot) < 100:
+                    logger.info(f"the marker itself refused the teleport; landed {radius:.0f} beside it")
+                    return True
+        return False
 
     async def _use_object_at(self, spot: XYZ) -> bool:
         """An object to use at `spot` (the Burial Ground Tablet: the teleport
@@ -1879,6 +1896,13 @@ class Quester:
             return False
 
         objective = self._last_progress[0] or ""
+        # The objective's place is this zone: the marker is the target itself
+        # (an NPC, an object, a spot), not a door, so a refused teleport means
+        # it landed inside something. A ring of small offsets around it first,
+        # before any door walking (that took minutes at the brazier, the tablet
+        # and 'Go To Village of Sorrow').
+        if objective and objective_zone(objective) == zone and await self._land_beside(target, mobs):
+            return True
         if (
             npc and distance(await self._position(), target) < NPC_INCH_RANGE
             and self._may_try(objective, zone or "", "inch")
