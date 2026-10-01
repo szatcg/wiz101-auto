@@ -19,7 +19,7 @@ DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
 # be found (nor interacted with).
-ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry", "Stray Cat Strut", "Strange Charms"})
+ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry", "Stray Cat Strut", "Strange Charms", "The Lore Master"})
 
 
 @dataclass

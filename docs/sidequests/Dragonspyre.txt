@@ -1,0 +1,761 @@
+Dragonspyre quests by quest giver (from the player's list; givers.py reads it).
+
+Format (same as MooShu.txt):
+Quest giver
+Quest name(reward)   (after finishing "X") = X must be done first
+- Goals
+
+
+THE BASILICA
+(SIDE QUEST)
+(unnamed quest: Quest Name? (reward?))
+- Explore The Tower Archives
+- Talk to Zarathax
+
+Cyrus Drake
+The Glamorous Life (1895 xp, housing item) [after completing main quests in The Plaza of Conquests and The Grand Chasm]
+- Locate Sylvia’s Tomb in the Necropolis
+- Use crystal on tomb (tower)
+- talk to Cyrus Drake
+
+Cyrus Drake
+Control Ring (655 xp) [after completing main quests in The Plaza of Conquests and The Grand Chasm]
+- Explore the Necropolis
+- Talk to Crystal Guide
+
+Cyrus Drake
+Fire Shield (240 gold, 2140 xp) [after exploring Dragonspyre Academy]
+- Locate Pyromancer’s Tomb in The Necropolis
+- Get Fire Medallion
+- Talk to Cyrus Drake
+
+Cyrus Drake
+Win or go Home (128 gold, 2420 xp, ring) [after exploring Dragonspyre Academy]
+- Explore Dragonspyre Academy
+- Talk to Ashley
+
+THE ATHENEUM
+(SIDE QUEST)
+
+Milos Bookwyrm
+Warkeeper (285 xp) [after completing main quests in The Tower Archives]
+- talk to Laszlo Starblade in the Plaza of Conquests
+
+Milos Bookwyrm
+Don’t Fall In (103 gold, 285 xp, ring) [after completing main quests in The Plaza of Conquests]
+- Talk to Belia Windgazer in The Grand Chasm
+
+Milos Bookwyrm
+Stay for Detention (2140 xp, robe) [after completing main quests in The Crucible]
+- Locate Dean’s Cell in The Labyrinth
+
+THE TOWER ARCHIVES
+(SIDE QUEST)
+(MAIN QUEST)
+
+Zarathax
+(unnamed quest, 1435 XP)
+- Defeat Loathsome Creeper, collect tower key
+- Talk to Zarathax
+
+Zarathax
+The Towering Crystal (570 xp)
+- locate first tower
+- use yellow crystal
+- talk to Zarathax
+
+Zarathax
+Friend of my Friend (1435 xp) (after finishing “The Towering Crystal”)
+- talk to Lidia Brightmoon
+(unnamed quest: Friend of my Friend (reward?))
+- Defeat 12 soldiers; Wandering Wizards or Restless Soldiers
+- talk to Lidia Brightmoon, locate desk in tower
+- talk to Zarathax
+
+Zarathax
+Key to Trust (570 xp, 103 gold) (after finishing “Friend of my Friend”)
+- Locate Second Tower
+- use orange crystal
+- talk to Zarathax
+
+Zarathax
+Wizard and Crystal (1795 xp, 103 gold, housing item) (after finishing “Key to Trust”)
+- Defeat Petrov Gloomstrider (ice, rank 7 boss, 2,500 hp, Rock Reaver minion)
+- talk to Zarathax
+
+Zarathax
+The Last Key (570 xp, 103 gold) (after finishing “Wizard and Crystal”)
+- Locate Third Tower
+- use green crystal
+- talk to Zarathax
+
+Zarathax
+The Dragon’s Claw (570 xp, 103 gold) (after finishing “The Last Key”)
+- Find dragon claw key
+- talk to Zarathax
+
+Zarathax
+Portal Combat (1795 xp, hat, housing item) (after finishing “The Dragon’s Claw”)
+- Locate tower
+- Use blue crystal
+- Locate wizard’s tower
+- Defeat Zarathax (balance, rank 7 boss, 3,500 hp, Fallen Merc minion)
+- Talk to Milos Bookwyrm in the Atheneum
+(SIDE QUEST)
+
+Katalin Nightseeker
+Take Note (103 gold, 1435 xp)
+- Defeat Pirate Ravager and collect note
+- Talk to Katalin Nightseeker
+
+Katalin Nightseeker
+Wish I was a Locksmith… (1795 xp)
+- Defeat Vilara Moonwraith (death, rank 7 boss, 3,000 hp, Rock Reaver minion)
+- Talk to Katalin Nightseeker
+
+Katalin Nightseeker
+The Knowledge Keeper (103 gold, 570 xp)
+- Locate Knowledge Keeper’s Tower
+- Talk to Oskar Crowfriend (there are some ghastly slaves guarding him that may gang up on you 3 to 1)
+
+Katalin Nightseeker
+A Cage of Orbs (206 gold, 1795 xp, robe, housing item)
+- Smash 3 orbs
+- Defeat Blackblade (balance, rank 7 boss, 3,000 hp, Loathsome Creeper minion)
+- Talk to Oskar Crowfriend
+
+THE PLAZA OF CONQUESTS
+(SIDE QUEST)
+(MAIN QUEST)
+
+Laszlo Starblade
+General Recommendation (285 xp)
+- talk to Zanna Fireflower
+
+Zanna Fireflower
+Battle On (103 gold, 1895 xp) (after finishing “General Recommendation”)
+- defeat Sysiphan (ice, rank 7 boss, 3,200 hp, burning hate minion)
+- talk to Zanna Fireflower
+
+Zanna Fireflower
+Blood From a Stone (206 gold, 1795 xp) (after finishing “Battle On”)
+- Talk to Laszlo Starblade
+
+Laszlo Starblade
+Recommend This (285 xp, 103 gold) (after finishing “Blood From a Stone”)
+- Talk to Halina Warhawk
+
+Halina Warhawk
+The Art of War (605 xp) (after finishing “Recommend This”)
+- Read History book (Tower of War)
+- talk to Halina Warhawk
+
+Halina Warhawk
+Stone Soup (1795 xp) (after finishing “The Art of War”)
+- Talk to Laszlo Starblade
+
+Laszlo Starblade
+Application Procedures (285 xp) (after finishing “Stone Soup”)
+- Talk to Mavra Flamewing
+
+Mavra Flamewing
+The Best Defense (206 gold, 1895 xp) (after finishing “Application Procedures”)
+- Defeat Mavra Flamewing (storm, rank 7 boss, 2,000 hp, 2 protection pox minions)
+- talk to Mavra Flamewing
+- talk to Lazslo Starblade
+
+Laszlo Starblade
+No Weaklings Allowed (206 gold, 605 xp) (after finishing “The Best Defense”)
+- Use summoning crystal
+- defeat Earth Elemental (life, rank 7 boss, 7,000 hp)
+- talk to Lazslo Starblade
+
+Laszlo Starblade
+Fighting with Dishonor (103 gold, 285 xp) (after finishing “No Weaklings Allowed”)
+- Talk to Sandor Spearcaller
+
+Sandor Spearcaller
+Trapper Keeper (1895 xp) (after finishing “Fighting with Dishonor”)
+- Defeat Sandor Spearcaller (ice, rank 7 boss, 2,000 hp, 2 damage pox minions)
+- talk to Sandor Spearcaller
+- talk to Laszlo Starblade
+
+Laszlo Starblade
+Foe of Foes (605 xp, housing item) (after finishing “Trapper Keeper”)
+- Use summoning crystal
+- defeat Sea Lord (storm, rank 8 boss, 8,000 hp)
+- talk to Laszlo Starblade
+
+Laszlo Starblade
+Going Portal (285 xp) (after finishing “Foe of Foes”)
+- Talk to Milos Bookwyrm in The Atheneum
+
+Laszlo Starblade
+Attune Town (103 gold, 605 xp, housing item) (after finishing “Going Portal”) [after completing main quests in The Grand Chasm]
+- Use giant crystal
+- talk to Laszlo Starblade
+
+Laszlo Starblade
+Portal Decay (1895 xp, athame) (after finishing “Attune Town”) [after completing main quests in The Grand Chasm]
+- Explore The Necropolis
+- talk to Cyrus Drake in the Basilica
+(SIDE QUEST)
+
+Rendor Dawnbringer
+Master Blaster (103 gold, 1515 xp)
+- Defeat 12 draconians
+- Talk to Rendor Dawnbringer
+
+Rendor Dawnbringer
+Sly Writing (605 xp)
+- Find Battle Plans
+- Talk to Rendor Dawnbringer
+
+Rendor Dawnbringer
+Stop the Advance (103 gold, 1895 xp)
+- Defeat Firevein (fire, rank 7 boss, 3,200 hp)
+- Defeat Tamris (storm, rank 7 boss, 3,700 hp)
+- Talk to Rendor Dawnbringer
+
+Rendor Dawnbringer
+General Panic (1895 xp, shoes, housing item)
+- Defeat General Greystone (myth, rank 7 boss, 3,500 hp, irate banshee minion)
+- Talk to Rendor Dawnbringer
+
+THE GRAND CHASM
+(SIDE QUEST)
+(MAIN QUEST)
+
+Belia Windgazer
+The Paper Chase (315 xp)
+- Talk to Edrik Scatterglow
+
+Edrik Scatterglow
+So Little Time (108 gold, 620 xp) (after finishing “The Paper Chase”)
+- Locate research notes
+- talk to Edrik Scatterglow
+
+Edrik Scatterglow
+Crystal Crawlies (1550 xp) (after finishing “So Little Time”)
+- Defeat Crystal Crawler and collect pristine crystal
+- talk to Edrik Scatterglow
+
+Edrik Scatterglow
+Charged Up (108 gold, 315 xp) (after finishing “Crystal Crawlies”)
+- Talk to Belia Windgazer
+
+Belia Windgazer
+Just Charge It (620 xp) (after finishing “Charged Up”)
+- Use crystal charger (tower, Edrik’s Vault)
+- talk to Belia Windgazer
+- talk to Edrik Scatterglow
+
+Edrik Scatterglow
+The Time is Right (0 xp) (after finishing “Just Charge It”)
+- Use time crystal, talk to Edrik Scatterglow
+
+Edrik Scatterglow
+Forward…Into History! (108 gold, 1940 xp, housing item) (after finishing “The Time is Right”)
+- Explore time crystal
+- find vault keeper key
+- Talk to Belia Windgazer
+
+Vasek Ashweaver
+Back to the Beginning (108 gold, 620 xp) (after finishing “Forward…Into History!”)
+- Talk to Vasek Ashweaver
+- Repair Southwest bridge, South bridge, east bridge, lock vault 1936, lock vault 1941, lock vault 1938, use vault 1939
+
+Vasek Ashweaver
+The Vault of Fire (1940 xp) (after finishing “Back to the Beginning”)
+- Talk to Vasek Ashweaver
+- defeat general firetusk (fire, rank 8 boss, 4,000 hp, draconian battlemage minion)
+
+Belia Windgazer
+One Good Deed (1940 xp, housing item) (after finishing “The Vault of Fire”)
+- Locate vault 1933
+- defeat Vasek Ashweaver (death, rank 8 boss, 7,000 hp) and collect portal stone
+- talk to Belia Windgazer
+
+Belia Windgazer
+Stone Free (1940 xp, hat) (after finishing “One Good Deed”)
+- Talk to Laszlo Starblade in the Plaza of Conquests
+(SIDE QUEST)
+
+Zelen Battlehorn
+Spiral Crystal (108 gold, 1940 xp)
+- Defeat Flamebringer (fire, rank 7 boss, 3,200 hp, 2 animated lava minions) and collect Spiral Crystal
+- Talk to Zelen Battlehorn
+
+Zelen Battlehorn
+Three Lock Box (1940 xp)
+- Talk to Belia Windgazer
+- Use lock box (tower)
+- Talk to Zelen Battlehorn
+
+Zelen Battlehorn
+Guards! Guards! (1550 xp)
+- Defeat 6 Silver Servants
+- Talk to Zelen Battlehorn
+
+Zelen Battlehorn
+Puzzle Me This (108 gold, 1550 xp)
+- Collect 8 vile essences from undead wizards
+- Talk to Zelen Battlehorn
+
+Zelen Battlehorn
+Puzzle Pilots (1940 xp)
+- Place Crystal Box
+- Place Puzzle Box
+- Place Lock Box
+- Talk to Zelen Battlehorn
+
+Zelen Battlehorn
+Lose the Key (216 gold, 1940 xp, robe, housing item)
+- Locate Top Level (kyanite tower)
+- Talk to Zelen Battlehorn
+
+THE NECROPOLIS
+(SIDE QUEST)
+
+Crystal Guide
+Welcome to the Academy (340 xp)
+- Talk to Castamir Silverdrake in the Drake Hatchery
+
+Crystal Guide
+A Strenuous Course (360 xp) [after completing main quests in The Drake Hatchery]
+- Talk to Zanetta Stormbreaker in The Crucible
+
+Crystal Guide
+Stay for Detention (2140 xp, robe) [after completing the Labyrinth]
+- Explore Dragonspyre Academy
+- Talk to Cyrus Drake
+
+THE DRAKE HATCHERY
+(SIDE QUEST)
+(MAIN QUEST)
+
+Castamir Silverdrake
+Textbook Example (1630 xp)
+- Defeat Terrorwing Warlock and collect 4 textbooks
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+Et Tu, Statue? (118 gold, 655 xp) (after finishing “Textbook Example”)
+- Locate Lesser Drake statue
+- Locate Drake Statue
+- Locate Ancient Drake Statue
+
+Castamir Silverdrake
+Enter the Dragon Rider (355 xp) (after finishing “Et Tu, Statue?”)
+- Locate Tomar Skyblade
+- Talk to Tomar Skyblade
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+The Drakester (655 xp) (after finishing “Enter the Dragon Rider”)
+- Locate Windhammer’s Tower
+- Use Windhammer’s Crystal Stand
+- Talk to Kimerith Windhammer
+
+Kimerith Windhammer
+The Good Old Days (340 xp) (after finishing “The Drakester”)
+- Talk to Tomar Skyblade
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+Rein it In (2040 xp) (after finishing “The Good Old Days”)
+- Defeat The Hoarder (balance, rank 7 boss, 3,300 hp) and collect Reins
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+Rein Check (118 gold, 655 xp, housing item) (after finishing “Rein it In”)
+- Use crystal stand
+- Talk to Kimerith Windhammer
+
+Kimerith Windhammer
+Feels so Good (2040 xp) (after finishing “Rein Check”)
+- Take Kimerith’s Crystal
+- Locate Tomar Skyblade’s tower
+- Use crystal stand
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+Passing Out (236 xp, 2040 xp, deck) (after finishing “Feels so Good”)
+- Talk to Crystal Guide in The Necropolis
+
+Castamir Silverdrake
+Mother of Fire (390 xp) (after finishing “Passing Out”) [Ashley’s quest in Dragonspyre Academy]
+- Talk to Ancient Matriarch
+
+Ancient Matriarch
+Don’t Count your Eggs… (2040 xp) (after finishing “Mother of Fire”)
+- Locate Secure House
+- Get drake egg (tower, Valeska Redwind, myth, rank 8 boss, 4,700 hp at the bottom)
+- Talk to Ancient Matriarch
+
+Ancient Matriarch
+Over Easy (118 gold, 655 xp, housing item) (after finishing “Don’t Count your Eggs…”)
+- Locate Dragon’s Mouth Cave in Golem Court
+- Locate Brazier
+- Talk to Ancient Matriarch
+
+Ancient Matriarch
+Hammer Time (118 gold, 1630 xp) (after finishing “Over Easy”)
+- Defeat Gallium Juggernaut and collect Crystal Hammer
+- Talk to Ancient Matriarch
+
+Ancient Matriarch
+Break an Egg (2040 xp) (after finishing “Hammer Time”)
+- Defeat Viktor Snowcrusher (fire, rank 8 boss, 5,200 hp, Gallium Juggernaut minion)
+- Use Hatching Nest
+- Talk to Ancient Matriarch
+
+Ancient Matriarch
+Words of Wisdom (118 gold, 325 xp, athame) (after finishing “Break an Egg”)
+- Talk to Mother Warwing
+- Talk to Mother Flamestrike
+- Talk to Ancient Matriarch
+- Talk to Castamir Silverdrake
+
+Castamir Silverdrake
+Fly Free (655 xp) (after finishing “Words of Wisdom”)
+- Explore The Forum
+- Talk to Vidor Drakesmith
+
+Ancient Matriarch
+The Last Dragon Rider (128 gold, 390 xp, housing item) (after finishing “Fly Free”) [after completing main quests in The Forum]
+- Talk to Ashley in Dragonspyre Academy
+(SIDE QUEST)
+
+Sunbrand
+Save the Drakes (118 xp, 1630 xp)
+- Defeat 12 Terrorwing Enforcer
+- Talk to Sunbrand
+
+Sunbrand
+Soul Winger (118 gold, 2040 xp)
+- Defeat Avalanche (life, rank 8 boss, 3,700 hp, Wandering Firesoul minion)
+- Talk to Sunbrand
+
+Sunbrand
+Cry Freedom (2040 xp)
+- Defeat Giant Homunculus (storm, rank 8 boss, 3,600 hp, Wandering Firesoul minion)
+- Talk to Sunbrand
+
+Sunbrand
+Charmed to Meet You (118 gold, 2040 xp, wand, housing item)
+- Defeat Ivan Soulsinger (death, rank 8 boss, 4,000 hp, wandering firesoul minion)
+- Talk to Sunbrand
+
+THE CRUCIBLE
+(SIDE QUEST)
+(MAIN QUEST)
+
+Zanetta Stormbreaker
+Back in Session (1715 xp)
+- Defeat Manascale Sorcerer and collect 6 Knowledge Crystals
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+A Brief History (685 xp) (after finishing “Back in Session”)
+- Use Crystal Stand
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Justice Hurts (240 gold, 2140 xp) (after finishing “A Brief History”)
+- Use Crystal Storage
+- Use Crystal Stand
+- Defeat Iona Pyrelance (myth, rank 8 boss, 4,000 hp)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+You Call This Easy ? (120 gold, 2140 xp, housing item) (after finishing “Justice Hurts”)
+- Defeat Orin Grimcaster
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Judge Not (2140 xp) (after finishing “You Call This Easy ?”)
+- Use Crystal Stand
+- Defeat Katia Firewinter (life, rank 8 boss, 4,500 hp)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+It’s An Honor (240 gold, 2140 xp) (after finishing “Judge Not”)
+- Use Crystal Storage
+- Use Crystal Stand
+- Defeat Valerik Brightsword (storm, rank 8 boss, 5,000 hp)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Feeling Defensive? (2140 xp) (after finishing “It’s An Honor”)
+- Use Crystal Stand
+- Defeat Rurik Flamesoul (ice, rank 8 boss, 6,000 hp)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Pick Up The Spare (240 gold, 2140 xp) (after finishing “Feeling Defensive?”)
+- Talk to Belia Windgazer in The Grand Chasm
+- Locate Empty Crystal in Upper Grand Chasm (Crystal Storage Tower)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Obsidian In Crystal (240 gold, 2140 xp) (after finishing “Pick Up The Spare”)
+- Locate Obsidian’s Tomb in The Necropolis
+- Use Obsidian’s Tomb
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+The Last Lesson (2140 xp, hat, housing item) (after finishing “Obsidian In Crystal”)
+- Use Crystal Stand
+- Defeat Boris Blackrock (ice, rank 8 boss, 7,000 hp)
+- Talk to Zanetta Stormbreaker
+
+Zanetta Stormbreaker
+Acceptance at Last (240 gold, 2140 xp) (after finishing “The Last Lesson”)
+- Talk to Irenka Thundercrown
+- Talk to Milos Bookwyrm in The Atheneum
+(SIDE QUEST)
+
+Narcissa Wyrmscale
+Spark of Mana (120 gold, 1715 xp)
+- Defeat Horned Barbarian and collect 6 Mana Sparks
+- Talk to Narcissa Wyrmscale
+(unnamed quest: Quest Name? (reward?))
+- Light 6 lamps
+- Talk to Narcissa Wyrmscale
+
+DRAGONSPYRE ACADEMY
+(SIDE QUEST)
+
+Ashley
+Wizard Tours (2280 xp, ring, housing item)
+- Use Obsidian Chest in Haunted Cave
+- Use Obsidian Chest in Colossus Boulevard
+- Use Obsidian Chest in Royal Hall
+- Use Obsidian Chest in Grand Arena
+- Use Obsidian Chest in Newgate Prison
+- Use Obsidian Chest in Chelsea Court
+- Use Obsidian Chest in Ancient Burial Grounds
+- Use Obsidan Chest in Cave of Solitude
+- Use Obsidian Chest in The Labyrinth
+- Talk to Ashley
+
+Ashley
+Headless Rider (125 gold, 730 xp)
+- Explore Crystal Grove
+- Locate Miner’s Camp
+- Talk to Zarek Pickmaster
+
+Ashley
+Forged in Fire (128 gold, 2420 xp, wand, housing item) [after completing main quests in The Crystal Grove]
+- Use Fire Forge in Dragonspyre Academy
+- Talk to Ashley
+
+Ashley
+Earn Your Wings (390 xp) [after completing main quests in The Crystal Grove]
+- Talk to Castamir Silverdrake in The Drake Hatchery
+
+Ashley
+The Final Countdown (2420 xp) [after completing main quests in The Forum]
+- Use Young Battledrake
+- Explore Malistaire’s Lair
+- Defeat Malistaire (rank 10, death, 10,000 hp, 3 undead wizard minions)
+- Talk to Merle Ambrose in Merle Ambrose’s House
+
+THE CRYSTAL GROVE
+(SIDE QUEST)
+(MAIN QUEST)
+
+Zarek Pickmaster
+Quest for Perfection (125 gold, 730 xp)
+- Collect Purple Crystal Sample
+- Collect Orange Crystal Sample
+- Collect Red Crystal Sample
+- Collect Green Crystal Sample
+- Collect Red and Orange Crystal Sample
+- Collect Green and Purple Crystal Sample
+- Talk to Zarek Pickmaster
+
+Zarek Pickmaster
+Root of the Problem (730 xp, housing item) (after finishing “Quest for Perfection”)
+- Collect Purple Crystal Sample
+- Collect Orange Crystal Sample
+- Collect Red Crystal Sample
+- Collect Green Crystal Sample
+- Collect Red and Orange Crystal Sample
+- Collect Green and Purple Crystal Sample
+- Talk to Zarek Pickmaster
+
+Zarek Pickmaster
+Cutter’s Way (250 gold, 2280 xp) (after finishing “Root of the Problem”)
+- Talk to Milaka Jewelbender
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+Room to Breathe (125 gold, 1820 xp) (after finishing “Cutter’s Way”)
+- Defeat 12 Spiders
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+A Quiet Place to Work (2280 xp, shoes) (after finishing “Room to Breathe”)
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+Sit and Spin (1820 xp) (after finishing “A Quiet Place to Work”)
+- Defeat Spiders and collect 3 Crystal Spinnerets
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+Tools of the Trade (125 gold, 730 xp) (after finishing “Sit and Spin”)
+- Collect 4 Crates
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+Table Where? (2280 xp, housing item) (after finishing “Tools of the Trade”)
+- Defeat Chronius (fire, rank 8 boss, 5,000 hp, fire scavenger minion)
+- Collect Crafter’s Table
+- Talk to Milaka Jewelbender
+
+Milaka Jewelbender
+Staff Assembly (250 gold, 2280 xp, hat) (after finishing “Table Where?”)
+- Talk to Milaka Jewelbender
+- Talk to Ashley
+(SIDE QUEST)
+
+Zarek Pickmaster
+She’s A Little Runaway (730 xp)
+- Locate Missing Pet
+- Talk to Zarek Pickmaster
+
+Zarek Pickmaster
+Whistle-Stop Tour (1820 xp)
+- Get Whistle (Bael Emberlight, Storm, Rank 8 boss, 4,800 hp, Kyanite Crystalmancer minion)
+- Talk to Zarek Pickmaster
+
+Zarek Pickmaster
+When the Whistle Blows (730 xp)
+- Locate Crystal Tower
+- Locate Spider Hive
+- Locate Spider’s Lair
+- Talk to Zarek Pickmaster
+
+Zarek Pickmaster
+Piper of Dragonspyre (250 gold, 2280 xp, housing item)
+- Locate Central Platform
+- Defeat Vika Markmaker (Myth, rank 8 boss, 4,500 xp, ancient crystal weaver minion)
+- Talk to Zarek Pickmaster
+
+Kozel Toothtamer
+Clutch of the Spider (730 xp, housing item)
+- Destroy 8 Spider Egg Clutches
+- Talk to Kozel Toothtamer
+
+Kozel Toothtamer
+Spider Hunt (125 gold, 1820 xp)
+- Defeat 12 South Grove Spiders
+- Talk to Kozel Toothtamer
+
+Kozel Toothtamer
+Eight-Legged Queen (125 gold, 2280 xp)
+- Defeat Crystalline Queen (balance, rank 9 boss, 5,500 hp, faceted spikespinner minion) (this is a tower)
+- Talk to Kozel Toothtamer
+
+Kozel Toothtamer
+Grove of the Spiders (125 gold, 1820 xp)
+- Defeat North Grove Spiders and collect 4 samples
+- Talk to Kozel Toothtamer
+
+Kozel Toothtamer
+Corrupted Crawlers (2280 xp, athame, housing item)
+- Defeat Yeva Spiderkeeper (death, rank 8 boss, 6,500 hp, Faceted Spikespinner minion)
+- Talk to Kozel Toothtamer
+
+THE FORUM
+(SIDE QUEST)
+(MAIN QUEST)
+
+Vidor Drakesmith
+Hit the Books (775 xp)
+- Locate The Forum Chamber
+- Use Knowledge Crystal
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Read the Manual (128 gold, 775 xp) (after finishing “Hit the Books”)
+- Locate Forum Anteroom
+- Use Knowledge Crystal
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Training Wings (128 gold, 775 xp) (after finishing “Read the Manual”)
+- Locate Staging Room
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Overdue Fees (128 gold, 2420 xp) (after finishing “Training Wings”)
+- Defeat Kraysys (storm, rank 8 boss, 5,000 hp, fangtooth lavaspinner minion) and collect Knowledge Crystal
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Third Time is the Charm (775 xp) (after finishing “Overdue Fees”)
+- Locate Staging Room
+- Use crystal stand
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Fuel and Flame (1940 xp, housing item) (after finishing “Third Time is the Charm”)
+- Defeat Fangtooth Lavaspinner and collect 3 cool hearts
+- Defeat Burning Flamewing and collect Flame Sacs
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Forging the Fire (128 gold, 775 xp) (after finishing “Fuel and Flame”)
+- Use Forge
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Repo Mage (128 gold, 1940 xp) (after finishing “Forging the Fire”)
+- Defeat Terrorwing Talonmaster and collect 8 armor pieces
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Ancient Dragon Secret (775 xp) (after finishing “Repo Mage”)
+- Collect 6 Brimstone
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+He Who Smelt It (128 gold, 775 xp) (after finishing “Ancient Dragon Secret”)
+- Use Fire Forge
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Scales of the Dragon (128 gold, 2420 xp, robe, housing item) (after finishing “He Who Smelt It”)
+- Talk to Father Drake
+- Talk to Vidor Drakesmith
+
+Vidor Drakesmith
+Armor for Baby (2420 xp) (after finishing “Scales of the Dragon”)
+- Talk to Ancient Matriarch
+(SIDE QUEST)
+
+Darkstone
+Draconians Go Home (1940 xp)
+- Defeat 15 Undead Draconians
+- Talk to Darkstone
+
+Darkstone
+The Death-Maker (128 gold, 1940 xp)
+- Locate Abandoned Tower
+- Defeat Reanimated Draconians
+- Talk to Darkstone
+
+Darkstone
+Scrying Time (775 xp)
+- Locate Wizard Tower
+- Locate Scrying Lens
+- Talk to Darkstone
+
+Darkstone
+Meet the New Boss (128 gold, 2420 xp, housing item)
+- Defeat Vesta Shadowmark (balance, rank 8 boss, 4,500 hp, reanimated draconian minion)
+- Talk to Darkstone

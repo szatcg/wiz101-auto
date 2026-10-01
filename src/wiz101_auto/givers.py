@@ -60,6 +60,8 @@ def is_named_npc(object_name: str, display: str, behaviors: list[str]) -> bool:
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
 
 GUIDE_DIR = Path("docs") / "sidequests"
+MENU_QUESTS = 3  # quest options taken from one NPC's menu
+NO_PROMPT_RETRIES = 3  # walks to an NPC that showed no talk prompt before giving up
 # Never asked for quests (the player's call): Prospector Zeke's are hunts for
 # hidden things (Stray Cat Strut's cats) the bot can't find.
 SKIP_GIVERS = frozenset({"prospectorzeke"})
@@ -179,6 +181,7 @@ class QuestGivers:
         self.q = quester
         self.client = quester.client
         self._last_check = 0.0
+        self._no_prompt: dict[str, int] = {}  # NPCs walked to without a talk prompt
         self.main_sweep_zone = ""  # where the next main quest's giver is asked for (sweep_now)
         self._talked: dict[str, float] = {}
         self._zone = ""
@@ -361,8 +364,22 @@ class QuestGivers:
             accepted = self.q.dialogue.accepted if self.q.dialogue else 0
             await self.client.send_key(Keycode.X, 0.1)
             await asyncio.sleep(1.5)
+            taken: set[str] = set()
+            for _ in range(MENU_QUESTS):
+                # A menu (several quests, or quests and a shop): each quest
+                # option once ('Don't Fall In' at Milos Bookwyrm, beside
+                # 'Warkeeper'; closing the menu never took it).
+                if not await self.q.services.is_open():
+                    break
+                if not await self.q.services.choose_quest(taken):
+                    await self.q.services.close()
+                    break
+                await asyncio.sleep(1.0)
+                await wait_until_free(self.client, timeout=20)
+                await ui.close_menus(self.client)
+                await self.client.send_key(Keycode.X, 0.1)  # the menu again, for the next one
+                await asyncio.sleep(1.5)
             if await self.q.services.is_open():
-                # A menu of services (shops, several quests): nothing to pick blindly.
                 await self.q.services.close()
             await wait_until_free(self.client, timeout=20)
             await ui.close_menus(self.client)
@@ -371,7 +388,13 @@ class QuestGivers:
                 self.q._ranked_for = None
                 self.q._last_rank = -1e9  # re-rank: maybe it's a quick errand
         else:
-            logger.debug(f"no talk prompt at {name} ({prompt!r})")
+            logger.info(f"no talk prompt at {name} ({prompt!r})")
+            fails = self._no_prompt.get(name, 0) + 1
+            self._no_prompt[name] = fails
+            if fails < NO_PROMPT_RETRIES:
+                # Not asked after all (Milos Bookwyrm: the teleport by him
+                # was refused): again on a later pass.
+                self._talked.pop(self._key(zone, name), None)
         if await is_free(self.client):
             await self.client.teleport(back)
         return True
