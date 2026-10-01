@@ -1296,6 +1296,11 @@ class Quester:
                 # marked: Recall is the way back to it from another world.)
                 logger.debug(f"not marking in the hub {zone}")
                 return False
+            # Inside a dungeon or a room the mark goes where we are, enemies near
+            # or not: without it the heal trip came back by the sigil mark and
+            # the dungeon started over (the Death Oni's tower).
+            if require_clear and ("/interiors/" in zone.lower() or await self._in_dungeon(zone)):
+                require_clear = False
             if kind != "dungeon" and require_clear:  # a dungeon mark belongs on its sigil
                 # Recall lands us here later, when patrols may have wandered in
                 # (a mark among Otomo Supply Runners meant a fight on return):
