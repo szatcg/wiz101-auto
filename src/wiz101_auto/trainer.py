@@ -126,6 +126,8 @@ class SpellTrainer:
         if not await self._go_to_professor(school):
             logger.warning(f"could not reach {school.professor}; trying again in {RETRY_MINUTES} min")
             self._retry_at = time.monotonic() + RETRY_MINUTES * 60
+            if before:
+                self.q.pin_new_quest_after(before)  # (a quest he gave still comes next)
             return True
         learned = await self._train(level)
         self.progression.state["trained_level"] = target
@@ -230,6 +232,7 @@ class SpellTrainer:
         await self.client.teleport(school.spot)
         await asyncio.sleep(1.0)
         menu = self.q.services
+        taken: set[str] = set()  # quests taken this visit (they stay listed after)
         for _ in range(6):
             if await ui.is_visible(self.client, GUI):
                 return True
@@ -238,7 +241,7 @@ class SpellTrainer:
                 # accepted, then pinned after the trip), then training.
                 if self.q.dialogue:
                     self.q.dialogue.accept_offers_for(60)
-                if await menu.choose_quest():
+                if await menu.choose_quest(taken):
                     await asyncio.sleep(2.0)
                     await wait_until_free(self.client, timeout=40)
                     await ui.close_menus(self.client)

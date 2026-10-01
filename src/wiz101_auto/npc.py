@@ -117,9 +117,10 @@ class ServicesMenu:
     async def close(self):
         await ui.click(self.client, ["WorldView", "NPCServicesWin", "wndDialogMain", "Exit"])
 
-    async def choose_quest(self) -> bool:
+    async def choose_quest(self, skip: set[str] | None = None) -> bool:
         """In an NPC's menu, click an option that isn't training or a shop (a
-        quest on offer). False if there's none."""
+        quest on offer), nor one in `skip` (taken already: an accepted quest
+        stays in the menu). Adds the label to `skip`. False if there's none."""
         win = await ui.window_at(self.client, NPC_SERVICES)
         if win is None:
             return False
@@ -128,8 +129,10 @@ class ServicesMenu:
             await _clickable(win, options)
         for o in options:
             label = (await _text_of(o)).lower()
-            if not label or any(w in label for w in NOT_QUESTS):
+            if not label or any(w in label for w in NOT_QUESTS) or (skip is not None and label in skip):
                 continue
+            if skip is not None:
+                skip.add(label)
             logger.info(f"NPC menu: taking {label!r}")
             await self.client.mouse_handler.click_window(o)
             return True
