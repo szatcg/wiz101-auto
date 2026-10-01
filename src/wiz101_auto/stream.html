@@ -85,6 +85,7 @@
 
   .prog { display: grid; grid-template-columns: 110px 1fr 52px; gap: 10px; align-items: center; margin-top: 9px; font-size: 14px; }
   .prog .n { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #sRow { grid-template-columns: 1fr 52px; row-gap: 4px; } #sRow .n { grid-column: 1 / 3; }  /* the area name above its bar */
   .prog .p { text-align: right; font-weight: 800; color: var(--gold); }
   .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
   .bar > div { height: 100%; background: linear-gradient(90deg, #c99a2e, var(--gold)); transition: width 0.8s; }
@@ -152,7 +153,12 @@
   body.fighting .progress-card { display: none; }
 
   /* quest steps (outside fights) */
-  .qsteps h4 { margin: 4px 0 8px; font: 700 19px Cinzel, serif; color: var(--gold-2); line-height: 1.2; }
+  .qhead { display: flex; justify-content: space-between; align-items: center; }
+  .kind { font: 800 11px Inter; letter-spacing: 1.5px; padding: 3px 9px; border-radius: 999px; color: #10121f; }
+  .kind.main { background: var(--gold); } .kind.side { background: var(--teal); }
+  #qsteps { margin-top: 8px; }
+  body.inbattle #qsteps .qstep.done, body.inbattle #qsteps .qstep.next { display: none; }
+  body.inbattle #qsteps .qstep.now { animation: none; }
   .qstep { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; padding: 7px 9px; margin-top: 5px;
     border-radius: 10px; background: rgba(255, 255, 255, 0.03); font-size: 14px; line-height: 1.3; }
   .qstep .ic { text-align: center; font-weight: 900; }
@@ -163,10 +169,6 @@
     box-shadow: 0 0 14px rgba(242, 193, 78, 0.22); animation: slide 0.45s ease-out; }
   .qstep.now .ic { color: var(--gold); }
   .qstep.next { color: var(--muted); font-style: italic; }
-  .qmore { margin-top: 12px; }
-  .qmore li { list-style: none; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
-  .qmore ul { margin: 4px 0 0; padding: 0; }
-  .qmore small { color: var(--muted); }
 
   /* ---- thoughts strip ---- */
   .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
@@ -226,12 +228,11 @@
     <div class="hptext"><span>Health</span><span id="hptext"></span></div>
   </div>
 
-  <div class="card">
-    <span class="label">Current quest</span>
+  <div class="card" id="questCard">
+    <div class="qhead"><span class="label">Current quest</span><span class="kind" id="kind"></span></div>
     <div class="quest-name" id="quest">—</div>
-    <span class="label goal-label">Goal</span>
-    <div class="objective" id="objective"></div>
     <div class="where" id="where"></div>
+    <div id="qsteps"></div>
   </div>
 
   <div class="card progress-card">
@@ -239,6 +240,7 @@
     <div class="prog"><span class="n" id="wName">World</span><div class="bar"><div id="wBar"></div></div><span class="p" id="wPct">0%</span></div>
     <div class="prog"><span class="n" id="aName">Arc</span><div class="bar"><div id="aBar"></div></div><span class="p" id="aPct">0%</span></div>
     <div class="prog"><span class="n">Spiral</span><div class="bar"><div id="oBar"></div></div><span class="p" id="oPct">0%</span></div>
+    <div class="prog" id="sRow"><span class="n" id="sName">Side quests</span><div class="bar"><div id="sBar"></div></div><span class="p" id="sPct">0%</span></div>
   </div>
 
   <div class="card farm" id="farm" style="display:none">
@@ -291,11 +293,22 @@ function renderSide() {
   const [hp, max] = String(s.health || "0/0").split("/").map(Number);
   $("hp").style.width = max ? `${(100 * hp) / max}%` : "0%";
   $("hptext").textContent = max ? `${hp} / ${max}` : "";
-  $("quest").textContent = data.current.quest || "—";
-  $("objective").textContent = data.current.grinding ? "Grinding for experience (no quest to do right now)" : (data.current.objective || "");
+  $("quest").textContent = data.current.grinding ? "Grinding for experience" : (data.current.quest || "—");
+  const main = data.current.main;
+  $("kind").className = "kind " + (main ? "main" : "side");
+  $("kind").textContent = main == null || data.current.grinding ? "" : main ? "MAIN QUEST" : "SIDE QUEST";
+  $("kind").style.display = $("kind").textContent ? "" : "none";
+  renderSteps();
+  const sq = data.sides || {};
+  $("sRow").style.display = sq.area ? "" : "none";
+  if (sq.area) {  // (no side quests known for the area yet: "—")
+    $("sName").textContent = `Side quests · ${sq.area}`;
+    $("sPct").textContent = sq.total ? `${sq.done}/${sq.total}` : "—";
+    $("sBar").style.width = `${sq.total ? sq.pct : 0}%`;
+  }
   const zone = ((s.zone || "").split("/").slice(1).pop() || "")
     .replace(/^[A-Z]{2}_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
-  $("where").textContent = [data.current.world, zone].filter(Boolean).join(" · ");
+  $("where").textContent = [data.current.world, (data.sides || {}).area || zone].filter(Boolean).join(" · ");
   const w = data.worlds.find((x) => x.current);
   if (w) { $("wName").textContent = w.name; $("wPct").textContent = `${w.pct}%`; $("wBar").style.width = `${w.pct}%`; }
   const a = data.arcs.find((x) => x.current);
@@ -363,6 +376,9 @@ function renderLower() {
   const s = (data && data.status) || {};
   const planning = !!(battle && battle.active && s.in_battle);
   document.body.classList.toggle("fighting", planning);  // the plan gets the progress card's room
+  document.body.classList.toggle("inbattle", !!s.in_battle);
+  $("lower").style.display = "";
+  $("questCard").classList.toggle("grow", !s.in_battle);
   if (planning) { renderPlanner(battle); return; }
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
@@ -386,19 +402,20 @@ function renderLower() {
       ${b.plan ? `<div class="plan">🧮 Plan: ${esc(b.plan.replaceAll(" > ", " → ").split(" | ").join(" · ").replace(/; skipping the minion.*/, ""))}</div>` : ""}`;
     return;
   }
-  const book = (data && data.book) || [];
+  $("lower").style.display = "none";  // outside fights the quest card takes the room
+  $("questCard").classList.add("grow");
+}
+
+function renderSteps() {
   const st = (data && data.steps) || {};
-  const done = (st.done || []).slice(-5).map((t) =>
+  const nowText = data.current.grinding ? "No quest to do right now: fighting for experience"
+                                        : (st.now || data.current.objective || "");
+  const done = (st.done || []).slice(-8).map((t) =>
     `<div class="qstep done"><span class="ic">✓</span><span class="tx">${esc(t)}</span></div>`).join("");
-  const now = st.now ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(st.now)}</span></div>` : "";
-  const next = (st.next || []).slice(0, 4).map((t) =>
+  const now = nowText ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(nowText)}</span></div>` : "";
+  const next = (st.next || []).slice(0, 5).map((t) =>
     `<div class="qstep next"><span class="ic">○</span><span class="tx">${esc(t)}</span></div>`).join("");
-  const others = book.filter((q) => q.name !== data.current.quest).slice(0, 5);
-  $("lower").className = "card grow qsteps";
-  $("lower").innerHTML = `<span class="label">Quest steps</span><h4>${esc(st.quest || data.current.quest || "—")}</h4>
-    ${done}${now}${next}
-    ${others.length ? `<div class="qmore"><span class="label">Also in the book</span><ul>${others.map((q) => `
-      <li><span>${esc(q.name)}</span><small>${q.main ? "main" : q.spell ? "spell" : "side"}</small></li>`).join("")}</ul></div>` : ""}`;
+  $("qsteps").innerHTML = done + now + next;
 }
 
 function describe(e) {

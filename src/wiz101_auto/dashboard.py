@@ -82,6 +82,41 @@ def _quest_steps(quest: str, objective: str, world: str | None) -> dict:
         return {"quest": quest, "done": [], "now": objective, "next": []}
 
 
+def _is_main(book: dict, listed) -> bool | None:
+    """Is the tracked quest the story? On the world's story list, or the book
+    says so (the book calls some story quests side quests)."""
+    name = book.get("tracking", "")
+    if not name:
+        return None
+    if any(norm(q.name) == norm(name) for q in listed):
+        return True
+    return any(q.get("name") == name and q.get("main") for q in book.get("quests", []))
+
+
+_last_area = ""  # the last outdoor area the wizard was in (interiors have no name)
+
+
+def _zone_sides(book: dict, zone: str, world: str | None, lists: dict, completed: list[str]) -> dict:
+    """Side quests done in the area the wizard is in (inside a building or
+    dungeon: the last area outside, else the tracked quest's area)."""
+    global _last_area
+    from .givers import load_guide
+    from .side_progress import area_of_zone, area_progress, remember_book
+    from .travel_data import _data
+
+    try:
+        known = remember_book(book)
+        area = area_of_zone(zone, _data()[1]) if zone else ""
+        if area:
+            _last_area = area
+        area = area or _last_area or book.get("tracking_area", "")
+        if not area or not world:
+            return {}
+        return area_progress(area, load_guide(world), known, lists.get(world, []), completed)
+    except Exception:
+        return {}
+
+
 def build_data(docs: Path = Path("docs")) -> dict:
     status = _read_json(STATUS)
     book = _read_json(QUEST_BOOK)
@@ -165,7 +200,9 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "objective": status.get("objective") or "",
             "objective_age_s": status.get("objective_age_s"),
             "grinding": status.get("activity") == "grinding for experience",
+            "main": _is_main(book, lists.get(here or "", [])),
         },
+        "sides": _zone_sides(book, status.get("zone", ""), here, lists, completed),
         "steps": _quest_steps(book.get("tracking", ""), status.get("objective") or "", here),
         "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),
