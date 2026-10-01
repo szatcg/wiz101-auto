@@ -39,6 +39,7 @@ REWARD_CLOSE = [*REWARD, "btnBackground"]
 MAX_OPTIONS = 12
 RETRY_MINUTES = 10
 MAX_PAGES = 4
+SPELLS_PER_TRIP = 6  # talks to the professor in one trip (one spell bought per talk)
 
 
 @dataclass(frozen=True)
@@ -129,7 +130,25 @@ class SpellTrainer:
             if before:
                 self.q.pin_new_quest_after(before)  # (a quest he gave still comes next)
             return True
-        learned = await self._train(level)
+        # One spell per talk: buying a second in the same window missed it
+        # (Earthquake after Vermin Virtuoso, level 42: the list had shifted).
+        # Train one, close, talk to the professor again, until none is left.
+        learned: list[str] = []
+        tries: dict[str, int] = {}
+        for _ in range(SPELLS_PER_TRIP):
+            got = await self._train(level, skip={n for n, k in tries.items() if k >= 2})
+            if not got:
+                break
+            for name in got:
+                tries[name] = tries.get(name, 0) + 1
+                if name not in learned:
+                    learned.append(name)
+            if not await self._talk_to(school):
+                break
+        else:
+            await self._press(EXIT)
+        if await ui.is_visible(self.client, GUI):
+            await self._press(EXIT)
         self.progression.state["trained_level"] = target
         self.progression._save()
         if learned:
@@ -281,8 +300,10 @@ class SpellTrainer:
         await ui.click_center(self.client, w)
         return True
 
-    async def _train(self, level: int) -> list[str]:
-        known = {norm(s) for s in self.progression.state.get("known_spells", [])}
+    async def _train(self, level: int, skip: set[str] = frozenset()) -> list[str]:
+        """Buy the first spell we can and don't know yet (not in `skip`), then
+        close the window. [its name], or [] when nothing is left."""
+        known = {norm(s) for s in self.progression.state.get("known_spells", [])} | {norm(x) for x in skip}
         learned: list[str] = []
         try:
             for _ in range(MAX_PAGES):
@@ -302,6 +323,7 @@ class SpellTrainer:
                         await asyncio.sleep(0.8)
                     learned.append(name)
                     logger.info(f"trained {name}")
+                    return learned  # (one per talk; the finally closes the window)
                 if any(lv > level for _n, lv, _p in options) or not await self._press(PAGE_DOWN):
                     break  # the list is sorted by level: nothing further is trainable
                 await asyncio.sleep(0.6)
