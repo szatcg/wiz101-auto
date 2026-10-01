@@ -196,7 +196,10 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
-                   "use_walk": 2, "collect_marker": 3, "marker_travel": 2}
+                   "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
+                   "spirit_portal": 2}
+PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
+CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
 _USE_OBJECT = re.compile(
     r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull|learn|read|study|examine|inspect|touch)\s")
@@ -890,6 +893,29 @@ class Quester:
                                   await self.client.zone_name() or None)
             return True
         return False
+
+    async def _light_and_enter(self, zone: str, marker: XYZ) -> bool:
+        """A spirit portal near the marker: press X at each candle around it,
+        then at the portal. True if it found the portal (and tried)."""
+        await scan_entities(self.client, zone, self.entity_map)
+        here = (marker.x, marker.y, marker.z)
+        is_portal = lambda n: "spiritworldportal" in n.lower().replace(" ", "")  # noqa: E731
+        portals = self.entity_map.spots(zone, is_portal, here)
+        portals = [pt for pt in portals if math.dist(pt[:2], here[:2]) < PORTAL_NEAR_MARKER]
+        if not portals:
+            return False
+        portal = XYZ(*portals[0])
+        candles = self.entity_map.spots(zone, lambda n: n.lower() in ("candle", "ritual candle"), portals[0])
+        candles = [c for c in candles if math.dist(c[:2], portals[0][:2]) < CANDLE_RANGE]
+        logger.info(f"a spirit portal by the marker: lighting {len(candles)} candle(s), then into the portal")
+        for c in candles:
+            if not await is_free(self.client):
+                return True
+            await self._use_object_at(XYZ(*c))
+        if await is_free(self.client):
+            logger.info("pressing X at the spirit portal")
+            await self._use_object_at(portal)
+        return True
 
     async def _use_object_at(self, spot: XYZ) -> bool:
         """An object to use at `spot` (the Burial Ground Tablet: the teleport
@@ -4064,6 +4090,13 @@ class Quester:
                         await self.walk_through(marker, zone_now)
                     else:
                         await self.travel(marker)
+                    return
+                # A Spirit World portal by the marker (Tomugawa the Evil, Ancient
+                # Burial Grounds): light every ritual candle around it, then X
+                # at the portal brings the fight (the player's directions).
+                if self._may_try(objective, zone_now, "spirit_portal") and await self._light_and_enter(
+                    zone_now, marker
+                ):
                     return
                 # Not in view and not remembered anywhere: the marker may still
                 # be a door or sigil into its room (Tomugawa the Evil: the hops
