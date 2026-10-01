@@ -662,6 +662,7 @@ class Quester:
         self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
         self._no_main_alerted = -1e9  # last "no main quest in the book" alert
         self._last_main = ""  # the last main-story quest seen in the book
+        self._last_main_zone = ""  # where we were at that reading ("swept" once its NPCs were asked again)
         self._no_main_reads = 0  # full quest-book reads (alerted) with no main quest
         self._stuck_times: dict[str, int] = {}  # main quest -> times it was found stuck
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
@@ -2192,6 +2193,16 @@ class Quester:
             self._mainline = {q.name for _, q in all_quests if q.mainline}
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
+                self._last_main_zone = await self.client.zone_name() or ""
+            elif complete and self._last_main_zone != "swept":
+                # (After a restart: where we are now.)
+                self._last_main_zone = self._last_main_zone or await self.client.zone_name() or ""
+                # The main quest was just handed in and no next one came: its
+                # giver is usually near (asked an hour ago, before it had it).
+                logger.info(f"no main quest after {self._last_main!r}: asking the NPCs of "
+                            f"{self._last_main_zone.split('/')[-1]} again")
+                self.givers.sweep_now(self._last_main_zone)
+                self._last_main_zone = "swept"
             alert_due = time.monotonic() - self._no_main_alerted > NO_MAIN_ALERT_SECONDS
             if complete and not self._mainline and alert_due:
                 # The next main quest isn't in the book (after 'Weights and

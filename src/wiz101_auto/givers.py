@@ -201,6 +201,17 @@ class QuestGivers:
         except Exception:
             pass
 
+    def sweep_now(self, zone: str):
+        """Ask every NPC of `zone` again at once, the ones asked within the hour
+        too: a main quest was just handed in and the next one isn't in the
+        book (its giver is usually close by, and was asked before it had it)."""
+        if not zone:
+            return
+        self._zone_checks.pop(zone, None)
+        self._talked = {k: v for k, v in self._talked.items() if not k.startswith(f"{zone}|")}
+        self._zone = ""  # the next ask_nearby starts the sweep
+        self._last_check = 0.0
+
     def _key(self, zone: str, name: str) -> str:
         return f"{zone}|{name}"
 
