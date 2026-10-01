@@ -3526,10 +3526,11 @@ class Quester:
     async def _walk_into_circle(self, marker: XYZ) -> bool:
         """Land CIRCLE_WALK_FROM away from the duel circle nearest the marker
         and walk into it (the way a player starts a fight). True if it went."""
-        from .collect import duel_circles
         from .safe_teleport import allow_engage
 
-        circles = [XYZ(*c) for c in await duel_circles(self.client)]
+        # Loaded now or seen before here: far from the marker (Plague Oni's in
+        # Shirataki Temple) none is loaded, and this did nothing.
+        circles = [XYZ(*c) for c in await self._duel_circles(await self.client.zone_name() or "")]
         near = [c for c in circles if distance(c, marker) < CIRCLE_NEAR_MARKER]
         if not near:
             return False
