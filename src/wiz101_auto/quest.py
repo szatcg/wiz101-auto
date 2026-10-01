@@ -1414,6 +1414,11 @@ class Quester:
             # Already there, or inside a dungeon (a Recall out resets it: it
             # left Counterweight East right after its last lever).
             return False
+        if dest and (self.doors.leading_to(dest, zone) or DungeonMemory.load().bosses.get(
+                defeat_target(objective) or "") == zone):
+            # In a room entered from the objective's place (the Spirit World
+            # off the Burial Grounds, where Tomugawa is): the objective is here.
+            return False
         if not recall_is_faster(zone, dest, self._mark, zone_hops, objective):
             return False
         if not await is_free(self.client):
