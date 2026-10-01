@@ -1266,7 +1266,21 @@ class Quester:
         self._sigil_failed_at = sigil
         return False
 
-    async def _mark_here(self, kind: str = "dungeon", objective: str | None = None) -> bool:
+    async def _mark_in_dungeon_fight(self, objective: str, zone: str):
+        """Inside a dungeon, before its fight: mark here, so a defeat is
+        followed by a Recall back into this copy of the dungeon (the sigil
+        mark outside meant going in again: a fresh copy, all progress lost,
+        after losing to the Death Oni). Once per objective."""
+        m = self._mark
+        if m and m.kind == "fight" and m.objective == objective and m.zone == zone:
+            return
+        if self._recall_pending:
+            return  # a defeat's Recall to the current mark comes first
+        logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
+        await self._mark_here("fight", objective=objective, require_clear=False)
+
+    async def _mark_here(self, kind: str = "dungeon", objective: str | None = None,
+                         require_clear: bool = True) -> bool:
         """Mark this spot. A dungeon's sigil: after a defeat and healing, Recall
         brings us straight back instead of walking across the world again. A
         travel mark: a later objective near it is reached by Recall."""
@@ -1282,7 +1296,7 @@ class Quester:
                 # marked: Recall is the way back to it from another world.)
                 logger.debug(f"not marking in the hub {zone}")
                 return False
-            if kind != "dungeon":  # a dungeon mark belongs on its sigil
+            if kind != "dungeon" and require_clear:  # a dungeon mark belongs on its sigil
                 # Recall lands us here later, when patrols may have wandered in
                 # (a mark among Otomo Supply Runners meant a fight on return):
                 # only somewhere well clear of every enemy, else no mark.
@@ -4867,6 +4881,9 @@ class Quester:
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
             if objective_zone(objective) == zone:  # an unknown place: no mark (it went in the Oasis)
                 await self._mark_for_fight(objective, zone or "")
+        if (is_combat_objective(objective) and not is_team_up_zone(zone or "")
+                and ("/interiors/" in (zone or "").lower() or await self._in_dungeon(zone or ""))):
+            await self._mark_in_dungeon_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
         # "Use Charging Lever": go right up to the object itself, at its own
         # height (on a raised ledge the marker's approach never got the prompt).
