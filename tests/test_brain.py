@@ -1223,3 +1223,14 @@ def test_no_second_prism_on_a_prismed_enemy():
     b.prismed = {"Haru"}
     after = [a for a in candidates(b) if a.card and a.card.name == "Myth Prism"]
     assert before and not after
+
+
+def test_kakeda_shadows_are_killed_one_at_a_time():
+    from wiz101_auto.combat.fighter import one_at_a_time
+
+    frog = dmg_card(0, "Humongofrog", 300, pips=4, target=Target.ENEMY_ALL)
+    shadows = [enemy("Kakeda Shadow", 500), enemy("Kakeda Shadow", 500)]
+    b = battle([frog, dmg_card(1, "Cyclops", 300, pips=3)], shadows)
+    assert one_at_a_time(b)
+    a = decide(b)
+    assert a.card.name != "Humongofrog"

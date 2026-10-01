@@ -32,6 +32,24 @@ def _load_card_info() -> dict:
         return {}
 
 
+# Enemies that must die one at a time: the two Kakeda Shadows (Ancient Burial
+# Grounds) killed together by a hit-all spell "die" without falling, and the
+# Mantra 2 tablet then never opens (a game bug; players beat them singly).
+ONE_AT_A_TIME = frozenset({"Kakeda Shadow"})
+
+
+def one_at_a_time(battle) -> bool:
+    """With such enemies, hit-all spells are left out of the decision (the
+    hand and the deck still to come: else it saves pips for one). Cards keep
+    their hand index. True if it changed anything."""
+    if not any(e.name in ONE_AT_A_TIME for e in battle.live_enemies):
+        return False
+    before = len(battle.cards) + len(battle.upcoming)
+    battle.cards = [c for c in battle.cards if not c.is_aoe]
+    battle.upcoming = [c for c in battle.upcoming if not c.is_aoe]
+    return len(battle.cards) + len(battle.upcoming) != before
+
+
 def _save_card_info(info: dict) -> None:
     import pickle
 
@@ -440,6 +458,7 @@ class Fighter(CombatHandler):
                 continue
 
             battle.upcoming = self._upcoming(battle)
+            one_at_a_time(battle)
             # Known only when every card still to come has been seen (after a
             # restart Humongofrog and Cyclops weren't yet: "no attack cards
             # left" fled a fight on its first round).

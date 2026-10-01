@@ -1871,6 +1871,13 @@ class Quester:
         # 5 minutes. Walk up to it and press X.
         if (objective and _USE_OBJECT.match(objective)
                 and self._may_try(objective, zone or "", "use_walk")):
+            # Inside an instance, the room's enemies first: the Mantra 2 tablet
+            # opens only once the Kakeda Shadows are beaten (one at a time:
+            # combat/fighter.ONE_AT_A_TIME).
+            if "/interiors/" in (zone or "").lower() and await self._fight_guards(
+                target, "object", reach=float("inf")
+            ):
+                return True
             logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
             if await self._use_object_at(target):
                 return True
@@ -2872,7 +2879,7 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
-    async def _fight_guards(self, spot: XYZ, what: str) -> bool:
+    async def _fight_guards(self, spot: XYZ, what: str, reach: float = 0.0) -> bool:
         """Enemies within GUARD_RANGE of `spot` (a lever): fight the nearest
         first. Skipping a floor's fights can keep a dungeon's boss from
         spawning (Sprockets). True if it went into a fight."""
@@ -2882,7 +2889,7 @@ class Quester:
                 pos = await mob.location()
             except Exception:
                 continue
-            if distance(pos, spot) > GUARD_RANGE:
+            if distance(pos, spot) > (reach or GUARD_RANGE):
                 continue
             if any(math.dist((pos.x, pos.y), c[:2]) < CIRCLE_KEEP_AWAY for c in circles):
                 continue  # the boss's own circle: not now
