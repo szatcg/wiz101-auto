@@ -12,6 +12,17 @@ from pathlib import Path
 
 Point = tuple[float, float, float]
 
+# Open battlefields behind a sigil: entered like a dungeon (the sigil is
+# remembered for travel), but enemies wander and nothing is lost by fleeing
+# or leaving to heal, so they're played like the open world. Crimson Fields:
+# the bot fought every Otomo Scout it met and searched for War Oni at 30%
+# health, treating it as a dungeon.
+OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
+
+
+def is_open_zone(zone: str) -> bool:
+    return zone in OPEN_ZONES
+
 
 @dataclass
 class DungeonEntry:

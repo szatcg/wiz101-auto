@@ -195,7 +195,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
-                   "walk_in": 1, "reenter": 1, "lone_wait": 5}
+                   "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3}
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -1267,6 +1267,10 @@ class Quester:
                 return False
             self._dungeon = (entry.outside, zone)
         outside, first_room = self._dungeon
+        from .dungeons import is_open_zone
+
+        if is_open_zone(zone):
+            return False  # (still inside the one entered from here: kept)
         if is_hub(zone) or zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
             self._dungeon = None
             return False
@@ -2703,6 +2707,10 @@ class Quester:
         return await landmarks(self.client)
 
     async def _in_any_dungeon(self, zone: str) -> bool:
+        from .dungeons import is_open_zone
+
+        if is_open_zone(zone):
+            return False
         return (
             is_team_up_zone(zone) or "/interiors/" in zone.lower()
             or zone in DungeonMemory.load().dungeons or await self._in_dungeon(zone)
@@ -3945,6 +3953,18 @@ class Quester:
                         return
                     if not await is_free(self.client):
                         return
+                # A boss remembered in another room (War Oni in a Crimson Fields
+                # battlefield): the marker here is that room's door, so go
+                # through it rather than sweep this zone for it.
+                room = DungeonMemory.load().bosses.get(target)
+                if (room and room != zone_now and distance(marker, XYZ(0, 0, 0)) > 1
+                        and self._may_try(objective, zone_now, "boss_room_door")):
+                    logger.info(f"{target} is in {room.split('/')[-1]}: through the quest marker's door")
+                    if distance(await self._position(), marker) < DOOR_NEAR:
+                        await self.walk_through(marker, zone_now)
+                    else:
+                        await self.travel(marker)
+                    return
                 # Far from the marker: walk toward it (enemies only load nearby;
                 # King Shemet was 26000 away, easy to reach on foot).
                 if not at_marker and self._may_try(objective, zone_now, "walk"):
