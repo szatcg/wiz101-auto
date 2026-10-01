@@ -402,6 +402,10 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     if junk:
         card = min(junk, key=lambda c: c.base_damage())
         return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+    snakes = [c for c in battle.cards if junk_gear_hit(c, battle)]
+    if snakes:
+        why = "a gear card hitting off-school; its trap fits nothing"
+        return Action(ActionKind.DISCARD, snakes[0], reason=why)
     # Setup that boosts none of our hits (the Frost Snake pet's ice trap),
     # gear cards the plan never plays (the amulet's Spirit Armor): they only
     # keep the blade/trap/big-hit cards out of the hand.
@@ -804,11 +808,12 @@ def _power(card: Card) -> float:
     return sum(e.value for e in card.effects)
 
 
-def _hit_schools(battle: Battle) -> set[str]:
-    """Schools of the damage spells in hand and still in the deck."""
+def _hit_schools(battle: Battle, besides: str = "") -> set[str]:
+    """Schools of the damage spells in hand and still in the deck (other
+    than `besides`: a card's own hit doesn't make its trap useful)."""
     out = set()
     for c in [*battle.cards, *battle.upcoming]:
-        if c.is_damage:
+        if c.is_damage and c.name != besides:
             out |= {(e.school or c.school).lower() for e in c.effects if e.kind in DAMAGE_KINDS}
     return out
 
@@ -820,7 +825,18 @@ def setup_fits(card: Card, battle: Battle) -> bool:
     schools = {e.school.lower() for e in card.effects if e.kind in (EffectKind.BLADE, EffectKind.TRAP)}
     if not schools or "" in schools:
         return True
-    return bool(schools & _hit_schools(battle))
+    # (The pet's 'Thunder Snake Ice' hits for 80 ice itself: that hit isn't
+    # one its ice trap is for.)
+    return bool(schools & _hit_schools(battle, besides=card.name))
+
+
+def junk_gear_hit(card: Card, battle: Battle) -> bool:
+    """A gear/pet card hitting off-school whose trap/blade fits none of our
+    other hits (the Frost Snake): never worth a turn."""
+    school = battle.me.school.lower()
+    has_setup = any(e.kind in (EffectKind.BLADE, EffectKind.TRAP) for e in card.effects)
+    return (card.item and not card.treasure and card.is_damage and bool(school)
+            and card.school.lower() != school and has_setup and not setup_fits(card, battle))
 
 
 def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> Action | None:
@@ -845,6 +861,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
         traps = [
             c for c in castable
             if EffectKind.TRAP in c.kinds and not c.is_enchant and setup_fits(c, battle)
+        and not junk_gear_hit(c, battle)
             and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects, battle.me.school.lower())
         ]
         if traps and target.trap_count < strat.max_traps:
@@ -1454,6 +1471,10 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     """The action for this step, with enemies holding our unused prism seen
     as our hits will find them (prism_view): the big myth hit is worth its
     storm damage on Meowiarty. The target maps back to the real enemy."""
+    # A pet/gear hit off our school whose trap fits nothing (the Frost Snake):
+    # never cast (the discard rule still bins it).
+    battle.cards = [replace(c, castable=False) if c.castable and junk_gear_hit(c, battle) else c
+                    for c in battle.cards]
     if not battle.prismed:
         return _decide_step(battle, strat, discards_left=discards_left)
     real = list(battle.enemies)

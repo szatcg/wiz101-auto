@@ -1271,3 +1271,18 @@ def test_a_gear_card_the_plan_never_plays_is_discarded():
     b.pips = 1
     a = decide(b)
     assert a.kind is ActionKind.DISCARD and a.card.name.startswith("Spirit Armor")
+
+
+def test_the_frost_snake_pet_hit_is_never_cast():
+    snake = Card(5, "Pet - Thunder Snake Ice", school="ice", pip_cost=1, item=True,
+                 effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 80, school="ice"),
+                          Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30, school="ice")])
+    colossus = Card(0, "Stone Colossus", school="myth", pip_cost=6,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)])
+    me_ = me(hp=2000, max_hp=2000)
+    me_.school = "myth"
+    for pips in (1, 3):
+        b = battle([snake, colossus], [enemy("Jade Oni", 6000, boss=True)], my=me_)
+        b.pips = pips
+        a = decide(b)
+        assert not (a.kind is ActionKind.CAST and a.card.name.startswith("Pet - Thunder Snake"))
