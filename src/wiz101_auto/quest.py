@@ -485,7 +485,7 @@ def dungeon_quest(
     never = set(skipped) | ALWAYS_SKIP
     local = [
         q for q in quests
-        if not q.mainline and q.world and q.name not in never
+        if not q.mainline and q.world and q.name not in never and not in_side_world(q)
         and (zone_of(q.world) == zone or named_here(q.world)
              or (zone_of(q.world) is None and q.world in main_areas))
     ]
