@@ -201,6 +201,12 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
+def _real_marker(m: XYZ) -> bool:
+    """A quest marker that points somewhere: (0, 0, z) is none (the Town
+    Dojo's marker sat on the room's center, under Ting Yin, for Usunoki)."""
+    return abs(m.x) > 1 or abs(m.y) > 1
+
+
 _FIND = re.compile(r"(?i)^\s*find\s+(.+?)(?:\s+in\s+[A-Z].*)?\s*$")
 _GO_TO = re.compile(r"(?i)^\s*go\s+to\s")
 _USE_OBJECT = re.compile(
@@ -4098,7 +4104,13 @@ class Quester:
                     return
             else:
                 where = objective_zone(objective)
-                if where and where != await self.client.zone_name():
+                here_zone = await self.client.zone_name() or ""
+                # Inside a dungeon, or a room entered from the objective's place
+                # (Usunoki in the Town Dojo, 'in Village of Sorrow'), it's here:
+                # returning silently looped every 2 s for minutes.
+                inside = await self._in_dungeon(here_zone) or bool(
+                    where and self.doors.leading_to(where, here_zone))
+                if where and where != here_zone and not inside:
                     return  # "... in Hall of Champions": not here; the quest marker leads there
                 # At the marker with the enemy nowhere in the zone: the marker is
                 # the way to it (a teleporter like the Djeserit tomb's "To the
@@ -4106,7 +4118,7 @@ class Quester:
                 marker = await self.client.quest_position.position()
                 zone_now = await self.client.zone_name() or ""
                 at_marker = distance(await self._position(), marker) < MARKER_WAY_RANGE
-                if distance(marker, XYZ(0, 0, 0)) > 1 and at_marker and self._may_try(
+                if _real_marker(marker) and at_marker and self._may_try(
                     objective, zone_now, "marker_x"
                 ):
                     if await self._press_x_here(zone_now, adjust=True):
@@ -4117,7 +4129,7 @@ class Quester:
                 # battlefield): the marker here is that room's door, so go
                 # through it rather than sweep this zone for it.
                 room = DungeonMemory.load().bosses.get(target)
-                if (room and room != zone_now and distance(marker, XYZ(0, 0, 0)) > 1
+                if (room and room != zone_now and _real_marker(marker)
                         and self._may_try(objective, zone_now, "boss_room_door")):
                     logger.info(f"{target} is in {room.split('/')[-1]}: through the quest marker's door")
                     if distance(await self._position(), marker) < DOOR_NEAR:
@@ -4136,7 +4148,7 @@ class Quester:
                 # be a door or sigil into its room (Tomugawa the Evil: the hops
                 # toward it were refused and the main quest was set aside in a
                 # minute). Travel there first: it goes through doors.
-                if (not at_marker and distance(marker, XYZ(0, 0, 0)) > 1
+                if (not at_marker and _real_marker(marker)
                         and self._may_try(objective, zone_now, "marker_travel")):
                     logger.info(f"no {target} in view: to the quest marker first (it may be a way in)")
                     await self.travel(marker)
