@@ -196,7 +196,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
-                   "use_walk": 2, "collect_marker": 3}
+                   "use_walk": 2, "collect_marker": 3, "marker_travel": 2}
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
 _USE_OBJECT = re.compile(
     r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull|learn|read|study|examine|inspect|touch)\s")
@@ -4064,6 +4064,15 @@ class Quester:
                         await self.walk_through(marker, zone_now)
                     else:
                         await self.travel(marker)
+                    return
+                # Not in view and not remembered anywhere: the marker may still
+                # be a door or sigil into its room (Tomugawa the Evil: the hops
+                # toward it were refused and the main quest was set aside in a
+                # minute). Travel there first: it goes through doors.
+                if (not at_marker and distance(marker, XYZ(0, 0, 0)) > 1
+                        and self._may_try(objective, zone_now, "marker_travel")):
+                    logger.info(f"no {target} in view: to the quest marker first (it may be a way in)")
+                    await self.travel(marker)
                     return
                 # Far from the marker: walk toward it (enemies only load nearby;
                 # King Shemet was 26000 away, easy to reach on foot).
