@@ -24,6 +24,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import sim
+from .model import EffectKind, Target
 
 MAX_COPIES = 3
 MIN_SIZE, MAX_SIZE = 12, 24
@@ -215,6 +216,36 @@ def seed_prisms(start: dict[str, int], cards: list[str], mix, school: str = "myt
     return {**start, prism: PRISM_SEED}
 
 
+def single_target_seed(cards: list[str]) -> dict[str, int]:
+    """A start for a boss: blades, traps, Feint, the strongest single hits
+    (and lasting boosts like Vermin Virtuoso), heals; no hit-all spells. From
+    the AoE deck one card at a time the search never got there (Jade Oni,
+    alone: 16% to win)."""
+    deck: dict[str, int] = {}
+    singles, setup = [], []
+    for name in cards:
+        c = sim.CARDS[name]()
+        if any(e.kind in (EffectKind.BLADE, EffectKind.TRAP) for e in c.effects) and not c.is_damage:
+            setup.append(name)
+        elif c.is_damage and not c.is_aoe and c.pip_cost >= 3:
+            singles.append((c.base_damage() * (1.3 if _has_aura(c) else 1.0), name))
+    for name in setup:
+        deck[name] = 1 if name in ONE_ONLY else MAX_COPIES
+    for _dmg, name in sorted(singles, reverse=True)[:3]:
+        deck[name] = MAX_COPIES
+    if "Pixie" in cards:
+        deck["Pixie"] = 2
+    while sum(deck.values()) > MAX_SIZE:
+        biggest = max(deck, key=lambda k: deck[k])
+        deck[biggest] -= 1
+    return {k: v for k, v in deck.items() if v}
+
+
+def _has_aura(c) -> bool:
+    return any(e.kind is EffectKind.OTHER and e.target is Target.NONE and e.school and e.value > 0
+               for e in c.effects)
+
+
 def main(argv=None):
     import multiprocessing as mp
 
@@ -259,8 +290,20 @@ def main(argv=None):
         if args.vs:
             start = seed_prisms(start, cards, mix)
         start = with_heals(start, cards, BOSS_NEEDS["heals"] if args.vs else GENERAL_NEEDS["heals"])
-        deck, rate, rounds = search(start, cards, mix, stats, pool, general=not args.vs,
-                                    seconds=args.minutes * 60, log=lambda s: print(s, flush=True))
+        starts = [start]
+        if args.vs:
+            seed = with_heals(single_target_seed(cards), cards, BOSS_NEEDS["heals"])
+            if seed and seed != start:
+                starts.append(seed)
+        best = None
+        for st in starts:  # each start gets its share of the time; the best result wins
+            deck, rate, rounds = search(st, cards, mix, stats, pool, general=not args.vs,
+                                        seconds=args.minutes * 60 / len(starts),
+                                        log=lambda s: print(s, flush=True))
+            sc = WIN_WEIGHT * rate - rounds - SIZE_COST * sum(deck.values())
+            if best is None or sc > best[0]:
+                best = (sc, deck, rate, rounds)
+        _sc, deck, rate, rounds = best
     print(f"BEST {what}: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}", flush=True)
     if args.out:
         Path(args.out).write_text(json.dumps({

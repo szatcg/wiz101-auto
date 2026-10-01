@@ -119,6 +119,9 @@ class Combatant:
     # negative = takes extra). None when the stats couldn't be read.
     resist: dict[str, float] | None = None
     damage_bonus: dict[str, float] = field(default_factory=dict)  # outgoing, per school
+    # Lasting boosts for the rest of the fight (Vermin Virtuoso: +25% myth),
+    # never used up by a hit, unlike blades: school -> fraction.
+    aura: dict[str, float] = field(default_factory=dict)
     # Summed percentages of hanging effects, e.g. two +25% blades -> 0.5
     outgoing_boost: float = 0.0  # blades (positive) / weaknesses (negative)
     incoming_boost: float = 0.0  # traps (positive) / shields (negative)

@@ -119,6 +119,7 @@ def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
     the target's traps and shields break on the first (a Feint under a
     Minotaur boosts only the 50)."""
     blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
+    blade *= 1 + attacker.aura.get(card.school.lower(), 0.0)
     trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
     school = school_multiplier(card, attacker, target)
     hits = [e.value for e in card.effects if e.kind in DAMAGE_KINDS]

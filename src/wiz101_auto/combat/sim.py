@@ -244,6 +244,12 @@ def _cast(f: Fight, action, rng: random.Random):
     if c.is_damage:
         targets = f.enemies if c.is_aoe else [action.target]
         _apply_hit(f, c, [t for t in targets if t and not t.is_dead], rng)
+        for e in c.effects:
+            # A lasting boost for the rest of the fight (Vermin Virtuoso: +25%
+            # myth after its hit); a second cast doesn't add to it.
+            if e.kind is EffectKind.OTHER and e.target is Target.NONE and e.school and e.value > 0:
+                school = e.school.lower()
+                f.me.aura[school] = max(f.me.aura.get(school, 0.0), e.value / 100)
     elif EffectKind.HEAL in kinds:
         f.me.health = min(f.me.max_health, f.me.health + int(sum(e.value for e in c.effects)))
     elif EffectKind.BLADE in kinds:
