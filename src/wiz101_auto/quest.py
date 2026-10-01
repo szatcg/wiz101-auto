@@ -197,10 +197,11 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2, "go_to_spot": 2}
+                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 4}
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
+_FIND = re.compile(r"(?i)^\s*find\s+(.+?)(?:\s+in\s+[A-Z].*)?\s*$")
 _GO_TO = re.compile(r"(?i)^\s*go\s+to\s")
 _USE_OBJECT = re.compile(
     r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull|learn|read|study|examine|inspect|touch)\s")
@@ -4676,6 +4677,23 @@ class Quester:
 
         if await self._try_switch_puzzle(objective, zone or ""):
             return
+
+        # "Find Ting Yin in Village of Sorrow": Ting Yin is a person (in the
+        # town dojo), not an item; the collect search swept the zone for him.
+        # A person named so in view: talk to them; else the quest marker leads
+        # there (through doors) before any item search.
+        m = _FIND.match(objective or "")
+        if m:
+            who = m.group(1).strip()
+            if await self._npc_named(who, near=await self._position()) is not None:
+                if await self._talk_to_named(f"Talk To {who}"):
+                    return
+            marker = await self.client.quest_position.position()
+            if (distance(marker, XYZ(0, 0, 0)) > 1 and distance(await self._position(), marker) > DOOR_NEAR
+                    and self._may_try(objective, zone or "", "find_marker")):
+                logger.info(f"{who} not in view: following the quest marker")
+                await self.travel(marker)
+                return
 
         item = collect_item_name(objective)
         if item:
