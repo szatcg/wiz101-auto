@@ -756,7 +756,9 @@ async def close_crowns_shop(client) -> bool:
         for w in children:
             try:
                 name = await w.name() or ""
-                if "crown" not in name.lower() or not await w.is_visible():
+                low = name.lower()
+                # (The Crown Shop itself is 'PermanentShopModalWindow'.)
+                if ("crown" not in low and "permanentshop" not in low) or not await w.is_visible():
                     continue
             except Exception:
                 continue
@@ -771,9 +773,30 @@ async def close_crowns_shop(client) -> bool:
                     except Exception:
                         pass
             await client.send_key(Keycode.ESC, 0.1)
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.5)
+            try:
+                still = await w.is_visible()
+            except Exception:
+                still = False
+            if still:
+                # Its X is drawn in a Flash panel (no button window): click
+                # the top-right corner where it sits.
+                r = await w.scale_to_client()
+                x = int(r.x2 - (r.x2 - r.x1) * SHOP_X_FROM_RIGHT)
+                y = int(r.y1 + (r.y2 - r.y1) * SHOP_X_FROM_TOP)
+                logger.info(f"crowns window still open (Esc did nothing); clicking its X at ({x}, {y}) "
+                            f"of ({r.x1}, {r.y1})-({r.x2}, {r.y2})")
+                await ui.button_click(client, x, y)
+                await asyncio.sleep(0.8)
             return True
     return False
+
+
+# The Crown Shop's X: the window is the whole screen; on a 1760x990
+# screenshot the X sat at (1497, 30). (A click at the screen's corner opened
+# the Friends list instead.)
+SHOP_X_FROM_RIGHT = 1 - 1497 / 1760
+SHOP_X_FROM_TOP = 30 / 990
 
 
 async def reconnect_if_asked(client) -> bool:
@@ -794,10 +817,29 @@ async def reconnect_if_asked(client) -> bool:
     return True
 
 
+async def close_friends_list(client) -> bool:
+    """The Online Friends list (opened by a stray click) covers the right of
+    the screen: close it. True if it did."""
+    try:
+        for w in await client.root_window.get_windows_with_name("NewFriendsListWindow"):
+            if not await w.is_visible():
+                continue
+            for btn in await w.get_windows_with_name("btnClose"):
+                if await btn.is_visible():
+                    logger.info("closing the Friends list")
+                    await ui.click_center(client, btn)
+                    await asyncio.sleep(0.5)
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 async def clear_popups(client):
     if await reconnect_if_asked(client):
         return
     await close_crowns_shop(client)
+    await close_friends_list(client)
     if await ui.click_named(client, "btnPetLevelClose"):
         # "Sir Buster has leveled up to Adult!" covered the cards mid-fight:
         # every cast and discard missed for a round and a half.
