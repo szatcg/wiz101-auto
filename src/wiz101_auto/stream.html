@@ -134,7 +134,8 @@
   .range { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
   .steps { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
   .step { display: grid; grid-template-columns: 30px 66px 1fr; gap: 6px 8px; align-items: center; padding: 7px 9px; border-radius: 10px;
-    background: rgba(255, 255, 255, 0.04); border-left: 4px solid var(--muted); animation: slide 0.4s ease-out; }
+    background: rgba(255, 255, 255, 0.04); border-left: 4px solid var(--muted); }
+  .steps.fresh .step { animation: slide 0.4s ease-out; }  /* a new plan only, not every refresh */
   .step.now { background: var(--panel-2); box-shadow: 0 0 14px rgba(242, 193, 78, 0.25); border-left-color: var(--gold); }
   .step .r { color: var(--muted); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .step .what { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -322,7 +323,7 @@ const CAT = { attack: "ATTACK", buff: "BUFF", debuff: "DEBUFF", heal: "HEAL", sh
   stun: "STUN", prism: "PRISM", discard: "DISCARD", wait: "WAIT", other: "MOVE" };
 const shortName = (n) => (n.length > 14 ? n.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ") : n);
 const range = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
-let lastPlanKey = "", lastPlanRound = null, planChangedAt = 0;
+let lastPlanKey = "", lastPlanRound = null, planChangedAt = 0, lastPlannerHtml = "", planFreshUntil = 0;
 
 function renderPlanner(p) {
   const pips = [...Array(p.pips || 0)].map(() => '<span class="pip"></span>').join("") +
@@ -334,6 +335,7 @@ function renderPlanner(p) {
     if (lastPlanKey && lastPlanRound === p.round) planChangedAt = Date.now();  // same round, new plan: it changed its mind
     lastPlanKey = key;
     lastPlanRound = p.round;
+    planFreshUntil = Date.now() + 500;  // slide the rows in once
   }
   const changed = Date.now() - planChangedAt < 6000 ? '<span class="changed">PLAN CHANGED</span>' : "";
   const eta = p.rounds ? `<span class="eta">≈ ${p.rounds} round${p.rounds === 1 ? "" : "s"} to win</span>`
@@ -367,9 +369,15 @@ function renderPlanner(p) {
       <span class="what">${what}${tgt}</span>
       ${hit || idx === 0 ? `<div class="after">${hit ? `<span class="hitr">💥 ${range(hit[0], hit[1])}</span>` : ""}${after}</div>` : ""}</div>`;
   }).join("");
+  // Redrawn only when something changed: rebuilding it every poll replayed
+  // the rows' slide-in every couple of seconds.
+  const fresh = Date.now() < planFreshUntil ? " fresh" : "";
+  const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
+    ${foes}<div class="steps${fresh}">${rows}</div>`;
+  if (html === lastPlannerHtml && $("lower").className === "card grow battle") return;
+  lastPlannerHtml = html;
   $("lower").className = "card grow battle";
-  $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
-    ${foes}<div class="steps">${rows}</div>`;
+  $("lower").innerHTML = html;
 }
 
 function renderLower() {
@@ -380,6 +388,7 @@ function renderLower() {
   $("lower").style.display = "";
   $("questCard").classList.toggle("grow", !s.in_battle);
   if (planning) { renderPlanner(battle); return; }
+  lastPlannerHtml = "";  // (another card in its place: the plan is drawn again next time)
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
     const pips = [...Array(b.pips)].map(() => '<span class="pip"></span>').join("") +
@@ -415,7 +424,8 @@ function renderSteps() {
   const now = nowText ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(nowText)}</span></div>` : "";
   const next = (st.next || []).slice(0, 5).map((t) =>
     `<div class="qstep next"><span class="ic">○</span><span class="tx">${esc(t)}</span></div>`).join("");
-  $("qsteps").innerHTML = done + now + next;
+  const qhtml = done + now + next;  // (only on change: a redraw replays the slide-in)
+  if ($("qsteps").dataset.html !== qhtml) { $("qsteps").dataset.html = qhtml; $("qsteps").innerHTML = qhtml; }
 }
 
 function describe(e) {
