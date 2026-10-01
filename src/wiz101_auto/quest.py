@@ -195,7 +195,9 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 # Attempts at one approach (per objective and zone) before it's skipped for
 # the next one; when every approach is used up the quest is set aside.
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
-                   "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3}
+                   "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
+                   "use_walk": 2}
+_USE_OBJECT = re.compile(r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull)\s")
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -1811,6 +1813,15 @@ class Quester:
             await self.client.teleport(XYZ(*good[0]))
             await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone):
+                return True
+        # "Use Brazier" (Cave of Solitude): the teleport onto the object is
+        # refused, but it isn't a door; walking through it from every side took
+        # 5 minutes. Walk up to it and press X.
+        if (objective and _USE_OBJECT.match(objective)
+                and self._may_try(objective, zone or "", "use_walk")):
+            logger.info("an object to use, the teleport onto it refused: walking up to it and pressing X")
+            await self.client.goto(target.x, target.y)
+            if await self._press_x_here(zone or "", adjust=True):
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
