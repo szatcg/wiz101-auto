@@ -197,7 +197,9 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 8, "collect_sigil": 2}
+                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 8, "collect_sigil": 2,
+                   "door_probe": 1}
+DOOR_PROBE = 3000.0  # how far out from a room's middle each probe walk heads
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -924,6 +926,29 @@ class Quester:
             logger.info("pressing X at the spirit portal")
             await self._use_object_at(portal)
         return True
+
+    async def _probe_doors(self, zone: str) -> bool:
+        """From the room's middle (where we stand, or the arrival point),
+        walk out in 8 directions; a door on the way leads into the next room.
+        True once the zone changed."""
+        start = await self._position()
+        logger.info("no way on known in this room: walking out from the middle in each direction")
+        for i in range(8):
+            a = i * math.pi / 4
+            far = XYZ(start.x + DOOR_PROBE * math.cos(a), start.y + DOOR_PROBE * math.sin(a), start.z)
+            await self.client.teleport(start)
+            await asyncio.sleep(0.5)
+            await self.client.goto(far.x, far.y)
+            await asyncio.sleep(1.5)
+            await wait_for_loading(self.client)
+            now = await self.client.zone_name() or ""
+            if now != zone:
+                logger.info(f"walked through a door into {now.split('/')[-1]}")
+                return True
+            if not await is_free(self.client):
+                return True  # a fight started on the way (the target, maybe)
+        await self.client.teleport(start)
+        return False
 
     async def _use_object_at(self, spot: XYZ) -> bool:
         """An object to use at `spot` (the Burial Ground Tablet: the teleport
@@ -4184,6 +4209,11 @@ class Quester:
                 # for the named enemy, twice at most; then move on.
                 if self._may_try(objective, zone_now, "sweep"):
                     await self._look_for(target)
+                elif "/interiors/" in zone_now.lower() and self._may_try(objective, zone_now, "door_probe"):
+                    # A room with doors the bot has no position for (Usunoki
+                    # behind the Town Dojo's back doors): walk out from the
+                    # middle in each direction until one leads on.
+                    await self._probe_doors(zone_now)
                 else:
                     await self._all_approaches_used(objective, f"find {target}")
                 return
