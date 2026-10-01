@@ -739,7 +739,7 @@ class Quester:
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
-        return await ui.text_at(self.client, ui.QUEST_GOAL_TEXT)
+        return await ui.quest_goal(self.client)
 
     def _stop_if_asked(self, before: str, now: str):
         """state/stop_at.json {"objective": "...", "after": "..."}: stop the bot

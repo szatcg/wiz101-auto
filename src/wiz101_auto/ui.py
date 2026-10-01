@@ -332,6 +332,32 @@ async def is_visible(client, path: list[str]) -> bool:
         return False
 
 
+async def quest_goal(client) -> str:
+    """The goal the quest helper shows (bottom of the screen). Every
+    'txtGoalName' under QuestHelperHud, the visible one: the fixed path kept
+    reading an old element ('Go To Desk' while the screen said 'Talk To
+    Zarathax', the bot stuck at the desk for minutes)."""
+    hud = await window_at(client, QUEST_GOAL_TEXT[:3])
+    if hud is None:
+        return await text_at(client, QUEST_GOAL_TEXT)
+    try:
+        found = await hud.get_windows_with_name("txtGoalName")
+    except Exception:
+        found = []
+    texts = []
+    for w in found:
+        try:
+            if await w.is_visible():
+                t = _TAGS.sub("", await w.maybe_text() or "").strip()
+                if t:
+                    texts.append(t)
+        except Exception:
+            continue
+    if texts:
+        return texts[-1]  # (the newest element is added last)
+    return await text_at(client, QUEST_GOAL_TEXT)
+
+
 async def text_at(client, path: list[str]) -> str:
     w = await window_at(client, path)
     if w is None:
