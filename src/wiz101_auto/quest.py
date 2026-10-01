@@ -1378,9 +1378,11 @@ class Quester:
         if not self.healer:
             return False
         zone = await self.client.zone_name() or ""
-        if is_hub(zone) or time.monotonic() - self._last_defeat < DEFEAT_NO_MARK_SECONDS:
+        if is_hub(zone):
             # Already at the hub (a defeat sends us here): a trip there is
-            # pointless; recovery goes to a zone with wisps instead.
+            # pointless; recovery goes to a zone with wisps instead. (Not 'just
+            # defeated': the fight mark's Recall brought us back into the
+            # Emperor's Palace at 2% health, and no trip meant no healing.)
             return False
         objective = await self.objective()
         dest = objective_zone(objective) if objective else None
