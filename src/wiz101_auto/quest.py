@@ -629,18 +629,31 @@ def save_pin(name: str):
 LAST_MAIN_FILE = Path("state") / "last_main.json"
 
 
-def _load_last_main() -> tuple[str, str]:
+def _load_last_main(field: int = 0):
+    """(last main quest, zone of its last step); `field` 2: the zone a fight
+    was last won in."""
     try:
         d = json.loads(LAST_MAIN_FILE.read_text(encoding="utf-8"))
-        return str(d.get("quest", "")), str(d.get("zone", ""))
-    except (OSError, ValueError, AttributeError):
-        return "", ""
+    except (OSError, ValueError):
+        d = {}
+    if not isinstance(d, dict):
+        d = {}
+    if field == 2:
+        return str(d.get("win_zone", ""))
+    return str(d.get("quest", "")), str(d.get("zone", ""))
 
 
-def _save_last_main(quest: str, zone: str):
+def _save_last_main(quest: str | None = None, zone: str | None = None, win_zone: str | None = None):
+    try:
+        d = json.loads(LAST_MAIN_FILE.read_text(encoding="utf-8")) if LAST_MAIN_FILE.exists() else {}
+    except (OSError, ValueError):
+        d = {}
+    for k, v in (("quest", quest), ("zone", zone), ("win_zone", win_zone)):
+        if v is not None:
+            d[k] = v
     try:
         LAST_MAIN_FILE.parent.mkdir(exist_ok=True)
-        LAST_MAIN_FILE.write_text(json.dumps({"quest": quest, "zone": zone}), encoding="utf-8")
+        LAST_MAIN_FILE.write_text(json.dumps(d), encoding="utf-8")
     except OSError:
         pass
 
@@ -704,7 +717,7 @@ class Quester:
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
         self._last_defeat = -1e9
-        self._last_win_zone = ""  # where a fight was last won (to gain experience there)
+        self._last_win_zone = _load_last_main(2)  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
         self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
@@ -853,7 +866,10 @@ class Quester:
             won = self.controller.deaths == self._deaths_at_fight
             self._fights_seen, self._deaths_at_fight = fights, self.controller.deaths
             if won:
-                self._last_win_zone = await self.client.zone_name() or self._last_win_zone
+                win_zone = await self.client.zone_name() or self._last_win_zone
+                if win_zone != self._last_win_zone:
+                    _save_last_main(win_zone=win_zone)
+                self._last_win_zone = win_zone
                 self._wins_since_progress += 1
                 # Up to a few won fights count as progress (a drop hunt needs
                 # several); more without the objective moving means these
@@ -1730,6 +1746,10 @@ class Quester:
             return False
         if not in_main_world:
             return False  # the main quest's marker leads there (quest step)
+        place = objective_zone(await self.objective() or "")
+        off_world = not self._mainline and place and place.split("/", 1)[0] != self._main_world
+        # (No main quest and the tracked one is a side world's: its marker
+        # leads to the world gate; fight here instead.)
         if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
             await self.pull_mob("")
             return True
@@ -1737,6 +1757,9 @@ class Quester:
             logger.info(f"no enemies here; going to {self._last_win_zone} to fight for experience")
             if await self.go_to_zone(self._last_win_zone):
                 return True
+        if off_world:
+            await asyncio.sleep(5.0)
+            return True
         # Nowhere known yet: the quest step follows the main quest's marker, and
         # the first outdoor zone there with enemies (before its dungeon) is used.
         return False
