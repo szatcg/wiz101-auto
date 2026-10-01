@@ -97,7 +97,9 @@ class RolloutPlanner:
         if brain.kind not in kinds or not worth_it(battle, brain):
             return brain
         moves = sim.candidates(battle, discards)
-        try:  # the last battle planned, to replay offline (state/rollout_battle.pkl)
+        try:  # the last battle planned, to replay offline (state/rollout_battle.pkl); not from tests
+            if self.stats is not None:
+                raise RuntimeError("test stats")
             import pickle
             from pathlib import Path
 

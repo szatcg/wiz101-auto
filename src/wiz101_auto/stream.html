@@ -116,6 +116,41 @@
   .move .why { color: var(--muted); font-size: 13px; margin-top: 3px; }
   .plan { margin-top: 8px; font-size: 13px; color: var(--teal); line-height: 1.35; }
 
+  /* battle planner */
+  .battle .head { gap: 8px; }
+  .battle h3 { white-space: nowrap; }
+  .battle .eta { white-space: nowrap; font-weight: 800; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: rgba(79, 209, 197, 0.16); color: var(--teal); }
+  .battle .eta.bad { background: rgba(255, 107, 107, 0.16); color: var(--red); }
+  .battle .changed { margin-left: 6px; font: 800 11px Inter; letter-spacing: 1px; color: #10121f; background: var(--gold); border-radius: 6px; padding: 2px 6px; animation: pulse 0.8s 4; }
+  .pfoe { margin-top: 9px; }
+  .pfoe .fn { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
+  .pfoe .fn .boss { color: var(--orange); }
+  .pbar { position: relative; height: 16px; margin-top: 3px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+  .pbar > span { position: absolute; top: 0; bottom: 0; }
+  .pbar .keep { left: 0; background: linear-gradient(90deg, #b3263f, #ff5f6d); }
+  .pbar .maybe { background: repeating-linear-gradient(45deg, #ffe08a, #ffe08a 5px, #f2c14e 5px, #f2c14e 10px); box-shadow: 0 0 8px rgba(255, 224, 138, 0.8); }
+  .pbar .sure { background: rgba(255, 95, 109, 0.28); }
+  .range { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
+  .steps { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .step { display: grid; grid-template-columns: 30px 66px 1fr; gap: 6px 8px; align-items: center; padding: 7px 9px; border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04); border-left: 4px solid var(--muted); animation: slide 0.4s ease-out; }
+  .step.now { background: var(--panel-2); box-shadow: 0 0 14px rgba(242, 193, 78, 0.25); border-left-color: var(--gold); }
+  .step .r { color: var(--muted); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .step .what { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step .what em { font-style: normal; color: var(--muted); font-weight: 600; font-size: 13px; }
+  .step .after { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .step .after b { color: var(--text); font-weight: 700; }
+  .step .after .ko { color: #10121f; background: var(--gold); border-radius: 4px; padding: 0 4px; font-weight: 900; }
+  .cat { display: inline-block; text-align: center; padding: 2px 0; border-radius: 6px; font: 800 11px Inter; letter-spacing: 1px; color: #10121f; background: var(--muted); }
+  .c-attack { background: var(--red); color: #fff; } .c-buff { background: var(--violet); color: #fff; } .c-debuff { background: var(--orange); }
+  .c-heal { background: var(--green); } .c-shield { background: var(--teal); } .c-minion { background: #8c6cff; color: #fff; }
+  .c-stun { background: var(--blue); } .c-prism { background: #ff7ad9; } .c-discard { background: #8a8fb8; } .c-wait { background: #5d6185; color: #fff; }
+  .s-attack { border-left-color: var(--red); } .s-buff { border-left-color: var(--violet); } .s-debuff { border-left-color: var(--orange); }
+  .s-heal { border-left-color: var(--green); } .s-shield { border-left-color: var(--teal); }
+  .goal-label { margin-top: 10px; }
+  .step .after .hitr { color: var(--gold-2); font-weight: 800; }
+  body.fighting .progress-card { display: none; }
+
   /* ---- thoughts strip ---- */
   .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
   .thoughts .title { position: absolute; left: 0; top: 0; width: 170px; height: 100%; display: flex; flex-direction: column;
@@ -177,11 +212,12 @@
   <div class="card">
     <span class="label">Current quest</span>
     <div class="quest-name" id="quest">—</div>
+    <span class="label goal-label">Goal</span>
     <div class="objective" id="objective"></div>
     <div class="where" id="where"></div>
   </div>
 
-  <div class="card">
+  <div class="card progress-card">
     <span class="label">Progress</span>
     <div class="prog"><span class="n" id="wName">World</span><div class="bar"><div id="wBar"></div></div><span class="p" id="wPct">0%</span></div>
     <div class="prog"><span class="n" id="aName">Arc</span><div class="bar"><div id="aBar"></div></div><span class="p" id="aPct">0%</span></div>
@@ -212,7 +248,7 @@ const clock = (sec) => {
 const ICONS = { cast: "⚔️", discard: "🗑️", pass: "⏳", enchant: "✨", plan: "🧮", travel: "🧭", heal: "💚", loot: "💎",
   mark: "📍", recall: "🌀", hunt: "🎯", quest: "📜", success: "✅", warning: "⚠️", flee: "🏃", talk: "💬", train: "📚", info: "•" };
 
-let data = null, thoughts = null, fetchedAt = 0;
+let data = null, thoughts = null, battle = null, fetchedAt = 0;
 
 function renderSide() {
   const s = data.status || {};
@@ -252,8 +288,65 @@ function renderSide() {
   $("oPct").textContent = `${op}%`; $("oBar").style.width = `${op}%`;
 }
 
+const CAT = { attack: "ATTACK", buff: "BUFF", debuff: "DEBUFF", heal: "HEAL", shield: "SHIELD", minion: "MINION",
+  stun: "STUN", prism: "PRISM", discard: "DISCARD", wait: "WAIT", other: "MOVE" };
+const shortName = (n) => (n.length > 14 ? n.split(" ").map((w, i, a) => (i < a.length - 1 ? w[0] + "." : w)).join(" ") : n);
+const range = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
+let lastPlanKey = "", lastPlanRound = null, planChangedAt = 0;
+
+function renderPlanner(p) {
+  const pips = [...Array(p.pips || 0)].map(() => '<span class="pip"></span>').join("") +
+               [...Array(p.power || 0)].map(() => '<span class="pip power"></span>').join("");
+  const steps = p.steps || [];
+  const first = steps[0];
+  const key = JSON.stringify(steps.map((s) => [s.round, s.kind, s.spell, s.target]));
+  if (key !== lastPlanKey) {
+    if (lastPlanKey && lastPlanRound === p.round) planChangedAt = Date.now();  // same round, new plan: it changed its mind
+    lastPlanKey = key;
+    lastPlanRound = p.round;
+  }
+  const changed = Date.now() - planChangedAt < 6000 ? '<span class="changed">PLAN CHANGED</span>' : "";
+  const eta = p.rounds ? `<span class="eta">≈ ${p.rounds} round${p.rounds === 1 ? "" : "s"} to win</span>`
+            : p.lost ? `<span class="eta bad">on course to lose</span>`
+            : `<span class="eta">${p.horizon || 12}+ rounds</span>`;
+  const foes = (p.enemies || []).map((e, i) => {
+    if (e.hp <= 0) return "";
+    const after = first && first.after[i] ? first.after[i] : [e.hp, e.hp];
+    const dmg = first && first.dmg[i];
+    const pct = (v) => (e.max ? (100 * v) / e.max : 0);
+    const label = !dmg ? "" : after[1] === 0 ? '<span class="ko">KO</span>' : after[0] === 0 ? '<span class="range">KO?</span>'
+                : `<span class="range">−${range(dmg[0], dmg[1])}</span>`;
+    return `<div class="pfoe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
+      <span>${e.hp} / ${e.max}${label}</span></div>
+      <div class="pbar"><span class="keep" style="width:${pct(after[0])}%"></span>
+        <span class="maybe" style="left:${pct(after[0])}%; width:${pct(after[1] - after[0])}%"></span>
+        <span class="sure" style="left:${pct(after[1])}%; width:${pct(e.hp - after[1])}%"></span></div></div>`;
+  }).join("");
+  const rows = steps.slice(0, 7).map((s, idx) => {
+    const tgt = s.target ? ` <em>→ ${esc(s.target)}</em>` : "";
+    const hit = s.dmg.find((d) => d);
+    const what = s.kind === "wait" ? "Save pips" : s.kind === "discard" ? `Toss ${esc(s.spell)}` : esc(s.spell);
+    const after = (p.enemies || []).map((e, i) => {
+      if (e.hp <= 0) return "";
+      const [lo, hi] = s.after[i];
+      return hi === 0 ? `<span>${esc(shortName(e.name))} <span class="ko">KO</span></span>`
+                      : `<span>${esc(shortName(e.name))} <b>${range(lo, hi)}</b></span>`;
+    }).join("");
+    return `<div class="step s-${s.kind}${idx === 0 ? " now" : ""}"><span class="r">R${s.round}</span>
+      <span class="cat c-${s.kind}">${CAT[s.kind] || "MOVE"}</span>
+      <span class="what">${what}${tgt}</span>
+      ${hit || idx === 0 ? `<div class="after">${hit ? `<span class="hitr">💥 ${range(hit[0], hit[1])}</span>` : ""}${after}</div>` : ""}</div>`;
+  }).join("");
+  $("lower").className = "card grow battle";
+  $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
+    ${foes}<div class="steps">${rows}</div>`;
+}
+
 function renderLower() {
   const s = (data && data.status) || {};
+  const planning = !!(battle && battle.active && s.in_battle);
+  document.body.classList.toggle("fighting", planning);  // the plan gets the progress card's room
+  if (planning) { renderPlanner(battle); return; }
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
     const pips = [...Array(b.pips)].map(() => '<span class="pip"></span>').join("") +
@@ -306,11 +399,12 @@ function tick() {
 let lastFeed = "";
 async function poll() {
   try {
-    const [d, t] = await Promise.all([
+    const [d, t, bp] = await Promise.all([
       fetch(`data.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
       fetch(`thoughts.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`battle.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
     ]);
-    data = d; thoughts = t; fetchedAt = Date.now();
+    data = d; thoughts = t; battle = bp; fetchedAt = Date.now();
     renderSide();
     renderLower();
     const key = JSON.stringify(t.events.slice(-4).map((e) => e.time + e.text));

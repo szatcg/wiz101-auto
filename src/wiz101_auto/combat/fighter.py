@@ -95,6 +95,31 @@ def _minion_text(battle) -> str:
     return f" minion={m.health}/{m.max_health}" if m else ""
 
 
+PLAN_FILE = Path("state") / "battle_plan.json"
+
+
+def _write_plan(battle, action, strategy, discards: int) -> None:
+    """The plan the stream page shows (state/battle_plan.json): the fight played
+    on from this decision (sim.plan_preview); rewritten whenever the decision
+    changes (a heal comes in), cleared when the fight ends."""
+    try:
+        data: dict = {"active": False, "time": time.time()}
+        if battle is not None and action is not None:
+            from .sim import category, plan_preview
+
+            data = plan_preview(battle, action, strategy, discards=discards)
+            data.update({
+                "active": True, "time": time.time(), "round": battle.round,
+                "pips": battle.pips, "power": battle.power_pips,
+                "me": {"hp": battle.me.health, "max": battle.me.max_health},
+                "now": {"kind": category(action), "spell": action.card.name if action.card else "",
+                        "target": action.target.name if action.target else "", "why": action.reason},
+            })
+        PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
+    except Exception as exc:
+        logger.debug(f"battle plan not written: {exc!r}")
+
+
 def _save_my_stats(me) -> None:
     """Our wizard as the game reads it (max health, gear's damage bonus and
     resists), for the simulator's fights from the start (sim.simulate)."""
@@ -468,6 +493,7 @@ class Fighter(CombatHandler):
             action = decide(battle, self.strategy, discards_left=discards_left)
             if self.planner is not None:
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
+            _write_plan(battle, action, self.strategy, discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies
@@ -582,3 +608,4 @@ class Fighter(CombatHandler):
         if self._had_boss:
             self.boss_fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")
+        _write_plan(None, None, None, 0)

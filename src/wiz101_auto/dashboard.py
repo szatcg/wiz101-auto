@@ -166,6 +166,19 @@ def build_data(docs: Path = Path("docs")) -> dict:
     }
 
 
+BATTLE_PLAN = Path("state") / "battle_plan.json"
+PLAN_STALE_SECONDS = 120  # an older plan (the bot stopped mid-fight) isn't shown
+
+
+def battle_plan() -> dict:
+    """The fighter's plan (state/battle_plan.json) while a fight is on."""
+    plan = _read_json(BATTLE_PLAN)
+    fresh = time.time() - plan.get("time", 0) < PLAN_STALE_SECONDS
+    if not (plan.get("active") and fresh and _read_json(STATUS).get("in_battle")):
+        return {"active": False}
+    return plan
+
+
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802 (http.server API)
         if self.path.split("?")[0].endswith("data.json"):
@@ -178,6 +191,9 @@ class _Handler(BaseHTTPRequestHandler):
             from .thoughts import read_thoughts
 
             body = json.dumps(read_thoughts()).encode("utf-8")
+            kind = "application/json"
+        elif self.path.split("?")[0].endswith("battle.json"):
+            body = json.dumps(battle_plan()).encode("utf-8")
             kind = "application/json"
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout

@@ -336,8 +336,22 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 f.dots.append([victim, int(sp.extra * DAMAGE_SCALE / 3), 3])
 
 
+def _expected_hits(f: Fight, action: Action) -> list[float] | None:
+    """The damage `action` will do to each enemy, before casting (a kill hides
+    it afterwards): blades, traps, resists, a waiting prism counted."""
+    c = action.card
+    if action.kind is not ActionKind.CAST or c is None or not c.is_damage:
+        return None
+    out = []
+    for e in f.enemies:
+        hit = not e.is_dead and (c.is_aoe or (action.target is not None and action.target.name == e.name))
+        seen = prism_view(e, "myth") if e.name in f.prism_on and c.school == "myth" else e
+        out.append(hit_damage(c, f.me, seen) if hit else 0.0)
+    return out
+
+
 def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first: Action | None = None,
-           discards: int = 2) -> bool:
+           discards: int = 2, record: list | None = None) -> bool:
     """Our turn of round `rnd` (the hand already drawn): the brain decides
     (after `first`, a move forced on it: the rollout's candidate), then the
     enemies act and we gain a pip. True once the fight is over."""
@@ -356,14 +370,20 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
                 return True
             action = decide(b, strat, discards_left=discards)
         if action.kind is ActionKind.DISCARD and discards > 0:
+            if record is not None:
+                record.append((rnd, action, [e.health for e in f.enemies], None))
             f.hand = [h for h in f.hand if h is not action.card]
             discards -= 1
             continue
+        before = [e.health for e in f.enemies]
+        expect = _expected_hits(f, action) if record is not None else None
         if action.kind is ActionKind.CAST and action.card is not None:
             paid = _pay(action.card, "myth", f.pips, f.power)
             if paid is not None:
                 f.pips, f.power = paid
                 _cast(f, action, rng)
+        if record is not None:
+            record.append((rnd, action, before, expect))
         break
     if not [e for e in f.enemies if not e.is_dead]:
         return True
@@ -627,3 +647,113 @@ if __name__ == "__main__":
     for name, deck in DECKS.items():
         rate, rounds = win_rate(deck, MEOWIARTY, stats=stats)
         print(f"{name:22s} win {rate:5.1%}  (wins take {rounds:.1f} rounds)")
+
+
+# --- the plan shown on the stream page ---------------------------------------
+
+SELF_KINDS = ("heal", "buff", "shield", "minion")  # untargeted: on us
+SPREAD = 0.10  # a spell's damage range around its listed value (Wizard101's are about +-10%)
+PLAN_STEPS = 12
+
+
+class _Always(dict):
+    def get(self, key, default=None):
+        return 1.0  # the plan assumes every spell lands
+
+
+def category(action: Action) -> str:
+    """attack / buff / debuff / heal / shield / minion / stun / prism / discard / wait."""
+    if action.kind is ActionKind.PASS or action.card is None:
+        return "wait"
+    if action.kind is ActionKind.DISCARD:
+        return "discard"
+    c = action.card
+    kinds = c.kinds
+    if _is_prism(c):
+        return "prism"
+    if c.is_damage:
+        return "attack"
+    if EffectKind.HEAL in kinds:
+        return "heal"
+    if EffectKind.SUMMON in kinds:
+        return "minion"
+    if EffectKind.STUN in kinds:
+        return "stun"
+    if EffectKind.BLADE in kinds:
+        return "buff"
+    if EffectKind.TRAP in kinds:
+        return "debuff"
+    if EffectKind.SHIELD in kinds:
+        return "shield"
+    return "other"
+
+
+def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None = None,
+                 steps: int = PLAN_STEPS, discards: int = 2) -> dict:
+    """The fight played on from the move just chosen, the way the bot means to
+    play it: every spell lands, the enemies deal their typical damage. Each
+    step: round, category, spell, target, damage range per enemy and every
+    enemy's health range after it; and the rounds to the win."""
+    stats = stats if stats is not None else load_stats()
+    rng = random.Random(0)
+    f = fight_from_battle(battle, stats, rng)
+    f.hit_rate = _Always()
+    for foe in f.foes.values():
+        if foe.samples:
+            foe.samples = [round(sum(foe.samples) / len(foe.samples))]
+    record: list = []
+    forced = first
+    if first.card is not None and first.card in battle.cards:
+        card = f.hand[battle.cards.index(first.card)]
+        target = None
+        if first.target is not None:
+            target = f.me if first.target is battle.me else next(
+                (e for e in f.enemies if e.name == first.target.name), None)
+        forced = Action(first.kind, card, target, reason=first.reason)
+    names = [e.name for e in f.enemies]
+    lo = [max(0, e.health) for e in f.enemies]
+    hi = list(lo)
+    out_steps = []
+    rnd, drawn, won = battle.round, True, False
+    for _ in range(steps):
+        if not drawn:
+            while len(f.hand) < HAND and f.deck:
+                f.hand.append(f.deck.pop())
+        drawn = False
+        start = len(record)
+        over = _round(f, rng, strat, rnd, forced, discards, record=record)
+        forced, discards = None, 2
+        for r, action, before, expect in record[start:]:
+            after = [e.health for e in f.enemies]
+            dmg = []
+            for i, (b, a) in enumerate(zip(before, after, strict=False)):
+                d = expect[i] if expect else (max(0, b - a) if action.kind is ActionKind.CAST else 0)
+                if d:
+                    dl, dh = int(d * (1 - SPREAD)), int(d * (1 + SPREAD))
+                    lo[i], hi[i] = max(0, lo[i] - dh), max(0, hi[i] - dl)
+                    dmg.append([dl, dh])
+                else:
+                    dmg.append(None)
+            target = action.target.name if action.target is not None else (
+                "all enemies" if action.card is not None and action.card.is_aoe else "")
+            on_us = target == f.me.name or (not target and category(action) in SELF_KINDS)
+            out_steps.append({
+                "round": r, "kind": category(action),
+                "spell": action.card.name if action.card is not None else "",
+                "target": "self" if on_us else target,
+                "dmg": dmg, "after": [[lo[i], hi[i]] for i in range(len(names))],
+            })
+        # Enemy heals (the Clockwork Wizard's Sprite) raise the range too.
+        for i, e in enumerate(f.enemies):
+            mid = max(0, e.health)
+            if mid > hi[i]:
+                lo[i] += mid - hi[i]
+                hi[i] = mid
+        rnd += 1
+        if over:
+            won = f.me.health > 0 and not [e for e in f.enemies if e.health > 0]
+            break
+    rounds = (out_steps[-1]["round"] - battle.round + 1) if won and out_steps else None
+    return {"steps": out_steps, "rounds": rounds, "won": won, "lost": f.me.health <= 0, "horizon": steps,
+            "enemies": [{"name": e.name, "hp": max(0, e.health), "max": e.max_health, "boss": e.is_boss}
+                        for e in battle.enemies]}
