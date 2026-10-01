@@ -82,13 +82,47 @@ def to_sim(deck: dict[str, int]) -> dict[str, int]:
 
 
 # Never in a searched deck (the player: they clutter it, and a thin deck draws
-# the blade/trap/big-hit hand sooner).
+# the blade/trap/big-hit hand sooner). The player's list is config.yaml's
+# deck_search: banned cards, banned schools (death: the simulator overrates
+# its hits) with exceptions (Feint); minion summons are always allowed.
 EXCLUDE = {"Dark Sprite", "Vampire", "Blinding Light", "Earthquake"}
+CONFIG = Path("config.yaml")
+
+
+def deck_rules(path: Path = CONFIG) -> tuple[set[str], set[str], set[str]]:
+    """(banned cards, banned schools, allowed exceptions) from config.yaml's
+    deck_search section; the built-in EXCLUDE when there's none."""
+    try:
+        import yaml
+
+        cfg = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("deck_search") or {}
+    except Exception:
+        cfg = {}
+    banned = set(cfg.get("banned") or EXCLUDE)
+    schools = {str(x).lower() for x in cfg.get("banned_schools") or []}
+    allowed = set(cfg.get("allowed") or [])
+    return banned, schools, allowed
+
+
+def is_banned(name: str, rules: tuple[set[str], set[str], set[str]]) -> bool:
+    banned, schools, allowed = rules
+    if name in allowed:
+        return False
+    if name in banned:
+        return True
+    if schools and name in sim.CARDS:
+        c = sim.CARDS[name]()
+        if EffectKind.SUMMON in c.kinds:
+            return False  # minions: always allowed
+        return (c.school or "").lower() in schools
+    return False
 
 
 def available(known: list[str]) -> list[str]:
     """The spells the wizard knows that the simulator can play."""
-    return sorted({SIM_NAMES.get(n, n) for n in known} & set(sim.CARDS) - {"Minor Fire Scorch"} - EXCLUDE)
+    rules = deck_rules()
+    pool = {SIM_NAMES.get(n, n) for n in known} & set(sim.CARDS) - {"Minor Fire Scorch"}
+    return sorted(n for n in pool if not is_banned(n, rules))
 
 
 def foes_for(names: list[str], stats: dict) -> list[sim.Foe]:

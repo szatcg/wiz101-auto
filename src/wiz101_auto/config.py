@@ -91,6 +91,19 @@ class BossFarmConfig:
 
 
 @dataclass
+class DeckSearchConfig:
+    """Cards the combat simulator's deck search never puts in a deck (read
+    by combat/deckopt.py): named cards, whole schools (death: the simulator
+    overrates their hits), and exceptions to the schools (Feint). Minion
+    summons are always allowed."""
+
+    banned: list[str] = field(
+        default_factory=lambda: ["Dark Sprite", "Vampire", "Blinding Light", "Earthquake"])
+    banned_schools: list[str] = field(default_factory=list)
+    allowed: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Config:
     mode: str = "quest"  # quest | fight | farm | boss
     farm_seconds_between_fights: float = 2.0
@@ -102,6 +115,7 @@ class Config:
     combat: CombatConfig = field(default_factory=CombatConfig)
     progression: ProgressionConfig = field(default_factory=ProgressionConfig)
     boss_farm: BossFarmConfig = field(default_factory=BossFarmConfig)
+    deck_search: DeckSearchConfig = field(default_factory=DeckSearchConfig)
 
 
 def _merge(obj: Any, data: dict[str, Any], path: str = "") -> Any:
