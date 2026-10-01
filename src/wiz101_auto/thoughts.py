@@ -136,7 +136,13 @@ def humanize(e: dict) -> tuple[str, str]:
                 return "TOSS", f"Tossing {card}: no enemy here is weak to it"
             if "hand full" in why:
                 return "TOSS", f"Tossing {card}: hand is full"
-            return "TOSS", f"Tossing {card}: too weak here, digging for a Troll or Cyclops"
+            m = re.search(r"digging for (?:a |an )?(.+)", why)
+            if m:  # (what the brain is after: "a blade / trap", "a hit-all spell")
+                wants = m.group(1).replace(" / ", " or ").rstrip(")")
+                return "TOSS", f"Tossing {card}: drawing for a {wants}"
+            if why.startswith("rollouts"):
+                return "TOSS", f"Tossing {card}: the simulations say a fresh draw beats it"
+            return "TOSS", f"Tossing {card} for a fresh draw"
         if kind == "enchant":
             return "BOOST", f"Enchanting a spell with {card}"
         m = re.match(r"finish (.+?): ~(\d+)", why)

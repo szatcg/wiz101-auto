@@ -84,3 +84,13 @@ def test_predicted_damage_for_single_and_aoe():
     battle = Battle(me=me, allies=[], enemies=[a, b], cards=[hit, aoe])
     assert predicted_damage(battle, Action(ActionKind.CAST, hit, b)) == {1: 190}
     assert predicted_damage(battle, Action(ActionKind.CAST, aoe, None)) == {0: 100, 1: 100}
+
+
+def test_a_discard_says_what_it_is_drawing_for():
+    from wiz101_auto.thoughts import humanize, parse_line
+
+    line = ("00:30:25 | INFO    | [round 1] pips=1+1P hp=1982/1982 vs Infected Villager 675/675 -> "
+            "discard Vampire (digging for a blade / hit-all spell)")
+    tag, say = humanize(parse_line(line))
+    assert say == "Tossing Vampire: drawing for a blade or hit-all spell"
+    assert "Troll" not in say
