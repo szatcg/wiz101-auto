@@ -891,6 +891,27 @@ class Quester:
             return True
         return False
 
+    async def _use_object_at(self, spot: XYZ) -> bool:
+        """An object to use at `spot` (the Burial Ground Tablet: the teleport
+        onto it lands inside it and is refused): land beside it, nudge until
+        its X prompt shows, press it. True if it pressed."""
+        for radius in (160.0, 260.0):
+            for i in range(8):
+                a = i * math.pi / 4
+                near = XYZ(spot.x + radius * math.cos(a), spot.y + radius * math.sin(a), spot.z)
+                await self.client.teleport(near)
+                await asyncio.sleep(0.6)
+                for nudge in (None, (Keycode.W, 0.2), (Keycode.W, 0.2), (Keycode.S, 0.3)):
+                    if nudge:
+                        await self.client.send_key(*nudge)
+                        await asyncio.sleep(0.25)
+                    if await ui.is_visible(self.client, ui.NPC_RANGE):
+                        await self.client.send_key(Keycode.X, 0.1)
+                        await asyncio.sleep(1.5)
+                        logger.info("pressed X at the object")
+                        return True
+        return False
+
     async def _press_x_here(self, zone: str | None, adjust: bool = True) -> bool:
         """Use a "press X" prompt at this spot (a ladder, a door that asks),
         pressing X a few times and waiting for the zone to change. With no
@@ -1850,9 +1871,8 @@ class Quester:
         # 5 minutes. Walk up to it and press X.
         if (objective and _USE_OBJECT.match(objective)
                 and self._may_try(objective, zone or "", "use_walk")):
-            logger.info("an object to use, the teleport onto it refused: walking up to it and pressing X")
-            await self.client.goto(target.x, target.y)
-            if await self._press_x_here(zone or "", adjust=True):
+            logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
+            if await self._use_object_at(target):
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
         logger.info("teleport was rejected (door or blocked spot); approaching on foot")
