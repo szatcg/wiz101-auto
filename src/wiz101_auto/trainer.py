@@ -122,6 +122,7 @@ class SpellTrainer:
         if target is None or school is None or time.monotonic() < self._retry_at:
             return False
         logger.info(f"level {level}: going to {school.professor} to learn new spells (level {target} spells)")
+        before = set(self.q._book_names)
         if not await self._go_to_professor(school):
             logger.warning(f"could not reach {school.professor}; trying again in {RETRY_MINUTES} min")
             self._retry_at = time.monotonic() + RETRY_MINUTES * 60
@@ -134,6 +135,9 @@ class SpellTrainer:
             self.progression.request_check(f"trained {', '.join(learned)}")
         else:
             logger.info("nothing new to learn at the trainer")
+        # A quest he gave on the way (a spell quest): follow it next.
+        if before:  # (the book read before the trip: else every quest looks new)
+            self.q.pin_new_quest_after(before)
         return True
 
     async def visit_for_quests(self) -> bool:
@@ -200,9 +204,22 @@ class SpellTrainer:
             if await self.client.zone_name() == RAVENWOOD:
                 await self.q.approach_and_walk(school.door, RAVENWOOD)
             await wait_for_loading(self.client)
-        if await self.client.zone_name() != school.interior or not await is_free(self.client):
+        zone = await self.client.zone_name() or ""
+        if zone != school.interior or not await is_free(self.client):
+            logger.warning(f"trainer: not inside the school (in {zone}, free: {await is_free(self.client)})")
             return False
-        return await self._talk_to(school)
+        if await self._talk_to(school):
+            return True
+        logger.warning(f"trainer: no training window from {school.professor} at {school.spot}")
+        try:
+            lines = await ui.dump_tree(self.client.root_window, max_depth=8)
+            (Path("state") / "trainer_fail_windows.txt").write_text("\n".join(lines), encoding="utf-8")
+            me = await self.client.body.position()
+            logger.info(f"trainer: standing at ({me.x:.0f}, {me.y:.0f}); windows saved to "
+                        "state/trainer_fail_windows.txt")
+        except Exception:
+            pass
+        return False
 
     async def _home_to_ravenwood(self) -> bool:
         return await home_to_ravenwood(self.q)
@@ -212,9 +229,24 @@ class SpellTrainer:
         # matches too, and nothing happens there.
         await self.client.teleport(school.spot)
         await asyncio.sleep(1.0)
-        for _ in range(3):
+        menu = self.q.services
+        for _ in range(6):
             if await ui.is_visible(self.client, GUI):
                 return True
+            if await menu.is_open():
+                # A menu: his quests first ('Mything Link', a spell quest:
+                # accepted, then pinned after the trip), then training.
+                if self.q.dialogue:
+                    self.q.dialogue.accept_offers_for(60)
+                if await menu.choose_quest():
+                    await asyncio.sleep(2.0)
+                    await wait_until_free(self.client, timeout=40)
+                    await ui.close_menus(self.client)
+                    continue  # talk again: the menu comes back with training
+                if await menu.choose_training():
+                    await asyncio.sleep(1.5)
+                    continue
+                await menu.close()
             if await ui.is_visible(self.client, ui.NPC_RANGE):
                 await self.client.send_key(Keycode.X, 0.1)
                 await asyncio.sleep(1.5)

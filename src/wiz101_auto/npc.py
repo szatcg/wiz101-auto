@@ -135,6 +135,26 @@ class ServicesMenu:
             return True
         return False
 
+    async def choose_training(self) -> bool:
+        """In a professor's menu, click the training option: the one labelled
+        'train', else the one with no label (Cyrus Drake's is an image only,
+        after his quests). False if there's none."""
+        win = await ui.window_at(self.client, NPC_SERVICES)
+        if win is None:
+            return False
+        options = await _option_windows(win)
+        if not options:
+            await _clickable(win, options)
+        labels = [(await _text_of(o)).lower() for o in options]
+        pick = next((i for i, t in enumerate(labels) if "train" in t), None)
+        if pick is None:
+            pick = next((i for i, t in enumerate(labels) if not t.strip()), None)
+        if pick is None:
+            return False
+        logger.info(f"NPC menu: training (option {pick + 1} of {len(options)})")
+        await self.client.mouse_handler.click_window(options[pick])
+        return True
+
     async def choose(self, objective: str) -> bool:
         """Click the most promising untried entry. Returns False if nothing left to try."""
         win = await ui.window_at(self.client, NPC_SERVICES)
