@@ -24,7 +24,7 @@ import json
 import math
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -76,6 +76,11 @@ class GuideQuest:
     after: str | None = None  # a quest that must be done first
     main: bool = False  # under a "(MAIN QUEST)" heading: the story, done in guide order
     area: str = ""  # the heading it's under ("VILLAGE OF SORROW"): where the giver stands
+    goals: list[str] = field(default_factory=list, compare=False)  # its "- ..." lines, in order
+
+
+def heading_like(line: str) -> bool:
+    return line.isupper()
 
 
 def parse_guide(text: str) -> list[GuideQuest]:
@@ -99,6 +104,8 @@ def parse_guide(text: str) -> list[GuideQuest]:
                 and not _QUEST_LINE.match(prev)):
             after = _AFTER.search(line)
             out.append(GuideQuest(prev, m["name"].strip(), after["q"].strip() if after else None, main, area))
+        elif line.startswith("-") and out and not heading_like(line):
+            out[-1].goals.append(line.lstrip("- ").strip())
         prev = line
     return out
 

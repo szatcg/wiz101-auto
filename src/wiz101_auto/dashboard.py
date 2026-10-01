@@ -72,6 +72,16 @@ def _recent_thoughts() -> list[dict]:
     return [{k: e.get(k, "") for k in keep} for e in events][::-1]
 
 
+def _quest_steps(quest: str, objective: str, world: str | None) -> dict:
+    """The tracked quest's steps: done (crossed off), now, next."""
+    from .quest_steps import view
+
+    try:
+        return view(quest, objective, world or "")
+    except Exception:
+        return {"quest": quest, "done": [], "now": objective, "next": []}
+
+
 def build_data(docs: Path = Path("docs")) -> dict:
     status = _read_json(STATUS)
     book = _read_json(QUEST_BOOK)
@@ -156,6 +166,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "objective_age_s": status.get("objective_age_s"),
             "grinding": status.get("activity") == "grinding for experience",
         },
+        "steps": _quest_steps(book.get("tracking", ""), status.get("objective") or "", here),
         "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),
         "recent": completed[-12:][::-1],

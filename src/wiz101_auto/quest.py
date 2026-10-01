@@ -742,6 +742,10 @@ class Quester:
 
     async def _note_progress(self, objective: str, zone: str | None):
         key = (objective, zone)
+        if objective and objective != self._last_progress[0] and self._active_quest:
+            from .quest_steps import record
+
+            record(self._active_quest, objective)  # the stream's quest card: steps done so far
         if key != self._last_progress:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1

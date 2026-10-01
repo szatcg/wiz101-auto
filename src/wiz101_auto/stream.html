@@ -151,6 +151,23 @@
   .step .after .hitr { color: var(--gold-2); font-weight: 800; }
   body.fighting .progress-card { display: none; }
 
+  /* quest steps (outside fights) */
+  .qsteps h4 { margin: 4px 0 8px; font: 700 19px Cinzel, serif; color: var(--gold-2); line-height: 1.2; }
+  .qstep { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; padding: 7px 9px; margin-top: 5px;
+    border-radius: 10px; background: rgba(255, 255, 255, 0.03); font-size: 14px; line-height: 1.3; }
+  .qstep .ic { text-align: center; font-weight: 900; }
+  .qstep.done { color: var(--muted); }
+  .qstep.done .tx { text-decoration: line-through; text-decoration-color: rgba(95, 211, 141, 0.8); text-decoration-thickness: 2px; }
+  .qstep.done .ic { color: var(--green); }
+  .qstep.now { background: var(--panel-2); border-left: 4px solid var(--gold); font-weight: 700; font-size: 15px;
+    box-shadow: 0 0 14px rgba(242, 193, 78, 0.22); animation: slide 0.45s ease-out; }
+  .qstep.now .ic { color: var(--gold); }
+  .qstep.next { color: var(--muted); font-style: italic; }
+  .qmore { margin-top: 12px; }
+  .qmore li { list-style: none; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+  .qmore ul { margin: 4px 0 0; padding: 0; }
+  .qmore small { color: var(--muted); }
+
   /* ---- thoughts strip ---- */
   .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
   .thoughts .title { position: absolute; left: 0; top: 0; width: 170px; height: 100%; display: flex; flex-direction: column;
@@ -370,10 +387,18 @@ function renderLower() {
     return;
   }
   const book = (data && data.book) || [];
-  $("lower").className = "card grow book";
-  $("lower").innerHTML = `<span class="label">Quest book</span><ul>${book.slice(0, 9).map((q) => `
-    <li><span class="${q.name === data.current.quest ? "tracked" : ""}">${esc(q.name)}</span>
-    <small>${q.main ? "main" : q.spell ? "spell" : "side"}</small></li>`).join("")}</ul>`;
+  const st = (data && data.steps) || {};
+  const done = (st.done || []).slice(-5).map((t) =>
+    `<div class="qstep done"><span class="ic">✓</span><span class="tx">${esc(t)}</span></div>`).join("");
+  const now = st.now ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(st.now)}</span></div>` : "";
+  const next = (st.next || []).slice(0, 4).map((t) =>
+    `<div class="qstep next"><span class="ic">○</span><span class="tx">${esc(t)}</span></div>`).join("");
+  const others = book.filter((q) => q.name !== data.current.quest).slice(0, 5);
+  $("lower").className = "card grow qsteps";
+  $("lower").innerHTML = `<span class="label">Quest steps</span><h4>${esc(st.quest || data.current.quest || "—")}</h4>
+    ${done}${now}${next}
+    ${others.length ? `<div class="qmore"><span class="label">Also in the book</span><ul>${others.map((q) => `
+      <li><span>${esc(q.name)}</span><small>${q.main ? "main" : q.spell ? "spell" : "side"}</small></li>`).join("")}</ul></div>` : ""}`;
 }
 
 function describe(e) {
