@@ -2351,7 +2351,10 @@ class Quester:
                 known = {q.name for _, q in all_quests}
                 entries = [e for e in await self._read_quest_page() if e.name not in known]
                 if not entries:
-                    complete = True
+                    # An empty book while there's an objective is a failed read
+                    # (after a public fight in the Plaza of Conquests it read []
+                    # and raised a false "no main quest" alert).
+                    complete = bool(all_quests) or not await self.objective()
                     break
                 pages = page + 1
                 all_quests += [(page, e) for e in entries]
