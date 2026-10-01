@@ -179,6 +179,7 @@ class QuestGivers:
         self.q = quester
         self.client = quester.client
         self._last_check = 0.0
+        self.main_sweep_zone = ""  # where the next main quest's giver is asked for (sweep_now)
         self._talked: dict[str, float] = {}
         self._zone = ""
         self._sweeping = False  # asking every named NPC in this zone, one after another
@@ -207,6 +208,10 @@ class QuestGivers:
         book (its giver is usually close by, and was asked before it had it)."""
         if not zone:
             return
+        # Asked even in a world without a side-quest list: it's the main
+        # story's giver ('Going Portal' after 'Foe of Foes', by Milos
+        # Bookwyrm in the Atheneum, in Dragonspyre, which has no list).
+        self.main_sweep_zone = zone
         self._zone_checks.pop(zone, None)
         self._talked = {k: v for k, v in self._talked.items() if not k.startswith(f"{zone}|")}
         self._zone = ""  # the next ask_nearby starts the sweep
@@ -306,7 +311,7 @@ class QuestGivers:
         world = self.q._main_world
         if not zone or not world or zone.split("/", 1)[0] != world or await self.q._in_dungeon(zone):
             return False
-        if load_guide(zone.split("/", 1)[0]) is None:
+        if load_guide(zone.split("/", 1)[0]) is None and zone != self.main_sweep_zone:
             # Only where the player gave a side-quest list (docs/sidequests/<World>.txt):
             # elsewhere NPCs aren't asked at all (Wizard City's, on the way through).
             return False
@@ -326,6 +331,8 @@ class QuestGivers:
             return False
         found = await self._candidates(zone, float("inf") if self._sweeping else GIVER_RANGE)
         if not found:
+            if zone == self.main_sweep_zone:
+                self.main_sweep_zone = ""  # everyone there asked once
             if self._sweeping:
                 self._sweeping = False
                 self._swept(zone)

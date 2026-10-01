@@ -1748,6 +1748,13 @@ class Quester:
             return False
         if not in_main_world:
             return False  # the main quest's marker leads there (quest step)
+        ask = getattr(self.givers, "main_sweep_zone", "")
+        if ask and not self._mainline and zone != ask and ask.split("/", 1)[0] == self._main_world:
+            # The next main quest's giver is likely where the last one ended.
+            logger.info(f"no main quest: going to {ask.split('/')[-1]} to ask its NPCs for the next one")
+            if await self.go_to_zone(ask) or await self.client.zone_name() != zone:
+                return True
+            self.givers.main_sweep_zone = ""  # no way there known
         place = objective_zone(await self.objective() or "")
         off_world = not self._mainline and place and place.split("/", 1)[0] != self._main_world
         # (No main quest and the tracked one is a side world's: its marker
