@@ -1005,6 +1005,29 @@ def _stun_action(battle: Battle, strat: Strategy | None = None) -> Action | None
     return Action(ActionKind.CAST, card, t, reason=f"stun {target.name} (a round of no damage from it)")
 
 
+PRISM_FIRST_GAIN = 1.5  # a prism doubling-ish our big hit on the target comes before it
+PRISM_FIRST_PIPS = 4  # 'big hit': at least this many pips
+
+
+def prism_first(battle: Battle, action: Action) -> Action:
+    """A big hit about to land on an enemy that resists it (Cyrus Drake:
+    myth 80%, storm -50%), not prismed yet, a prism castable in hand: the
+    prism first (the hit next round lands as storm). The player: 'the deck
+    needs to use prisms before big hits in order to win'."""
+    card, target = action.card, action.target
+    if (action.kind is not ActionKind.CAST or card is None or target is None or not card.is_damage
+            or card.is_aoe or card.pip_cost < PRISM_FIRST_PIPS or target.name in battle.prismed):
+        return action
+    prisms = [c for c in _castable(battle.cards) if _is_prism(c) and c.school.lower() == card.school.lower()]
+    if not prisms:
+        return action
+    gain = _prism_gain(prisms[0], battle.me, target, [card])
+    if gain < PRISM_FIRST_GAIN:
+        return action
+    why = f"prism before {card.name}: it lands x{gain:.1f} harder on {target.name}"
+    return Action(ActionKind.CAST, prisms[0], target, reason=why)
+
+
 def _prism_action(battle: Battle) -> Action | None:
     """A prism (Myth Prism: myth -> storm) on an enemy our hit would land much
     harder on once converted, counting blades and traps (myth traps don't work
@@ -1476,7 +1499,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     battle.cards = [replace(c, castable=False) if c.castable and junk_gear_hit(c, battle) else c
                     for c in battle.cards]
     if not battle.prismed:
-        return _decide_step(battle, strat, discards_left=discards_left)
+        return prism_first(battle, _decide_step(battle, strat, discards_left=discards_left))
     real = list(battle.enemies)
     seen = [prism_view(e) if e.name in battle.prismed and not e.is_dead else e for e in real]
     action = _decide_step(replace(battle, enemies=seen), strat, discards_left=discards_left)

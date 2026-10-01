@@ -1286,3 +1286,19 @@ def test_the_frost_snake_pet_hit_is_never_cast():
         b.pips = pips
         a = decide(b)
         assert not (a.kind is ActionKind.CAST and a.card.name.startswith("Pet - Thunder Snake"))
+
+
+def test_a_prism_comes_before_the_big_hit_on_a_myth_boss():
+    prism = Card(1, "Myth Prism", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    colossus = Card(0, "Stone Colossus", school="myth", pip_cost=6,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)])
+    cyrus = enemy("Cyrus Drake", 4000, boss=True)
+    cyrus.resist = {"myth": 0.8, "storm": -0.5}
+    cyrus.school = "myth"
+    me_ = me(hp=2000, max_hp=2000)
+    me_.school = "myth"
+    b = battle([colossus, prism], [cyrus], my=me_)
+    b.pips = 7
+    a = decide(b)
+    assert a.card.name == "Myth Prism" and a.target.name == "Cyrus Drake"

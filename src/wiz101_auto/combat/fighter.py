@@ -15,7 +15,7 @@ from wizwalker.combat import CombatHandler
 from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
-from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage
+from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage, prism_first
 from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
@@ -495,6 +495,7 @@ class Fighter(CombatHandler):
             action = decide(battle, self.strategy, discards_left=discards_left)
             if self.planner is not None:
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
+            action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
             _write_plan(battle, action, self.strategy, discards_left)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
