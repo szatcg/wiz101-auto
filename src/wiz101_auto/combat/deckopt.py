@@ -82,7 +82,7 @@ def to_sim(deck: dict[str, int]) -> dict[str, int]:
 
 # Never in a searched deck (the player: they clutter it, and a thin deck draws
 # the blade/trap/big-hit hand sooner).
-EXCLUDE = {"Dark Sprite", "Vampire", "Blinding Light"}
+EXCLUDE = {"Dark Sprite", "Vampire", "Blinding Light", "Earthquake"}
 
 
 def available(known: list[str]) -> list[str]:
