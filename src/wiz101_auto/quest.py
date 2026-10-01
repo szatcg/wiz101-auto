@@ -197,10 +197,11 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2}
+                   "spirit_portal": 2, "go_to_spot": 2}
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
+_GO_TO = re.compile(r"(?i)^\s*go\s+to\s")
 _USE_OBJECT = re.compile(
     r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull|learn|read|study|examine|inspect|touch)\s")
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
@@ -1897,6 +1898,26 @@ class Quester:
             await asyncio.sleep(TELEPORT_SETTLE)
             if await self._zone_changed(zone):
                 return True
+        # "Go To Village of Sorrow in Village of Sorrow", already in it: the
+        # marker is a spot to stand on, not a door (walking 'through' it went
+        # on for minutes, through a teleporter and back). Land around it and
+        # walk onto it.
+        if (objective and _GO_TO.match(objective) and objective_zone(objective) == zone
+                and self._may_try(objective, zone or "", "go_to_spot")):
+            logger.info("a spot to reach in this zone: landing beside it and walking onto it")
+            for radius in (200.0, 450.0, 800.0):
+                for i in range(8):
+                    a = i * math.pi / 4
+                    near = XYZ(target.x + radius * math.cos(a), target.y + radius * math.sin(a), target.z)
+                    if avoid_mobs and not await self._clear_spot(near):
+                        continue
+                    await self.client.teleport(near)
+                    await asyncio.sleep(0.5)
+                    if distance(await self._position(), near) < 150:
+                        await self.client.goto(target.x, target.y)
+                        await asyncio.sleep(1.0)
+                        return True
+            return False
         # "Use Brazier" (Cave of Solitude): the teleport onto the object is
         # refused, but it isn't a door; walking through it from every side took
         # 5 minutes. Walk up to it and press X.
