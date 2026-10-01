@@ -689,6 +689,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             if dest and dest != zone and go_to_zone and await go_to_zone(dest):
                 logger.info(f"went to {dest} for wisps")
                 continue
+            if trip and not tripped:
+                # Nowhere to walk to for wisps (inside the Emperor's Palace,
+                # back by Recall at 2% health, it 'carried on' into Jade Oni):
+                # the hub, then Recall back to the mark.
+                tripped = True
+                if await trip(marked=marked):
+                    return True
             logger.info(f"no wisps to heal with ({hp:.0%} health, {mana:.0%} mana); carrying on")
             await back_to_start()
             return True
