@@ -26,6 +26,7 @@ from wizwalker import XYZ
 
 OFF_MAP = 900.0  # no known ground point this close to a teleport's destination: off the map
 OUTSIDE_MARGIN = 300.0  # ... and past the known ground's outline by this much (not just an unseen corner)
+WITH_TARGET = 700.0  # an enemy this close to one we're after joins that fight: not a stranger
 WALK_CLEARANCE = 600.0  # a walk whose straight path passes an enemy closer than this isn't taken
 RETRY_WAIT = 2.0  # a teleport the game didn't pick up in WizWalker's 0.6 s: once more, waiting this long
 NOT_TAKEN = 5.0  # moved less than this: the teleport didn't happen
@@ -46,6 +47,17 @@ def same_level(spot, hazards: list) -> list:
     """Hazards on the same level as `spot`: those far above or below it (under
     an elevated platform) can't reach it."""
     return [h for h in hazards if abs(h.z - spot.z) < OTHER_LEVEL]
+
+
+def is_target(name: str, targets) -> bool:
+    """An enemy named like one of `targets` ("Otomo Supply Runner" for
+    "Otomo Supply Runners")."""
+    key = "".join(c for c in (name or "").lower() if c.isalpha())
+    for t in targets or []:
+        want = "".join(c for c in t.lower() if c.isalpha())
+        if key and want and (want in key or key in want or want.rstrip("s") in key):
+            return True
+    return False
 
 
 def segment_distance(p, a, b) -> float:
@@ -261,6 +273,29 @@ def install(client):
         try:
             meant = time.monotonic() < max(getattr(client, "_engage_until", 0.0),
                                            getattr(client, "_close_ok_until", 0.0))
+            targets = getattr(client, "_target_names", None)
+            if meant and targets and not await client.in_battle():
+                # Into a fight on purpose, but the objective's fight: an enemy of
+                # another kind blocks the walk unless one of ours stands by it
+                # (walking onto the marker for Supply Runners met Ronin
+                # Keyholders, twice). A boss's guards stand by the boss: fine.
+                from .bossfarm import mobs_named
+
+                me = await client.body.position()
+                named = [(n, p) for n, p in await mobs_named(client) if abs(p.z - me.z) < OTHER_LEVEL]
+                ours = [p for n, p in named if is_target(n, targets)]
+                strangers = [
+                    p for n, p in named
+                    if not is_target(n, targets)
+                    and all(math.dist((p.x, p.y), (q.x, q.y)) > WITH_TARGET for q in ours)
+                    and segment_distance((p.x, p.y), (me.x, me.y), (x, y)) < WALK_CLEARANCE
+                ]
+                if strangers:
+                    m = strangers[0]
+                    logger.info(f"not walking to ({x:.0f}, {y:.0f}): enemies that aren't the target "
+                                f"by the way at ({m.x:.0f}, {m.y:.0f})")
+                    client._teleport_aborted = True
+                    return None
             if not meant and not await client.in_battle():
                 from .upkeep import mob_positions
 

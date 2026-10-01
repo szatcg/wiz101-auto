@@ -4421,6 +4421,9 @@ class Quester:
             self.client._refused_in_row = 0
             if await unstick(self.client, frozen=frozen):
                 return
+        # Walks meant to start a fight only go toward the objective's enemies
+        # (safe_teleport reads this): "Defeat Otomo Supply Runners" -> them.
+        self.client._target_names = defeat_names(objective) if is_combat_objective(objective or "") else None
         if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
             self._last_status = time.monotonic()
             waited = time.monotonic() - self._last_progress_time

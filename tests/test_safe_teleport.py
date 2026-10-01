@@ -132,3 +132,12 @@ def test_a_walk_past_an_enemy_is_not_taken():
     assert c.walked == []
     asyncio.run(c.goto(-1000, 0))  # the other way: clear
     assert c.walked == [(-1000, 0)]
+
+
+def test_is_target_matches_the_objectives_enemy_only():
+    from wiz101_auto.safe_teleport import is_target
+
+    targets = ["Otomo Supply Runners"]
+    assert is_target("Otomo Supply Runner", targets)
+    assert not is_target("Ronin Keyholder", targets)
+    assert not is_target("Ronin Keyholder", None)
