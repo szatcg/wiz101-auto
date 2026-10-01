@@ -337,9 +337,37 @@ async def quest_goal(client) -> str:
     'txtGoalName' under QuestHelperHud, the visible one: the fixed path kept
     reading an old element ('Go To Desk' while the screen said 'Talk To
     Zarathax', the bot stuck at the desk for minutes)."""
+    texts = await quest_goal_texts(client)
+    if texts:
+        return texts[-1]  # (the newest element is usually added last)
+    return await text_at(client, QUEST_GOAL_TEXT)
+
+
+def pick_goal(texts: list[str], goal_id, known: dict) -> str:
+    """The quest helper's text for the game's active goal `goal_id`, out of
+    the visible 'txtGoalName' texts. `known` (goal id -> text, updated here)
+    remembers what each goal showed: after the goal changes, a text another
+    goal showed is stale (the bot talked to Sandor Spearcaller for two
+    minutes after the quest had moved on, the last element still his)."""
+    if not texts:
+        return ""
+    if goal_id is None:
+        return texts[-1]
+    mine = known.get(goal_id)
+    if mine in texts:
+        return mine
+    stale = {t for g, t in known.items() if g != goal_id}
+    fresh = [t for t in texts if t not in stale]
+    chosen = fresh[-1] if fresh else texts[-1]
+    known[goal_id] = chosen
+    return chosen
+
+
+async def quest_goal_texts(client) -> list[str]:
+    """The texts of the visible 'txtGoalName' elements under QuestHelperHud."""
     hud = await window_at(client, QUEST_GOAL_TEXT[:3])
     if hud is None:
-        return await text_at(client, QUEST_GOAL_TEXT)
+        return []
     try:
         found = await hud.get_windows_with_name("txtGoalName")
     except Exception:
@@ -353,9 +381,7 @@ async def quest_goal(client) -> str:
                     texts.append(t)
         except Exception:
             continue
-    if texts:
-        return texts[-1]  # (the newest element is added last)
-    return await text_at(client, QUEST_GOAL_TEXT)
+    return texts
 
 
 async def text_at(client, path: list[str]) -> str:

@@ -742,7 +742,16 @@ class Quester:
         self._bad_gates: set[tuple[str, str]] = set()
 
     async def objective(self) -> str:
-        return await ui.quest_goal(self.client)
+        texts = await ui.quest_goal_texts(self.client)
+        if not texts:
+            return await ui.quest_goal(self.client)
+        try:
+            goal = await self.client.goal_id()
+        except Exception:
+            goal = None
+        if not hasattr(self, "_goal_texts"):
+            self._goal_texts: dict = {}
+        return ui.pick_goal(texts, goal, self._goal_texts)
 
     def _stop_if_asked(self, before: str, now: str):
         """state/stop_at.json {"objective": "...", "after": "..."}: stop the bot
