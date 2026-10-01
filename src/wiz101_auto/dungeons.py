@@ -24,6 +24,24 @@ def is_open_zone(zone: str) -> bool:
     return zone in OPEN_ZONES
 
 
+# Zones Recall can't bring us back into (the Death Realm, MooShu's Spirit
+# World: "You cannot teleport to that location"): no leaving them to heal,
+# fight on. (Not learned from refusals: an expired dungeon timer says the
+# same.) More can be listed in state/no_return_zones.json.
+NO_RETURN_FILE = Path("state") / "no_return_zones.json"
+NO_RETURN_WORDS = ("spiritworld",)
+
+
+def no_return(zone: str) -> bool:
+    low = zone.lower().replace("_", "")
+    if any(w in low for w in NO_RETURN_WORDS):
+        return True
+    try:
+        return zone in json.loads(NO_RETURN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+
 @dataclass
 class DungeonEntry:
     outside: str  # zone the sigil is in

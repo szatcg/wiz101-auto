@@ -20,3 +20,10 @@ def test_restarts_are_capped_per_hour(tmp_path, monkeypatch):
     now = time.time()
     (tmp_path / "hist").write_text(f"{now - 4000:.0f}\n{now - 100:.0f}\n{now - 50:.0f}\n", encoding="utf-8")
     assert gamerestart.recent_restarts(now) == 2
+
+
+def test_the_death_realm_is_no_return():
+    from wiz101_auto.dungeons import no_return
+
+    assert no_return("MooShu/MS_Death/Interiors/MS_Death3_SpiritWorld")
+    assert not no_return("MooShu/MS_Death/Interiors/MS_Death3_T4")

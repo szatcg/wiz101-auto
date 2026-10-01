@@ -4637,12 +4637,13 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
                 heal_now = False  # only mana a little low: not worth leaving the dungeon
-        # Never leave a dungeon to heal: Recall can't bring us back in (the
-        # Death Oni's: back by the sigil, a fresh copy every time). The next
-        # fight comes straight after the last; this room's wisps, else a
-        # potion when low (as with a team).
-        dungeonish = in_dungeon or "/interiors/" in zone_now.lower()
-        if heal_now and (is_team_up_zone(zone_now) or dungeonish):
+        # Never leave a zone Recall can't bring us back into (the Death Realm:
+        # "You cannot teleport to that location", a fresh dungeon every time):
+        # the next fight comes straight after the last; this room's wisps,
+        # else a potion when low (as with a team).
+        from .dungeons import no_return
+
+        if heal_now and (is_team_up_zone(zone_now) or no_return(zone_now)):
             heal_now = False
             if self.upkeep and await heal_in_room(self.client, self.upkeep):
                 return
