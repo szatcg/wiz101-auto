@@ -390,13 +390,10 @@ class Fighter(CombatHandler):
             logger.opt(exception=exc).warning("combat round failed; carrying on")
 
     async def _handle_round(self):
-        from ..teamup import is_team_up_zone
 
-        # A 4-player dungeon: its fights fill up with players; no minions there.
-        try:
-            self.strategy.no_minions = is_team_up_zone(await self.client.zone_name() or "")
-        except Exception:
-            pass
+        # No minions at all (the player: slow, and their worth is hard to
+        # judge): never summoned, and a minion card drawn is discarded.
+        self.strategy.no_minions = True
         self._unusable.clear()  # a card that failed last round may sit in a working slot now
         self._flee_tried_this_round = False
         discards_left = self.max_discards

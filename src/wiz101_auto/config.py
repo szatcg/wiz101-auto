@@ -95,7 +95,7 @@ class DeckSearchConfig:
     """Cards the combat simulator's deck search never puts in a deck (read
     by combat/deckopt.py): named cards, whole schools (death: the simulator
     overrates their hits), and exceptions to the schools (Feint). Minion
-    summons are always allowed."""
+    summons are never allowed (the player's rule)."""
 
     banned: list[str] = field(
         default_factory=lambda: ["Dark Sprite", "Vampire", "Blinding Light", "Earthquake"])

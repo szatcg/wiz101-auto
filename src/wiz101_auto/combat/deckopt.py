@@ -84,7 +84,7 @@ def to_sim(deck: dict[str, int]) -> dict[str, int]:
 # Never in a searched deck (the player: they clutter it, and a thin deck draws
 # the blade/trap/big-hit hand sooner). The player's list is config.yaml's
 # deck_search: banned cards, banned schools (death: the simulator overrates
-# its hits) with exceptions (Feint); minion summons are always allowed.
+# its hits) with exceptions (Feint). Minion summons are never allowed.
 EXCLUDE = {"Dark Sprite", "Vampire", "Blinding Light", "Earthquake"}
 CONFIG = Path("config.yaml")
 
@@ -110,11 +110,11 @@ def is_banned(name: str, rules: tuple[set[str], set[str], set[str]]) -> bool:
         return False
     if name in banned:
         return True
-    if schools and name in sim.CARDS:
+    if name in sim.CARDS:
         c = sim.CARDS[name]()
         if EffectKind.SUMMON in c.kinds:
-            return False  # minions: always allowed
-        return (c.school or "").lower() in schools
+            return True  # no minions (the player: slow, and their worth is hard to judge)
+        return bool(schools) and (c.school or "").lower() in schools
     return False
 
 

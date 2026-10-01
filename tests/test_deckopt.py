@@ -19,7 +19,7 @@ def test_boss_decks_keep_two_heals():
     assert with_heals({"Humongofrog": 3}, ["Pixie", "Humongofrog"], 2) == {"Humongofrog": 3, "Pixie": 2}
 
 
-def test_deck_rules_ban_death_but_feint_and_minions(tmp_path):
+def test_deck_rules_ban_death_but_feint_and_all_minions(tmp_path):
     from wiz101_auto.combat.deckopt import deck_rules, is_banned
 
     cfg = tmp_path / "c.yaml"
@@ -27,5 +27,5 @@ def test_deck_rules_ban_death_but_feint_and_minions(tmp_path):
                    encoding="utf-8")
     rules = deck_rules(cfg)
     assert is_banned("Banshee", rules) and is_banned("Ghoul", rules) and is_banned("Earthquake", rules)
-    assert not is_banned("Feint", rules) and not is_banned("Troll Minion", rules)
+    assert not is_banned("Feint", rules) and is_banned("Troll Minion", rules)
     assert not is_banned("Humongofrog", rules)

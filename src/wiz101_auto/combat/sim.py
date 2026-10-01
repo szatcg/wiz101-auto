@@ -210,6 +210,40 @@ class Fight:
     dots: list = field(default_factory=list)  # our side's damage over time: [victim, per round, rounds left]
     hit_rate: dict[str, float] = field(default_factory=dict)  # per spell, from the logs (else ACCURACY)
     minion_share: float = 0.2  # share of enemy hits our minion takes (measured: stats["minion"])
+    log: list | None = None  # a replay's steps (the visualizer); None: not recorded
+
+
+def _note(f: Fight, **step):
+    if f.log is not None:
+        f.log.append({**step, "state": _snapshot(f)})
+
+
+def _fx(c: Combatant) -> list[dict]:
+    out = []
+    for key, school, v in c.outgoing_effects:
+        out.append({"kind": "blade" if v > 0 else "weakness", "school": school, "pct": round(v * 100),
+                    "src": key.split(":")[-1]})
+    for key, school, v in c.incoming_effects:
+        out.append({"kind": "trap" if v > 0 else "shield", "school": school, "pct": round(v * 100),
+                    "src": key.split(":")[-1]})
+    for school, v in c.aura.items():
+        out.append({"kind": "aura", "school": school, "pct": round(v * 100), "src": "aura"})
+    return out
+
+
+def _snapshot(f: Fight) -> dict:
+    m = f.minion
+    return {
+        "me": {"name": "Wizard", "hp": max(0, f.me.health), "max": f.me.max_health, "pips": f.pips,
+               "power": f.power, "fx": _fx(f.me)},
+        "minion": ({"name": m.name, "hp": max(0, m.health), "max": m.max_health}
+                   if m and m.health > 0 else None),
+        "enemies": [{"name": e.name, "hp": max(0, e.health), "max": e.max_health, "boss": e.is_boss,
+                     "school": e.school, "fx": _fx(e), "prism": e.name in f.prism_on,
+                     "stunned": e.name in f.stunned, "pips": f.foe_pips.get(e.name, 0)} for e in f.enemies],
+        "hand": [c.name for c in f.hand],
+        "deck_left": len(f.deck),
+    }
 
 
 def _use_up(effects: list, school: str) -> list:
@@ -295,6 +329,7 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 t.incoming_effects = [x for x in t.incoming_effects if x is not traps[0]]
             t.health = max(0, t.health - int(dmg))
             t.is_dead = t.health <= 0
+            _note(f, who="minion", act="hit", target=t.name, dmg={t.name: int(dmg)})
     # Damage over time on our side.
     for dot in f.dots:
         dot[0].health -= dot[1]
@@ -308,6 +343,7 @@ def _enemy_turn(f: Fight, rng: random.Random):
         pips = f.foe_pips[e.name] = min(MAX_PIPS, f.foe_pips.get(e.name, rng.randint(0, 1)) + gain)
         if e.name in f.stunned:
             f.stunned.discard(e.name)
+            _note(f, who=e.name, act="stunned")
             continue
         side = [f.me]  # enemies don't bother with the minion (the player's experience)
         # Heal a hurt ally (the Clockwork Wizard's Sprite).
@@ -319,6 +355,7 @@ def _enemy_turn(f: Fight, rng: random.Random):
             if rng.random() <= foe.accuracy:
                 low = min(hurt, key=lambda a: a.health / a.max_health)
                 low.health = min(low.max_health, low.health + sp.value)
+                _note(f, who=e.name, act="heal", card=sp.name, target=low.name)
             continue
         if foe.samples:
             dmg = rng.choice(foe.samples)
@@ -329,17 +366,23 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 if shields and rng.random() < SHIELD_ON_QUIET_ROUND:
                     sp = rng.choice(shields)
                     e.incoming_effects.append((f"foe:{e.name}:{sp.name}", sp.school, sp.value / 100))
+                    _note(f, who=e.name, act="shield", card=sp.name, target=e.name)
+                else:
+                    _note(f, who=e.name, act="setup")  # blades/traps (in the samples) or saving
                 continue
             if f.minion and f.minion.health > 0 and rng.random() < f.minion_share:
                 # It went for our minion (the MooShu boss hit the Cyclops minion).
                 f.minion.health -= dmg
                 if f.minion.health <= 0:
                     f.minion.is_dead = True
+                _note(f, who=e.name, act="hit", target=f.minion.name, dmg={f.minion.name: int(dmg)})
                 continue
             victim = f.me
             ours = [x for x in victim.incoming_effects if x[2] < 0 and x[1] in ("", foe.school)]
             victim.incoming_effects = [x for x in victim.incoming_effects if x not in ours]
-            victim.health -= int(dmg * max(0.0, 1 + sum(v for _k, _s, v in ours)))
+            done = int(dmg * max(0.0, 1 + sum(v for _k, _s, v in ours)))
+            victim.health -= done
+            _note(f, who=e.name, act="hit", target="Wizard", dmg={"Wizard": done})
             continue
         buffs = [sp for sp in foe.spells if sp.pips == 0]
         if buffs and rng.random() < foe.buff_chance:
@@ -355,6 +398,8 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 f.me.incoming_effects.append((key, sp.school, sp.value / 100))
             elif sp.kind == "weak":
                 f.me.outgoing_effects.append((key, "", sp.value / 100))
+            _note(f, who=e.name, act=sp.kind, card=sp.name,
+                  target="Wizard" if sp.kind in ("trap", "weak") else e.name)
             continue
         attacks = [sp for sp in foe.spells if sp.kind in ("hit", "aoe", "drain", "dot") and sp.pips <= pips]
         if not attacks:
@@ -362,9 +407,11 @@ def _enemy_turn(f: Fight, rng: random.Random):
         top = max(sp.pips for sp in foe.spells if sp.kind in ("hit", "aoe", "drain", "dot"))
         sp = rng.choice([a for a in attacks if a.pips == max(x.pips for x in attacks)])
         if sp.pips < top and rng.random() < foe.save_chance:
+            _note(f, who=e.name, act="saving")
             continue  # saving up for its big one
         f.foe_pips[e.name] = pips - sp.pips
         if rng.random() > foe.accuracy:
+            _note(f, who=e.name, act="fizzle", card=sp.name)
             continue  # fizzled
         blade = [x for x in e.outgoing_effects if x[1] in ("", sp.school)]
         e.outgoing_effects = [x for x in e.outgoing_effects if x not in blade]
@@ -378,6 +425,7 @@ def _enemy_turn(f: Fight, rng: random.Random):
                 e.health = min(e.max_health, e.health + dmg // 2)
             if sp.kind == "dot":
                 f.dots.append([victim, int(sp.extra * DAMAGE_SCALE / 3), 3])
+            _note(f, who=e.name, act="hit", card=sp.name, target="Wizard", dmg={"Wizard": dmg})
 
 
 def _expected_hits(f: Fight, action: Action) -> list[float] | None:
@@ -418,14 +466,29 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
                 record.append((rnd, action, [e.health for e in f.enemies], None))
             f.hand = [h for h in f.hand if h is not action.card]
             discards -= 1
+            _note(f, round=rnd, who="Wizard", act="discard", card=action.card.name, reason=action.reason)
             continue
         before = [e.health for e in f.enemies]
         expect = _expected_hits(f, action) if record is not None else None
+        cast = False
         if action.kind is ActionKind.CAST and action.card is not None:
             paid = _pay(action.card, "myth", f.pips, f.power)
             if paid is not None:
                 f.pips, f.power = paid
                 _cast(f, action, rng)
+                cast = True
+        if f.log is not None:
+            dealt = {e.name: b0 - e.health for e, b0 in zip(f.enemies, before, strict=True) if b0 != e.health}
+            if cast:
+                aoe = action.card.is_aoe
+                tgt = action.target.name if action.target else ("all enemies" if aoe else "Wizard")
+                if action.target is not None and action.target.is_client:
+                    tgt = "Wizard"
+                _note(f, round=rnd, who="Wizard", act="cast", card=action.card.name, target=tgt,
+                      kind=category(action), reason=action.reason, dmg=dealt,
+                      fizzled=not dealt and action.card.is_damage)
+            else:
+                _note(f, round=rnd, who="Wizard", act="pass", reason=action.reason)
         if record is not None:
             record.append((rnd, action, before, expect))
         break
@@ -481,6 +544,31 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
               minion_share=minion_share(stats))
     f.pips, f.power = (1, 1) if rng.random() < 0.5 else (0, 2)
     return _run(f, rng, strat, 1)
+
+
+def replay(deck: dict[str, int], foes: list[Foe], stats: dict | None = None, seed: int = 0,
+           strat: Strategy | None = None) -> dict:
+    """One fight with every step recorded (the visualizer's battle board):
+    {"won", "rounds", "seed", "steps": [...]}."""
+    rng = random.Random(seed)
+    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in ITEMS]
+    rng.shuffle(cards)
+    mine = load_my_stats()
+    hp = mine.get("max_health", 1843)
+    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist=mine.get("resist", {}),
+                   damage_bonus=mine.get("damage_bonus", {}))
+    if stats:
+        foes = [with_samples(x, stats) for x in foes]
+    enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
+                         resist=dict(x.resist)) for x in foes]
+    f = Fight(me, enemies, {x.name: x for x in foes}, cards, hit_rate=(stats or {}).get("hit_rate", {}),
+              minion_share=minion_share(stats), log=[])
+    f.pips, f.power = (1, 1) if rng.random() < 0.5 else (0, 2)
+    while len(f.hand) < HAND and f.deck:
+        f.hand.append(f.deck.pop())
+    _note(f, round=1, who="", act="start")
+    won, rounds = _run(f, rng, strat, 1, drawn=True)
+    return {"won": won, "rounds": rounds, "seed": seed, "steps": f.log}
 
 
 def _one(args):
@@ -601,12 +689,11 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))
     live = battle.live_enemies
     seen = set()
-    boss = any(e.is_boss for e in live)
     for c in battle.cards:
         if not c.castable or c.is_enchant:
             continue
-        if EffectKind.SUMMON in c.kinds and not boss:
-            continue  # minions only against a boss (the player's rule)
+        if EffectKind.SUMMON in c.kinds:
+            continue  # no minions at all (the player's rule)
         if not c.is_damage and not setup_fits(c, battle):
             continue  # a trap/blade boosting none of our hits (an ice trap, no ice hits)
         if c.target is Target.ENEMY_SINGLE:

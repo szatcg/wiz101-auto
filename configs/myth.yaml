@@ -59,4 +59,4 @@ progression:
 deck_search:
   banned: [Dark Sprite, Vampire, Blinding Light, Earthquake]
   banned_schools: [death]   # the simulator overrates their hits
-  allowed: [Feint]          # exceptions to banned_schools; minion summons are always allowed
+  allowed: [Feint]          # exceptions to banned_schools; minions are never allowed
