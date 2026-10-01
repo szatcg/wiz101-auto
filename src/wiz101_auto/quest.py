@@ -1666,6 +1666,12 @@ class Quester:
         the map was open."""
         if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             return False
+        if self._grinding and not self._mainline and self._main_world:
+            # No main quest: back to its world, not on to the tracked side
+            # quest's (the map took the bot from Wizard City to Grizzleheim
+            # each time it set out for Dragonspyre).
+            why = f"back to {self._main_world} to fight for experience"
+            return await self._to_world(self._main_world, why)
         zone = await self.client.zone_name() or ""
         target = objective_zone(await self.objective())
         farm = Farm.load()
@@ -1708,21 +1714,22 @@ class Quester:
         fight was last won. True if it acted this step."""
         if await self.client.in_battle():
             return True
+        zone = await self.client.zone_name() or ""
+        in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
+        if not in_main_world and not self._mainline:
+            # No main quest to lead back: an auto-tracked side quest led here
+            # (Grizzleheim from Dragonspyre); go back rather than follow it
+            # (before re-ranking: a ranking on the way let the step follow it).
+            why = f"back to {self._main_world} to fight for experience"
+            return await self._to_world(self._main_world, why)
         if time.monotonic() - self._last_rank > GRIND_RERANK_SECONDS:
             # A quest may have come in (an NPC offered one, the next main
             # quest): read the book again before more grinding.
             self._ranked_for = None
             self._last_rank = -1e9
             return False
-        zone = await self.client.zone_name() or ""
-        in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
         if not in_main_world:
-            if self._mainline:
-                return False  # the main quest's marker leads there (quest step)
-            # No main quest to lead back: an auto-tracked side quest led here
-            # (Grizzleheim from Dragonspyre); go back rather than follow it.
-            why = f"back to {self._main_world} to fight for experience"
-            return await self._to_world(self._main_world, why)
+            return False  # the main quest's marker leads there (quest step)
         if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
             await self.pull_mob("")
             return True
@@ -2520,7 +2527,8 @@ class Quester:
             # the dungeon switched to the pinned 'Oni No Death'.
             if self._momentum and time.monotonic() - self._momentum[1] < MOMENTUM_SECONDS:
                 busy = next((q for _, q in all_quests if q.name == self._momentum[0]), None)
-                if busy is not None and busy is not chosen and busy.name not in set_aside:
+                if (busy is not None and busy is not chosen and busy.name not in set_aside
+                        and not in_side_world(busy)):
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
