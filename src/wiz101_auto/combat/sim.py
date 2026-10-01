@@ -26,6 +26,7 @@ from .brain import (
     _overkill,
     _pay,
     _prism_gain,
+    _prism_useless,
     decide,
     hit_damage,
     prism_view,
@@ -684,6 +685,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
         # heals are never binned, however full our health is now.
         keep_heals = any(e.is_boss for e in battle.live_enemies)
         for c in battle.cards:
+            if _is_prism(c) and not _prism_useless(c, battle):
+                continue  # a prism with work to do (Cyrus Drake: binned, then Colossus hit his resist)
             if c.name not in binned and not c.treasure and not (keep_heals and c.is_heal):
                 binned.add(c.name)
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))

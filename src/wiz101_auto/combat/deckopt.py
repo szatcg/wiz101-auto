@@ -250,6 +250,31 @@ def seed_prisms(start: dict[str, int], cards: list[str], mix, school: str = "myt
     return {**start, prism: PRISM_SEED}
 
 
+def useful_against(cards: list[str], mix) -> list[str]:
+    """The cards the brain would play against these enemies: not a school
+    shield none of them hits with (Ether Shield vs Cyrus Drake, myth: the
+    search kept two, the bot binned them on sight), not a prism none of them
+    gains from. Same rules the brain discards by."""
+    from .brain import _prism_useless, _shield_useless
+    from .model import Battle, Combatant
+
+    foes = [f for group, _w in mix for f in group]
+    enemies = [Combatant(f.name, f.health, f.health, is_enemy=True, is_boss=f.boss, school=f.school,
+                         resist=dict(f.resist)) for f in foes]
+    me = Combatant("Me", 2000, 2000, is_client=True, school="myth")
+    out = []
+    for name in cards:
+        c = sim.CARDS[name]()
+        if EffectKind.SHIELD in c.kinds and not c.is_damage and _shield_useless(c, enemies):
+            continue
+        hits = [sim.CARDS[n]() for n in cards]
+        fight = Battle(me=me, allies=[], enemies=enemies, cards=hits)
+        if "prism" in name.lower() and _prism_useless(c, fight):
+            continue
+        out.append(name)
+    return out
+
+
 def single_target_seed(cards: list[str]) -> dict[str, int]:
     """A start for a boss: blades, traps, Feint, the strongest single hits
     (and lasting boosts like Vermin Virtuoso), heals; no hit-all spells. From
@@ -309,6 +334,7 @@ def main(argv=None):
     if args.vs:
         mix = [(foes_for([n.strip() for n in args.vs.split(",")], stats), 1)]
         what = f"vs {args.vs}"
+        cards = useful_against(cards, mix)  # (what the brain would bin on sight never goes in)
     else:
         world = args.world or (stats.get("fights") or [{}])[-1].get("world")
         mix = encounters(stats, world)
