@@ -1106,6 +1106,13 @@ class Quester:
     async def _through_known_door(self, zone: str, dest: str, max_hops: int) -> bool:
         """Toward `dest` by a door learned earlier (state/doors.json): through
         it when we're in its zone, else to its zone first. True if it moved."""
+        entry = next((z for z in self.doors.doors if z != zone and self.doors.leading_to(z, dest)), None)
+        if (entry and not self.doors.leading_to(zone, dest) and gate_toward(zone, entry, self._bad_gates)
+                and max_hops > 1):
+            # Gates are surer than a chain of doors (the Cathedral's door to
+            # the Library, its approach on the door itself, never took).
+            logger.info(f"heading to {dest}: its door is in {entry.split('/')[-1]}; going there first")
+            return await self.go_to_zone(entry, max_hops - 1) and True
         hops = self.doors.route(zone, dest)
         if hops:
             _z, door, spot, nxt = hops[0]
@@ -1117,10 +1124,6 @@ class Quester:
                 await self.walk_through(XYZ(door[0], door[1], spot[2]), zone)
             await wait_for_loading(self.client)
             return await self.client.zone_name() != zone
-        entry = next((z for z in self.doors.doors if z != zone and self.doors.leading_to(z, dest)), None)
-        if entry and gate_toward(zone, entry, self._bad_gates) and max_hops > 1:
-            logger.info(f"heading to {dest}: its door is in {entry.split('/')[-1]}; going there first")
-            return await self.go_to_zone(entry, max_hops - 1) and True
         return False
 
     async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
