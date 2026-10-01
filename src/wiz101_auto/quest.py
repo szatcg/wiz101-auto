@@ -198,7 +198,8 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3}
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
-_USE_OBJECT = re.compile(r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull)\s")
+_USE_OBJECT = re.compile(
+    r"(?i)^\s*(?:use|burn|light|activate|open|ring|pull|learn|read|study|examine|inspect|touch)\s")
 WALK_LEG = 1500.0  # teleport hops toward a far marker, a look for the target after each
 WALK_LEGS = 25
 RECALL_WAIT = 12.0  # seconds after clicking Recall for the zone to change
@@ -507,7 +508,10 @@ def locate_target(objective: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
-_OPERATE = re.compile(r"^\s*(?:use|pull|push|press|activate|turn|flip)\s+(.+?)(?:\s+in\s+.+)?\s*$", re.I)
+# ("Learn Mantra 2 in Ancient Burial Grounds": a tablet to read, walked at as a door for 6 minutes.)
+_OPERATE = re.compile(
+    r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch)\s+(.+?)"
+    r"(?:\s+in\s+.+)?\s*$", re.I)
 
 
 def operate_target(objective: str) -> str | None:
