@@ -20,6 +20,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loguru import logger
+
 QUEST_LIST = Path("docs") / "QuestList.txt"
 COMPLETED_LOG = Path("docs") / "CompletedQuests.txt"
 
@@ -73,6 +75,9 @@ def load_quest_list(path: Path = QUEST_LIST) -> dict[str, ListedQuest]:
         return {}
 
 
+RECHECK = 30  # recent completions that come back to the book are taken off
+
+
 class CompletionTracker:
     """Spots quests that left the quest book (= completed). A quest must be
     missing from two readings in a row, so one partial read can't log it."""
@@ -81,9 +86,17 @@ class CompletionTracker:
         self.path = path
         self._seen: set[str] | None = None  # names in the last full reading
         self._missing_once: set[str] = set()
+        # Logged as completed lately (the last RECHECK lines, from earlier runs too).
+        self._logged: set[str] = set(load_completed(path)[-RECHECK:])
 
     def update(self, names: set[str]) -> list[str]:
         """Feed the names in the book now; returns quests completed since."""
+        # Back in the book: it wasn't done. Crimson Fields' battlefields each
+        # show only their own quest, hiding the others while inside one.
+        back = self._logged & names
+        if back:
+            self._logged -= back
+            self.unlog(back)
         if self._seen is None:
             self._seen = set(names)
             return []
@@ -93,9 +106,26 @@ class CompletionTracker:
         self._seen = (self._seen - set(done)) | names
         return done
 
+    def unlog(self, names: set[str]):
+        """Take the last line of each of `names` off the completed log."""
+        try:
+            lines = self.path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return
+        for n in names:
+            i = max((k for k, ln in enumerate(lines) if ln.strip() == n), default=None)
+            if i is not None:
+                del lines[i]
+                logger.warning(f"quest {n!r} is back in the quest book: not completed after all")
+        try:
+            self.path.write_text("".join(ln + "\n" for ln in lines), encoding="utf-8")
+        except OSError:
+            pass
+
     def log(self, names: list[str]):
         if not names:
             return
+        self._logged |= set(names)
         try:
             self.path.parent.mkdir(exist_ok=True)
             with self.path.open("a", encoding="utf-8") as f:

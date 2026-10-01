@@ -75,3 +75,17 @@ def test_tidy_world_list_merges_a_repeat_with_a_typo():
     text = ("A (2 quests)\n3.\nPrawn To King's Fourth\nEXPLORE\n4.\nHow Shellfish\nMOB\n"
             "3.\nPrawn To King's Forth\nTALK\n")
     assert [q.index for q in tidy_world_list(parse_quest_list(text))] == [3, 4]
+
+
+def test_a_completed_quest_back_in_the_book_is_taken_off(tmp_path):
+    from wiz101_auto.questlist import CompletionTracker
+
+    log = tmp_path / "done.txt"
+    log.write_text("Old Quest\nScouring for Scouts\n", encoding="utf-8")
+    t = CompletionTracker(log)
+    t.update({"Scouring for Scouts", "Other"})  # back after a battlefield hid it
+    assert log.read_text(encoding="utf-8") == "Old Quest\n"
+    t.log(t.update({"Other"}) + t.update({"Other"}))  # gone twice: done
+    assert log.read_text(encoding="utf-8") == "Old Quest\nScouring for Scouts\n"
+    t.update({"Other", "Scouring for Scouts"})  # and back again
+    assert log.read_text(encoding="utf-8") == "Old Quest\n"
