@@ -131,6 +131,11 @@ class DungeonHealer:
             return False  # recover() inside the trip must not start another
         if zone.split("/")[-1].endswith("_Hub"):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
+        here_now = await self.client.zone_name() or ""
+        if "/interiors/" in here_now.lower() or await self.q._in_dungeon(here_now):
+            # Recall can't bring us back into a dungeon (a fresh copy by its
+            # sigil every time): fight on from here.
+            return False
         if self.q._active_quest:
             # Back from the trip, the quest we left stays the one (its
             # 'mid-way' time starts again): a ranking after the Recall picked
