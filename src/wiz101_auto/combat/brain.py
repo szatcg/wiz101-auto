@@ -401,6 +401,17 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     if junk:
         card = min(junk, key=lambda c: c.base_damage())
         return Action(ActionKind.DISCARD, card, reason="off-school gear card; making room for deck spells")
+    # Setup that boosts none of our hits (the Frost Snake pet's ice trap),
+    # gear cards the plan never plays (the amulet's Spirit Armor): they only
+    # keep the blade/trap/big-hit cards out of the hand.
+    unfit = [c for c in battle.cards if not c.treasure and not c.is_damage
+             and (EffectKind.BLADE in c.kinds or EffectKind.TRAP in c.kinds) and not setup_fits(c, battle)]
+    if unfit:
+        return Action(ActionKind.DISCARD, unfit[0], reason="a trap/blade for a school none of our hits use")
+    gear = [c for c in battle.cards if c.item and not c.treasure and not c.is_damage and not c.is_heal
+            and EffectKind.BLADE not in c.kinds and EffectKind.TRAP not in c.kinds]
+    if gear:
+        return Action(ActionKind.DISCARD, gear[0], reason="a gear card the plan never plays")
     useless = [
         c for c in battle.cards
         if not c.treasure and not c.is_enchant and not c.is_damage and EffectKind.SHIELD in c.kinds
@@ -792,6 +803,25 @@ def _power(card: Card) -> float:
     return sum(e.value for e in card.effects)
 
 
+def _hit_schools(battle: Battle) -> set[str]:
+    """Schools of the damage spells in hand and still in the deck."""
+    out = set()
+    for c in [*battle.cards, *battle.upcoming]:
+        if c.is_damage:
+            out |= {(e.school or c.school).lower() for e in c.effects if e.kind in DAMAGE_KINDS}
+    return out
+
+
+def setup_fits(card: Card, battle: Battle) -> bool:
+    """A blade or trap that boosts a hit we hold: any school (Feint), or the
+    school of a damage spell in hand or deck. The Frost Snake pet's ice trap
+    boosted nothing (no ice hits)."""
+    schools = {e.school.lower() for e in card.effects if e.kind in (EffectKind.BLADE, EffectKind.TRAP)}
+    if not schools or "" in schools:
+        return True
+    return bool(schools & _hit_schools(battle))
+
+
 def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> Action | None:
     """Blade self or trap an enemy, respecting stack limits. Never a copy of a
     blade/trap that is already up: before an attack it adds nothing, so a
@@ -801,7 +831,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
 
     blades = [
         c for c in castable
-        if EffectKind.BLADE in c.kinds and not c.is_enchant
+        if EffectKind.BLADE in c.kinds and not c.is_enchant and setup_fits(c, battle)
         and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, battle.me.school.lower())
     ]
     if blades and me.blade_count < strat.max_blades:
@@ -813,7 +843,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
         target = focus or max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
         traps = [
             c for c in castable
-            if EffectKind.TRAP in c.kinds and not c.is_enchant
+            if EffectKind.TRAP in c.kinds and not c.is_enchant and setup_fits(c, battle)
             and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects, battle.me.school.lower())
         ]
         if traps and target.trap_count < strat.max_traps:
@@ -1100,7 +1130,8 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     way of what we're saving for, and the next hits land harder. A new effect
     first; a copy of one already up only as a last resort (it waits for the hit
     after)."""
-    free = [c for c in _castable(battle.cards) if c.pip_cost == 0 and not c.is_enchant]
+    free = [c for c in _castable(battle.cards)
+            if c.pip_cost == 0 and not c.is_enchant and setup_fits(c, battle)]
     me = battle.me
     focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health)) if battle.live_enemies else None
     aoe = _group_aoe(battle)

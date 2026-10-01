@@ -20,7 +20,17 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .brain import Strategy, _is_prism, _overkill, _pay, _prism_gain, decide, hit_damage, prism_view
+from .brain import (
+    Strategy,
+    _is_prism,
+    _overkill,
+    _pay,
+    _prism_gain,
+    decide,
+    hit_damage,
+    prism_view,
+    setup_fits,
+)
 from .model import Action, ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
 
 HAND = 7
@@ -591,6 +601,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
             continue
         if EffectKind.SUMMON in c.kinds and not boss:
             continue  # minions only against a boss (the player's rule)
+        if not c.is_damage and not setup_fits(c, battle):
+            continue  # a trap/blade boosting none of our hits (an ice trap, no ice hits)
         if c.target is Target.ENEMY_SINGLE:
             targets = [t for t in live if not (c.is_damage and (_wastes_setup(c, t, battle)
                                                                  or _overkill(c, t, battle)))]

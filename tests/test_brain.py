@@ -1242,3 +1242,32 @@ def test_the_brain_does_not_finish_a_small_enemy_with_the_bosss_hit():
     b.pips = 7
     a = decide(b)
     assert not (a.card and a.card.name == "Stone Colossus" and a.target and a.target.name == "Kakeda Shadow")
+
+
+def _ice_trap(i=5):
+    return Card(i, "Frost Snake", school="ice", pip_cost=0, item=True,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30, school="ice")])
+
+
+def test_an_ice_trap_is_no_setup_for_myth_hits_and_gets_discarded():
+    from wiz101_auto.combat.brain import setup_fits
+
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 300, "")])
+    b = battle([frog, _ice_trap()], [enemy("Boss", 2000, boss=True)])
+    b.pips = 1
+    assert not setup_fits(b.cards[1], b)
+    a = decide(b)
+    assert not (a.kind is ActionKind.CAST and a.card.name == "Frost Snake")
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Frost Snake"
+
+
+def test_a_gear_card_the_plan_never_plays_is_discarded():
+    armor = Card(6, "Spirit Armor - Amulet", school="life", pip_cost=3, item=True,
+                 effects=[Effect(EffectKind.SHIELD, Target.ALLY_SINGLE, 500, "")])
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 300, "")])
+    b = battle([frog, armor], [enemy("Boss", 2000, boss=True)])
+    b.pips = 1
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name.startswith("Spirit Armor")

@@ -80,9 +80,14 @@ def to_sim(deck: dict[str, int]) -> dict[str, int]:
     return {SIM_NAMES.get(k, k): v for k, v in deck.items() if SIM_NAMES.get(k, k) in sim.CARDS}
 
 
+# Never in a searched deck (the player: they clutter it, and a thin deck draws
+# the blade/trap/big-hit hand sooner).
+EXCLUDE = {"Dark Sprite", "Vampire", "Blinding Light"}
+
+
 def available(known: list[str]) -> list[str]:
     """The spells the wizard knows that the simulator can play."""
-    return sorted({SIM_NAMES.get(n, n) for n in known} & set(sim.CARDS) - {"Minor Fire Scorch"})
+    return sorted({SIM_NAMES.get(n, n) for n in known} & set(sim.CARDS) - {"Minor Fire Scorch"} - EXCLUDE)
 
 
 def foes_for(names: list[str], stats: dict) -> list[sim.Foe]:
