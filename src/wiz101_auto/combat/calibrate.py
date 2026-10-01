@@ -9,8 +9,9 @@ consecutive rounds of one fight:
 - the enemies' hits: the health we lost in a round (plus what our heal gave),
   per enemy, from rounds where that enemy was the only one standing.
 
-Rounds with several enemies are shared out evenly between them (enemies that
-never fought alone still get numbers). `write_stats` saves it all to
+Rounds with several enemies are shared out between them by max health (a
+boss hits harder than its guards; enemies that never fought alone still get
+numbers). `write_stats` saves it all to
 state/enemy_stats.json for the simulator (sim.py): each enemy's damage per
 round as observed, our hit rate per spell.
 
@@ -174,8 +175,12 @@ def measure(fights: list[list[Round]]):
             if len(a.foes) == 1:
                 theirs.setdefault(a.foes[0][0], []).append(taken)
             elif a.foes:
-                for name, _h, _m in a.foes:
-                    shared.setdefault(name, []).append(taken / len(a.foes))
+                # Shared by max health, not evenly: a boss hits harder than its
+                # guards (Plague Oni with two Defoulers was credited a third,
+                # ~150 a round, and took the wizard from 666 to 202 alone).
+                total = sum(max(m, 1) for _n, _h, m in a.foes)
+                for name, _h, m in a.foes:
+                    shared.setdefault(name, []).append(taken * max(m, 1) / total)
     return ours, fizzles, theirs, shared
 
 
