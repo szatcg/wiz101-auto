@@ -617,6 +617,25 @@ def save_pin(name: str):
         pass
 
 
+LAST_MAIN_FILE = Path("state") / "last_main.json"
+
+
+def _load_last_main() -> tuple[str, str]:
+    try:
+        d = json.loads(LAST_MAIN_FILE.read_text(encoding="utf-8"))
+        return str(d.get("quest", "")), str(d.get("zone", ""))
+    except (OSError, ValueError, AttributeError):
+        return "", ""
+
+
+def _save_last_main(quest: str, zone: str):
+    try:
+        LAST_MAIN_FILE.parent.mkdir(exist_ok=True)
+        LAST_MAIN_FILE.write_text(json.dumps({"quest": quest, "zone": zone}), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _last_book_world() -> str | None:
     try:
         return json.loads(QUEST_BOOK_FILE.read_text(encoding="utf-8")).get("world") or None
@@ -699,8 +718,11 @@ class Quester:
         self._background: dict[str, asyncio.Task] = {}  # scans running beside the step
         self._book_reader = "check"  # quest book: "check" (first page both ways), "fast" or "slow"
         self._no_main_alerted = -1e9  # last "no main quest in the book" alert
-        self._last_main = ""  # the last main-story quest seen in the book
-        self._last_main_zone = ""  # where we were at that reading ("swept" once its NPCs were asked again)
+        # The last main-story quest seen in the book, and where its last step
+        # was worked ("swept" once its NPCs were asked again); kept over
+        # restarts (after one in Grizzleheim it asked the NPCs there instead
+        # of those where 'Foe of Foes' ended).
+        self._last_main, self._last_main_zone = _load_last_main()
         self._no_main_reads = 0  # full quest-book reads (alerted) with no main quest
         self._stuck_times: dict[str, int] = {}  # main quest -> times it was found stuck
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
@@ -1686,7 +1708,12 @@ class Quester:
         zone = await self.client.zone_name() or ""
         in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
         if not in_main_world:
-            return False  # the main quest's marker leads there (quest step)
+            if self._mainline:
+                return False  # the main quest's marker leads there (quest step)
+            # No main quest to lead back: an auto-tracked side quest led here
+            # (Grizzleheim from Dragonspyre); go back rather than follow it.
+            why = f"back to {self._main_world} to fight for experience"
+            return await self._to_world(self._main_world, why)
         if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
             await self.pull_mob("")
             return True
@@ -2414,6 +2441,7 @@ class Quester:
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
                 self._last_main_zone = await self.client.zone_name() or ""
+                _save_last_main(self._last_main, self._last_main_zone)
             elif complete and self._last_main_zone != "swept":
                 # (After a restart: where we are now.)
                 self._last_main_zone = self._last_main_zone or await self.client.zone_name() or ""
@@ -2423,6 +2451,7 @@ class Quester:
                             f"{self._last_main_zone.split('/')[-1]} again")
                 self.givers.sweep_now(self._last_main_zone)
                 self._last_main_zone = "swept"
+                _save_last_main(self._last_main, self._last_main_zone)
             alert_due = time.monotonic() - self._no_main_alerted > NO_MAIN_ALERT_SECONDS
             if complete and not self._mainline and alert_due:
                 # The next main quest isn't in the book (after 'Weights and
@@ -4839,6 +4868,10 @@ class Quester:
             self._last_status = time.monotonic()
             waited = time.monotonic() - self._last_progress_time
             logger.info(f"working on: {objective or '(no objective shown)'} [{zone}] for {waited:.0f}s")
+        if (zone and self._active_quest and self._active_quest in self._mainline
+                and zone != self._last_main_zone and self._last_main_zone != "swept"):
+            self._last_main, self._last_main_zone = self._active_quest, zone
+            _save_last_main(self._last_main, zone)
 
         if await self.services.is_open():
             # A services menu left open (e.g. after an error) blocks the X prompt.
