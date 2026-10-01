@@ -617,6 +617,13 @@ def save_pin(name: str):
         pass
 
 
+def _last_book_world() -> str | None:
+    try:
+        return json.loads(QUEST_BOOK_FILE.read_text(encoding="utf-8")).get("world") or None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def _write_quest_book(quests: list[QuestEntry], chosen: QuestEntry | None, world: str | None):
     """The quest book as last read, for the dashboard (state/quest_book.json)."""
     try:
@@ -708,7 +715,10 @@ class Quester:
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
         self._boss_deaths_seen = 0
         self._grinding = False  # every quest set aside: fight for experience until a level-up
-        self._main_world: str | None = None  # the world the main quest is in (side quests stay there)
+        # The world the main quest is in (side quests stay there); after a
+        # restart, the last ranking's (a restart in Grizzleheim, where an
+        # auto-tracked side quest led, mustn't make that the world).
+        self._main_world: str | None = _last_book_world()
         self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
@@ -4769,10 +4779,21 @@ class Quester:
         on_set_aside = objective in set_aside_objectives and bool(
             self.setbacks.set_aside(await self.client.stats.reference_level())
         )
+        # The game tracked another quest by itself (after 'Foe of Foes' was
+        # handed in it tracked the side quest 'Grizzleheim', and the bot went
+        # for the Spiral Map 80 s after the last ranking): rank again at once.
+        try:
+            quest_id = await self.client.quest_id()
+        except Exception:
+            quest_id = None
+        switched = quest_id is not None and quest_id != getattr(self, "_ranked_quest", quest_id)
         if objective != getattr(self, "_ranked_for", None) and (
-            on_set_aside or time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
+            on_set_aside or switched
+            or time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
         ):
             self._last_rank = time.monotonic()
+            if switched:
+                logger.info("the game is tracking another quest: ranking the quest book again")
             self.controller.allow_idle(30)
             try:
                 # Reading the quest book stands still: not beside enemies.
@@ -4783,6 +4804,10 @@ class Quester:
             finally:
                 self.controller.end_idle()
             self._ranked_for = objective
+            try:
+                self._ranked_quest = await self.client.quest_id()
+            except Exception:
+                pass
         zone = await self.client.zone_name()
         # A new objective: Recall first if the mark gets us there sooner (the
         # game keeps one mark: marking here first would lose it); else mark
