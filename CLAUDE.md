@@ -28,6 +28,8 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `restart [--supervise]` | stop + start |
 | `status` | running? heartbeat age, zone, objective, health, fights/deaths, last log lines |
 | `logs -n 200` | recent log; `logs -f` follows (blocks, so avoid in automation) |
+| `set-login` | once, by the player: saves the game login in Windows Credential Manager (never in a file) for automatic game restarts |
+| `restart-game` | close Wizard101, start it and log in (bot stopped); `start --supervise` does it by itself when the game freezes or crashes |
 | `relog` | quit to character select and Play again (bot stopped): frees a wizard the game won't move; the bot also does it by itself after 8 steps in a row fail on WizWalker's `should_update` |
 | `inspect` | one-shot: what the bot reads from the game (needs the bot STOPPED) |
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
@@ -69,7 +71,11 @@ while the bot is stopped.
   `PatternFailed`) until Wizard101 is fully restarted. If that happens, ask the
   user to restart the game and log back in; don't try to work around it.
 - Don't send keystrokes or clicks to the game yourself (outside the bot), and
-  don't close Wizard101.
+  don't close Wizard101 yourself. The exception (the player's request,
+  2026-10-01): the supervisor restarts a frozen or crashed game by itself
+  (`gamerestart.py`: a loading screen for 5 min, the window not responding for
+  2 min, no game window, no hook), at most 3 times an hour, logging in with
+  the login saved by `set-login`. Never ask for, read or print the password.
 - If the user presses Ctrl+Shift+Q or asks you to stop, stop and don't restart.
 - The bot runs until stopped (`safety.max_hours: 0` = no limit). When it
   can't progress it keeps going on side quests, or grinds for experience, and
@@ -136,6 +142,7 @@ while the bot is stopped.
 | `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |
 | `ui.py` | UI window paths and helpers |
 | `names.py` | cached display-name lookups (WizWalker's are very slow) |
+| `gamerestart.py` | frozen/crashed game: the bot's request, the supervisor closes and starts the game and logs in (Credential Manager login) |
 | `safety.py`, `config.py` | hotkeys, stop requests, limits; YAML config |
 
 WizWalker/WizSprinter come from the Deimos project (`libs/` in

@@ -223,18 +223,49 @@ def logs(n: int, follow: bool) -> int:
         return 0
 
 
+def _out_size() -> int:
+    try:
+        return OUT_FILE.stat().st_size
+    except OSError:
+        return 0
+
+
+def _bot_output_since(offset: int) -> str:
+    """What the last bot run wrote to state/bot.out ('Could not hook'...)."""
+    try:
+        with OUT_FILE.open("rb") as f:
+            f.seek(offset)
+            return f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
 def supervise(config: str, max_restarts: int = 10) -> int:
     """Run the bot in a child process and restart it after crashes.
 
     Clean stops (stop.request, Ctrl+Shift+Q, safety limits) exit with 0 and
     are not restarted; anything else is treated as a crash.
     """
+    from . import gamerestart
+
     STATE.mkdir(exist_ok=True)
     restarts = 0
+    last_run_from = _out_size()  # (nothing of an earlier run counts)
     while True:
         STOP_FILE.exists() and STOP_FILE.unlink()
+        # A frozen or crashed game (the bot's request, no window, no hook):
+        # close it, start it, log in, then the bot (it presses Play).
+        why = gamerestart.needs_restart(_bot_output_since(last_run_from))
+        if why:
+            print(f"supervisor: restarting the game ({why})", flush=True)
+            if not gamerestart.restart_game(log=lambda m: print(f"supervisor: {m}", flush=True)):
+                print("supervisor: could not restart the game; stopping (the player is needed).")
+                return 1
         started = time.monotonic()
+        last_run_from = _out_size()
         code = subprocess.call([_python(), "-m", "wiz101_auto", "run", "-c", config])
+        if gamerestart.REQUEST.exists() and not STOP_FILE.exists():
+            continue  # the bot stopped for a game restart: do it, then carry on
         if code == 0 or STOP_FILE.exists():
             print("supervisor: bot stopped cleanly; not restarting.")
             return 0

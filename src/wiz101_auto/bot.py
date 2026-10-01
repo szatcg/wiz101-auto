@@ -260,11 +260,32 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
 
 async def status_loop(client, controller: Controller, fighter: Fighter, quester, watchdog):
     """Publish a heartbeat to state/status.json for `wiz101-auto status`."""
+    from . import gamerestart
     from .service import write_status
 
     started = time.time()
     last_offscreen_alert = 0.0
+    loading_since = hung_since = 0.0  # a loading screen / "Not Responding" window since
     while not controller.stopped.is_set():
+        # A frozen game (a loading screen for minutes, the window not
+        # responding): the supervisor restarts it and logs back in.
+        now = time.monotonic()
+        try:
+            loading = await client.is_loading()
+        except Exception:
+            loading = False
+        loading_since = (loading_since or now) if loading else 0.0
+        hung_since = (hung_since or now) if gamerestart.window_hung(client.window_handle) else 0.0
+        frozen = ""
+        if loading_since and now - loading_since > gamerestart.FREEZE_SECONDS:
+            frozen = f"a loading screen for {now - loading_since:.0f}s"
+        elif hung_since and now - hung_since > gamerestart.HUNG_SECONDS:
+            frozen = f"the game window not responding for {now - hung_since:.0f}s"
+        if frozen:
+            logger.warning(f"ALERT: the game looks frozen ({frozen}); stopping for a game restart")
+            gamerestart.request(f"game frozen: {frozen}")
+            controller.stop(f"game frozen ({frozen})")
+            break
         info = {"state": "paused" if controller.paused else "running", "uptime_s": int(time.time() - started)}
         shown = window_on_screen(client.window_handle)
         info["window_on_screen"] = round(shown, 2)

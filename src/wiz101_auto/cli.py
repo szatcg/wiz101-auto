@@ -112,6 +112,8 @@ def main(argv: list[str] | None = None):
 
     sub.add_parser("visit-professor", help="have the bot fetch the school professor's quests (e.g. Aquila)")
     sub.add_parser("relog", help="quit to character select and play again (bot stopped): unsticks the wizard")
+    sub.add_parser("set-login", help="save the game login (Windows Credential Manager) for game restarts")
+    sub.add_parser("restart-game", help="close Wizard101, start it and log in (bot stopped)")
     insp = sub.add_parser("inspect", help="print what the bot sees (state, battle, UI)")
     insp.add_argument("--windows", action="store_true", help="also dump the visible UI window tree")
 
@@ -189,6 +191,28 @@ def main(argv: list[str] | None = None):
         print("requested: the bot visits the professor for quests at its next free moment")
         return
 
+    if args.command == "set-login":
+        import getpass
+
+        from .gamerestart import load_login, save_login
+
+        print("The login is kept in Windows Credential Manager for this Windows user only.")
+        user = input("Wizard101 username: ").strip()
+        pw = getpass.getpass("Wizard101 password (not shown): ")
+        if not user or not pw:
+            print("nothing saved")
+            return 1
+        ok = save_login(user, pw) and (load_login() or ("", ""))[0] == user
+        print("saved: the supervisor can now restart a frozen game and log in" if ok else "could not save it")
+        return 0 if ok else 1
+    if args.command == "restart-game":
+        from .gamerestart import restart_game
+        from .service import running_pid
+
+        if running_pid():
+            print("stop the bot first (`stop`): `start --supervise` restarts the game by itself")
+            return 1
+        return 0 if restart_game() else 1
     if args.command == "relog":
         _setup_logging(None, True)
         from .bot import close_handler, connect, new_handler
