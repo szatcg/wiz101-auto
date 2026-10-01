@@ -29,3 +29,12 @@ def test_deck_rules_ban_death_but_feint_and_all_minions(tmp_path):
     assert is_banned("Banshee", rules) and is_banned("Ghoul", rules) and is_banned("Earthquake", rules)
     assert not is_banned("Feint", rules) and is_banned("Troll Minion", rules)
     assert not is_banned("Humongofrog", rules)
+
+
+def test_fit_size_trims_to_the_deck_limit():
+    from wiz101_auto.combat.deckopt import MAX_SIZE, fit_size
+
+    big = {"Feint": 3, "Myth Trap": 3, "Mythblade": 3, "Spirit Blade": 3, "ColossusStone_Trainable": 3,
+           "Minotaur": 3, "RatMagicianWhite_Trainable": 3, "Pixie": 2, "Myth Prism": 3}
+    out = fit_size(big)
+    assert sum(out.values()) == MAX_SIZE and out["Myth Prism"] == 3 and out["Pixie"] == 2

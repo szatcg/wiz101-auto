@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat Simulator</title>
+<style>
+  :root {
+    --bg: #0f1020; --panel: #181a33; --panel-2: #20234a; --line: #2f3366; --text: #e8e9ff;
+    --muted: #9aa0d0; --gold: #f2c14e; --gold-2: #ffe08a; --red: #ff5f6d; --green: #5fd38d;
+    --teal: #4fd1c5; --violet: #a78bfa; --orange: #ff9f43; --blue: #5aa9ff; --pink: #ff7ad9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 "Segoe UI", Inter, system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: #13142a; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: 1px; color: var(--gold-2); }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 54px); }
+  aside { border-right: 1px solid var(--line); padding: 14px; overflow-y: auto; }
+  main { padding: 16px 20px; overflow-x: hidden; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 8px; }
+  .runs { display: flex; flex-direction: column; gap: 6px; }
+  .run { padding: 9px 10px; border-radius: 9px; background: var(--panel); border: 1px solid transparent; cursor: pointer; }
+  .run:hover { border-color: var(--line); }
+  .run.sel { border-color: var(--gold); background: var(--panel-2); }
+  .run .what { font-weight: 700; }
+  .run .meta { color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 6px; }
+  .live { color: var(--teal); }
+  form.new { display: flex; flex-direction: column; gap: 8px; }
+  select, input, button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  select[multiple] { height: 130px; }
+  button { cursor: pointer; font-weight: 700; }
+  button:hover { border-color: var(--gold); }
+  button.primary { background: var(--gold); color: #1b1630; border-color: var(--gold); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 22px; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+  .stat small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 1100px) { .grid2 { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .deck { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); font-size: 13px; }
+  .chip b { color: var(--gold-2); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.chosen td { background: rgba(242, 193, 78, 0.10); }
+  .bars { display: flex; flex-direction: column; gap: 5px; }
+  .bar { display: grid; grid-template-columns: 150px 1fr 44px; gap: 8px; align-items: center; font-size: 13px; }
+  .bar .track { height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; }
+  .bar .fill { height: 100%; background: linear-gradient(90deg, var(--violet), var(--gold)); }
+  .bar .n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .log { max-height: 180px; overflow-y: auto; font: 12px/1.45 Consolas, monospace; color: var(--muted); white-space: pre-wrap; }
+  /* battle board */
+  .board-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; }
+  @media (max-width: 1100px) { .board-wrap { grid-template-columns: 1fr; } }
+  svg.board { width: 100%; height: auto; display: block; background: radial-gradient(circle at 50% 50%, #26295a 0%, #15172f 70%); border-radius: 12px; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  .controls input[type=range] { flex: 1; min-width: 160px; }
+  .step-info { font-size: 14px; }
+  .step-info .who { font-weight: 800; color: var(--gold-2); }
+  .step-info .reason { margin-top: 6px; color: var(--muted); font-style: italic; }
+  .hand { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .hand .c { padding: 4px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; }
+  .hand .c.used { border-color: var(--gold); box-shadow: 0 0 8px rgba(242, 193, 78, .5); }
+  .hand .c.tossed { border-color: var(--red); text-decoration: line-through; color: var(--muted); }
+  .k { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #14152a; margin-right: 6px; }
+  .k-attack { background: var(--red); color: #fff; } .k-buff { background: var(--violet); color: #fff; } .k-debuff { background: var(--orange); }
+  .k-heal { background: var(--green); } .k-shield { background: var(--teal); } .k-prism { background: var(--pink); } .k-discard { background: #8a8fb8; }
+  .k-pass { background: #5d6185; color: #fff; } .k-enemy { background: var(--blue); } .k-stun { background: var(--blue); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+  .won { color: var(--green); font-weight: 800; } .lost { color: var(--red); font-weight: 800; }
+</style>
+</head>
+<body>
+<header>
+  <h1>COMBAT SIMULATOR</h1>
+  <span class="sub">how the bot picks its decks and plays its turns</span>
+</header>
+<div class="layout">
+  <aside>
+    <div class="card">
+      <span class="label">New search</span>
+      <form class="new" id="newForm">
+        <select id="enemyPick" multiple title="enemies in the fight (ctrl-click for several)"></select>
+        <label>Minutes <input id="minutes" type="number" value="5" min="0.5" max="30" step="0.5" style="width:80px"></label>
+        <button class="primary" type="submit">Run search</button>
+        <span id="newMsg" class="sub"></span>
+      </form>
+    </div>
+    <span class="label">Searches</span>
+    <div class="runs" id="runs"></div>
+  </aside>
+  <main id="main"><div class="empty">Pick a search on the left (or run one).</div></main>
+</div>
+
+<script>
+const NAMES = {
+  ColossusStone_Trainable: "Stone Colossus", RatMagicianWhite_Trainable: "Vermin Virtuoso",
+  SteelGolemMyth_Trainable: "Steel Golem", "Minion Myth 001": "Troll Minion", "Minion Myth 002": "Cyclops Minion",
+  "Minion Myth 003": "Minotaur Minion", "Pet - Thunder Snake Ice": "Frost Snake (pet)",
+};
+const nice = (n) => NAMES[n] || n;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x) => (x == null ? "–" : `${Math.round(x * 100)}%`);
+const num = (x, d = 1) => (x == null ? "–" : Number(x).toFixed(d));
+const $ = (id) => document.getElementById(id);
+
+let selected = null, report = null, replayIdx = 0, stepIdx = 0, timer = null, speed = 1;
+
+async function getJSON(url) { const r = await fetch(url, { cache: "no-store" }); return r.json(); }
+
+// ---- runs list / new search ----
+async function loadRuns() {
+  const rows = await getJSON("sim/runs.json");
+  $("runs").innerHTML = rows.map((r) => `
+    <div class="run ${r.file === selected ? "sel" : ""}" data-f="${esc(r.file)}">
+      <div class="what">${esc(r.what)}</div>
+      <div class="meta"><span class="${r.stage === "done" ? "" : "live"}">${esc(r.stage)}</span>
+        <span>${r.win != null ? `${pct(r.win)} · ${num(r.rounds)}r` : `${r.decks_tried} decks`}</span></div>
+      <div class="meta"><span>${r.started ? new Date(r.started * 1000).toLocaleString() : ""}</span></div>
+    </div>`).join("") || '<div class="sub">No searches yet.</div>';
+  for (const el of document.querySelectorAll(".run")) el.onclick = () => select(el.dataset.f);
+  if (!selected && rows.length) select(rows[0].file);
+}
+
+async function loadEnemies() {
+  const rows = await getJSON("sim/enemies.json");
+  $("enemyPick").innerHTML = rows.map((e) =>
+    `<option value="${esc(e.name)}">${e.boss ? "👑 " : ""}${esc(e.name)}${e.hp ? ` (${e.hp})` : ""}</option>`).join("");
+}
+
+$("newForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const vs = [...$("enemyPick").selectedOptions].map((o) => o.value).join(",");
+  if (!vs) { $("newMsg").textContent = "pick at least one enemy"; return; }
+  const r = await getJSON(`sim/start.json?vs=${encodeURIComponent(vs)}&minutes=${$("minutes").value}`);
+  $("newMsg").textContent = r.ok ? `started vs ${r.vs.join(", ")} (${r.minutes} min)` : r.error;
+  selected = null;
+  setTimeout(loadRuns, 1500);
+};
+
+async function select(file) {
+  selected = file;
+  report = await getJSON(`sim/run.json?f=${encodeURIComponent(file)}`);
+  const h = new URLSearchParams(location.hash.slice(1));  // #step=12&fight=1: open on that step
+  replayIdx = +(h.get("fight") || 0); stepIdx = +(h.get("step") || 0); stop();
+  render();
+  loadRuns();
+}
+
+// ---- the report ----
+function deckChips(deck) {
+  return Object.entries(deck || {}).sort((a, b) => b[1] - a[1])
+    .map(([n, c]) => `<span class="chip">${esc(nice(n))} <b>×${c}</b></span>`).join("");
+}
+function deckText(deck) {
+  return Object.entries(deck || {}).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${esc(nice(n))} ×${c}`).join(", ");
+}
+function bars(obj, total) {
+  const rows = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...rows.map((r) => r[1]));
+  return rows.map(([k, v]) => `<div class="bar"><span>${esc(nice(k))}</span>
+    <div class="track"><div class="fill" style="width:${(100 * v) / max}%"></div></div>
+    <span class="n">${total ? (v / total).toFixed(1) : v}</span></div>`).join("");
+}
+
+function render() {
+  const d = report;
+  if (!d) { $("main").innerHTML = '<div class="empty">Report not found.</div>'; return; }
+  const ch = d.chosen || {};
+  const u = d.usage || {};
+  const took = d.finished ? `${Math.round((d.finished - d.started) / 60)} min` : "running…";
+  const foes = (d.foes || []).map((g) => g.filter((f) => f.name).map((f) =>
+    `${f.boss ? "👑 " : ""}${esc(f.name)} (${f.hp} hp, ${esc(f.school)}${f.resist && Object.keys(f.resist).length
+      ? ", " + Object.entries(f.resist).map(([s, v]) => `${s} ${v > 0 ? "+" : ""}${Math.round(v * 100)}%`).join(" ") : ""})`).join(" + ")).join(" | ");
+  const fastest = (d.fastest || []);
+  const finalists = (d.finalists || []);
+  $("main").innerHTML = `
+    <div class="card">
+      <span class="label">${esc(d.what)} · ${esc(d.stage)}</span>
+      <div class="sub" style="margin-bottom:10px">${foes}</div>
+      <div class="stats">
+        <div class="stat"><small>Chosen deck wins</small><b>${pct(ch.win)}</b></div>
+        <div class="stat"><small>Rounds to win (mean)</small><b>${num(ch.rounds)}</b></div>
+        <div class="stat"><small>Fastest sample win</small><b>${(d.replays || []).find((r) => r.label === "fastest win")?.rounds ?? "–"}</b></div>
+        <div class="stat"><small>Decks tried</small><b>${d.decks_tried ?? "–"}</b></div>
+        <div class="stat"><small>Sample fights won</small><b>${u.fights ? `${u.won}/${u.fights}` : "–"}</b></div>
+        <div class="stat"><small>Search took</small><b>${took}</b></div>
+      </div>
+    </div>
+    <div class="card"><span class="label">Chosen deck (the one the bot uses)</span><div class="deck">${deckChips(ch.deck) || '<span class="sub">not chosen yet</span>'}</div></div>
+    <div class="card"><span class="label">Battle board</span>${boardShell()}</div>
+    <div class="grid2">
+      <div class="card"><span class="label">Spells cast per fight</span><div class="bars">${bars(u.casts, u.fights)}</div></div>
+      <div class="card"><span class="label">Moves per fight, by kind</span><div class="bars">${bars(u.moves, u.fights)}</div></div>
+    </div>
+    <div class="card"><span class="label">The ${fastest.length} fastest winners (≥50% wins) · iterated on: ${finalists.length}</span>
+      <table><tr><th>#</th><th>Wins</th><th>Rounds</th><th>Deck</th></tr>
+      ${(finalists.length ? finalists : fastest).map((e, i) => `<tr class="${ch.deck && deckText(e.deck) === deckText(ch.deck) ? "chosen" : ""}">
+        <td>${i + 1}</td><td class="num">${pct(e.win)}</td><td class="num">${num(e.rounds)}</td><td>${deckText(e.deck)}</td></tr>`).join("")}</table></div>
+    <div class="card"><span class="label">Decks evaluated (best score first)</span>
+      <table><tr><th>Wins</th><th>Rounds</th><th>Score</th><th>Deck</th></tr>
+      ${(d.evaluated || []).slice(0, 25).map((e) => `<tr><td class="num">${pct(e.win)}</td><td class="num">${num(e.rounds)}</td>
+        <td class="num">${num(e.score)}</td><td>${deckText(e.deck)}</td></tr>`).join("")}</table></div>
+    <div class="card"><span class="label">Search log</span><div class="log">${esc((d.log || []).slice(-60).join("\n"))}</div></div>`;
+  bindBoard();
+  drawStep();
+}
+
+// ---- battle board ----
+function boardShell() {
+  const reps = report.replays || [];
+  if (!reps.length) return '<div class="empty">Sample fights appear when the search is done.</div>';
+  return `<div class="board-wrap">
+    <div>
+      <svg class="board" id="board" viewBox="0 0 800 560"></svg>
+      <div class="controls">
+        <select id="replay">${reps.map((r, i) => `<option value="${i}">${esc(r.label)} · ${r.won ? "won" : "lost"} in ${r.rounds}</option>`).join("")}</select>
+        <button id="prev" title="previous step">⏮</button>
+        <button id="play" title="play / pause">▶</button>
+        <button id="next" title="next step">⏭</button>
+        <label class="sub">speed <select id="speed"><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+        <input type="range" id="scrub" min="0" value="0">
+        <span class="sub" id="stepNo"></span>
+      </div>
+    </div>
+    <div class="card" style="margin:0"><span class="label">This step</span><div class="step-info" id="stepInfo"></div>
+      <span class="label" style="margin-top:12px">Hand</span><div class="hand" id="hand"></div>
+      <div class="sub" id="deckLeft" style="margin-top:6px"></div></div>
+  </div>`;
+}
+
+function bindBoard() {
+  if (!$("board")) return;
+  $("replay").value = replayIdx;
+  $("replay").onchange = (e) => { replayIdx = +e.target.value; stepIdx = 0; stop(); drawStep(); };
+  $("prev").onclick = () => { stop(); stepIdx = Math.max(0, stepIdx - 1); drawStep(); };
+  $("next").onclick = () => { stop(); stepIdx = Math.min(steps().length - 1, stepIdx + 1); drawStep(); };
+  $("play").onclick = () => (timer ? stop() : play());
+  $("speed").onchange = (e) => { speed = +e.target.value; if (timer) { stop(); play(); } };
+  $("scrub").oninput = (e) => { stop(); stepIdx = +e.target.value; drawStep(); };
+}
+const steps = () => (report.replays?.[replayIdx]?.steps) || [];
+function play() {
+  $("play").textContent = "⏸";
+  timer = setInterval(() => {
+    if (stepIdx >= steps().length - 1) { stop(); return; }
+    stepIdx++; drawStep();
+  }, 1100 / speed);
+}
+function stop() { if (timer) clearInterval(timer); timer = null; if ($("play")) $("play").textContent = "▶"; }
+
+const KIND_CLASS = { attack: "attack", buff: "buff", debuff: "debuff", heal: "heal", shield: "shield", prism: "prism", minion: "buff", stun: "stun" };
+const FX_COLOR = { blade: "#a78bfa", trap: "#ff9f43", shield: "#4fd1c5", weakness: "#ff5f6d", aura: "#f2c14e" };
+
+function slots(n, y, x0 = 160, x1 = 640) {
+  if (n <= 1) return [[400, y]];
+  return [...Array(n)].map((_, i) => [x0 + ((x1 - x0) * i) / (n - 1), y]);
+}
+
+function unit(svg, x, y, u, kind) {
+  const w = 150, h = 74;
+  const hpPct = u.max ? Math.max(0, u.hp / u.max) : 0;
+  const color = kind === "me" ? "#5aa9ff" : kind === "minion" ? "#8c6cff" : (u.boss ? "#ff9f43" : "#ff5f6d");
+  const fx = (u.fx || []).map((f, i) => `<g transform="translate(${-w / 2 + 6 + i * 30},${h / 2 + 6})">
+      <rect width="28" height="16" rx="4" fill="${FX_COLOR[f.kind] || "#888"}"/>
+      <text x="14" y="12" text-anchor="middle" font-size="10" font-weight="800" fill="#14152a">${f.pct > 0 ? "+" : ""}${f.pct}</text>
+      <title>${f.kind} ${f.school || "any"} ${f.pct}% (${f.src})</title></g>`).join("");
+  const pips = kind === "me"
+    ? [...Array(u.pips || 0)].map((_, i) => `<circle cx="${-w / 2 + 10 + i * 12}" cy="${-h / 2 - 8}" r="5" fill="#f2c14e"/>`).join("") +
+      [...Array(u.power || 0)].map((_, i) => `<circle cx="${-w / 2 + 10 + ((u.pips || 0) + i) * 12}" cy="${-h / 2 - 8}" r="5" fill="#ff7ad9"/>`).join("")
+    : kind === "enemy" ? [...Array(u.pips || 0)].map((_, i) => `<circle cx="${-w / 2 + 10 + i * 12}" cy="${-h / 2 - 8}" r="4" fill="#9aa0d0"/>`).join("") : "";
+  const flags = [u.prism ? "PRISM" : "", u.stunned ? "STUN" : ""].filter(Boolean).join(" · ");
+  svg.insertAdjacentHTML("beforeend", `<g class="u" data-name="${esc(u.name)}" transform="translate(${x},${y})" opacity="${u.hp > 0 ? 1 : 0.35}">
+    <rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="12" fill="#1b1e40" stroke="${color}" stroke-width="2"/>
+    <text x="0" y="${-h / 2 + 18}" text-anchor="middle" font-size="13" font-weight="800" fill="#e8e9ff">${u.boss ? "👑 " : ""}${esc(u.name)}</text>
+    <rect x="${-w / 2 + 10}" y="-2" width="${w - 20}" height="10" rx="5" fill="#2f3366"/>
+    <rect x="${-w / 2 + 10}" y="-2" width="${(w - 20) * hpPct}" height="10" rx="5" fill="${hpPct > 0.5 ? "#5fd38d" : hpPct > 0.25 ? "#f2c14e" : "#ff5f6d"}"/>
+    <text x="0" y="${h / 2 - 10}" text-anchor="middle" font-size="12" fill="#9aa0d0">${u.hp} / ${u.max}${flags ? " · " + flags : ""}</text>
+    ${pips}${fx}
+  </g>`);
+  return [x, y];
+}
+
+function drawStep() {
+  const svg = $("board");
+  if (!svg) return;
+  const all = steps();
+  if (!all.length) return;
+  stepIdx = Math.min(stepIdx, all.length - 1);
+  const st = all[stepIdx], s = st.state;
+  let rnd = st.round;  // (enemy turns carry no round: the last one before them)
+  for (let i = stepIdx; rnd == null && i >= 0; i--) rnd = all[i].round;
+  $("scrub").max = all.length - 1; $("scrub").value = stepIdx;
+  $("stepNo").textContent = `step ${stepIdx + 1}/${all.length}`;
+  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2c14e"/></marker></defs>
+    <ellipse cx="400" cy="280" rx="330" ry="210" fill="none" stroke="#3a3f7a" stroke-width="3" stroke-dasharray="6 8"/>
+    <text x="400" y="40" text-anchor="middle" font-size="12" fill="#9aa0d0" letter-spacing="2">ENEMIES</text>
+    <text x="400" y="545" text-anchor="middle" font-size="12" fill="#9aa0d0" letter-spacing="2">ROUND ${rnd ?? "–"}</text>`;
+  const pos = {};
+  slots(s.enemies.length, 130).forEach(([x, y], i) => { pos[s.enemies[i].name] = unit(svg, x, y, s.enemies[i], "enemy"); });
+  const ours = [["me", s.me]];
+  if (s.minion) ours.push(["minion", s.minion]);
+  slots(ours.length, 430, 280, 520).forEach(([x, y], i) => {
+    const [k, u] = ours[i];
+    pos[k === "me" ? "Wizard" : "minion"] = unit(svg, x, y, u, k);
+    if (k === "minion") pos[u.name] = pos.minion;
+  });
+  // the move: an arrow from the caster to its target(s), damage by the target
+  const from = pos[st.who === "Wizard" ? "Wizard" : st.who];
+  let targets = [];
+  if (st.target === "all enemies") targets = s.enemies.map((e) => e.name);
+  else if (st.target) targets = [st.target];
+  for (const t of targets) {
+    const to = pos[t];
+    if (!from || !to || to === from) continue;
+    const up = to[1] < from[1];
+    svg.insertAdjacentHTML("beforeend", `<line x1="${from[0]}" y1="${from[1] + (up ? -45 : 45)}" x2="${to[0]}" y2="${to[1] + (up ? 45 : -45)}"
+      stroke="#f2c14e" stroke-width="3" marker-end="url(#arrow)" opacity="0.9"/>`);
+  }
+  for (const [name, dmg] of Object.entries(st.dmg || {})) {
+    const to = pos[name];
+    if (!to) continue;
+    svg.insertAdjacentHTML("beforeend", `<text x="${to[0] + 82}" y="${to[1] - 20}" font-size="20" font-weight="900" fill="#ff5f6d">−${dmg}</text>`);
+  }
+  if (st.card && from) {
+    svg.insertAdjacentHTML("beforeend", `<text x="${from[0]}" y="${from[1] + (st.who === "Wizard" ? -58 : 62)}" text-anchor="middle" font-size="14" font-weight="800" fill="#ffe08a">${esc(nice(st.card))}</text>`);
+  }
+  // the side panel
+  const kind = st.act === "cast" ? (KIND_CLASS[st.kind] || "attack") : st.act === "discard" ? "discard" : st.act === "pass" ? "pass" : "enemy";
+  const label = st.act === "cast" ? (st.kind || "cast").toUpperCase() : st.act.toUpperCase();
+  const what = st.act === "start" ? "The fight begins" :
+    `<span class="k k-${kind}">${esc(label)}</span><span class="who">${esc(st.who)}</span> ${st.card ? `· ${esc(nice(st.card))}` : ""} ${st.target ? `→ ${esc(st.target)}` : ""}`;
+  const dmgTxt = Object.entries(st.dmg || {}).map(([n, v]) => `${esc(n)} −${v}`).join(", ");
+  const rep = report.replays[replayIdx];
+  const end = stepIdx === all.length - 1 ? `<div style="margin-top:8px" class="${rep.won ? "won" : "lost"}">${rep.won ? "WON" : "LOST"} in ${rep.rounds} rounds</div>` : "";
+  $("stepInfo").innerHTML = `<div>${what}</div>${dmgTxt ? `<div style="margin-top:4px">${dmgTxt}</div>` : ""}${st.fizzled ? '<div class="lost">fizzled</div>' : ""}
+    ${st.reason ? `<div class="reason">“${esc(st.reason)}”</div>` : ""}${end}`;
+  const prevHand = stepIdx > 0 ? all[stepIdx - 1].state.hand : s.hand;
+  const used = st.who === "Wizard" && st.card ? st.card : null;
+  $("hand").innerHTML = (st.who === "Wizard" && st.act !== "start" ? prevHand : s.hand).map((c) =>
+    `<span class="c ${c === used ? (st.act === "discard" ? "tossed" : "used") : ""}">${esc(nice(c))}</span>`).join("");
+  $("deckLeft").textContent = `${s.deck_left} cards left in the deck`;
+}
+
+loadEnemies();
+loadRuns();
+setInterval(async () => {
+  await loadRuns();
+  if (selected && report && report.stage !== "done") {
+    const fresh = await getJSON(`sim/run.json?f=${encodeURIComponent(selected)}`);
+    if (fresh && (fresh.stage !== report.stage || (fresh.log || []).length !== (report.log || []).length)) {
+      report = fresh; render();
+    }
+  }
+}, 5000);
+</script>
+</body>
+</html>

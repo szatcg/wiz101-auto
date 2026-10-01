@@ -21,6 +21,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `start [--supervise]` | start in the background (also opens the live log window if none is open); `--supervise` auto-restarts after crashes |
 | `dashboard` | progress dashboard at http://127.0.0.1:8101/ (world completion %, current quest ribbon); `start` launches it |
 | (stream) | http://127.0.0.1:8101/stream: a 1920x1080 stream layout (transparent 1440x810 game window at 20,20; sidebar stats; the bot's thoughts feed and battle card from activity.log via /thoughts.json; while farming, runs and loot targets) |
+| (sim) | http://127.0.0.1:8101/sim: the combat simulator's visualizer: every deck search's report (`state/sim_runs/`): decks tried, the 5 fastest winners iterated on, the chosen deck, casts/moves per fight, and recorded sample fights on a battle board (step / auto-play; `#step=N&fight=I` opens a step); start a search against chosen enemies from the page |
 | `farm` / `farm --stop` | farm Mount Olympus with teams (`state/farm.json`); turns on by itself when the main quest is stuck; run count and set pieces on /stream |
 | `publish-setup owner/repo` | one-time: publish the dashboard on GitHub Pages (public repo; the dashboard server then pushes data every 2 min). Live: https://szatcg.github.io/wizzbot-tracker/ |
 | `pin "Quest"` / `pin` | follow that quest until it's done or set aside / unpin (the main-story quest tracked at start is pinned too; `state/quest_pin.json`) |
@@ -135,6 +136,8 @@ while the bot is stopped.
 | `combat/reader.py`, `combat/fighter.py` | game ↔ model, playing rounds |
 | `combat/calibrate.py` | reads `activity.log`: our predicted vs real damage, our hit rates, each enemy's damage per round → `state/enemy_stats.json` (rebuilt at every start; `python -m wiz101_auto.combat.calibrate` prints the report) |
 | `combat/sim.py` | Monte Carlo fights with the real brain; enemies hit as logged; can start from the live battle. Compare decks with `win_rate` |
+| `combat/deckopt.py` | deck search: hill climb from the current deck and (bosses) a single-target start, then the 5 fastest winners (>=50% wins) iterated on; the fewest-rounds winner is chosen; bans from config.yaml `deck_search`; report per run in `state/sim_runs/` |
+| `simviz.py`, `sim.html` | the /sim page (reports list, stats, battle-board replays from `sim.replay`) |
 | `combat/rollout.py` | boss/hard fights: each move played out in the simulator in worker processes (~3 s), the brain's move replaced when another is clearly better (`combat.rollouts`) |
 | `gear.py` | new backpack item: tries just it against what is worn; level-up: retries items that could not be worn before. `state/gear.json` remembers items already beaten (never retried) |
 | `trainer.py` | trips to the school professor (Go Home, dorm door, school door) at `progression.train_levels`; trains new spells |

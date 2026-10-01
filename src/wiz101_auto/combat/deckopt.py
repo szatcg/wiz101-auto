@@ -178,7 +178,17 @@ def score(pool, deck: dict[str, int], mix, stats: dict, n: int = FIGHTS_PER_DECK
     wins = [r for ok, r in results if ok]
     rate = len(wins) / len(results)
     rounds = sum(wins) / len(wins) if wins else float(sim.MAX_ROUNDS)
-    return WIN_WEIGHT * rate - rounds - SIZE_COST * sum(deck.values()), rate, rounds
+    sc = WIN_WEIGHT * rate - rounds - SIZE_COST * sum(deck.values())
+    if n == FIGHTS_PER_DECK:  # (not the confirmations)
+        EVALS[_key(deck)] = {"deck": dict(deck), "win": rate, "rounds": rounds, "score": sc}
+    return sc, rate, rounds
+
+
+EVALS: dict[str, dict] = {}  # every deck scored this run (the visualizer's table)
+
+
+def _key(deck: dict[str, int]) -> str:
+    return ",".join(f"{k}x{v}" for k, v in sorted(deck.items()) if v)
 
 
 def neighbours(deck: dict[str, int], cards: list[str], rng: random.Random) -> list[dict[str, int]]:
@@ -300,9 +310,139 @@ def single_target_seed(cards: list[str]) -> dict[str, int]:
     return {k: v for k, v in deck.items() if v}
 
 
+def fit_size(deck: dict[str, int]) -> dict[str, int]:
+    """Within MAX_SIZE: a copy off the most-copied cards, never the last
+    copy of anything, prisms and heals kept (a seed of 26 cards was chosen
+    as it stood)."""
+    deck = dict(deck)
+    keep = {"Myth Prism", *HEALS}
+    while sum(deck.values()) > MAX_SIZE:
+        cut = [k for k in deck if deck[k] > 1 and k not in keep] or [k for k in deck if deck[k] > 1]
+        if not cut:
+            break
+        deck[max(cut, key=lambda k: deck[k])] -= 1
+    return deck
+
+
 def _has_aura(c) -> bool:
     return any(e.kind is EffectKind.OTHER and e.target is Target.NONE and e.school and e.value > 0
                for e in c.effects)
+
+
+WIN_FLOOR = 0.5  # a deck "wins" when it wins at least this share of the fights
+TOP_N = 5  # the fastest winning decks iterated on
+REFINE_SHARE = 0.4  # share of the search time for iterating on them
+RUNS_DIR = Path("state") / "sim_runs"  # one report per search (the /sim page)
+
+
+def refine_fastest(cards, mix, stats, pool, seconds: float, general: bool, log=print) -> list[dict]:
+    """The TOP_N decks that win (WIN_FLOOR) in the fewest rounds, each
+    improved one card at a time while it stays a winner and gets faster.
+    Returns the improved ones (fastest first)."""
+    rng = random.Random(11)
+    winners = sorted((e for e in EVALS.values() if e["win"] >= WIN_FLOOR), key=lambda e: e["rounds"])
+    if not winners:  # nothing wins half its fights: the best by score
+        winners = sorted(EVALS.values(), key=lambda e: -e["score"])
+    top = winners[:TOP_N]
+    log(f"refining the {len(top)} fastest winners: " + "; ".join(
+        f"{e['rounds']:.1f}r {e['win']:.0%}" for e in top))
+    t0 = time.monotonic()
+    out = []
+    for i, e in enumerate(top):
+        deck, win, rounds = dict(e["deck"]), e["win"], e["rounds"]
+        budget = t0 + seconds * (i + 1) / len(top)
+        improved = True
+        while improved and time.monotonic() < budget:
+            improved = False
+            for cand in neighbours(deck, cards, rng)[:40]:
+                if time.monotonic() > budget:
+                    break
+                if not allowed(cand, general):
+                    continue
+                _sc, w, r = score(pool, cand, mix, stats)
+                if w >= min(WIN_FLOOR, win) and r < rounds - 0.2:
+                    deck, win, rounds, improved = cand, w, r, True
+                    log(f"[fastest #{i + 1}] {r:.1f} rounds, win {w:.0%}  {deck}")
+                    break
+        out.append({"deck": deck, "win": win, "rounds": rounds})
+    return sorted(out, key=lambda e: e["rounds"])
+
+
+def choose_fastest(finalists: list[dict], mix, stats, pool) -> dict:
+    """Confirm the finalists on fights the search never saw; the one winning
+    (WIN_FLOOR) in the fewest rounds, else the best win rate."""
+    checked = []
+    for e in finalists:
+        _sc, w, r = score(pool, e["deck"], mix, stats, n=FIGHTS_PER_DECK * 3, seed0=500000)
+        checked.append({"deck": e["deck"], "win": w, "rounds": r})
+    winners = [e for e in checked if e["win"] >= WIN_FLOOR]
+    if winners:
+        return min(winners, key=lambda e: e["rounds"])
+    return max(checked, key=lambda e: (e["win"], -e["rounds"]))
+
+
+class Report:
+    """state/sim_runs/<time>_<what>.json, rewritten as the search goes."""
+
+    def __init__(self, what: str, mix, cards: list[str]):
+        RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        slug = "".join(ch if ch.isalnum() else "_" for ch in what)[:60]
+        self.path = RUNS_DIR / f"{time.strftime('%Y%m%d_%H%M%S')}_{slug}.json"
+        self.data = {
+            "what": what, "started": time.time(), "stage": "starting", "cards": cards,
+            "foes": [[{"name": f.name, "hp": f.health, "school": f.school, "resist": f.resist, "boss": f.boss}
+                      for f in group] + [{"weight": w}] for group, w in mix],
+            "log": [],
+        }
+        self.write()
+
+    def note(self, line: str):
+        self.data["log"].append(line)
+        self.data["log"] = self.data["log"][-200:]
+        self.write()
+
+    def stage(self, name: str, **more):
+        self.data.update(stage=name, **more)
+        self.data["evaluated"] = sorted(EVALS.values(), key=lambda e: -e["score"])[:60]
+        self.data["fastest"] = sorted((e for e in EVALS.values() if e["win"] >= WIN_FLOOR),
+                                      key=lambda e: e["rounds"])[:TOP_N]
+        self.data["decks_tried"] = len(EVALS)
+        self.write()
+
+    def write(self):
+        try:
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.data, default=str), encoding="utf-8")
+            tmp.replace(self.path)
+        except OSError:
+            pass
+
+
+def replays_for(deck: dict[str, int], mix, stats, n: int = 24) -> tuple[list[dict], dict]:
+    """A few recorded fights of `deck` (the fastest win, the slowest win, a
+    loss if any) and what it did over `n` fights: casts per card, moves per
+    kind."""
+    foes = max(mix, key=lambda m: m[1])[0]
+    fights = [sim.replay(deck, foes, stats, seed=900000 + i) for i in range(n)]
+    usage: dict[str, int] = {}
+    kinds: dict[str, int] = {}
+    for f in fights:
+        for st in f["steps"]:
+            if st.get("who") == "Wizard" and st.get("act") == "cast":
+                usage[st["card"]] = usage.get(st["card"], 0) + 1
+                kinds[st.get("kind", "other")] = kinds.get(st.get("kind", "other"), 0) + 1
+            elif st.get("who") == "Wizard" and st.get("act") in ("discard", "pass"):
+                kinds[st["act"]] = kinds.get(st["act"], 0) + 1
+    wins = sorted((f for f in fights if f["won"]), key=lambda f: f["rounds"])
+    picked = []
+    if wins:
+        picked += [dict(wins[0], label="fastest win"), dict(wins[-1], label="slowest win")]
+    losses = [f for f in fights if not f["won"]]
+    if losses:
+        picked.append(dict(losses[0], label="a loss"))
+    stats_out = {"fights": n, "won": len(wins), "mean_rounds": (sum(f["rounds"] for f in wins) / len(wins))
+                 if wins else None, "casts": usage, "moves": kinds}
+    return picked, stats_out
 
 
 def main(argv=None):
@@ -352,18 +492,29 @@ def main(argv=None):
         start = with_heals(start, cards, BOSS_NEEDS["heals"] if args.vs else GENERAL_NEEDS["heals"])
         starts = [start]
         if args.vs:
-            seed = seed_prisms(with_heals(single_target_seed(cards), cards, BOSS_NEEDS["heals"]), cards, mix)
+            seed = fit_size(seed_prisms(with_heals(single_target_seed(cards), cards, BOSS_NEEDS["heals"]),
+                                        cards, mix))
             if seed and seed != start:
                 starts.append(seed)
-        best = None
-        for st in starts:  # each start gets its share of the time; the best result wins
-            deck, rate, rounds = search(st, cards, mix, stats, pool, general=not args.vs,
-                                        seconds=args.minutes * 60 / len(starts),
-                                        log=lambda s: print(s, flush=True))
-            sc = WIN_WEIGHT * rate - rounds - SIZE_COST * sum(deck.values())
-            if best is None or sc > best[0]:
-                best = (sc, deck, rate, rounds)
-        _sc, deck, rate, rounds = best
+        report = Report(what, mix, cards)
+
+        def say(line: str):
+            print(line, flush=True)
+            report.note(line)
+
+        climb = args.minutes * 60 * (1 - REFINE_SHARE)
+        for i, st in enumerate(starts):  # each start gets its share of the time
+            report.stage(f"searching from start {i + 1} of {len(starts)}", starts=starts)
+            search(st, cards, mix, stats, pool, general=not args.vs, seconds=climb / len(starts), log=say)
+        report.stage("refining the fastest winners")
+        finalists = refine_fastest(cards, mix, stats, pool, args.minutes * 60 * REFINE_SHARE,
+                                   general=not args.vs, log=say)
+        report.stage("confirming the finalists", finalists=finalists)
+        chosen = choose_fastest(finalists, mix, stats, pool)
+        deck, rate, rounds = chosen["deck"], chosen["win"], chosen["rounds"]
+        report.stage("recording sample fights", chosen=chosen)
+        replays, usage = replays_for(deck, mix, stats)
+        report.stage("done", chosen=chosen, replays=replays, usage=usage, finished=time.time())
     print(f"BEST {what}: win {rate:.1%} in ~{rounds:.1f} rounds  {deck}", flush=True)
     if args.out:
         Path(args.out).write_text(json.dumps({

@@ -246,6 +246,12 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
+        elif self.path.split("?")[0].startswith("/sim"):
+            got = _sim_route(self.path)
+            if got is None:
+                self.send_error(404)
+                return
+            body, kind = got
         else:
             self.send_error(404)
             return
@@ -258,6 +264,30 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, *args):  # keep the console quiet
         pass
+
+
+def _sim_route(path: str) -> tuple[bytes, str] | None:
+    """The combat simulator's visualizer: /sim and its JSON (simviz.py)."""
+    from urllib.parse import parse_qs, urlparse
+
+    from . import simviz
+
+    url = urlparse(path)
+    q = {k: v[0] for k, v in parse_qs(url.query).items()}
+    route = url.path.rstrip("/")
+    js = "application/json"
+    if route == "/sim":
+        return simviz.PAGE.read_bytes(), "text/html; charset=utf-8"
+    if route == "/sim/runs.json":
+        return json.dumps(simviz.runs()).encode("utf-8"), js
+    if route == "/sim/run.json":
+        data = simviz.run(q.get("f", ""))
+        return (json.dumps(data).encode("utf-8"), js) if data is not None else None
+    if route == "/sim/enemies.json":
+        return json.dumps(simviz.enemies()).encode("utf-8"), js
+    if route == "/sim/start.json":
+        return json.dumps(simviz.start(q.get("vs", ""), float(q.get("minutes", 5) or 5))).encode("utf-8"), js
+    return None
 
 
 def is_serving(port: int = PORT) -> bool:
