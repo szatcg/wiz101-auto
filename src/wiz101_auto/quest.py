@@ -2422,7 +2422,9 @@ class Quester:
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
-            if is_team_up_zone(here) or await self._in_dungeon(here):
+            # (A room entered by a door counts too: Nomoonaga's tower, after a
+            # heal trip's Recall, went back to the main quest instead.)
+            if is_team_up_zone(here) or await self._in_dungeon(here) or "/interiors/" in here.lower():
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,

@@ -131,6 +131,11 @@ class DungeonHealer:
             return False  # recover() inside the trip must not start another
         if zone.split("/")[-1].endswith("_Hub"):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
+        if self.q._active_quest:
+            # Back from the trip, the quest we left stays the one (its
+            # 'mid-way' time starts again): a ranking after the Recall picked
+            # the main quest over the tower's own.
+            self.q._momentum = (self.q._active_quest, time.monotonic())
         m = self.q._mark
         here = await self.client.zone_name() or ""
         inside = bool(m and m.zone == here)
