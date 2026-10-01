@@ -136,7 +136,8 @@ class SpellTrainer:
         learned: list[str] = []
         tries: dict[str, int] = {}
         for _ in range(SPELLS_PER_TRIP):
-            got = await self._train(level, skip={n for n, k in tries.items() if k >= 2})
+            # (The list still shows a spell just learned: once per trip each.)
+            got = await self._train(level, skip=set(tries))
             if not got:
                 break
             for name in got:
