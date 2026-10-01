@@ -197,7 +197,7 @@ STALL_SWITCH_SECONDS = 180.0  # no objective change and no won fight: follow ano
 APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, "sweep": 2, "inch": 2,
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
-                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 4}
+                   "spirit_portal": 2, "go_to_spot": 2, "find_marker": 8, "collect_sigil": 2}
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -2639,6 +2639,14 @@ class Quester:
         # and 20 minutes went to fights there before the quest was set aside.)
         marker = await self.client.quest_position.position()
         zone = await self.client.zone_name() or ""
+        # The marker on a dungeon sigil: the items are in that dungeon.
+        if (distance(marker, XYZ(0, 0, 0)) > 1 and distance(await self._position(), marker) < 3000
+                and self._may_try(objective, zone, "collect_sigil")):
+            sigil = await self._sigil_at(marker)
+            if sigil is not None:
+                logger.info(f"no {item!r} in view; the quest marker is a dungeon sigil: going in")
+                await self._enter_by_sigil(sigil, zone)
+                return True
         if (distance(marker, XYZ(0, 0, 0)) > 1
                 and distance(await self._position(), marker) > COLLECT_MARKER_RANGE
                 and self._may_try(objective, zone, "collect_marker")):
@@ -4689,8 +4697,17 @@ class Quester:
                 if await self._talk_to_named(f"Talk To {who}"):
                     return
             marker = await self.client.quest_position.position()
-            if (distance(marker, XYZ(0, 0, 0)) > 1 and distance(await self._position(), marker) > DOOR_NEAR
-                    and self._may_try(objective, zone or "", "find_marker")):
+            if distance(marker, XYZ(0, 0, 0)) > 1 and self._may_try(objective, zone or "", "find_marker"):
+                # The marker on a dungeon sigil: they're in that dungeon (Ting
+                # Yin in the Town Dojo, its sigil in Yoshihito Temple). The
+                # objective's 'in Village of Sorrow' sent the item search back
+                # there, away from the marker.
+                near = distance(await self._position(), marker) < 3000
+                sigil = await self._sigil_at(marker) if near else None
+                if sigil is not None:
+                    logger.info(f"{who} not in view; the quest marker is a dungeon sigil: going in")
+                    await self._enter_by_sigil(sigil, zone)
+                    return
                 logger.info(f"{who} not in view: following the quest marker")
                 await self.travel(marker)
                 return
