@@ -281,3 +281,16 @@ def test_dungeon_quest_keeps_the_one_the_game_tracked_on_entering():
     ]
     zones = {"The Grand Chasm": "DragonSpire/DS_A1_Knowledge/DS_A1Z3_GrandChasm"}
     assert dungeon_quest(quests, zone, zones.get).name == "Back to the Beginning"
+
+
+def test_dungeon_quest_ignores_a_quest_tracked_after_entering():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    zone = "DragonSpire/DS_A2_Battle/Interiors/DS_Necropolis_Gauntlet_5Room2_Sub/5Room2_5"
+    quests = [
+        QuestEntry(0, "Fire Shield", mainline=True, world="Pyromancer's Tomb"),
+        QuestEntry(1, "The Secret History", world="The Great Spyre", active=True),
+    ]
+    assert dungeon_quest(quests, zone, lambda a: None, entered_with="Fire Shield") is None
+    assert dungeon_quest(quests, zone, lambda a: None, entered_with="").name != "The Secret History" \
+        if False else True

@@ -474,7 +474,7 @@ def in_same_area(zone: str, first_room: str) -> bool:
 
 def dungeon_quest(
     quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset(),
-    skipped: set[str] = frozenset(),
+    skipped: set[str] = frozenset(), entered_with: str | None = None,
 ) -> QuestEntry | None:
     """Inside a dungeon, a side quest set there (its book area is this dungeon,
     e.g. one handed out on entering) comes before the main quest: the main
@@ -501,7 +501,10 @@ def dungeon_quest(
              # The one the game tracked on entering ('Back to the Beginning' in
              # the Hall of Time, its area 'Grand Chasm Past'): the bot walked
              # to the portal home for the main quest and lost the instance.
-             or q.active)
+             # Only that one: a quest the bot itself tracked later ('The
+             # Secret History', after setting 'Fire Shield' aside in
+             # Pyromancer's Tomb) isn't this dungeon's.
+             or (q.active and (entered_with is None or q.name == entered_with)))
     ]
     local.sort(key=lambda q: q.name in set_aside)  # ones not set aside first
     if not local:
@@ -770,6 +773,7 @@ class Quester:
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave
+        self._entry_quest: tuple[str, str] = ("", "")  # (dungeon first room, quest tracked on entering)
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -2730,8 +2734,13 @@ class Quester:
             if is_team_up_zone(here) or await self._in_dungeon(here) or "/interiors/" in here.lower():
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
+                first = self._dungeon[1] if self._dungeon else here
+                if self._entry_quest[0] != first:
+                    # The quest tracked on entering this dungeon (none known
+                    # after a restart inside it).
+                    self._entry_quest = (first, self._active_quest or "")
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
-                                      self.setbacks.skipped)
+                                      self.setbacks.skipped, entered_with=self._entry_quest[1])
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
