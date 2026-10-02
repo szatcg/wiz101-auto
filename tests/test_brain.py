@@ -1370,3 +1370,21 @@ def test_one_enemy_bins_the_aoe_hit_for_a_single_target_one():
     two = Battle(me=me, allies=[], enemies=[boss, Combatant("Add", 500, 500, is_enemy=True, resist={})],
                  cards=[frog], pips=1, deck_known=True, upcoming=[colossus])
     assert _junk_discard(two, Strategy()) is None  # a group: the AoE hit stays
+
+
+def test_low_boss_bins_setup_to_dig_for_a_hit():
+    from wiz101_auto.combat.brain import Strategy, _junk_discard
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    me = Combatant("me", 2000, 2000, is_client=True, school="myth")
+    boss = Combatant("Boss", 284, 5000, is_enemy=True, is_boss=True, resist={})
+    trap_fx = [Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)]
+    feint = Card(0, "Feint", school="death", pip_cost=2, effects=trap_fx)
+    frog = Card(9, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 400)])
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[feint], pips=1, deck_known=True, upcoming=[frog])
+    got = _junk_discard(b, Strategy())
+    assert got is not None and got.kind is ActionKind.DISCARD and got.card is feint
+    healthy = Combatant("Boss", 4000, 5000, is_enemy=True, is_boss=True, resist={})
+    b2 = Battle(me=me, allies=[], enemies=[healthy], cards=[feint], pips=1, deck_known=True, upcoming=[frog])
+    assert _junk_discard(b2, Strategy()) is None  # far from dead: Feint has its use

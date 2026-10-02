@@ -504,6 +504,19 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     if prisms:
         why = "prism: no enemy here takes more from the other school"
         return Action(ActionKind.DISCARD, prisms[0], reason=why)
+    # Every hit we could draw kills what's left (a boss at 284): blades, traps,
+    # Feint, shields and prisms have no job any more; they go, digging for a
+    # hit we can cast now (the player's). Heals stay; only while cards are left.
+    live = battle.live_enemies
+    hits = [c for c in [*battle.cards, *battle.upcoming] if c.is_damage and not c.is_enchant]
+    if len(live) == 1 and hits and battle.upcoming and all(
+            hit_damage(c, battle.me, live[0]) >= live[0].health for c in hits):
+        setup = [c for c in battle.cards if not c.treasure and not c.is_damage and not c.is_heal
+                 and not is_reshuffle(c)]
+        affordable = [c for c in battle.cards if c.is_damage and c.castable]
+        if setup and not affordable:
+            why = "any hit finishes it: no use for setup; digging for a hit"
+            return Action(ActionKind.DISCARD, setup[0], reason=why)
     # One deck for every fight (the player's): against one enemy its AoE hits
     # (Humongofrog) are the weak use of pips; with a single-target hit in hand
     # or still to draw (Colossus), they go, drawing toward the plan.

@@ -240,6 +240,7 @@ FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is
 COMPANY_RANGE = 1200.0  # another enemy this near a boss joins its fight: the AoE deck
 NOT_SAME_MOB = 5.0  # (the boss itself)
 HUB_JUMP_HOPS = 1  # the hub button counts as this many gate hops when comparing routes
+FIGHT_MARK_NEAR = 1500.0  # in a dungeon, a fight further than this from the mark gets a new one
 SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
 SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
@@ -729,6 +730,7 @@ class Quester:
         self._seen_deaths = 0
         self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
         self._last_defeat = -1e9
+        self._fight_mark_pos: XYZ | None = None  # where the last fight mark was placed
         self._last_win_zone = _load_last_main(2)  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
         self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
@@ -1388,8 +1390,10 @@ class Quester:
         mark outside meant going in again: a fresh copy, all progress lost,
         after losing to the Death Oni). Once per objective."""
         m = self._mark
-        if m and m.kind == "fight" and m.objective == objective and m.zone == zone:
-            return
+        here = await self._position()
+        near = self._fight_mark_pos is not None and distance(here, self._fight_mark_pos) < FIGHT_MARK_NEAR
+        if m and m.kind == "fight" and m.zone == zone and near:
+            return  # (marked by this fight already)
         if self._recall_pending:
             return  # a defeat's Recall to the current mark comes first
         from .dungeons import no_return
@@ -1397,7 +1401,8 @@ class Quester:
         if no_return(zone):
             return  # Recall can't come back in here: the entrance mark stays
         logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
-        await self._mark_here("fight", objective=objective, require_clear=False)
+        if await self._mark_here("fight", objective=objective, require_clear=False):
+            self._fight_mark_pos = here
 
     async def _mark_here(self, kind: str = "dungeon", objective: str | None = None,
                          require_clear: bool = True) -> bool:
@@ -1951,11 +1956,9 @@ class Quester:
         zone = await self.client.zone_name()
         if zone == marked_zone:
             return False
-        objective = await self.objective()
-        if objective != self._mark.objective and not self._same_dungeon(objective, marked_zone):
-            self._recall_pending = False  # moved on elsewhere: the dungeon mark is done with
-            self._retire_dungeon_mark()
-            return False
+        # Whatever quest the game tracks now: a defeat takes us out of the
+        # dungeon, and the quest shown changes with it (the player's rule:
+        # heal, then back to the mark, no matter what).
         if not await is_free(self.client):
             return False
         what = "the dungeon entrance" if self._mark.kind == "dungeon" else "the spot marked before the fight"
@@ -4471,6 +4474,9 @@ class Quester:
                     if adapter._pending is not None:
                         logger.info(f"{target} in view: the right deck goes in before the fight")
                         return  # (the next step's deck tick switches it, clear of enemies)
+                zone_here = await self.client.zone_name() or ""
+                if await self._in_dungeon(zone_here) or "/interiors/" in zone_here.lower():
+                    await self._mark_in_dungeon_fight(objective, zone_here)  # each fight its mark
                 logger.info(f"going after {target} for {objective!r}")
                 allow_engage(self.client)  # this teleport is meant to start the fight
                 await self.client.teleport(pos)
