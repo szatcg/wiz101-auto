@@ -49,3 +49,14 @@ def test_duel_circles_are_not_landmarks():
     from wiz101_auto.collect import LANDMARK_NAMES
 
     assert "duel circle" not in LANDMARK_NAMES
+
+
+def test_an_objective_for_two_kinds_matches_either():
+    from wiz101_auto.collect import item_alternatives, matches_item
+
+    both = ["Green Crystal Sample", "Purple Crystal Sample"]
+    assert item_alternatives("Green and Purple Crystal Sample") == both
+    assert matches_item("Green and Purple Crystal Sample", "Purple Crystal Sample")
+    assert matches_item("Red and Orange Crystal Sample", "Red Crystal Sample")
+    assert not matches_item("Green and Purple Crystal Sample", "Orange Crystal Sample")
+    assert item_alternatives("Cog") == ["Cog"]

@@ -37,8 +37,22 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z]", "", s.lower())
 
 
+def item_alternatives(item: str) -> list[str]:
+    """'Green and Purple Crystal Sample' -> ['Green Crystal Sample', 'Purple
+    Crystal Sample']: one objective for two kinds (searched as one name, it
+    matched nothing and the main quest was set aside)."""
+    m = re.match(r"^\s*(\w+)\s+and\s+(\w+)\s+(.+)$", item, flags=re.I)
+    if not m:
+        return [item]
+    first, second, rest = m.groups()
+    return [f"{first} {rest}", f"{second} {rest}"]
+
+
 def matches_item(item: str, *names: str) -> bool:
     """True if any of the entity's names refers to the item (e.g. 'Cog' vs 'WC_Cog_01')."""
+    alternatives = item_alternatives(item)
+    if len(alternatives) > 1:
+        return any(matches_item(a, *names) for a in alternatives)
     item = re.sub(r"^(the|a|an|some)\s+", "", item.strip(), flags=re.I)
     # Plurals: "Supplies" -> "supply" (the game's "Supply Crate"), "Cogs" -> "cog".
     single = item[:-3] + "y" if item.lower().endswith("ies") else item.rstrip("s")
