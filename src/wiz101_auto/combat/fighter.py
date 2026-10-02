@@ -101,7 +101,7 @@ ROLLOUT_GRACE = 8.0  # ... and no rollout runs past budget + this (time left for
 PLAN_FILE = Path("state") / "battle_plan.json"
 
 
-def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
+def _write_plan(battle, action, strategy, discards: int, gone=None, discarded=None) -> None:
     """The plan the stream page shows (state/battle_plan.json): the fight played
     on from this decision (sim.plan_preview); rewritten whenever the decision
     changes (a heal comes in), cleared when the fight ends."""
@@ -117,7 +117,7 @@ def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
                 "me": {"hp": battle.me.health, "max": battle.me.max_health},
                 "now": {"kind": category(action), "spell": action.card.name if action.card else "",
                         "target": action.target.name if action.target else "", "why": action.reason},
-                "deck": deck_tracker(battle, gone or {}),
+                "deck": deck_tracker(battle, gone or {}, discarded or {}),
                 "improve": improve_odds(battle, action),
             })
         PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
@@ -125,16 +125,20 @@ def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
         logger.debug(f"battle plan not written: {exc!r}")
 
 
-def deck_tracker(battle, gone) -> list[dict]:
-    """The deck this fight: per card, copies still to draw, in hand and used
-    (cast or discarded), for the stream page; a deck that isn't known: []."""
+def deck_tracker(battle, gone, discarded=None) -> list[dict]:
+    """The deck this fight: per card, copies still to draw, in hand, played
+    and discarded (and used: both), for the stream page; a deck that isn't
+    known: []."""
+    discarded = discarded or {}
     if not battle.deck_known:
         return []
     rows: dict[str, dict] = {}
 
     def row(card) -> dict:
         key = _deck_name(card)
-        return rows.setdefault(key, {"name": card.name, "left": 0, "hand": 0, "used": int(gone.get(key, 0))})
+        used, tossed = int(gone.get(key, 0)), int(discarded.get(key, 0))
+        return rows.setdefault(key, {"name": card.name, "left": 0, "hand": 0, "used": used,
+                                     "played": max(0, used - tossed), "discarded": tossed})
 
     for c in battle.upcoming:
         row(c)["left"] += 1
@@ -142,7 +146,9 @@ def deck_tracker(battle, gone) -> list[dict]:
         row(c)["hand"] += 1
     for key, n in gone.items():
         if key not in rows and n:
-            rows[key] = {"name": key, "left": 0, "hand": 0, "used": int(n)}
+            tossed = int(discarded.get(key, 0))
+            rows[key] = {"name": key, "left": 0, "hand": 0, "used": int(n),
+                         "played": max(0, int(n) - tossed), "discarded": tossed}
     return sorted(rows.values(), key=lambda r: (-r["left"], r["name"]))
 
 
@@ -215,6 +221,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
+        self._discarded: Counter[str] = Counter()  # (of _gone: the discarded ones; the rest were played)
         self._deck: dict[str, int] = {}
         # deck spell name -> a card seen in hand (for planning); kept across
         # restarts (after one, Humongofrog wasn't known to be still in the
@@ -566,7 +573,7 @@ class Fighter(CombatHandler):
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
-            _write_plan(battle, action, self.strategy, discards_left, self._gone)
+            _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies
@@ -594,6 +601,7 @@ class Fighter(CombatHandler):
 
             if action.kind is ActionKind.DISCARD:
                 self._gone[_deck_name(action.card)] += 1
+                self._discarded[_deck_name(action.card)] += 1
                 r = await live_card._spell_window.scale_to_client()
                 x = int(r.x1 + (r.x2 - r.x1) * self._card_click_x)
                 await self.client.mouse_handler.click(x, int((r.y1 + r.y2) / 2), right_click=True)
@@ -668,6 +676,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()
         self._summons = 0
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
+        self._discarded = Counter()
         self._deck = load_deck_counts()
         self._judged_fight = False
         self._fleeing = False

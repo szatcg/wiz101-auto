@@ -180,8 +180,8 @@
   .qstep.next { color: var(--muted); font-style: italic; }
 
   /* ---- deck tracker (the strip during a fight) ---- */
-  .dtrack { position: absolute; left: 184px; right: 0; top: 0; bottom: 0; display: grid;
-    grid-template-columns: 1.6fr 1fr 1fr; gap: 10px; }
+  .dtrack { position: absolute; left: 176px; right: 0; top: 0; bottom: 0; display: grid;
+    grid-template-columns: 1.5fr 1.15fr 1fr 1fr; gap: 6px; }
   .dcol { background: var(--panel); border-radius: 12px; padding: 8px 12px; overflow: hidden; }
   .dcol h4 { margin: 0 0 6px; font: 800 13px Inter; letter-spacing: 1.5px; color: var(--muted);
     display: flex; justify-content: space-between; }
@@ -501,7 +501,9 @@ function renderTracker() {
   const html = `<div class="dtrack">
     <div class="dcol"><h4><span>IN DECK · ${n("left")}</span>${digNote}</h4><div class="dchips">${chips(deck, "left", "")}</div></div>
     <div class="dcol"><h4><span>IN HAND · ${n("hand")}</span></h4><div class="dchips">${chips(deck, "hand", "")}</div></div>
-    <div class="dcol"><h4><span>USED · ${n("used")}</span></h4><div class="dchips">${chips(deck, "used", "used")}</div></div></div>`;
+    <div class="dcol"><h4><span>PLAYED · ${n("played")}</span></h4><div class="dchips">${chips(deck, "played", "used")}</div></div>
+    <div class="dcol"><h4><span>DISCARDED · ${n("discarded")}</span></h4><div class="dchips">${
+      chips(deck, "discarded", "used")}</div></div></div>`;
   if (html !== trackerHtml) { trackerHtml = html; $("feed").innerHTML = html; }
 }
 
