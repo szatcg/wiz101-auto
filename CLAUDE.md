@@ -77,7 +77,7 @@ while the bot is stopped.
   don't close Wizard101 yourself. The exception (the player's request,
   2026-10-01): the supervisor restarts a frozen or crashed game by itself
   (`gamerestart.py`: a loading screen for 5 min, the window not responding for
-  2 min, no game window, no hook), at most 3 times an hour, logging in with
+  2 min, no game window, no hook), at most once every 15 minutes, retrying every 15 minutes until it gets in, logging in with
   the login saved by `set-login`. Never ask for, read or print the password.
 - If the user presses Ctrl+Shift+Q or asks you to stop, stop and don't restart.
 - The bot runs until stopped (`safety.max_hours: 0` = no limit). When it

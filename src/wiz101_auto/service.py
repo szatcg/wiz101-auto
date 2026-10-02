@@ -240,6 +240,16 @@ def _bot_output_since(offset: int) -> str:
         return ""
 
 
+def _wait_or_stop(seconds: float) -> bool:
+    """Sleep `seconds`; True if a stop was asked meanwhile."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if STOP_FILE.exists():
+            return True
+        time.sleep(1.0)
+    return False
+
+
 def supervise(config: str, max_restarts: int = 10) -> int:
     """Run the bot in a child process and restart it after crashes.
 
@@ -259,8 +269,12 @@ def supervise(config: str, max_restarts: int = 10) -> int:
         if why:
             print(f"supervisor: restarting the game ({why})", flush=True)
             if not gamerestart.restart_game(log=lambda m: print(f"supervisor: {m}", flush=True)):
-                print("supervisor: could not restart the game; stopping (the player is needed).")
-                return 1
+                # (Servers down, a login that didn't take: again in 15 min, not give up.)
+                print(f"supervisor: could not restart the game; trying again in "
+                      f"{gamerestart.RETRY_SECONDS / 60:.0f} min", flush=True)
+                if _wait_or_stop(gamerestart.RETRY_SECONDS):
+                    return 0
+                continue
         started = time.monotonic()
         last_run_from = _out_size()
         code = subprocess.call([_python(), "-m", "wiz101_auto", "run", "-c", config])
@@ -273,8 +287,12 @@ def supervise(config: str, max_restarts: int = 10) -> int:
             restarts = 0  # it ran fine for a while; reset the budget
         restarts += 1
         if restarts > max_restarts:
-            print(f"supervisor: {max_restarts} crashes in a row; giving up.")
-            return 1
+            print(f"supervisor: {max_restarts} crashes in a row; trying again in "
+                  f"{gamerestart.RETRY_SECONDS / 60:.0f} min", flush=True)
+            if _wait_or_stop(gamerestart.RETRY_SECONDS):
+                return 0
+            restarts = 0
+            continue
         print(f"supervisor: bot exited with {code}; restart {restarts}/{max_restarts} in 10s")
         for _ in range(20):
             if STOP_FILE.exists():

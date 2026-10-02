@@ -15,11 +15,21 @@ def test_restart_reasons(tmp_path, monkeypatch):
     assert "no game window" in gamerestart.needs_restart("")
 
 
-def test_restarts_are_capped_per_hour(tmp_path, monkeypatch):
+def test_restarts_are_counted(tmp_path, monkeypatch):
     monkeypatch.setattr(gamerestart, "HISTORY", tmp_path / "hist")
     now = time.time()
     (tmp_path / "hist").write_text(f"{now - 4000:.0f}\n{now - 100:.0f}\n{now - 50:.0f}\n", encoding="utf-8")
     assert gamerestart.recent_restarts(now) == 2
+
+
+def test_one_restart_per_15_minutes(tmp_path, monkeypatch):
+    monkeypatch.setattr(gamerestart, "HISTORY", tmp_path / "hist")
+    now = time.time()
+    assert gamerestart.wait_before_restart(now) == 0
+    (tmp_path / "hist").write_text(f"{now - 300:.0f}\n", encoding="utf-8")
+    assert 590 < gamerestart.wait_before_restart(now) <= 600
+    (tmp_path / "hist").write_text(f"{now - 1000:.0f}\n", encoding="utf-8")
+    assert gamerestart.wait_before_restart(now) == 0
 
 
 def test_the_death_realm_is_no_return():

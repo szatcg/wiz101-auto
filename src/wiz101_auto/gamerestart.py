@@ -12,7 +12,8 @@ The bot can't play through that, so:
 
 The login lives in Windows Credential Manager (encrypted for this Windows
 user), saved by `wiz101-auto set-login`; never in a file of this project.
-At most MAX_PER_HOUR game restarts an hour.
+At most one game restart every MIN_GAP seconds (15 minutes; the player's
+rule: the servers were down and the game had to be retried until it got in).
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ CRED_TARGET = "wiz101-auto/Wizard101"
 GAME_EXE = "WizardGraphicalClient.exe"
 FREEZE_SECONDS = 300.0  # on a loading screen this long: frozen
 HUNG_SECONDS = 120.0  # the window not responding this long: frozen
-MAX_PER_HOUR = 3
+MIN_GAP = 900.0  # seconds between game restarts (a restart due sooner waits)
+RETRY_SECONDS = 900.0  # after a restart that didn't get the bot in: again this much later
 WINDOW_WAIT = 90.0  # for the game window after starting it
 LOGIN_SCREEN_WAIT = 15.0  # from the window to its login screen
 AFTER_LOGIN_WAIT = 25.0  # from the login to character select
@@ -92,6 +94,20 @@ def load_login() -> tuple[str, str] | None:
 
 
 # --- when ---------------------------------------------------------------------
+
+def last_restart() -> float:
+    try:
+        times = [float(x) for x in HISTORY.read_text(encoding="utf-8").split()]
+    except (OSError, ValueError):
+        return 0.0
+    return max(times, default=0.0)
+
+
+def wait_before_restart(now: float | None = None) -> float:
+    """Seconds until the next game restart is allowed (0: now)."""
+    now = now or time.time()
+    return max(0.0, MIN_GAP - (now - last_restart()))
+
 
 def recent_restarts(now: float | None = None) -> int:
     now = now or time.time()
@@ -199,9 +215,10 @@ def restart_game(log=print) -> bool:
     """Close the game, start it, log in. True once a login was sent (the bot
     presses Play at character select itself)."""
     REQUEST.unlink(missing_ok=True)
-    if recent_restarts() >= MAX_PER_HOUR:
-        log(f"game restart: already {MAX_PER_HOUR} this hour; not again (the player is needed)")
-        return False
+    wait = wait_before_restart()
+    if wait > 0:
+        log(f"game restart: the last was under {MIN_GAP / 60:.0f} min ago; waiting {wait / 60:.1f} min")
+        time.sleep(wait)
     login = load_login()
     if login is None:
         log("game restart: no saved login (run `wiz101-auto set-login` once); can't log back in")
