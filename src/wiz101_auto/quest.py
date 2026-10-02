@@ -200,10 +200,12 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
-                   "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8}
+                   "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8,
+                   "zone_boss": 4}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
+ZONE_BOSS_RANGE = 1500.0  # enemies this near a zone's duel circle are its boss and guards
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
@@ -3382,6 +3384,35 @@ class Quester:
                 return True
         return False
 
+    async def _fight_zone_boss(self, objective: str, zone: str) -> bool:
+        """A locked door on the way to the objective: beat the boss on this
+        zone's duel circle first (Gurtok Firebender guards the crystal that
+        opens Malistaire's door). Goes to the circle remembered in the
+        entity map, then onto the enemy standing on it. True if it acted."""
+        circles = (self.entity_map.zones.get(zone, {}) or {}).get("Duel Circle") or []
+        if not circles or not self._may_try(objective, zone, "zone_boss"):
+            return False
+        c = XYZ(*circles[0])
+        near = []
+        for mob in await self.client.get_mobs():
+            try:
+                pos = await mob.location()
+            except Exception:
+                continue
+            if math.dist((pos.x, pos.y), (c.x, c.y)) < ZONE_BOSS_RANGE:
+                near.append(pos)
+        if not near:
+            logger.info("a locked way on: to this zone's duel circle, where its boss stands")
+            await self.client.teleport(XYZ(c.x + 900, c.y, c.z))  # (lands clear of enemies)
+            await asyncio.sleep(1.5)
+            return True
+        target = min(near, key=lambda p: math.dist((p.x, p.y), (c.x, c.y)))
+        logger.info("a locked way on: beating the boss on this zone's duel circle first")
+        allow_engage(self.client)  # this teleport is meant to start the fight
+        await self.client.teleport(target)
+        await asyncio.sleep(3.0)
+        return True
+
     async def _fight_for_item(self, item: str, objective: str) -> bool:
         """`item` is nowhere in this dungeon room: start a fight with the enemy
         on the room's duel circle (its boss), else the nearest enemy, so the
@@ -4930,8 +4961,10 @@ class Quester:
                 # went between three zones and none reached two tries.)
                 tries = sum(n for (o, _z, a), n in self._attempts_at.items()
                             if o == objective and a == "marker_travel")
-                if (_real_marker(marker) and tries >= APPROACH_LIMITS["marker_travel"]
-                        and self._may_try(objective, zone_now, "locked_door_early")
+                locked = _real_marker(marker) and tries >= APPROACH_LIMITS["marker_travel"]
+                if locked and await self._fight_zone_boss(objective, zone_now):
+                    return
+                if (locked and self._may_try(objective, zone_now, "locked_door_early")
                         and await self.bring_out.step(objective, zone_now, target, fight=True)):
                     return
                 # Far from the marker: walk toward it (enemies only load nearby;
