@@ -78,6 +78,13 @@ def _same(a: Action, b: Action) -> bool:
 HEAL_NEEDED_BELOW = 0.5  # a rollout's heal instead of the brain's move: only under half health...
 
 
+def _free_move(move: Action) -> bool:
+    """A discard (doesn't end the turn) or a 0-pip cast: nothing a pass saves."""
+    if move.kind is ActionKind.DISCARD:
+        return True
+    return move.kind is ActionKind.CAST and move.card is not None and move.card.pip_cost == 0
+
+
 def _early_heal(move: Action, battle: Battle, stats=None) -> bool:
     """A heal the simulator would play while we're well (1364 of 2189 against
     Boris Blackrock, over the brain's pass): not taken unless under half
@@ -162,6 +169,12 @@ class RolloutPlanner:
             v, w, d, dmg = values[i]
             return f"{moves[i].describe()[:60]} (value {v:+.2f}, won {w:.0%}, died {d:.0%}, dmg {dmg:.0%})"
 
+        if moves[best].kind is ActionKind.PASS and _free_move(brain):
+            # A pass ends the turn; the brain's discard or 0-pip cast doesn't
+            # spend anything (a discard of Humongofrog, then Mythblade, became
+            # a pass and the blade never went up).
+            logger.debug(f"rollouts ({took:.1f}s): the brain's free {line(mine)} over a pass")
+            return brain
         idle = moves[best].kind in (ActionKind.PASS, ActionKind.DISCARD) and brain.kind is ActionKind.CAST
         margin = IDLE_MARGIN if idle else MARGIN
         if best != mine and values[best][0] > values[mine][0] + margin:
