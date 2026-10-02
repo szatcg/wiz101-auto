@@ -147,7 +147,7 @@ def read_log(paths: list[Path]) -> LogRead:
     return LogRead(fights, lost, profiles)
 
 
-def measure(fights: list[list[Round]]):
+def measure(fights: list[list[Round]], defeats: list[bool] | None = None):
     ours: dict[str, list[float]] = {}  # spell -> actual / predicted
     fizzles: dict[str, list[int]] = {}
     theirs: dict[str, list[int]] = {}  # enemy -> damage to us in a round it was alone
@@ -181,6 +181,22 @@ def measure(fights: list[list[Round]]):
                 total = sum(max(m, 1) for _n, _h, m in a.foes)
                 for name, _h, m in a.foes:
                     shared.setdefault(name, []).append(taken * max(m, 1) / total)
+    # A lost fight's last round: what finished us was at least the health we
+    # had (Malistaire Drake took 938 in one round; only hits we lived through
+    # were counted, his worst read 534 and the bot stayed in at 938).
+    for fight, defeated in zip(fights, defeats or [], strict=False):
+        if not defeated or not fight:
+            continue
+        a = fight[-1]
+        cast = CAST.search(a.action)
+        taken = min(a.max_hp, a.hp + HEAL_SPELLS.get(cast["spell"] if cast else "", 0))
+        foes = [f for f in a.foes if f[1] > 0]
+        if len(foes) == 1:
+            theirs.setdefault(foes[0][0], []).append(taken)
+        elif foes:
+            total = sum(max(m, 1) for _n, _h, m in foes)
+            for name, _h, m in foes:
+                shared.setdefault(name, []).append(taken * max(m, 1) / total)
     return ours, fizzles, theirs, shared
 
 
@@ -206,7 +222,7 @@ def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
     per-round damage alone and shared; per spell our hit rate."""
     log = read_log(paths)
     fights = log.fights
-    _ours, fizzles, theirs, shared = measure(fights)
+    _ours, fizzles, theirs, shared = measure(fights, log.lost)
     info: dict[str, dict] = {}
     for fight in fights:
         for r in fight:

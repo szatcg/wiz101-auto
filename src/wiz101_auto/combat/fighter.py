@@ -84,6 +84,7 @@ def _deck_name(card) -> str:
     return card.template_name or card.name
 
 
+FLEE_MARGIN = 1.2  # a dungeon flee: the enemies' worst logged round, plus this much
 FLEE_FILE = Path("state") / "flee.request"  # created by the user: flee this fight
 
 MY_STATS = Path("state") / "my_stats.json"
@@ -396,8 +397,10 @@ class Fighter(CombatHandler):
         stats = self.__dict__.get("_sim_stats")
         if stats is None:
             stats = self._sim_stats = sim.load_stats()
-        threat = sum(max(sim.samples_for(e.name, e.max_health, e.is_boss, stats) or [0])
-                     for e in battle.live_enemies)
+        # (x FLEE_MARGIN: the worst logged round can be a lower bound, the
+        # one that killed us; Malistaire hit 938 after a worst of 534.)
+        threat = FLEE_MARGIN * sum(max(sim.samples_for(e.name, e.max_health, e.is_boss, stats) or [0])
+                                   for e in battle.live_enemies)
         if not flee_before_death(battle, action, threat):
             return False
         if not await self.flee_to_mark():
