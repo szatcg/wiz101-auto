@@ -202,6 +202,8 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
+SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
+GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -3639,9 +3641,29 @@ class Quester:
             logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
 
     async def _to_world(self, world: str, why: str) -> bool:
-        """One step toward another world: by the dorm to Wizard City, into the
-        World Tree (Ravenwood, Bartleby's mouth), its world gate, the Spiral
-        Map. True if it acted; False once in `world` (off the map)."""
+        """Toward another world: by the dorm to Wizard City, into the World
+        Tree (Ravenwood, Bartleby's mouth), its world gate, the Spiral Map,
+        stage after stage without going back to the step in between (each
+        stage waited a whole step's checks: the trip took half a minute). True
+        if it acted; False once in `world` (off the map)."""
+        acted = False
+        deadline = time.monotonic() + SPIRAL_TRIP_SECONDS
+        while time.monotonic() < deadline:
+            before = await self.client.zone_name() or ""
+            map_open = await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT)
+            if not await self._to_world_stage(world, why):
+                return acted
+            acted = True
+            on_map = await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT)
+            if not on_map and not await is_free(self.client):
+                return True  # (a fight or a dialogue: the step takes it from here)
+            after = await self.client.zone_name() or ""
+            if after == before and (map_open or not on_map):
+                return True  # this stage got nowhere (or the map didn't take us): the next step tries again
+        return acted
+
+    async def _to_world_stage(self, world: str, why: str) -> bool:
+        """One stage of _to_world. True if it acted."""
         zone = await self.client.zone_name() or ""
         if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             from .relog import _find_button
@@ -3651,10 +3673,9 @@ class Quester:
             if button is not None:
                 logger.info(f"{why}: choosing {label.title()} on the Spiral Map")
                 await ui.click_center(self.client, button)
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)
             await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
-            await asyncio.sleep(1.0)
-            await wait_for_loading(self.client)
+            await wait_for_loading(self.client, appear_timeout=3.0)
             return True
         if zone.split("/", 1)[0] != world:
             # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
@@ -3673,25 +3694,37 @@ class Quester:
                 await self.approach_and_walk(door, zone)
                 return True
             if zone == WORLD_TREE:
-                if await ui.is_visible(self.client, ui.NPC_RANGE):
-                    # "World Gate: Press X to Interact" opens the Spiral Map.
-                    logger.info(f"{why}: opening the Spiral Map at the world gate")
-                    await self.client.send_key(Keycode.X, 0.1)
-                    await asyncio.sleep(1.5)
-                    return True
-                gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
-                logger.info(f"{why}: walking into the world gate")
-                here = await self._position()
-                dx, dy = here.x - gate.x, here.y - gate.y
-                back = 400 / (math.hypot(dx, dy) or 1.0)
-                await self.client.teleport(XYZ(gate.x + dx * back, gate.y + dy * back, gate.z))
-                await asyncio.sleep(TELEPORT_SETTLE)
-                await self.client.goto(gate.x, gate.y)
-                await asyncio.sleep(1.5)
+                if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                    # Land beside the gate (walking into it doesn't open the
+                    # map: its "Press X" prompt does) and wait for the prompt.
+                    gate = await self._entity_named_like(("universeteleport",)) or XYZ(0, 0, 89)
+                    here = await self._position()
+                    dx, dy = here.x - gate.x, here.y - gate.y
+                    back = GATE_STAND / (math.hypot(dx, dy) or 1.0)
+                    await self.client.teleport(XYZ(gate.x + dx * back, gate.y + dy * back, gate.z))
+                    if not await self._wait_visible(ui.NPC_RANGE, 2.0):
+                        logger.info(f"{why}: walking up to the world gate")
+                        await self.client.goto(gate.x, gate.y)
+                        if not await self._wait_visible(ui.NPC_RANGE, 2.0):
+                            return True
+                # "World Gate: Press X to Interact" opens the Spiral Map.
+                logger.info(f"{why}: opening the Spiral Map at the world gate")
+                await self.client.send_key(Keycode.X, 0.1)
+                await self._wait_visible(ui.SPIRAL_DOOR_TELEPORT, 3.0)
                 return True
             logger.info(f"{why}: walking to Ravenwood")
             return await self.go_to_zone(RAVENWOOD)
         return False
+
+    async def _wait_visible(self, path, seconds: float) -> bool:
+        """Poll for a window to show (every 0.2 s), up to `seconds`."""
+        deadline = time.monotonic() + seconds
+        while True:
+            if await ui.is_visible(self.client, path):
+                return True
+            if time.monotonic() > deadline:
+                return False
+            await asyncio.sleep(0.2)
 
     async def _visit_npc(self) -> bool:
         """state/visit_npc.json {"npc": ..., "zone": ...}: go and talk to that
