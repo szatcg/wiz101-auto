@@ -90,3 +90,22 @@ def test_single_target_when_alone_or_after_three_aoe_losses():
     assert wants_single(False, 3) is True
     assert wants_single(None, 0) is None
     assert wants_single(None, 3) is True
+
+
+def test_a_lone_enemy_gets_the_single_deck_once(tmp_path, monkeypatch):
+    import json
+
+    from wiz101_auto import deck_adapt
+
+    for name in ("BOSS_DECKS", "MODE_FILE", "TACTICS_FILE", "SINGLE_FILE"):
+        monkeypatch.setattr(deck_adapt, name, tmp_path / f"{name}.json")
+    single = {"Feint": 3, "Pixie": 2, "Myth Trap": 3}
+    (tmp_path / "SINGLE_FILE.json").write_text(json.dumps({"deck": single}), encoding="utf-8")
+    a = deck_adapt.DeckAdapter()
+    a._bosses = set()
+    a.prepare_for("Wandering Wizard", alone=True)  # not a boss, alone: single-target
+    deck, why = a.wanted()
+    assert deck == single and why.startswith("boss")
+    a.mode = {"deck": "boss", "vs": ["Wandering Wizard"], "cards": single}
+    a.prepare_for("Restless Soldier", alone=True)  # already in: no switch
+    assert a.wanted() is None

@@ -11,11 +11,12 @@
 
 state/deck_mode.json remembers which deck is in and what it was for.
 
-Before a boss fight (the player's rule): a boss with no other enemy near it
-gets the single-target deck (the one found for it, else
-state/deck_single.json); a boss with company starts on the AoE (general)
-deck, and after AOE_LOSSES_BEFORE_SINGLE losses with it, the single-target
-one (losses per boss in state/boss_tactics.json). A search after a loss
+Before a fight the bot heads into (a Defeat objective's enemy; the player's
+rule): one enemy alone, boss or not, always gets the single-target deck (the
+one found for it, else state/deck_single.json); an enemy with company gets
+the AoE (general) deck, and after AOE_LOSSES_BEFORE_SINGLE losses with it to
+that boss, the single-target one (losses per boss in state/boss_tactics.json).
+A switch to the deck that's already in is skipped. A search after a loss
 still runs and is remembered, but goes in only when single-target is due.
 """
 
@@ -197,7 +198,10 @@ class DeckAdapter:
         self._wins += 1
         if self._wins % IMPROVE_EVERY == 0:
             self._improve_default()
-        if self.mode.get("deck") == "boss" and set(self.mode.get("vs") or []) <= set(enemies):
+        # (A one-enemy win keeps the single-target deck: the next encounter
+        # decides; switching back after each lone kill cost a minute a time.)
+        if (self.mode.get("deck") == "boss" and set(self.mode.get("vs") or []) <= set(enemies)
+                and len(set(enemies)) >= 2):
             self.mode = {"deck": "general-pending", "vs": None}
             self._save()
             logger.info(f"deck: beat {', '.join(enemies)}; back to the general deck at the next calm moment")
@@ -241,7 +245,8 @@ class DeckAdapter:
             if found is None:
                 return
             deck, why, group = found
-            if self.mode.get("deck") == "boss" and boss in (self.mode.get("vs") or []):
+            if self.mode.get("cards") == deck or (
+                    self.mode.get("deck") == "boss" and boss in (self.mode.get("vs") or [])):
                 return  # (in already)
             how = "alone" if alone else f"after {aoe_losses(boss)} losses with the AoE deck"
             logger.info(f"deck: {boss} is next ({how}): putting in the single-target deck")
@@ -249,7 +254,7 @@ class DeckAdapter:
             return
         if self.mode.get("deck", "general") not in ("general", "general-pending"):
             general = _read(GENERAL_FILE).get("deck")
-            if general:
+            if general and self.mode.get("cards") != general:
                 logger.info(f"deck: {boss} has company: putting in the AoE deck")
                 self._pending = (general, "general deck", [])
 
@@ -347,6 +352,7 @@ class DeckAdapter:
             self.mode = {"deck": "boss", "vs": self._search_vs, "at": time.time()}
         else:
             self.mode = {"deck": "general", "vs": None, "at": time.time()}
+        self.mode["cards"] = dict(deck)  # what's in: the same deck again is no switch
         self._save()
         logger.success(f"deck: now {got}")
         return True
