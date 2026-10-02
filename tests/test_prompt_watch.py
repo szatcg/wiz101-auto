@@ -18,3 +18,14 @@ def test_use_prompt_for_the_named_object():
     assert not should_use("Use Crystal Charger", "Press X to Talk", "Crystal Charger")  # never a talk
     assert not should_use("Use Crystal Charger", "Press X to Activate", "Portal to the Present")
     assert not should_use("Talk To Edrik", "Press X to Activate", "Edrik")
+
+
+def test_collect_prompt_for_any_sample_of_the_kind():
+    from wiz101_auto.prompt_watch import should_collect
+
+    red = "Collect Red Crystal Sample in The Crystal Grove"
+    assert should_collect(red, "Press X to collect", "Crystal Sample")
+    both = "Collect Green and Purple Crystal Sample in The Crystal Grove"
+    assert should_collect(both, "Press X", "Crystal Sample")
+    assert not should_collect(red, "Press X to talk", "Crystal Sample")
+    assert not should_collect("Talk To Zarek Pickmaster", "Press X", "Crystal Sample")

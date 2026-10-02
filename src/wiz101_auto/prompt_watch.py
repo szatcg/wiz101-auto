@@ -28,6 +28,7 @@ from . import ui
 NPC_RANGE_TITLE = ["WorldView", "NPCRangeWin", "wndTitleBackground", "NPCRangeTxtTitle"]
 CHECK_EVERY = 0.2  # seconds between looks at the prompt
 PRESS_COOLDOWN = 3.0  # after a press, let the dialogue come up before pressing again
+COLLECT_COOLDOWN = 1.0  # between presses on pick-up prompts
 
 
 def _norm(s: str) -> str:
@@ -68,6 +69,18 @@ def should_use(objective: str, prompt: str, title: str) -> bool:
     return name == thing or (min(len(name), len(thing)) >= 5 and (name in thing or thing in name))
 
 
+def should_collect(objective: str, prompt: str, title: str) -> bool:
+    """A pick-up prompt titled like the item a collect objective names, or
+    anything like it ('Collect Red Crystal Sample': every sample's prompt is
+    just "Crystal Sample")."""
+    from .collect import collect_item_name, loose_names, matches_item
+
+    item = collect_item_name(objective or "")
+    if not item or not title or "talk" in (prompt or "").lower():
+        return False
+    return any(matches_item(name, title) for name in loose_names(item)[:2])
+
+
 async def _goal_id(client):
     try:
         return await client.goal_id()
@@ -77,6 +90,8 @@ async def _goal_id(client):
 
 async def prompt_loop(client, quester, controller):
     last_press = 0.0
+    last_collect = 0.0  # (its own cooldown: the crystal objective changes as we move, and each
+    # change held back the press, so the bot stood on a sample's prompt without pressing X)
     last_goal = await _goal_id(client)
     while not controller.stopped.is_set():
         await asyncio.sleep(CHECK_EVERY)
@@ -97,6 +112,19 @@ async def prompt_loop(client, quester, controller):
                 quester.cancel_step()
         if goal is not None:
             last_goal = goal
+        try:
+            if (time.monotonic() - last_collect >= COLLECT_COOLDOWN and not await client.in_battle()
+                    and await ui.is_visible(client, ui.NPC_RANGE)):
+                objective = await quester.objective() or ""
+                prompt = await ui.text_at(client, ui.NPC_RANGE_TEXT)
+                title = await ui.text_at(client, NPC_RANGE_TITLE)
+                if should_collect(objective, prompt, title):
+                    last_collect = time.monotonic()
+                    logger.info(f"pick-up prompt for {title} showed: collecting at once")
+                    await client.send_key(Keycode.X, 0.1)
+                    continue
+        except Exception as exc:
+            logger.debug(f"prompt watch (collect): {exc!r}")
         if time.monotonic() - last_press < PRESS_COOLDOWN:
             continue
         try:
