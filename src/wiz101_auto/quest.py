@@ -625,8 +625,10 @@ def note_defeat_alias(target: str, enemies: list[str], path: Path = DEFEAT_ALIAS
     """A fight moved 'Defeat <target> (n of m)' on: its enemies whose names
     don't already say <target> are what <target> means. Returns the new ones."""
     data = defeat_aliases(path)
-    known = data.setdefault(target.lower(), [])
     key = target.lower().rstrip("s")
+    if any(key in e.lower() for e in enemies if e):
+        return []  # the target itself was in the fight: it counted, not the others (a Burning Flamewing)
+    known = data.setdefault(target.lower(), [])
     new = [e for e in dict.fromkeys(enemies) if e and key not in e.lower() and e not in known]
     if new:
         known += new

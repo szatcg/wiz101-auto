@@ -315,3 +315,10 @@ def test_enemies_that_counted_become_names_for_the_target(tmp_path):
     assert note_defeat_alias("Spiders", ["Ancient Crystalweaver"], f) == []  # (known already)
     assert note_defeat_alias("Nirini Warrior", ["Nirini Warrior"], f) == []  # (named as the target)
     assert defeat_aliases(f)["spiders"] == ["Vika Markmaker", "Ancient Crystalweaver"]
+
+
+def test_no_alias_when_the_target_itself_was_in_the_fight(tmp_path):
+    from wiz101_auto.quest import note_defeat_alias
+
+    f = tmp_path / "aliases.json"
+    assert note_defeat_alias("Fangtooth Lavaspinner", ["Fangtooth Lavaspinner", "Burning Flamewing"], f) == []
