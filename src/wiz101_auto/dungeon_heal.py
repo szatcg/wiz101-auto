@@ -49,8 +49,11 @@ async def go_to_hub(client) -> bool:
     """Teleport to the current world's hub. True if the zone changed. The
     button doesn't always take the first time (in Counterweight East it
     didn't): press it again, else go by the dorm and on to the hub."""
+    from .travel_data import learn_hub
+
     for _ in range(2):
         if await _press(client, HUB_BUTTON):
+            learn_hub(await client.zone_name() or "")
             return True
         await asyncio.sleep(2.0)
     if await _press(client, DORM_BUTTON):

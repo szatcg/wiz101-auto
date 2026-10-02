@@ -239,6 +239,7 @@ FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is the way on
 COMPANY_RANGE = 1200.0  # another enemy this near a boss joins its fight: the AoE deck
 NOT_SAME_MOB = 5.0  # (the boss itself)
+HUB_JUMP_HOPS = 1  # the hub button counts as this many gate hops when comparing routes
 SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
 SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
@@ -1147,6 +1148,7 @@ class Quester:
         if is_team_up_zone(dest) and not is_team_up_zone(await self.client.zone_name() or ""):
             logger.info(f"not walking into {dest} alone (team-only dungeon)")
             return False
+        await self._hub_shortcut(dest)
         for _ in range(max_hops):
             zone = await self.client.zone_name()
             if zone == dest:
@@ -1177,6 +1179,31 @@ class Quester:
                 self._bad_gates.add((zone, next_zone))
             await wait_for_loading(self.client)
         return await self.client.zone_name() == dest
+
+    async def _hub_shortcut(self, dest: str) -> bool:
+        """The hub button first when the walk from the hub is shorter than
+        from here, the jump counted as a hop (it walked to the hub and on,
+        when the button would have saved the way there). Not out of a
+        dungeon, a team zone or a no-return zone. True if it went."""
+        from .dungeon_heal import go_to_hub
+        from .dungeons import no_return
+        from .travel_data import world_hub
+
+        zone = await self.client.zone_name() or ""
+        hub = world_hub(zone)
+        if not zone or not hub or zone == hub or dest.split("/")[0] != zone.split("/")[0]:
+            return False
+        walk, via = zone_hops(zone, dest), zone_hops(hub, dest)
+        if walk is None or via is None or via + HUB_JUMP_HOPS >= walk:
+            return False
+        if is_team_up_zone(zone) or no_return(zone) or await self._in_dungeon(zone):
+            return False
+        if not await is_free(self.client):
+            return False
+        logger.info(f"to {dest.split('/')[-1]}: the hub button and {via} gate(s) "
+                    f"instead of walking {walk}")
+        self._teleported = True  # (not a walk-through gate: don't learn it)
+        return await go_to_hub(self.client)
 
     async def _through_known_door(self, zone: str, dest: str, max_hops: int) -> bool:
         """Toward `dest` by a door learned earlier (state/doors.json): through

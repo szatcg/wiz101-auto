@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 from pathlib import Path
 
@@ -280,13 +281,39 @@ def hops_to_place(current_zone: str, place: str) -> int | None:
     return hop_count(current_zone, dest, gates) if dest else None
 
 
+HUBS_FILE = Path("state") / "world_hubs.json"  # world -> the zone the hub button lands in (learned)
+_HUB_NAME = re.compile(r"(^|_)Hub(_|$)")
+
+
+def learn_hub(zone: str):
+    """The hub button landed in `zone`: that's its world's hub."""
+    try:
+        data = json.loads(HUBS_FILE.read_text(encoding="utf-8")) if HUBS_FILE.exists() else {}
+        if data.get(zone.split("/")[0]) != zone:
+            data[zone.split("/")[0]] = zone
+            HUBS_FILE.parent.mkdir(exist_ok=True)
+            HUBS_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except (OSError, ValueError):
+        pass
+
+
 def world_hub(zone: str, gates: Gates | None = None) -> str | None:
-    """The hub of `zone`'s world ("Krokotopia/KT_Hub"), if the gate data has one."""
+    """The hub of `zone`'s world: where the hub button landed before, else a
+    zone named as one ("Krokotopia/KT_Hub", Dragonspyre's "DS_Hub_Cathedral";
+    not "DS_A2Hub_Necropolis", an area hub)."""
     world = zone.split("/")[0]
-    for z in gates if gates is not None else _data()[0]:
-        if z.split("/")[0] == world and z.split("/")[-1].endswith("_Hub"):
-            return z
-    return None
+    if gates is None:
+        try:
+            learned = json.loads(HUBS_FILE.read_text(encoding="utf-8")).get(world)
+            if learned:
+                return learned
+        except (OSError, ValueError):
+            pass
+    zones = [z for z in (gates if gates is not None else _data()[0])
+             if z.split("/")[0] == world and "/interiors/" not in z.lower()]
+    exact = [z for z in zones if z.split("/")[-1].endswith("_Hub")]
+    named = [z for z in zones if _HUB_NAME.search(z.split("/")[-1])]
+    return (exact or named or [None])[0]
 
 
 def hops_from_hub(zone: str, dest: str) -> int | None:
