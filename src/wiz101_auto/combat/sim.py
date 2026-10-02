@@ -503,7 +503,7 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
     _enemy_turn(f, rng)
     if f.me.health <= 0:
         return True
-    if rng.random() < POWER_PIP_CHANCE:
+    if rng.random() < getattr(f, "power_chance", POWER_PIP_CHANCE):
         f.power += 1
     else:
         f.pips += 1
@@ -864,6 +864,9 @@ def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None =
     rng = random.Random(0)
     f = fight_from_battle(battle, stats, rng)
     f.hit_rate = _Always()
+    # Plain pips only: a lucky power pip in this one run showed Orthrus (7
+    # pips) a round before the bot could pay for it.
+    f.power_chance = 0.0
     for foe in f.foes.values():
         if foe.samples:
             foe.samples = [round(sum(foe.samples) / len(foe.samples))]
