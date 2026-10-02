@@ -36,6 +36,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | `inspect` | one-shot: what the bot reads from the game (needs the bot STOPPED) |
 | `inspect --windows` | plus the visible UI window tree (for fixing UI paths) |
 | `gear` | try every backpack item per slot and keep the best (needs the bot stopped) |
+| `decks --setup [--aoe NAME] [--single NAME]` | once, bot stopped, with two deck items: the worn one becomes the AoE deck, another the single-target deck; each is filled once (`state/deck_items.json`); deck switches then just equip the item |
 | `deck -c config.yaml` | known spells, current deck, planned deck (read-only) |
 | `record [--minutes N]` | watches you walk a route: zone doors, NPC positions, trainer window layout → `state/route_record_*.txt`; end early by creating `state/stop.request` |
 | `explore` | entities around the wizard with positions → `state/explore_*.txt` |

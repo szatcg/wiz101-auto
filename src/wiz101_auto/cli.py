@@ -139,6 +139,10 @@ def main(argv: list[str] | None = None):
     farm_p.add_argument("--name", default=None)
     farm_p.add_argument("--boss", default=None, help="the boss whose defeat ends a run")
     farm_p.add_argument("--reset", action="store_true", help="set the run count back to 0")
+    decks_p = sub.add_parser("decks", help="set up the two deck items: AoE and single-target (bot stopped)")
+    decks_p.add_argument("--setup", action="store_true", help="find the deck items and fill each once")
+    decks_p.add_argument("--aoe", default="", help="the deck item for the AoE deck (default: the worn one)")
+    decks_p.add_argument("--single", default="", help="the deck item for the single-target deck")
     pet_p = sub.add_parser("pet", help="have the bot play the pet dance game until the pet's energy runs out")
     pet_p.add_argument("--games", type=int, default=0, help="at most this many games (0: no limit)")
     pin_p = sub.add_parser("pin", help="follow this quest until it's done or set aside (no name: unpin)")
@@ -215,6 +219,31 @@ def main(argv: list[str] | None = None):
             print("stop the bot first (`stop`): `start --supervise` restarts the game by itself")
             return 1
         return 0 if restart_game() else 1
+    if args.command == "decks":
+        from .deckitems import load
+
+        if not args.setup:
+            print(load() or "not set up yet: `decks --setup` (bot stopped, a second deck item bought)")
+            return 0
+        from .service import running_pid
+
+        if running_pid():
+            print("stop the bot first (`stop`)")
+            return 1
+        _setup_logging(None, True)
+        from .bot import close_handler, connect, new_handler
+        from .deckitems import DeckItems
+
+        async def _setup():
+            handler = new_handler()
+            try:
+                client = await connect(handler)
+                async with client.mouse_handler:
+                    return await DeckItems(client).setup(args.aoe, args.single)
+            finally:
+                await close_handler(handler)
+
+        return 0 if asyncio.run(_setup()) else 1
     if args.command == "relog":
         _setup_logging(None, True)
         from .bot import close_handler, connect, new_handler

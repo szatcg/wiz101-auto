@@ -257,7 +257,7 @@ class DeckAdapter:
             if found is None:
                 return
             deck, why, group = found
-            if self.mode.get("cards") == deck or (
+            if self.mode.get("cards") == deck or self.mode.get("role") == "single" or (
                     self.mode.get("deck") == "boss" and boss in (self.mode.get("vs") or [])):
                 return  # (in already)
             how = "alone" if alone else f"after {aoe_losses(boss)} losses with the AoE deck"
@@ -266,7 +266,7 @@ class DeckAdapter:
             return
         if self.mode.get("deck", "general") not in ("general", "general-pending"):
             general = _read(GENERAL_FILE).get("deck")
-            if general and self.mode.get("cards") != general:
+            if general and self.mode.get("cards") != general and self.mode.get("role") != "aoe":
                 logger.info(f"deck: {boss} has company: putting in the AoE deck")
                 self._pending = (general, "general deck", [])
 
@@ -343,6 +343,21 @@ class DeckAdapter:
         await move_to_safety(client, 1500.0, "before changing the deck")
         # Everything outside the plan goes, spells the game put in by itself
         # when learned (Blinding Light) included: the player's call.
+        from . import deckitems
+
+        role = "single" if why.startswith("boss") else "aoe"
+        if deckitems.ready():
+            # Two deck items, filled once: wear the other one (seconds, not a
+            # card-by-card rebuild).
+            logger.info(f"deck: switching to the {role} deck item ({why})")
+            if await deckitems.DeckItems(client).equip(role):
+                self._switch_retries = 0
+                self.mode = {"deck": "boss" if role == "single" else "general",
+                             "vs": self._search_vs if role == "single" else None,
+                             "role": role, "at": time.time()}
+                self._save()
+                return True
+            logger.warning("deck: the deck item didn't go on; rebuilding the deck instead")
         logger.info(f"deck: switching to the {why}: {deck}")
         try:
             got = await set_deck(client, deck)
