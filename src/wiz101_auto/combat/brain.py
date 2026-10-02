@@ -504,6 +504,18 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     if prisms:
         why = "prism: no enemy here takes more from the other school"
         return Action(ActionKind.DISCARD, prisms[0], reason=why)
+    # One deck for every fight (the player's): against one enemy its AoE hits
+    # (Humongofrog) are the weak use of pips; with a single-target hit in hand
+    # or still to draw (Colossus), they go, drawing toward the plan.
+    if len(battle.live_enemies) == 1:
+        singles = [c for c in [*battle.cards, *battle.upcoming]
+                   if c.is_damage and not c.is_aoe and c.pip_cost >= 2]
+        aoes = [c for c in battle.cards if c.is_damage and c.is_aoe and not c.treasure
+                and not _plan_needs(battle, c)]
+        if aoes and singles:
+            card = min(aoes, key=lambda c: c.base_damage())
+            why = "one enemy: an AoE hit; drawing for single-target hits"
+            return Action(ActionKind.DISCARD, card, reason=why)
     free = [c for c in battle.cards if c.pip_cost == 0 and c.is_damage and not c.treasure]
     if len(free) > KEEP_FREE_HITS:
         card = min(free, key=lambda c: c.base_damage())
