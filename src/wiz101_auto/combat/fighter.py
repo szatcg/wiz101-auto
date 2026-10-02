@@ -348,6 +348,11 @@ class Fighter(CombatHandler):
             self.last_boss_names = bosses
         try:
             zone = await self.client.zone_name() or ""
+            from ..dungeons import note_zone_boss
+
+            for e in battle.enemies:
+                if e.is_boss:
+                    note_zone_boss(zone, e.name)  # (every zone: a locked door's guard, Gurtok)
             mem = DungeonMemory.load()
             if "interiors" not in zone.lower() and zone not in mem.dungeons:
                 return  # (Katzenstein's Lab is a dungeon without "Interiors" in its name)

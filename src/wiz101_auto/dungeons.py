@@ -67,6 +67,34 @@ def add_exit(room: str, spot: tuple[float, float, float], path: Path = EXITS_FIL
     return True
 
 
+ZONE_BOSSES_FILE = Path("state") / "zone_bosses.json"  # zone -> bosses fought there (any zone)
+
+
+def zone_bosses(zone: str, path: Path = ZONE_BOSSES_FILE) -> list[str]:
+    try:
+        return list(json.loads(path.read_text(encoding="utf-8")).get(zone, []))
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def note_zone_boss(zone: str, name: str, path: Path = ZONE_BOSSES_FILE) -> bool:
+    """A boss fought in `zone` (outside dungeons too: Gurtok Firebender in
+    the volcano, whose fight a locked door waits on). True if it's new."""
+    if not zone or not name:
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    names = data.setdefault(zone, [])
+    if name in names:
+        return False
+    names.append(name)
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    return True
+
+
 OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
 # Zones of a dungeon instance that aren't under its rooms' area (reached by a
 # portal inside it): zone -> the dungeon's first room. The Grand Chasm's past

@@ -205,6 +205,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
+WANTED_FIGHT_SECONDS = 30.0  # a fight started on purpose within this long isn't fled
 ZONE_BOSS_RANGE = 1500.0  # enemies this near a zone's duel circle are its boss and guards
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
@@ -3406,8 +3407,21 @@ class Quester:
             await self.client.teleport(XYZ(c.x + 900, c.y, c.z))  # (lands clear of enemies)
             await asyncio.sleep(1.5)
             return True
-        target = min(near, key=lambda p: math.dist((p.x, p.y), (c.x, c.y)))
-        logger.info("a locked way on: beating the boss on this zone's duel circle first")
+        # The zone's boss by name when one was fought here (its guards stand
+        # nearer the circle: a Magma Fury was picked, and fled, over Gurtok).
+        from .bossfarm import find_entity_named
+        from .dungeons import zone_bosses
+
+        target = None
+        for name in zone_bosses(zone):
+            target = await find_entity_named(self.client, name)
+            if target is not None:
+                logger.info(f"a locked way on: beating {name}, this zone's boss, first")
+                break
+        if target is None:
+            target = min(near, key=lambda p: math.dist((p.x, p.y), (c.x, c.y)))
+            logger.info("a locked way on: beating the boss on this zone's duel circle first")
+        self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS
         allow_engage(self.client)  # this teleport is meant to start the fight
         await self.client.teleport(target)
         await asyncio.sleep(3.0)
@@ -3528,6 +3542,8 @@ class Quester:
             return False
         if await self._in_any_dungeon(zone):
             return False  # every fight in a dungeon is fought (fleeing loses it)
+        if time.monotonic() < getattr(self, "_wanted_fight_until", 0.0):
+            return False  # a fight started on purpose (a locked door's guard): fought
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
