@@ -2787,8 +2787,11 @@ class Quester:
             # the dungeon switched to the pinned 'Oni No Death'.
             if self._momentum and time.monotonic() - self._momentum[1] < MOMENTUM_SECONDS:
                 busy = next((q for _, q in all_quests if q.name == self._momentum[0]), None)
+                # (Never over a class quest: 'Bone to be Wild' waited while
+                # Wizard Tours was kept for being mid-way.)
+                spell_first = bool(chosen and chosen.activity) and not (busy and busy.activity)
                 if (busy is not None and busy is not chosen and busy.name not in set_aside
-                        and not in_side_world(busy)):
+                        and not in_side_world(busy) and not spell_first):
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
@@ -2923,7 +2926,7 @@ class Quester:
                 logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {new[0].name!r}")
                 self._pin = new[0].name
                 save_pin(self._pin)
-                return new[0]
+                pinned = new[0]  # (a class quest still comes first: below)
         if pinned is None or pinned.name in set_aside:
             why = "done" if pinned is None else "set aside"
             logger.info(f"your pick {self._pin!r} is {why}; choosing quests again")
