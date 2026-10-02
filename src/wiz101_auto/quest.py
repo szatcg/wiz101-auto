@@ -202,6 +202,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
+EXIT_LEARN_SECONDS = 15.0  # out of a dungeon this soon after a landing: the landing was on its exit
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
@@ -2820,8 +2821,14 @@ class Quester:
                     # the bot had picked before, not what it entered with).
                     entered = self._active_quest if self._ranked_outside else ""
                     self._entry_quest = (first, entered or "")
+                # In a building that isn't a dungeon (the Myth school) the
+                # quest the game tracks isn't the room's own ('Give a Dog a
+                # Bone', just accepted from Cyrus Drake, won over the class
+                # quest picked).
+                real = is_team_up_zone(here) or await self._in_dungeon(here)
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
-                                      self.setbacks.skipped, entered_with=self._entry_quest[1])
+                                      self.setbacks.skipped,
+                                      entered_with=self._entry_quest[1] if real else "")
                 if local and local is not chosen:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
@@ -3617,6 +3624,22 @@ class Quester:
         logger.info(f"no prompt at the {name}")
         return False
 
+    async def _learn_dungeon_exit(self, old_zone: str, zone: str):
+        """Out of a dungeon room into the dungeon's outside zone right after a
+        teleport: that landing was its exit. Remembered, so teleports there
+        keep clear of it (state/dungeon_exits.json)."""
+        from .dungeons import add_exit
+
+        entry = DungeonMemory.load().dungeons.get(old_zone)
+        if entry is None or entry.outside != zone or self._recall_pending:
+            return
+        land = getattr(self.client, "_last_landing", None)
+        if not land or time.monotonic() - land[0] > EXIT_LEARN_SECONDS:
+            return
+        if add_exit(old_zone, (land[1], land[2], land[3])):
+            logger.info(f"a landing at ({land[1]:.0f}, {land[2]:.0f}) took us out of "
+                        f"{old_zone.split('/')[-1]}: remembered as its exit, kept clear of from now on")
+
     async def _learn_door_walk(self):
         """The zone changed since the last step while heading for a quest
         marker: the last teleport before it is a way through that marker's
@@ -3629,9 +3652,12 @@ class Quester:
             return
         prev = self._prev_step
         self._prev_step = (zone, marker if distance(marker, XYZ(0, 0, 0)) > 1 else None)
+        if prev and prev[0] and zone and zone != prev[0] and prev[1] is None:
+            await self._learn_dungeon_exit(prev[0], zone)
         if not prev or not prev[0] or not zone or zone == prev[0] or prev[1] is None:
             return
         old_zone, old_marker = prev
+        await self._learn_dungeon_exit(old_zone, zone)
         if is_hub(zone) or zone.split("/", 1)[0] != old_zone.split("/", 1)[0] or self._recall_pending:
             return  # the hub button, a Recall or a relog, not a door (Throne Room -> hub after Zeus)
         land = getattr(self.client, "_last_landing", None)

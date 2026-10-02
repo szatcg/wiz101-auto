@@ -39,6 +39,34 @@ def mark_done(first_room: str, path: Path = DONE_FILE) -> bool:
     return True
 
 
+EXITS_FILE = Path("state") / "dungeon_exits.json"  # dungeon room -> spots that took us out
+
+
+def dungeon_exits(room: str, path: Path = EXITS_FILE) -> list[tuple[float, float, float]]:
+    """Spots in a dungeon room where a landing took us out of the dungeon."""
+    try:
+        return [tuple(p) for p in json.loads(path.read_text(encoding="utf-8")).get(room, [])]
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def add_exit(room: str, spot: tuple[float, float, float], path: Path = EXITS_FILE) -> bool:
+    """Remember a spot that took us out of `room` (the Haunted Cave's cave
+    room: a landing clear of the Blood Bats was on its exit, and the dungeon
+    and its quest were gone). True if it's new."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    spots = data.setdefault(room, [])
+    if any(abs(s[0] - spot[0]) < 150 and abs(s[1] - spot[1]) < 150 for s in spots):
+        return False
+    spots.append([round(c, 1) for c in spot])
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    return True
+
+
 OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
 # Zones of a dungeon instance that aren't under its rooms' area (reached by a
 # portal inside it): zone -> the dungeon's first room. The Grand Chasm's past

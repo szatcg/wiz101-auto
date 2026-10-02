@@ -265,7 +265,15 @@ def install(client):
                     XYZ(cx + DUEL_CIRCLE_RING * math.cos(a), cy + DUEL_CIRCLE_RING * math.sin(a), cz)
                     for a in (i * math.pi / 4 for i in range(8))
                 ]
-            hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)] + ring)
+            from .dungeons import dungeon_exits
+
+            # A dungeon room's known exits too: landing on one leaves the
+            # dungeon (and its progress and quest).
+            try:
+                exits = [XYZ(*e) for e in dungeon_exits(await client.zone_name() or "")]
+            except Exception:
+                exits = []
+            hazards = same_level(xyz, [XYZ(*m) for m in await mob_positions(client)] + ring + exits)
             start = await client.body.position()
             if clear_of(xyz, hazards, LANDING_CLEARANCE):
                 return await _arrive(xyz, start, args, kwargs)
