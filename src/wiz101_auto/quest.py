@@ -774,6 +774,7 @@ class Quester:
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave
         self._entry_quest: tuple[str, str] = ("", "")  # (dungeon first room, quest tracked on entering)
+        self._ranked_outside = False  # ranked quests outside a dungeon this session
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -2731,14 +2732,19 @@ class Quester:
                     chosen, self._grinding = busy, False
             # (A room entered by a door counts too: Nomoonaga's tower, after a
             # heal trip's Recall, went back to the main quest instead.)
-            if is_team_up_zone(here) or await self._in_dungeon(here) or "/interiors/" in here.lower():
+            inside = is_team_up_zone(here) or await self._in_dungeon(here) or "/interiors/" in here.lower()
+            if not inside:
+                self._ranked_outside = True
+            if inside:
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
                 first = self._dungeon[1] if self._dungeon else here
                 if self._entry_quest[0] != first:
-                    # The quest tracked on entering this dungeon (none known
-                    # after a restart inside it).
-                    self._entry_quest = (first, self._active_quest or "")
+                    # The quest tracked on entering this dungeon: none known
+                    # after a restart inside it (the game then tracked what
+                    # the bot had picked before, not what it entered with).
+                    entered = self._active_quest if self._ranked_outside else ""
+                    self._entry_quest = (first, entered or "")
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
                                       self.setbacks.skipped, entered_with=self._entry_quest[1])
                 if local and local is not chosen:
