@@ -355,7 +355,53 @@
   body.fighting-strip .dname { font-size: 22px; top: 8px; }
   body.fighting-strip .thoughts .feed { top: 44px; }
   body.fighting-strip .dcol { box-shadow: inset 0 0 0 1px var(--trim); border-width: 2px; }
-  .thoughts .art, .thoughts .art img { height: 70px; }  /* (a second row of cards fits under the dialog's name) */
+  .thoughts .art, .thoughts .art img { height: 58px; }
+  .thoughts .dcol { padding: 5px 9px; } .thoughts .dchips { gap: 4px; } .thoughts .dcol h4 { margin-bottom: 4px; }  /* (a second row of cards fits under the dialog's name) */
+</style>
+<style>
+  /* ===== The game's parchment scrolls, built from its own pieces
+     (docs/ui_images, at 65%): the parchment texture underneath, the rolled
+     curls at the corners, the sloped top edge and the side edges over it,
+     the panel's content on top. ===== */
+  .card, .dialog {
+    background: none; border: none; border-radius: 0; box-shadow: none; position: relative;
+    padding: 22px 40px 24px; filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.55));
+  }
+  .dialog { position: absolute; padding: 0; }
+  .card::before, .dialog::before {
+    content: ""; position: absolute; top: 12px; left: 30px; right: 30px; bottom: 2px; z-index: 0;
+    background: url("/ui/Contentpattern.webp") repeat; box-shadow: inset 0 0 26px rgba(110, 70, 20, 0.28);
+  }
+  .card::after, .dialog::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      url("/ui/Contenttop_left.webp") 0 0 / 56px 14px no-repeat,
+      url("/ui/Contenttop_left3.webp") 0 14px / 56px 44px no-repeat,
+      url("/ui/Contenttop_left2.webp") 56px 0 / 41px 14px no-repeat,
+      url("/ui/Contenttop_right.webp") 100% 0 / 56px 14px no-repeat,
+      url("/ui/Contenttop_right3.webp") 100% 14px / 56px 42px no-repeat,
+      url("/ui/Contenttop_right2.webp") right 56px top 0 / 41px 14px no-repeat,
+      url("/ui/Scrollbottom_left.webp") 0 100% / 56px 55px no-repeat,
+      url("/ui/Scrollbottom_right.webp") 100% 100% / 56px 55px no-repeat,
+      url("/ui/Contenttop_mid.png") 97px 0 / calc(100% - 194px) 14px no-repeat,
+      url("/ui/Contentside_left.png") 0 58px / 56px calc(100% - 113px) no-repeat,
+      url("/ui/Contentside_right.png") 100% 56px / 56px calc(100% - 111px) no-repeat;
+  }
+  .card > * { position: relative; z-index: 2; }
+  .dialog > * { z-index: 2; }
+  .grow { min-height: 120px; }
+  /* the dialog's portrait sits on the scroll's left curl, like the game's */
+  .portrait { left: 22px; }
+  .dname { left: 214px; top: 18px; }
+  .thoughts .feed { left: 214px; right: 52px; top: 60px; bottom: 22px; }
+  .dbtn { right: 54px; bottom: 22px; }
+  body.fighting-strip .dname { top: 14px; }
+  body.fighting-strip .thoughts .feed { top: 44px; bottom: 12px; }
+  /* inner boxes: darker parchment with an inked edge, no scroll of their own */
+  .dcol { background: url("/ui/Contentpattern.webp") repeat; border: 2px solid #7a5428; border-radius: 6px;
+    box-shadow: inset 0 0 14px rgba(110, 70, 20, 0.35); filter: none; }
+  .timer, .qstep, .step, .move { background: rgba(110, 72, 24, 0.12); border-radius: 6px; }
+  .pill { background: rgba(110, 72, 24, 0.14); border: 1px solid rgba(110, 72, 24, 0.35); }
 </style>
 </head>
 <body>

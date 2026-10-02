@@ -310,7 +310,8 @@ def _card_file(rel: str, folder: Path | None = None) -> tuple[bytes, str] | None
     f = (base / unquote(rel)).resolve()
     if base not in f.parents or not f.is_file():
         return None
-    kind = {".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json"}.get(f.suffix.lower())
+    kind = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
+            ".json": "application/json"}.get(f.suffix.lower())
     return (f.read_bytes(), kind) if kind else None
 
 
