@@ -252,6 +252,7 @@ class GearManager:
         self.before_check = None  # async callable: step away from enemies first (set by the bot)
         self._items: set[int] | None = None  # backpack item ids seen so far
         self._last_backpack_check = 0.0
+        self.level_up_only = False  # (gear_checks_new_items: false) no checks for new loot
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -544,7 +545,7 @@ class GearManager:
         except Exception as exc:
             logger.debug(f"backpack read failed: {exc!r}")
             return
-        if new:
+        if new and not self.level_up_only:
             order = [t for t in SLOT_TABS if t in new]
             names = sorted(n for v in new.values() for n in v)
             await self.optimise(f"new {', '.join(names)}", order, only=new)

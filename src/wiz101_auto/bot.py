@@ -453,6 +453,9 @@ async def run(cfg: Config):
             if cfg.gear_checks:
                 quester.gear = GearManager(client, progression.school or "")
                 quester.gear.before_check = lambda: move_to_safety(client, 1200.0, "before checking gear")
+                quester.gear.level_up_only = not cfg.gear_checks_new_items
+                if quester.gear.level_up_only:
+                    logger.info("gear checks after level-ups only (gear_checks_new_items: false)")
             else:
                 logger.info("gear checks are off (gear_checks: false)")
             if cfg.progression.enabled:

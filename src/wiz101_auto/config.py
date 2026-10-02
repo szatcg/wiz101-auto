@@ -123,6 +123,7 @@ class Config:
     farm_seconds_between_fights: float = 2.0
     log_file: str = "wiz101-auto.log"
     gear_checks: bool = True  # try on gear after level-ups and new items (slow: minutes per check)
+    gear_checks_new_items: bool = True  # false: only after level-ups (new loot is still logged)
     quest: QuestConfig = field(default_factory=QuestConfig)
     upkeep: UpkeepConfig = field(default_factory=UpkeepConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
