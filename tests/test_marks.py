@@ -77,3 +77,10 @@ def test_mark_for_the_same_objective_in_another_world_is_not_the_place():
     same = Mark(zone="Marleybone/MB_Museum", kind="travel", objective="Talk To X")
     none = lambda a, b: None  # noqa: E731
     assert recall_is_faster("Marleybone/MB_Station", "Marleybone/MB_Yard", same, none, "Talk To X")
+
+
+def test_same_objective_mark_farther_than_walking_isnt_the_place():
+    # A heal trip marked B just as the objective moved on to Hub: walking
+    # from A (1 zone) beats Recalling to B (2 zones from Hub).
+    mark = Mark("B", "Explore Area in Hub", "room")
+    assert not recall_is_faster("A", "Hub", mark, hops, objective="Explore Area in Hub")
