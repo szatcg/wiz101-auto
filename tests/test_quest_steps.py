@@ -32,3 +32,15 @@ def test_side_world_story_is_not_main():
 
     assert in_side_world(QuestEntry(0, "Face Your Fate", world="Savarstaad Pass", zone="Grizzleheim"))
     assert not in_side_world(QuestEntry(0, "Going Portal", world="The Atheneum", zone="Dragonspyre"))
+
+
+def test_pick_goal_waits_for_the_new_goals_text():
+    from wiz101_auto.ui import pick_goal
+
+    known: dict = {}
+    assert pick_goal(["Talk To Edrik"], 1, known) == "Talk To Edrik"
+    # The goal moved on but the helper still shows the old text: not remembered...
+    assert pick_goal(["Talk To Edrik"], 2, known) == "Talk To Edrik"
+    assert 2 not in known
+    # ...so the new text is taken as soon as it shows.
+    assert pick_goal(["Talk To Edrik", "Use Crystal Charger"], 2, known) == "Use Crystal Charger"

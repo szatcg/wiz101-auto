@@ -358,9 +358,12 @@ def pick_goal(texts: list[str], goal_id, known: dict) -> str:
         return mine
     stale = {t for g, t in known.items() if g != goal_id}
     fresh = [t for t in texts if t not in stale]
-    chosen = fresh[-1] if fresh else texts[-1]
-    known[goal_id] = chosen
-    return chosen
+    if not fresh:
+        # The helper hasn't caught up with the new goal yet: its text isn't
+        # this goal's (remembering it kept the old step for good).
+        return texts[-1]
+    known[goal_id] = fresh[-1]
+    return fresh[-1]
 
 
 async def quest_goal_texts(client) -> list[str]:
