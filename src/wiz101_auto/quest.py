@@ -236,6 +236,7 @@ SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
+FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is the way on
 SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
 SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
@@ -5071,6 +5072,15 @@ class Quester:
                 if sigil is not None:
                     logger.info(f"{who} not in view; the quest marker is a dungeon sigil: going in")
                     await self._enter_by_sigil(sigil, zone)
+                    return
+                # Already on the marker with a use/activate prompt showing (the
+                # Hall of Time's portal to the past: 40 s of re-travelling to it
+                # before the watchdog's nudge pressed X): use it.
+                prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
+                if (distance(await self._position(), marker) < FIND_AT_MARKER and prompt
+                        and "talk" not in prompt):
+                    logger.info(f"{who} not in view; at the quest marker, using its prompt ({prompt!r})")
+                    await self.interact(objective)
                     return
                 logger.info(f"{who} not in view: following the quest marker")
                 await self.travel(marker)
