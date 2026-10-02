@@ -237,6 +237,8 @@ SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is the way on
+COMPANY_RANGE = 1200.0  # another enemy this near a boss joins its fight: the AoE deck
+NOT_SAME_MOB = 5.0  # (the boss itself)
 SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
 SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
@@ -3195,6 +3197,24 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _boss_alone(self, name: str) -> bool | None:
+        """Is the enemy `name` alone (no other enemy within COMPANY_RANGE of
+        it)? None when it isn't in view (the deck choice waits)."""
+        from .bossfarm import find_entity_named
+
+        try:
+            pos = await find_entity_named(self.client, name)
+            if pos is None:
+                return None
+            for mob in await self.client.get_mobs():
+                p = await mob.location()
+                d = distance(p, pos)
+                if NOT_SAME_MOB < d < COMPANY_RANGE:
+                    return False
+        except Exception:
+            return None
+        return True
+
     async def _fight_guards(self, spot: XYZ, what: str, reach: float = 0.0) -> bool:
         """Enemies within GUARD_RANGE of `spot` (a lever): fight the nearest
         first. Skipping a floor's fights can keep a dungeon's boss from
@@ -5014,7 +5034,7 @@ class Quester:
         adapter = getattr(self, "deck_adapter", None)
         if adapter is not None and objective and is_combat_objective(objective):
             for name in defeat_names(objective):
-                adapter.prepare_for(name)
+                adapter.prepare_for(name, await self._boss_alone(name))
                 if adapter.searching_for(name) and await is_free(self.client):
                     if time.monotonic() - getattr(self, "_search_wait_logged", 0.0) > 60:
                         self._search_wait_logged = time.monotonic()

@@ -42,15 +42,24 @@ def test_a_remembered_boss_deck_goes_in_before_its_fight(tmp_path, monkeypatch):
 
     monkeypatch.setattr(deck_adapt, "BOSS_DECKS", tmp_path / "boss.json")
     monkeypatch.setattr(deck_adapt, "MODE_FILE", tmp_path / "mode.json")
+    monkeypatch.setattr(deck_adapt, "TACTICS_FILE", tmp_path / "tactics.json")
     (tmp_path / "boss.json").write_text(json.dumps(
         {"Haru,Ronin Blademaster": {"deck": {"Myth Prism": 3, "Pixie": 2}, "win": 0.9}}), encoding="utf-8")
     a = deck_adapt.DeckAdapter()
     a._bosses = {"Haru"}
     a.prepare_for("Ronin Blademaster")  # not a boss: nothing
     assert a.wanted() is None
-    a.prepare_for("Haru")
+    a.prepare_for("Haru")  # not in view yet: no call
+    assert a.wanted() is None
+    a.prepare_for("Haru", alone=True)  # alone: its single-target deck
     deck, why = a.wanted()
     assert deck == {"Myth Prism": 3, "Pixie": 2} and "remembered" in why
+    a.mode = {"deck": "boss", "vs": ["Haru", "Ronin Blademaster"]}
+    monkeypatch.setattr(deck_adapt, "GENERAL_FILE", tmp_path / "general.json")
+    (tmp_path / "general.json").write_text(json.dumps({"deck": {"Humongofrog": 3}}), encoding="utf-8")
+    a.prepare_for("Haru", alone=False)  # company: the AoE deck
+    deck, why = a.wanted()
+    assert deck == {"Humongofrog": 3}
 
 
 def test_searching_for_only_while_the_search_runs():
@@ -70,3 +79,14 @@ def test_searching_for_only_while_the_search_runs():
     assert not a.searching_for("Sea Lord")
     a._search = None
     assert not a.searching_for("Sea Lord")
+
+
+def test_single_target_when_alone_or_after_three_aoe_losses():
+    from wiz101_auto.deck_adapt import wants_single
+
+    assert wants_single(True, 0) is True
+    assert wants_single(False, 0) is False
+    assert wants_single(False, 2) is False
+    assert wants_single(False, 3) is True
+    assert wants_single(None, 0) is None
+    assert wants_single(None, 3) is True

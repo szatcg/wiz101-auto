@@ -10,6 +10,13 @@
   the latest fights (slowly improving it); a better result replaces it.
 
 state/deck_mode.json remembers which deck is in and what it was for.
+
+Before a boss fight (the player's rule): a boss with no other enemy near it
+gets the single-target deck (the one found for it, else
+state/deck_single.json); a boss with company starts on the AoE (general)
+deck, and after AOE_LOSSES_BEFORE_SINGLE losses with it, the single-target
+one (losses per boss in state/boss_tactics.json). A search after a loss
+still runs and is remembered, but goes in only when single-target is due.
 """
 
 from __future__ import annotations
@@ -62,6 +69,34 @@ def _usable(entry: dict | None) -> bool:
     return bool(deck) and sum(deck.get(c, 0) for c in HEALS) >= BOSS_NEEDS["heals"]
 
 
+SINGLE_FILE = Path("state") / "deck_single.json"  # the single-target deck for a lone boss
+TACTICS_FILE = Path("state") / "boss_tactics.json"  # boss -> {"aoe_losses": n}
+AOE_LOSSES_BEFORE_SINGLE = 3
+
+
+def aoe_losses(boss: str) -> int:
+    return int(_read(TACTICS_FILE).get(boss, {}).get("aoe_losses", 0))
+
+
+def add_aoe_loss(boss: str) -> int:
+    data = _read(TACTICS_FILE)
+    entry = data.setdefault(boss, {})
+    entry["aoe_losses"] = int(entry.get("aoe_losses", 0)) + 1
+    try:
+        TACTICS_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+    return entry["aoe_losses"]
+
+
+def wants_single(alone: bool | None, losses: int) -> bool | None:
+    """Single-target deck (True), the AoE deck (False) or no call (None:
+    the boss isn't in view and hasn't beaten the AoE deck often enough)."""
+    if losses >= AOE_LOSSES_BEFORE_SINGLE:
+        return True
+    return alone
+
+
 def _known_spells() -> set[str]:
     return set(_read(PROGRESS_FILE).get("known_spells", []))
 
@@ -79,6 +114,7 @@ class DeckAdapter:
         self._pending: tuple[dict[str, int], str, list[str]] | None = None  # (deck, why, vs)
         self._bosses: set[str] | None = None  # boss names in the stats (read once)
         self._switch_retries = 0
+        self._equip_search = True  # put the search's deck in when it's done (single-target due)
 
     def _save(self):
         try:
@@ -103,6 +139,15 @@ class DeckAdapter:
             return
         key = ",".join(group)
         cached = _read(BOSS_DECKS).get(key)
+        bosses_here = [n for n in group if n in bosses or known.get(n, {}).get("boss")]
+        company = len(group) >= 2
+        if company and self.mode.get("deck", "general") in ("general", "general-pending"):
+            for b in bosses_here:
+                n = add_aoe_loss(b)
+                logger.info(f"deck: lost to {b} with the AoE deck ({n}/{AOE_LOSSES_BEFORE_SINGLE} before "
+                            "the single-target deck)")
+        self._equip_search = not company or any(
+            aoe_losses(b) >= AOE_LOSSES_BEFORE_SINGLE for b in bosses_here)
         if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
             # Already on the deck made for them: one loss is the fight's
             # variance; losing again with it, search anew.
@@ -110,10 +155,12 @@ class DeckAdapter:
             self._save()
             if self.mode["losses"] < CACHED_LOSSES_BEFORE_SEARCH:
                 return
-        elif _usable(cached):
+        elif _usable(cached) and self._equip_search:
             logger.info(f"deck: lost to {', '.join(group)}; putting in the deck that was found for them")
             self._pending = (cached["deck"], f"boss deck vs {key} (remembered)", group)
             return
+        elif _usable(cached):
+            return  # (the AoE deck stays for now; that one's ready when it's due)
         ADVICE_FILE.unlink(missing_ok=True)
         try:  # the search simulates from the stats: with this fight in them (a new boss)
             from .combat.calibrate import write_stats
@@ -164,25 +211,47 @@ class DeckAdapter:
             return False
         return time.time() - self._search_started < SEARCH_WAIT_MINUTES * 60
 
-    def prepare_for(self, boss: str):
-        """A fight with `boss` is next (a Defeat objective): put in the deck
-        found for its group before it, if there is one."""
+    def single_deck(self, boss: str) -> tuple[dict[str, int], str, list[str]] | None:
+        """The single-target deck for `boss`: the one found for its group,
+        else the general single-target deck."""
+        for key, entry in _read(BOSS_DECKS).items():
+            group = key.split(",")
+            if boss in group and _usable(entry):
+                return entry["deck"], f"boss deck vs {key} (remembered)", group
+        deck = _read(SINGLE_FILE).get("deck")
+        return (deck, f"boss deck: single-target for {boss}", [boss]) if deck else None
+
+    def prepare_for(self, boss: str, alone: bool | None = None):
+        """A fight with `boss` is next (a Defeat objective; `alone`: no other
+        enemy near it, None when it isn't in view): the single-target deck
+        or the AoE deck before it (see the module notes)."""
         if not boss or self._pending:
             return
         if self._bosses is None:
             from .combat.sim import load_stats
 
             self._bosses = {n for n, e in load_stats().get("enemies", {}).items() if e.get("boss")}
-        if boss not in self._bosses:
+        if boss not in self._bosses and alone is None:
             return  # (an everyday enemy of a boss's group: Imitsu Defouler with Plague Oni)
-        for key, entry in _read(BOSS_DECKS).items():
-            group = key.split(",")
-            if boss in group and _usable(entry):
-                if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
-                    return  # (in already)
-                logger.info(f"deck: {boss} is next; putting in the deck found for {key}")
-                self._pending = (entry["deck"], f"boss deck vs {key} (remembered)", group)
+        single = wants_single(alone, aoe_losses(boss))
+        if single is None:
+            return
+        if single:
+            found = self.single_deck(boss)
+            if found is None:
                 return
+            deck, why, group = found
+            if self.mode.get("deck") == "boss" and boss in (self.mode.get("vs") or []):
+                return  # (in already)
+            how = "alone" if alone else f"after {aoe_losses(boss)} losses with the AoE deck"
+            logger.info(f"deck: {boss} is next ({how}): putting in the single-target deck")
+            self._pending = (deck, why, group)
+            return
+        if self.mode.get("deck", "general") not in ("general", "general-pending"):
+            general = _read(GENERAL_FILE).get("deck")
+            if general:
+                logger.info(f"deck: {boss} has company: putting in the AoE deck")
+                self._pending = (general, "general deck", [])
 
     def wanted(self) -> tuple[dict[str, int], str] | None:
         """The deck to put in now, if any: (spell -> copies, why)."""
@@ -201,6 +270,10 @@ class DeckAdapter:
                     BOSS_DECKS.write_text(json.dumps(cache, indent=1), encoding="utf-8")
                 except OSError:
                     pass
+                if not self._equip_search:
+                    logger.info(f"deck: a deck for {advice['vs']} is ready; the AoE deck stays until "
+                                f"{AOE_LOSSES_BEFORE_SINGLE} losses with it")
+                    return None
                 return advice["deck"], (f"boss deck vs {advice['vs']} (simulated: win {advice['win']:.0%} in "
                                         f"~{advice['rounds']:.1f} rounds)")
         if self._improve is not None and self._improve.poll() is not None:
