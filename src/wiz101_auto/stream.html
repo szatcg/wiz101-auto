@@ -511,6 +511,12 @@
   body.fighting-strip .thoughts .feed { top: 8px; bottom: 4px; }
   .dbtn { right: 8px; bottom: 6px; }
 </style>
+<style>
+  /* the quest kind as a pip; the dialog's name centred over the portrait */
+  .kind, .kind.main, .kind.side { background: none; border: none; padding: 0; }
+  .qpip { width: 28px; height: 28px; display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+  .dname, body.fighting-strip .dname { left: 94px; transform: translateX(-50%); white-space: nowrap; font-size: 18px; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
@@ -610,9 +616,13 @@ function renderSide() {
   $("hptext").textContent = max ? `${hp} / ${max}` : "";
   $("quest").textContent = data.current.grinding ? "Grinding for experience" : (data.current.quest || "—");
   const main = data.current.main;
+  // Main or side quest: a power pip or a plain pip in the box's corner (the
+  // game's own pips; a text pill looked too modern).
   $("kind").className = "kind " + (main ? "main" : "side");
-  $("kind").textContent = main == null || data.current.grinding ? "" : main ? "MAIN QUEST" : "SIDE QUEST";
-  $("kind").style.display = $("kind").textContent ? "" : "none";
+  const kindHtml = main == null || data.current.grinding ? ""
+    : `<img class="qpip" src="/pips/${main ? "Power_Pip.png" : "Pip.png"}" alt="${main ? "main quest" : "side quest"}">`;
+  if ($("kind").innerHTML !== kindHtml) $("kind").innerHTML = kindHtml;
+  $("kind").style.display = kindHtml ? "" : "none";
   renderSteps();
   renderRoute();
   const zone = ((s.zone || "").split("/").slice(1).pop() || "")
@@ -879,7 +889,7 @@ function stripMode(fighting) {
   const want = fighting ? "deck" : "thoughts";
   if (t.dataset.mode === want) return;
   t.dataset.mode = want;
-  t.textContent = fighting ? "Wizzbot's Deck" : "Wizzbot";
+  t.textContent = "Wizzbot";
   document.body.classList.toggle("fighting-strip", fighting);
   trackerHtml = ""; lastFeed = "";
 }
