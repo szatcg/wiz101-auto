@@ -419,6 +419,25 @@
   .say { line-height: 1.5; padding-bottom: 6px; overflow: visible; min-height: 44px; }  /* (room for the letters' tails) */
   .earlier div { line-height: 1.45; }
 </style>
+<style>
+  /* ===== Titles on the game's name scroll (docs/ui_images/label.png, cut
+     from an NPC dialog's "Ravenwood School" label): the curled ends kept,
+     the middle stretched to the title. ===== */
+  .card > .label, .qhead > .label, .farmhead > .label, .dname {
+    display: inline-block; height: 36px; line-height: 35px; padding: 0 4px; color: #1d1208;
+    background: none; box-shadow: none; text-shadow: none; border-radius: 0; letter-spacing: 1px;
+    border-style: solid; border-color: transparent; border-width: 0 36px 0 55px;
+    border-image: url("/ui/label.png") 0 42 0 64 fill / 0 36px 0 55px round;
+    font: 900 15px Cinzel, serif; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+  }
+  .card > .label, .qhead > .label { margin: -12px 0 2px 2px; }
+  .card > .label .gt, .qhead > .label .gt, .farmhead > .label .gt { filter: none; }
+  .dname { position: absolute; left: 200px; top: -22px; height: 56px; line-height: 54px; font-size: 26px;
+    border-width: 0 56px 0 85px; border-image-width: 0 56px 0 85px; z-index: 3; }
+  body.fighting-strip .dname { top: -22px; font-size: 22px; }
+  .thoughts .feed { top: 44px; }
+  body.fighting-strip .thoughts .feed { top: 36px; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
