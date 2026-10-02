@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Wizzbot Stream</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   /* A 1920x1080 OBS Browser Source. The game window (1440x810 at 20,20) is
      left transparent: put the game capture under this source. */
@@ -257,6 +257,106 @@
   .t-LOOT, .t-DONE, .t-QUEST, .t-YES { background: var(--gold); }
   .move .what .tag { font-size: 13px; }
 </style>
+<style>
+  /* ===== Wizard101 look: parchment panels in wood-and-gold frames, red
+     ribbons, the night sky around the game window, NPC-style dialog for the
+     bot's thoughts. Layered over the base styles above. ===== */
+  :root {
+    --text: #3a2612;
+    --muted: #7a5c36;
+    --line: #a8895a;
+    --gold: #c8962a;
+    --gold-2: #7d2414;
+    --green: #2f8a4c;
+    --red: #b3261e;
+    --blue: #2b5fa8;
+    --violet: #6d3fa3;
+    --teal: #1e7d76;
+    --orange: #c0661c;
+    --parch: radial-gradient(ellipse at 25% 15%, #f6ead0 0%, #ead7ad 45%, #dcc28c 100%);
+    --parch-2: rgba(122, 82, 30, 0.10);
+    --wood: #4f3115;
+    --trim: #d9b25a;
+  }
+  body { font-family: "Alegreya Sans", Inter, sans-serif; }
+  .backdrop { background: url("/ui/sky.jpg") center / cover no-repeat, #142a5c; }
+  .frame { border: 6px solid var(--wood); border-radius: 14px;
+    box-shadow: inset 0 0 0 2px var(--trim), 0 0 0 2px var(--trim), 0 6px 24px rgba(0, 0, 0, 0.6); }
+  .frame .tag { top: -19px; border-radius: 4px; padding: 3px 16px; color: #ffe9a8;
+    background: linear-gradient(180deg, #b0291f, #74150f); border: 2px solid var(--trim);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5); text-shadow: 0 1px 0 #3d0a06; }
+
+  /* parchment cards */
+  .card, .dcol {
+    background: var(--parch); color: var(--text);
+    border: 4px solid var(--wood); border-radius: 12px;
+    box-shadow: inset 0 0 0 2px var(--trim), inset 0 0 22px rgba(120, 78, 24, 0.35), 0 4px 14px rgba(0, 0, 0, 0.55);
+  }
+  /* card titles as the game's red ribbons */
+  .card > .label, .qhead > .label, .farmhead > .label {
+    display: inline-block; padding: 3px 12px; border-radius: 4px; color: #ffe9a8;
+    background: linear-gradient(180deg, #b0291f, #74150f); border: 2px solid var(--trim);
+    font: 900 12px Cinzel, serif; letter-spacing: 1.5px; text-shadow: 0 1px 0 #3d0a06;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  }
+  .label, .timer small { color: var(--muted); }
+  .brand h1 { background: none; -webkit-background-clip: border-box; color: #f3cf62;
+    -webkit-text-stroke: 1.5px #4a2a0c; text-shadow: 0 3px 0 #4a2a0c, 0 0 14px rgba(243, 207, 98, 0.5); }
+  .pill, .timer, .qstep, .step, .move, .chip { background: var(--parch-2); }
+  .timer b, .vital b { color: var(--text); }
+  .vital.level b { color: #a8710f; } .vital.deaths b { color: var(--red); }
+
+  /* bars: a dark wooden trough, gold (or red) fill */
+  .bar, .hp, .pbar { background: #5c3d1c; border: 1px solid #2f1d0a; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5); }
+  .bar > div { background: linear-gradient(180deg, #f7db7a, #c48a22); }
+  .hp > div { background: linear-gradient(180deg, #ff7a6b, #b3261e); }
+
+  .quest-name { font: 900 22px Cinzel, serif; color: #4a2a0c; }
+  .where { color: var(--muted); font-weight: 700; }
+  .qstep.now { background: rgba(200, 150, 42, 0.26); border-left: 4px solid #a8710f; box-shadow: none; }
+  .qstep.now .ic { color: #a8710f; }
+  .qstep.done .tx { text-decoration-color: rgba(47, 138, 76, 0.85); }
+  .kind { border: 2px solid var(--wood); }
+  .kind.main { background: #f3cf62; } .kind.side { background: #7fd1c8; }
+  .transit { color: #fff; }
+  .prog .p { color: #8a5a0c; } .prog .n { color: var(--muted); font-weight: 700; }
+
+  /* battle card */
+  .battle { border-color: #6e140e; box-shadow: inset 0 0 0 2px var(--trim), inset 0 0 22px rgba(140, 30, 20, 0.3), 0 4px 14px rgba(0, 0, 0, 0.55); }
+  .battle h3 { color: #8a1c12; }
+  .step.now { background: rgba(200, 150, 42, 0.28); box-shadow: none; }
+  .pfoe .fn .boss, .foe .fn .boss { color: #9a3b0c; }
+
+  /* deck tracker: four parchment panels */
+  .dcol h4 { color: var(--muted); font-family: Cinzel, serif; }
+  .art .cnt { background: rgba(58, 38, 18, 0.88); color: #ffe9a8; }
+
+  /* ---- the bot's thoughts as a Wizard101 NPC dialog ---- */
+  .dialog { position: absolute; inset: 0; background: var(--parch); border: 5px solid var(--wood); border-radius: 14px;
+    box-shadow: inset 0 0 0 3px var(--trim), inset 0 0 30px rgba(120, 78, 24, 0.4), 0 6px 20px rgba(0, 0, 0, 0.6); }
+  .portrait { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 172px; height: 172px; border-radius: 50%;
+    background: #1c1440; border: 7px solid #d4a63a; box-shadow: 0 0 0 3px var(--wood), inset 0 0 12px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.5);
+    overflow: hidden; z-index: 2; }
+  .portrait img { width: 100%; height: 100%; display: block; }
+  .dname { position: absolute; left: 206px; top: 12px; font: 900 30px Cinzel, serif; color: #24160a; letter-spacing: 1px; z-index: 2; }
+  .thoughts .feed { left: 206px; right: 22px; top: 56px; bottom: 14px; flex-direction: column; gap: 4px; }
+  .say { font-size: 27px; font-weight: 700; line-height: 1.25; color: #2a1a0a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    animation: slide 0.45s ease-out; }
+  .say .tag { font-size: 14px; vertical-align: 4px; }
+  .earlier { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .earlier div { font-size: 17px; color: #6d5130; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .earlier .t { font-size: 14px; margin-right: 8px; color: #9a7b52; font-variant-numeric: tabular-nums; }
+  .earlier .tag { font-size: 11px; min-width: 60px; vertical-align: 2px; opacity: 0.85; }
+  .dbtn { position: absolute; right: 20px; bottom: 14px; padding: 5px 18px; border-radius: 5px; z-index: 2;
+    background: linear-gradient(180deg, #b0291f, #74150f); border: 2px solid var(--trim); color: #ffd84a;
+    font: 900 18px Cinzel, serif; letter-spacing: 1px; text-shadow: 0 1px 0 #3d0a06; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45); }
+  .thoughts .feed .dtrack { left: 0; }  /* (the deck tracker fills the dialog during fights) */
+  body.fighting-strip .dbtn { display: none; }
+  body.fighting-strip .dname { font-size: 22px; top: 8px; }
+  body.fighting-strip .thoughts .feed { top: 44px; }
+  body.fighting-strip .dcol { box-shadow: inset 0 0 0 1px var(--trim); border-width: 2px; }
+  .thoughts .art, .thoughts .art img { height: 70px; }  /* (a second row of cards fits under the dialog's name) */
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
@@ -309,8 +409,12 @@
 </div>
 
 <div class="thoughts">
-  <div class="title" id="stripTitle"><span>🧠</span><b>BOT'S<br>THOUGHTS</b></div>
-  <div class="feed" id="feed"></div>
+  <div class="dialog">
+    <div class="portrait"><img src="/ui/portrait.png" alt=""></div>
+    <div class="dname" id="stripTitle">Wizzbot</div>
+    <div class="feed" id="feed"></div>
+    <div class="dbtn" id="dbtn">THINKING</div>
+  </div>
 </div>
 
 <script>
@@ -558,15 +662,23 @@ function stripMode(fighting) {
   const want = fighting ? "deck" : "thoughts";
   if (t.dataset.mode === want) return;
   t.dataset.mode = want;
-  t.innerHTML = fighting ? "<span>🃏</span><b>DECK<br>TRACKER</b>" : "<span>🧠</span><b>BOT'S<br>THOUGHTS</b>";
+  t.textContent = fighting ? "Wizzbot's Deck" : "Wizzbot";
+  document.body.classList.toggle("fighting-strip", fighting);
   trackerHtml = ""; lastFeed = "";
 }
 
 function renderFeed() {
+  // Like an NPC's dialog: the newest thought spoken, the few before it below,
+  // and the kind of thought on the dialog's button.
   const evs = (thoughts && thoughts.events) || [];
-  $("feed").innerHTML = evs.slice(-4).map((e) => `
-    <div class="ev k-${e.kind}"><span class="ic">${ICONS[e.kind] || "•"}</span><span class="t">${e.time}</span>
-    <span class="m">${describe(e)}</span></div>`).join("");
+  const last = evs[evs.length - 1];
+  if (!last) { $("feed").innerHTML = ""; return; }
+  const earlier = evs.slice(-4, -1).reverse().map((e) =>
+    `<div><span class="t">${e.time}</span>${describe(e)}</div>`).join("");
+  // (A "[A3Z1 Crystal Grove] ..." zone prefix reads badly as speech.)
+  const said = describe(last).replace(/^((?:<span[^>]*>[^<]*<\/span>)?(?:<em>[^<]*<\/em>)?)\[[^\]]*\]\s*/, "$1");
+  $("feed").innerHTML = `<div class="say">${said}</div><div class="earlier">${earlier}</div>`;
+  $("dbtn").textContent = (last.tag || last.kind || "thinking").toUpperCase();
 }
 
 function tick() {

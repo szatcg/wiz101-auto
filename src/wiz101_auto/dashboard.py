@@ -264,10 +264,12 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
-        elif self.path.split("?")[0].startswith(("/cards/", "/pips/")):
+        elif self.path.split("?")[0].startswith(("/cards/", "/pips/", "/ui/")):
             path = self.path.split("?")[0]
             if path.startswith("/pips/"):
                 got = _card_file(path[len("/pips/"):], PIPS)  # the overlay's pip images
+            elif path.startswith("/ui/"):
+                got = _card_file(path[len("/ui/"):], UI_IMAGES)  # the overlay's sky, portrait
             else:
                 got = _card_file(path[len("/cards/"):])
             if got is None:
@@ -294,6 +296,7 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
 
+UI_IMAGES = Path("docs") / "ui_images"  # the stream page's Wizard101 look: sky.jpg, portrait.png
 PIPS = Path("docs") / "pip_images"  # Pip.png, Power_Pip.png, <School>_School_Pip.png
 CARDS = Path("docs") / "spell_images"  # card art: <school>/<name>_spell.png, index.json (name -> file)
 
@@ -307,7 +310,7 @@ def _card_file(rel: str, folder: Path | None = None) -> tuple[bytes, str] | None
     f = (base / unquote(rel)).resolve()
     if base not in f.parents or not f.is_file():
         return None
-    kind = {".png": "image/png", ".json": "application/json"}.get(f.suffix.lower())
+    kind = {".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json"}.get(f.suffix.lower())
     return (f.read_bytes(), kind) if kind else None
 
 
