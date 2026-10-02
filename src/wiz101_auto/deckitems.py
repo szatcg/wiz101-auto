@@ -51,8 +51,16 @@ def pick_roles(items: list[tuple[str, bool]], aoe: str = "", single: str = "") -
     the names given, else the worn one for AoE (it holds the AoE deck now)
     and another for single-target."""
     names = [n for n, _ in items]
+
+    def find(want: str) -> str:  # "dragonfire" -> "Dragonfire Deck" (case, part of the name)
+        key = "".join(c for c in want.lower() if c.isalnum())
+        exact = [n for n in names if "".join(c for c in n.lower() if c.isalnum()) == key]
+        part = [n for n in names if key and key in "".join(c for c in n.lower() if c.isalnum())]
+        return (exact or part or [""])[0]
+
     if aoe and single:
-        return (aoe, single) if aoe in names and single in names else None
+        aoe, single = find(aoe), find(single)
+        return (aoe, single) if aoe and single and aoe != single else None
     worn = next((n for n, w in items if w), None)
     aoe = aoe or worn or (names[0] if names else "")
     others = [n for n in names if n != aoe]
