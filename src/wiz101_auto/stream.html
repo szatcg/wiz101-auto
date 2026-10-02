@@ -470,7 +470,9 @@ let trackerHtml = "", cardIndex = null;
 fetch("/cards/index.json").then((r) => r.json()).then((d) => { cardIndex = d; trackerHtml = ""; }).catch(() => {});
 function cardArt(name) {  // the card's art file (docs/spell_images), or null: shown as text
   if (!cardIndex) return null;
-  const hit = cardIndex[String(name).toLowerCase().replace(/[^a-z0-9]/g, "")];
+  // A card from gear or a pet ("Tower Shield - Amulet"): the spell's own art.
+  const base = String(name).split(" - ")[0];
+  const hit = cardIndex[base.toLowerCase().replace(/[^a-z0-9]/g, "")];
   return hit ? hit.file : null;
 }
 function renderTracker() {

@@ -138,9 +138,8 @@ def deck_tracker(battle, gone) -> list[dict]:
 
     for c in battle.upcoming:
         row(c)["left"] += 1
-    for c in battle.cards:
-        if not c.treasure and not c.item:
-            row(c)["hand"] += 1
+    for c in battle.cards:  # (gear and treasure cards too: they're in the hand)
+        row(c)["hand"] += 1
     for key, n in gone.items():
         if key not in rows and n:
             rows[key] = {"name": key, "left": 0, "hand": 0, "used": int(n)}

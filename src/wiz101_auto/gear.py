@@ -29,7 +29,9 @@ NEXT_PAGE = [*PAGE, "rightscroll"]
 PREV_PAGE = [*PAGE, "leftscroll"]
 # Slots worth optimising. The deck and wand stay as they are (a starter wand's
 # item cards are the only spells some wizards have).
-SLOT_TABS = ("Tab_Hat", "Tab_Robe", "Tab_Shoes", "Tab_Athame", "Tab_Amulet", "Tab_Ring")
+# (Not the amulet: its item card is the player's pick, Reshuffle or Tower
+# Shield; a check swapped the Reshuffle amulet away.)
+SLOT_TABS = ("Tab_Hat", "Tab_Robe", "Tab_Shoes", "Tab_Athame", "Tab_Ring")
 ITEMS_PER_PAGE = 8
 MAX_PAGES = 4
 BACKPACK_CHECK_SECONDS = 20.0  # how often to look for new items (a memory read, no UI)
