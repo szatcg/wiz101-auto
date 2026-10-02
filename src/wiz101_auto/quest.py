@@ -2009,12 +2009,40 @@ class Quester:
             self._recall_pending = False
         return True
 
+    async def _resume_instance(self, marked_zone: str) -> bool:
+        """The compass's dungeon-return button (a red X beside Recall, shown
+        after a defeat throws us out of a dungeon): back into the dungeon we
+        left. Recall into the Labyrinth from the Basilica did nothing. True if
+        it took us into the marked zone or another room of its dungeon."""
+        before = await self.client.zone_name() or ""
+        note_zone_jump()
+        if not await ui.click_named(self.client, "ResumeInstanceButton"):
+            return False
+        logger.info("pressed the dungeon-return button (back into the dungeon we left)")
+        self.controller.allow_idle(40)
+        try:
+            await asyncio.sleep(1.0)
+            await ui.confirm_modal(self.client)
+            await wait_for_loading(self.client, appear_timeout=8.0)
+        finally:
+            self.controller.end_idle()
+        here = await self.client.zone_name() or ""
+        if here == before:
+            logger.warning("the dungeon-return button didn't move us")
+            return False
+        inside = here == marked_zone or in_same_area(here, marked_zone) or in_same_area(marked_zone, here)
+        if not inside:
+            logger.warning(f"the dungeon-return button took us to {here}, not {marked_zone}'s dungeon")
+        return inside
+
     async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
         """Press Recall and wait to arrive in `marked_zone`. True if we did."""
         if is_team_up_zone(marked_zone) and not is_team_up_zone(await self.client.zone_name() or ""):
             # Recalling into a team-only dungeon means going in alone.
             logger.info(f"not recalling into {marked_zone} alone (team-only dungeon)")
             return False
+        if await self._resume_instance(marked_zone):
+            return True
         self.controller.allow_idle(40)
         try:
             for attempt in range(2):
