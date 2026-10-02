@@ -788,6 +788,7 @@ class Quester:
         self._ranked_outside = False  # ranked quests outside a dungeon this session
         self._spell_first_logged = ""  # the class quest last put ahead of the pin
         self._chosen_entry: QuestEntry | None = None  # the tracked quest's book entry at the last ranking
+        self._done_dungeon_logged = ""  # a finished dungeon whose own quest was skipped (logged once)
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -1754,6 +1755,14 @@ class Quester:
             # names is in here.
             leave = not await self._named_enemy_here(objective)
         logger.info(f"dungeon exit prompt: {'leaving' if leave else 'staying'} (objective {objective!r})")
+        if leave and not is_team_up_zone(zone) and await self._in_dungeon(zone) and self._dungeon:
+            # Left by its exit for an objective outside: this dungeon's part
+            # is done (back in for a spell quest's boss, its own quest no
+            # longer comes first: the Labyrinth was redone for Ranulf Moonclaw).
+            from .dungeons import mark_done
+
+            if mark_done(self._dungeon[1]):
+                logger.info(f"dungeon {self._dungeon[1].split('/')[-1]} noted as done")
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
             await wait_for_loading(self.client, appear_timeout=5.0)
@@ -2784,7 +2793,17 @@ class Quester:
             inside = is_team_up_zone(here) or await self._in_dungeon(here) or "/interiors/" in here.lower()
             if not inside:
                 self._ranked_outside = True
-            if inside:
+            from .dungeons import load_done
+
+            first_room = self._dungeon[1] if self._dungeon else here
+            if inside and first_room in load_done():
+                # A dungeon finished before (the Labyrinth, back in for a spell
+                # quest's boss): its own quest doesn't come first again.
+                if self._done_dungeon_logged != first_room:
+                    self._done_dungeon_logged = first_room
+                    logger.info(f"in {first_room.split('/')[-1]}, done before: "
+                                "its own quest doesn't come first")
+            elif inside:
                 # After the pin: the dungeon's own quest ('The Right Combination')
                 # opens the way to the pinned one ('Weird Science') in there.
                 first = self._dungeon[1] if self._dungeon else here

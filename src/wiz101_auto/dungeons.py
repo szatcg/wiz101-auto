@@ -17,6 +17,28 @@ Point = tuple[float, float, float]
 # or leaving to heal, so they're played like the open world. Crimson Fields:
 # the bot fought every Otomo Scout it met and searched for War Oni at 30%
 # health, treating it as a dungeon.
+DONE_FILE = Path("state") / "dungeons_done.json"  # dungeons finished (first room zones)
+
+
+def load_done(path: Path = DONE_FILE) -> set[str]:
+    """Dungeons the bot finished: entering one again for another quest (a
+    spell quest's boss in the Labyrinth) doesn't make its own quest come first."""
+    try:
+        return set(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return set()
+
+
+def mark_done(first_room: str, path: Path = DONE_FILE) -> bool:
+    """Note a dungeon as finished. True if it's new."""
+    done = load_done(path)
+    if not first_room or first_room in done:
+        return False
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(sorted(done | {first_room}), indent=1), encoding="utf-8")
+    return True
+
+
 OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
 # Zones of a dungeon instance that aren't under its rooms' area (reached by a
 # portal inside it): zone -> the dungeon's first room. The Grand Chasm's past

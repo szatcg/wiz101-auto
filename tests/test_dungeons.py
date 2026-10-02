@@ -35,3 +35,13 @@ def test_dungeon_wisp_zone_heals_in_another_room_of_the_dungeon():
     assert dungeon_wisp_zone(cell, hall, lambda z: counts.get(z, 0)) == hall
     assert dungeon_wisp_zone(hall, hall, lambda z: counts.get(z, 0)) is None  # (here already)
     assert dungeon_wisp_zone(cell, hall, lambda z: 0) is None  # none known: the hub
+
+
+def test_done_dungeons_are_remembered(tmp_path):
+    from wiz101_auto.dungeons import load_done, mark_done
+
+    f = tmp_path / "done.json"
+    assert load_done(f) == set()
+    assert mark_done("DragonSpire/DS_A2_Battle/DS_A2Z3_Detention", f)
+    assert not mark_done("DragonSpire/DS_A2_Battle/DS_A2Z3_Detention", f)  # (already noted)
+    assert load_done(f) == {"DragonSpire/DS_A2_Battle/DS_A2Z3_Detention"}
