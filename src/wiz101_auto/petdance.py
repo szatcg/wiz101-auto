@@ -245,6 +245,7 @@ class PetDancer:
         """One game, from the sigil to the reward screen closed: 'won', or
         why it stopped ('no energy', 'no snacks', 'no sigil', 'no game')."""
         root = self.client.root_window
+        await self._finish_rewards()  # (a reward page left open from the last game)
         if not await _visible(root, "PetGameTracks"):
             if not await self._on_sigil():
                 return "no sigil"
@@ -307,13 +308,21 @@ class PetDancer:
                 await self._close_level_up()
             else:
                 result = "no snacks"
-        await _wait_for(lambda: _visible(root, "PetGameRewards", "btnBack"), 10)
-        for _ in range(20):
-            if not await _visible(root, "PetGameRewards"):
-                break
-            await _click(self.client, "PetGameRewards", "btnBack")  # Finish
-            await asyncio.sleep(0.3)
+        await self._finish_rewards()
         return result
+
+    async def _finish_rewards(self):
+        """Through the reward pages to the end: Finish (btnBack) when shown,
+        else Next (a page of the pet's improved stats has only Next: leaving
+        it open blocked the next game)."""
+        root = self.client.root_window
+        for _ in range(40):
+            if not await _visible(root, "PetGameRewards"):
+                return
+            await self._close_level_up()
+            if not await _click(self.client, "PetGameRewards", "btnBack"):
+                await _click(self.client, "PetGameRewards", "btnNext")
+            await asyncio.sleep(0.6)
 
     async def _close_level_up(self):
         root = self.client.root_window
@@ -330,7 +339,7 @@ class PetDancer:
             if await _visible(root, "PetGameTracks"):
                 await _click(self.client, "PetGameTracks", "btnBack")
             elif await _visible(root, "PetGameRewards"):
-                await _click(self.client, "PetGameRewards", "btnBack")
+                await self._finish_rewards()
             else:
                 return
             await asyncio.sleep(0.4)
