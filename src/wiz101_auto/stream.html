@@ -403,6 +403,22 @@
   .timer, .qstep, .step, .move { background: rgba(110, 72, 24, 0.12); border-radius: 6px; }
   .pill { background: rgba(110, 72, 24, 0.14); border: 1px solid rgba(110, 72, 24, 0.35); }
 </style>
+<style>
+  /* ===== The game's own fonts (Root.wad: Fonts/WizardFancy, WizardNormal),
+     drawn letter by letter from their texture pages (see gameText below). */
+  .gt { display: inline; }
+  .gw { display: inline-block; white-space: nowrap; }
+  .gg { display: inline-block; background-color: currentColor; vertical-align: var(--gdrop, -0.2em); }
+  h1 .gt { filter: drop-shadow(1.5px 0 0 #4a2a0c) drop-shadow(-1.5px 0 0 #4a2a0c) drop-shadow(0 1.5px 0 #4a2a0c)
+    drop-shadow(0 -1.5px 0 #4a2a0c) drop-shadow(0 3px 0 #4a2a0c); }
+  .card > .label .gt, .qhead > .label .gt, .farmhead > .label .gt, .dbtn .gt, .frame .tag .gt {
+    filter: drop-shadow(0 1px 0 #3d0a06); }
+  /* small caps in pills and ribbons sit in the middle of their box */
+  .tag .gg, .kind .gg, .label .gg, .dbtn .gg, .cat .gg, .transit .gg, .eta .gg, .ko .gg, .cnt .gg, .odds .gg, .changed .gg,
+  .pill .gg { vertical-align: middle; }
+  .say { line-height: 1.5; padding-bottom: 6px; overflow: visible; min-height: 44px; }  /* (room for the letters' tails) */
+  .earlier div { line-height: 1.45; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
@@ -662,6 +678,69 @@ function pipRow(pips, power, school, myschool) {
     Object.entries(cls).map(([k, n]) => rep(n, `${cap(k)}_School_Pip.png`)).join("");
 }
 
+
+// ---- The game's own fonts ----
+// Wizard101 draws its text from bitmap fonts (Root.wad: Fonts/WizardFancy for
+// titles and names, WizardNormal for dialog text): texture pages of white
+// letters plus each letter's box and spacing (docs/ui_images/fonts, exported
+// from the game). Text on this page is redrawn with them: each letter a
+// span masked by its piece of the page, filled with the text colour.
+const FONTS = {};
+let fontsReady = false;
+const FANCY = "h1, h3, h4, .label, .dname, .quest-name, .dbtn, .tag, .kind, .transit, .cat, .timer b, .vital b, " +
+  ".pill, .eta, .changed, .r, .cnt, .odds, .ko, .rname, .prog .p, .prog .n, .frame .tag, .range, .hitr";
+const CELL = { WizardFancy: 44, WizardNormal: 40 };
+Promise.all(["WizardFancy", "WizardNormal"].map((f) =>
+  fetch(`/ui/fonts/${f}.json`).then((r) => r.json()).then((d) => { FONTS[f] = d; })))
+  .then(() => { fontsReady = true; gameText(document.body); })
+  .catch(() => {});  // (no fonts: the page keeps its web fonts)
+
+function glyph(font, code, k) {
+  const f = FONTS[font];
+  const g = f.glyphs[code];
+  if (!g) return null;
+  const [pg, left, top, w, h, a, b, c] = g;
+  const padL = Math.floor((w - b) / 2), padR = w - b - padL;
+  const s = document.createElement("span");
+  s.className = "gg";
+  s.style.cssText = `width:${w * k}px;height:${h * k}px;margin:0 ${(c - padR) * k}px 0 ${(a - padL) * k}px;` +
+    `-webkit-mask:url(/ui/fonts/${f.pages[pg]}) ${-left * k}px ${-top * k}px/${f.size[0] * k}px ${f.size[1] * k}px no-repeat;` +
+    `mask:url(/ui/fonts/${f.pages[pg]}) ${-left * k}px ${-top * k}px/${f.size[0] * k}px ${f.size[1] * k}px no-repeat;`;
+  return s;
+}
+
+function gameText(root) {
+  if (!fontsReady || !root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      const p = n.parentElement;
+      if (!p || !n.nodeValue.trim() || p.closest("script, style, .gt, title")) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const n of nodes) {
+    const p = n.parentElement;
+    const font = p.closest(FANCY) ? "WizardFancy" : "WizardNormal";
+    const k = (parseFloat(getComputedStyle(p).fontSize) * 1.3) / CELL[font];
+    const out = document.createElement("span");
+    out.className = "gt";
+    for (const part of n.nodeValue.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) { out.appendChild(document.createTextNode(" ")); continue; }
+      const word = document.createElement("span");
+      word.className = "gw";
+      for (const ch of part) {
+        const g = glyph(font, ch.codePointAt(0), k);
+        word.appendChild(g || document.createTextNode(ch));  // (a letter the game font lacks: as it was)
+      }
+      out.appendChild(word);
+    }
+    p.replaceChild(out, n);
+  }
+}
+
 let trackerHtml = "", cardIndex = null;
 fetch("/cards/index.json").then((r) => r.json()).then((d) => { cardIndex = d; trackerHtml = ""; }).catch(() => {});
 function cardArt(name) {  // the card's art file (docs/spell_images), or null: shown as text
@@ -719,7 +798,7 @@ function renderFeed() {
   const evs = (thoughts && thoughts.events) || [];
   const last = evs[evs.length - 1];
   if (!last) { $("feed").innerHTML = ""; return; }
-  const earlier = evs.slice(-4, -1).reverse().map((e) =>
+  const earlier = evs.slice(-3, -1).reverse().map((e) =>
     `<div><span class="t">${e.time}</span>${describe(e)}</div>`).join("");
   // (A "[A3Z1 Crystal Grove] ..." zone prefix reads badly as speech.)
   const said = describe(last).replace(/^((?:<span[^>]*>[^<]*<\/span>)?(?:<em>[^<]*<\/em>)?)\[[^\]]*\]\s*/, "$1");
@@ -732,6 +811,7 @@ function tick() {
   $("live").textContent = clock(Date.now() / 1000 - (data.live_since || Date.now() / 1000));
   const up = ((data.status || {}).uptime_s || 0) + (Date.now() - fetchedAt) / 1000;
   $("uptime").textContent = data.running ? clock(up) : "—";
+  gameText($("live")); gameText($("uptime"));
 }
 
 let lastFeed = "";
@@ -743,6 +823,7 @@ async function poll() {
       fetch(`battle.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
     ]);
     data = d; thoughts = t; battle = bp; fetchedAt = Date.now();
+    setTimeout(() => gameText(document.body), 0);  // (after this poll's rendering)
     renderSide();
     renderLower();
     const fighting = !!(bp && bp.active && (bp.deck || []).length && (d.status || {}).in_battle);
