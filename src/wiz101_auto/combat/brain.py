@@ -1585,7 +1585,9 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     deck_low = battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT
     if action.kind is ActionKind.PASS and deck_low and shuffle.castable and (
             battle.pips + battle.power_pips >= shuffle.pip_cost):
-        return Action(ActionKind.CAST, shuffle, target=None,
+        # Cast on ourselves: Reshuffle wants a target (clicking the card alone
+        # never cast it and the round ran out).
+        return Action(ActionKind.CAST, shuffle, target=battle.me,
                       reason=f"reshuffle: {len(battle.upcoming)} card(s) left to draw, nothing good in hand")
     return action
 

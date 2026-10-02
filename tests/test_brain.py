@@ -1321,4 +1321,4 @@ def test_reshuffle_is_kept_and_cast_when_the_deck_runs_dry():
     assert decide(full).kind is ActionKind.PASS  # cards left to draw: keep it
     only = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=1, deck_known=True, upcoming=[])
     got = decide(only)
-    assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle"
+    assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle" and got.target is me
