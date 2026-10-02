@@ -304,3 +304,14 @@ def test_hub_button_when_the_hub_is_nearer():
     assert not hub_is_closer(1, None)
     assert hub_is_closer(None, 0)  # an interior with no known route, the place is the hub
     assert not hub_is_closer(None, 2)
+
+
+def test_enemies_that_counted_become_names_for_the_target(tmp_path):
+    from wiz101_auto.quest import defeat_aliases, note_defeat_alias
+
+    f = tmp_path / "aliases.json"
+    assert note_defeat_alias("Spiders", ["Vika Markmaker", "Ancient Crystalweaver"], f) == [
+        "Vika Markmaker", "Ancient Crystalweaver"]
+    assert note_defeat_alias("Spiders", ["Ancient Crystalweaver"], f) == []  # (known already)
+    assert note_defeat_alias("Nirini Warrior", ["Nirini Warrior"], f) == []  # (named as the target)
+    assert defeat_aliases(f)["spiders"] == ["Vika Markmaker", "Ancient Crystalweaver"]

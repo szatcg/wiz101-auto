@@ -203,6 +203,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
+ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
@@ -603,7 +604,35 @@ def defeat_names(objective: str) -> list[str]:
     words = target.split()
     if re.match(r"^\s*defeat\s+any\s", objective, re.I) and len(words) > 1:
         names.append(words[-1])
+    # Enemies that counted for it before ('Defeat Spiders': the Ancient
+    # Crystalweaver; nothing is named Spider, and the bot went from one old
+    # sighting to another for 3 minutes).
+    names += [n for n in defeat_aliases().get(target.lower(), []) if n not in names]
     return names
+
+
+DEFEAT_ALIASES_FILE = Path("state") / "defeat_aliases.json"  # objective target -> enemies that counted
+
+
+def defeat_aliases(path: Path = DEFEAT_ALIASES_FILE) -> dict[str, list[str]]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def note_defeat_alias(target: str, enemies: list[str], path: Path = DEFEAT_ALIASES_FILE) -> list[str]:
+    """A fight moved 'Defeat <target> (n of m)' on: its enemies whose names
+    don't already say <target> are what <target> means. Returns the new ones."""
+    data = defeat_aliases(path)
+    known = data.setdefault(target.lower(), [])
+    key = target.lower().rstrip("s")
+    new = [e for e in dict.fromkeys(enemies) if e and key not in e.lower() and e not in known]
+    if new:
+        known += new
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    return new
 
 
 def is_combat_objective(objective: str) -> bool:
@@ -881,6 +910,20 @@ class Quester:
 
         self._background[kind] = asyncio.create_task(run())
 
+    def _learn_defeat_alias(self, old: str, new: str):
+        """'Defeat X (0 of 2)' -> '(1 of 2)' right after a fight: its enemies
+        count as X (state/defeat_aliases.json)."""
+        target = defeat_target(old)
+        fighter = self.fighter
+        if not target or target != defeat_target(new) or not fighter or not fighter.last_enemy_names:
+            return
+        if time.monotonic() - fighter.combat_ended_at > ALIAS_AFTER_FIGHT:
+            return
+        bosses = set(getattr(fighter, "last_boss_names", []) or [])
+        new_names = note_defeat_alias(target, [n for n in fighter.last_enemy_names if n not in bosses])
+        if new_names:
+            logger.info(f"{', '.join(new_names)} counted for {target!r}: hunting those for it from now on")
+
     async def _note_progress(self, objective: str, zone: str | None):
         key = (objective, zone)
         if objective and objective != self._last_progress[0] and self._active_quest:
@@ -891,6 +934,7 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                self._learn_defeat_alias(self._last_progress[0], objective)
                 self._stop_if_asked(self._last_progress[0], objective)
                 # The book's fight icon was for the old step (Katzenstein); the
                 # next ranking reads the new one. A stale flag sent the bot out
