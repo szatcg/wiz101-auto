@@ -240,6 +240,7 @@ FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is
 COMPANY_RANGE = 1200.0  # another enemy this near a boss joins its fight: the AoE deck
 NOT_SAME_MOB = 5.0  # (the boss itself)
 HUB_JUMP_HOPS = 1  # the hub button counts as this many gate hops when comparing routes
+RECALL_PENDING_FILE = Path("state") / "recall_pending.json"  # a defeat's Recall to the dungeon mark is due
 SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
 SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
@@ -727,7 +728,10 @@ class Quester:
         self.completions = CompletionTracker()  # -> docs/CompletedQuests.txt
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
         self._seen_deaths = 0
-        self._recall_pending = False  # a defeat happened since we marked a dungeon entrance / fight spot
+        # A defeat happened since we marked a dungeon entrance / fight spot: kept
+        # in state/recall_pending.json (a restart mid-Recall forgot it, and the
+        # bot walked back to the Labyrinth's sigil: a fresh copy).
+        self._recall_pending_flag = RECALL_PENDING_FILE.exists()
         self._last_defeat = -1e9
         self._last_win_zone = _load_last_main(2)  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
@@ -1942,6 +1946,22 @@ class Quester:
             logger.info(f"defeat {n} on {objective!r}; trying again")
         self.setbacks.save()
 
+    @property
+    def _recall_pending(self) -> bool:
+        return self._recall_pending_flag and bool(self._mark and self._mark.kind in RETURN_KINDS)
+
+    @_recall_pending.setter
+    def _recall_pending(self, value: bool):
+        self._recall_pending_flag = bool(value)
+        try:
+            if value:
+                RECALL_PENDING_FILE.parent.mkdir(exist_ok=True)
+                RECALL_PENDING_FILE.write_text(self._mark.zone if self._mark else "", encoding="utf-8")
+            else:
+                RECALL_PENDING_FILE.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     async def _recall_to_mark(self) -> bool:
         """Back at full strength after a defeat, still on the same objective: use
         Recall to jump back to the marked dungeon entrance. True if we recalled."""
@@ -1956,6 +1976,10 @@ class Quester:
         # heal, then back to the mark, no matter what).
         if not await is_free(self.client):
             return False
+        if self.upkeep is not None:
+            hp, mana = await health_mana(self.client)
+            if self.upkeep.needs_recovery(hp, mana):
+                return False  # healed first (no mark), then back to the mark (the player's rule)
         what = "the dungeon entrance" if self._mark.kind == "dungeon" else "the spot marked before the fight"
         logger.info(f"recalling to {what} in {marked_zone} instead of walking back")
         self._recall_pending = False  # one try per defeat: never loop on a failing recall
