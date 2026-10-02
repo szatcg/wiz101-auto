@@ -5195,6 +5195,16 @@ class Quester:
                 logger.opt(exception=exc).warning("deck switch failed")
             finally:
                 self.controller.end_idle()
+        keeper = getattr(self, "deck_keeper", None)
+        if keeper is not None and not team and await is_free(self.client):
+            self.controller.allow_idle(120)  # deck clicks look like "nothing happening"
+            try:
+                if await keeper.tick(self.client):
+                    return
+            except Exception as exc:
+                logger.opt(exception=exc).warning("deck keeping failed")
+            finally:
+                self.controller.end_idle()
         if self.progression:
             self.controller.allow_idle(90)  # spellbook work looks like "nothing happening"
             try:
