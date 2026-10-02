@@ -80,3 +80,20 @@ def test_blades_traps_and_big_hits_are_never_discarded_for_a_draw():
     pixie = card(3, "Pixie", 2, EffectKind.HEAL, Target.ALLY_SINGLE, 400)
     assert keep_from_discard(blade) and keep_from_discard(feint) and keep_from_discard(colossus)
     assert not keep_from_discard(pixie)
+
+
+def test_a_draw_only_counts_if_the_shorter_plan_plays_it():
+    from wiz101_auto.combat.brain import improving_draws
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    def card(i, name, pips, kind, target, value):
+        return Card(i, name, school="myth", pip_cost=pips, effects=[Effect(kind, target, value)])
+
+    me = Combatant("me", 2000, 2000, is_client=True, school="myth")
+    boss = Combatant("Boss", 1500, 5000, is_enemy=True, is_boss=True, resist={})
+    hit = card(0, "Colossus", 3, EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)
+    deck = [card(10, "Pixie", 2, EffectKind.HEAL, Target.ALLY_SINGLE, 400),
+            card(11, "Colossus", 3, EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)]
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[hit], pips=3, deck_known=True, upcoming=deck)
+    _base, better = improving_draws(b)
+    assert "Pixie" not in better  # a heal shortens no fight

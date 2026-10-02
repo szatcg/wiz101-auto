@@ -1311,8 +1311,11 @@ def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
         seen.add(c.name)
         rest = battle.upcoming[:i] + battle.upcoming[i + 1:]
         arriving = replace(c, index=1000 + i, castable=False)  # (in hand next round)
-        rounds, _ = plan_hand_use(replace(battle, cards=[*battle.cards, arriving], upcoming=rest))
-        if rounds < base:
+        rounds, used = plan_hand_use(replace(battle, cards=[*battle.cards, arriving], upcoming=rest))
+        # Only when the shorter plan plays it: a shorter plan without it was
+        # just the deck's order shuffled (the overlay credited Pixie and an
+        # unused Myth Trap with a round saved).
+        if rounds < base and arriving.index in used:
             better[c.name] = rounds
     return base, better
 
