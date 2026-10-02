@@ -261,6 +261,14 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path.split("?")[0].endswith("battle.json"):
             body = json.dumps(battle_plan()).encode("utf-8")
             kind = "application/json"
+        elif self.path.split("?")[0].rstrip("/") == "/control":
+            body = CONTROL.read_bytes()  # buttons: start, stop, pause, pet, farm, pin
+            kind = "text/html; charset=utf-8"
+        elif self.path.split("?")[0] == "/api/status":
+            from .control import status
+
+            body = json.dumps(status()).encode("utf-8")
+            kind = "application/json"
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
@@ -292,10 +300,38 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):  # noqa: N802 (http.server API)
+        """The control page's buttons: /api/<action>. Only from the page itself:
+        it sends a header another site's page can't (no CORS here), so a
+        website can't start or stop the bot through the browser."""
+        path = self.path.split("?")[0]
+        if not path.startswith("/api/") or self.headers.get("X-Wizzbot") != "control":
+            self.send_error(403)
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(length) or b"{}") if length else {}
+        except (ValueError, OSError):
+            payload = {}
+        from .control import act
+
+        try:
+            result = act(path[len("/api/"):], payload)
+        except Exception as exc:  # a button must never take the server down
+            result = {"ok": False, "message": f"failed: {exc!r}"}
+        body = json.dumps(result).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, *args):  # keep the console quiet
         pass
 
 
+CONTROL = Path(__file__).with_name("control.html")  # the control page
 UI_IMAGES = Path("docs") / "ui_images"  # the stream page's Wizard101 look: sky.jpg, portrait.png
 PIPS = Path("docs") / "pip_images"  # Pip.png, Power_Pip.png, <School>_School_Pip.png
 CARDS = Path("docs") / "spell_images"  # card art: <school>/<name>_spell.png, index.json (name -> file)

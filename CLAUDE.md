@@ -19,6 +19,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | Command | Use |
 |---|---|
 | `start [--supervise]` | start in the background (also opens the live log window if none is open); `--supervise` auto-restarts after crashes |
+| (control) | http://127.0.0.1:8101/control: buttons for start / stop / pause / restart, a pet dance trip, farming on/off, pinning a quest, with the live state (`control.py`; the page's POSTs need its `X-Wizzbot` header) |
 | `dashboard` | progress dashboard at http://127.0.0.1:8101/ (world completion %, current quest ribbon); `start` launches it |
 | (stream) | http://127.0.0.1:8101/stream: a 1920x1080 stream layout (transparent 1440x810 game window at 20,20; sidebar stats; the bot's thoughts feed and battle card from activity.log via /thoughts.json; while farming, runs and loot targets) |
 | (sim) | http://127.0.0.1:8101/sim: the combat simulator's visualizer: every deck search's report (`state/sim_runs/`): decks tried, the 5 fastest winners iterated on, the chosen deck, casts/moves per fight, and recorded sample fights on a battle board (step / auto-play; `#step=N&fight=I` opens a step); start a search against chosen enemies from the page |

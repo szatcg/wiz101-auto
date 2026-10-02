@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wizzbot Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Buttons for the bot (start, stop, pause, pet, farm, pin), in the game's
+     look: its message-box frame around parchment, its red bar for buttons. */
+  :root {
+    --text: #3a2612;
+    --muted: #4f3618;
+    --ok: #1f6b2a;
+    --bad: #8a1c12;
+    --gold: #f3cf62;
+    --trim: #d9b25a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 24px 16px 40px;
+    font-family: "Alegreya Sans", system-ui, sans-serif; color: var(--text);
+    background: url("/ui/sky.jpg") center / cover fixed, #142a5c;
+  }
+  main { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { margin: 0 0 4px; text-align: center; font: 900 40px Cinzel, serif; color: var(--gold);
+    -webkit-text-stroke: 1.5px #4a2a0c; text-shadow: 0 3px 0 #4a2a0c, 0 0 14px rgba(243, 207, 98, 0.5); }
+  .panel {
+    position: relative; padding: 26px 20px 18px;
+    background: url("/ui/game/parchment.png") repeat; background-clip: padding-box;
+    border: 11px solid transparent; border-image: url("/ui/game/frame.png") 13 / 11px stretch;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.55));
+  }
+  .panel > h2 {
+    position: absolute; left: 50%; top: -30px; transform: translateX(-50%); margin: 0; white-space: nowrap;
+    height: 40px; line-height: 22px; padding: 0 22px 18px; font: 900 15px Cinzel, serif; color: #1d1208;
+    border-style: solid; border-color: transparent; border-width: 0 40px;
+    border-image: url("/ui/game/title_scroll.png") 0 64 fill / 0 40px stretch;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .row + .row { margin-top: 12px; }
+  button {
+    font: 900 16px Cinzel, serif; color: #ffd84a; letter-spacing: 0.5px; cursor: pointer;
+    padding: 4px 14px; min-height: 44px; background: none;
+    border: 8px solid transparent; border-image: url("/ui/game/red_bar.png") 8 fill / 8px stretch;
+    text-shadow: 0 1px 0 #3d0a06; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  }
+  button:hover:not(:disabled) { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)) brightness(1.15); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { cursor: default; filter: grayscale(0.85) opacity(0.55); }
+  button:focus-visible { outline: 3px solid #1d1208; outline-offset: 2px; }
+  .state { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 17px; }
+  .state b { color: var(--muted); font-weight: 800; }
+  .badge { display: inline-block; padding: 2px 12px; border-radius: 999px; font: 900 14px Cinzel, serif;
+    color: #fff; background: #6b5434; }
+  .badge.run { background: var(--ok); } .badge.pause { background: #a8710f; } .badge.stop { background: var(--bad); }
+  label { font-weight: 800; color: var(--muted); }
+  input, select {
+    font: 700 16px "Alegreya Sans", sans-serif; color: var(--text); padding: 8px 10px; min-height: 44px;
+    border: 2px solid #7a5428; border-radius: 6px; background: rgba(255, 248, 228, 0.85);
+  }
+  input[type=number] { width: 80px; }
+  select { flex: 1; min-width: 200px; }
+  .note { font-size: 15px; color: var(--muted); margin-top: 8px; }
+  #msg { min-height: 26px; text-align: center; font-weight: 800; color: #fff4d2;
+    text-shadow: 0 1px 2px #000; font-size: 17px; }
+  #msg.bad { color: #ffb4a8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Wizzbot</h1>
+  <div id="msg" role="status" aria-live="polite"></div>
+
+  <section class="panel" aria-labelledby="h-state">
+    <h2 id="h-state">The Bot</h2>
+    <div class="state">
+      <b>State</b><span><span class="badge" id="badge">…</span></span>
+      <b>Doing</b><span id="objective">—</span>
+      <b>Where</b><span id="zone">—</span>
+      <b>Health</b><span id="health">—</span>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button id="start">Start</button>
+      <button id="pause">Pause</button>
+      <button id="stop">Stop</button>
+      <button id="restart">Restart</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-act">
+    <h2 id="h-act">Activities</h2>
+    <div class="row">
+      <button id="pet">Pet Dance</button>
+      <label for="games">games</label>
+      <input id="games" type="number" min="0" value="0" aria-describedby="games-note">
+    </div>
+    <div class="note" id="games-note">0 plays until the pet is out of energy. The bot goes at its next free moment, then comes back.</div>
+    <div class="row">
+      <button id="farm">Farming: …</button>
+      <span id="farmname" class="note" style="margin:0"></span>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-quest">
+    <h2 id="h-quest">Quest</h2>
+    <div class="row">
+      <label for="quest">Pin</label>
+      <select id="quest"></select>
+      <button id="pin">Pin</button>
+      <button id="unpin">Unpin</button>
+    </div>
+    <div class="note">Tracking: <span id="tracking">—</span> · pinned: <span id="pinned">none</span>.
+      A pin takes effect when the bot next starts.</div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let st = null;
+
+async function act(action, payload = {}, button) {
+  if (button) button.disabled = true;
+  const long = action === "stop" || action === "restart";
+  say(long ? "stopping cleanly (up to 30 s)…" : "…");
+  try {
+    const r = await fetch(`/api/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Wizzbot": "control" },
+      body: JSON.stringify(payload),
+    });
+    const res = await r.json();
+    say(res.message, !res.ok);
+  } catch (e) {
+    say(`couldn't reach the dashboard server (${e})`, true);
+  }
+  await poll();
+}
+
+function say(text, bad = false) { $("msg").textContent = text || ""; $("msg").className = bad ? "bad" : ""; }
+
+async function poll() {
+  try {
+    st = await (await fetch(`/api/status?t=${Date.now()}`, { cache: "no-store" })).json();
+  } catch (e) {
+    $("badge").textContent = "OFFLINE"; $("badge").className = "badge stop";
+    return;
+  }
+  const stale = st.running && (st.heartbeat_age == null || st.heartbeat_age > 60);  // (the supervisor waiting on the game)
+  const label = !st.running ? "STOPPED" : stale ? "WAITING" : st.paused ? "PAUSED" : st.in_battle ? "IN BATTLE" : "RUNNING";
+  $("badge").textContent = label;
+  $("badge").className = "badge " + (!st.running ? "stop" : stale || st.paused ? "pause" : "run");
+  $("objective").textContent = st.objective || "—";
+  $("zone").textContent = (st.zone || "").split("/").slice(1).join(" · ") || "—";
+  $("health").textContent = st.health ? `${st.health}${st.level ? ` · level ${st.level}` : ""}` : "—";
+  $("start").disabled = st.running;
+  $("stop").disabled = !st.running;
+  $("pause").disabled = !st.running || st.pause_pending;
+  $("pause").textContent = st.paused ? "Resume" : "Pause";
+  $("farm").textContent = `Farming: ${st.farming ? "On" : "Off"}`;
+  $("farmname").textContent = st.farm_name || "";
+  $("tracking").textContent = st.tracking || "—";
+  $("pinned").textContent = st.pin || "none";
+  const sel = $("quest");
+  const want = JSON.stringify(st.quests);
+  if (sel.dataset.q !== want) {
+    const keep = sel.value || st.pin || st.tracking;
+    sel.dataset.q = want;
+    sel.innerHTML = st.quests.map((q) => `<option>${q.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]))}</option>`).join("");
+    if (keep) sel.value = keep;
+  }
+}
+
+$("start").onclick = (e) => act("start", {}, e.currentTarget);
+$("stop").onclick = (e) => act("stop", {}, e.currentTarget);
+$("restart").onclick = (e) => act("restart", {}, e.currentTarget);
+$("pause").onclick = (e) => act("pause", {}, e.currentTarget);
+$("pet").onclick = (e) => act("pet", { games: Number($("games").value) || 0 }, e.currentTarget);
+$("farm").onclick = (e) => act("farm", { on: !(st && st.farming) }, e.currentTarget);
+$("pin").onclick = (e) => act("pin", { quest: $("quest").value }, e.currentTarget);
+$("unpin").onclick = (e) => act("pin", { quest: "" }, e.currentTarget);
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>

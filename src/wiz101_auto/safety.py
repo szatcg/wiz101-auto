@@ -141,6 +141,17 @@ class Controller:
             if ticks % 10 == 0 and STOP_FILE.exists():
                 self.stop("stop requested from the terminal")
                 break
+            if ticks % 10 == 0:
+                from .control import PAUSE_REQUEST
+
+                if PAUSE_REQUEST.exists():  # the control page's pause / resume button
+                    PAUSE_REQUEST.unlink(missing_ok=True)
+                    if self.paused:
+                        logger.info("resumed (control page)")
+                        self._resume.set()
+                    else:
+                        logger.info("paused from the control page (press again to resume)")
+                        self._resume.clear()
             if _combo_down(self.stop_keys):
                 # Also the terminal's stop request: the supervisor then doesn't
                 # restart it (the player's: stopped means stopped until told).
