@@ -21,7 +21,6 @@ from .dungeons import DungeonMemory
 from .marks import RETURN_KINDS
 from .upkeep import health_mana, is_free, recover, wait_for_loading, wait_until_free
 
-RETURN_RECALL_TRIES = 2  # a heal trip's failed Recall back: tries before walking
 DUNGEON_MANA_TRIP = 0.3  # inside a dungeon, leave to refill mana only below this
 DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
 HEAL_TRIES = 4  # recover() rounds on a heal trip (a fight can cut one short)
@@ -64,13 +63,22 @@ async def go_to_hub(client) -> bool:
     return False
 
 
+def dungeon_wisp_zone(here: str, first_room: str, count) -> str | None:
+    """Another zone of the dungeon we're in with remembered wisps of the kind
+    needed (`count(zone)` > 0): healing there and Recalling back beats leaving
+    the dungeon (the Labyrinth: its main hall from a Detention room)."""
+    from .dungeons import INSTANCE_ZONES
+
+    rooms = [first_room, *(z for z, first in INSTANCE_ZONES.items() if first == first_room)]
+    return next((z for z in rooms if z and z != here and count(z) > 0), None)
+
+
 class DungeonHealer:
     def __init__(self, quester, cfg):
         self.q = quester
         self.client = quester.client
         self.cfg = cfg  # UpkeepConfig
         self._busy = False
-        self.return_to = ""  # a heal trip's Recall back failed: the marked zone to return to
 
     @property
     def busy(self) -> bool:
@@ -102,32 +110,6 @@ class DungeonHealer:
         # Palace, retrying every 3 seconds.)
         return await self.trip(zone, f"health {hp:.0%}, mana {mana:.0%} in the dungeon")
 
-    async def retry_return(self) -> bool:
-        """A heal trip's Recall back failed (a fight): try again now we're
-        free, before anything else. True if it acted."""
-        zone = self.return_to
-        here = await self.client.zone_name() or ""
-        if not zone or here == zone or not self.q._mark or self.q._mark.zone != zone:
-            self.return_to = ""
-            return False
-        if not await is_free(self.client):
-            return False
-        fails = getattr(self, "_return_fails", 0)
-        if fails >= RETURN_RECALL_TRIES:
-            # Recall keeps failing (it looped every 25 s for 5 minutes): walk.
-            logger.warning(f"Recall to {zone} failed {fails} times; walking back instead")
-            self.return_to = ""
-            self._return_fails = 0
-            await self.q.go_to_zone(zone)
-            return True
-        logger.info(f"back to the marked spot in {zone} (the heal trip's Recall failed before)")
-        if await self.q._recall(zone, "the marked spot"):
-            self.return_to = ""
-            self._return_fails = 0
-        else:
-            self._return_fails = fails + 1
-        return True
-
     async def trip(self, zone: str, why: str, mark: bool = True) -> bool:
         """Mark here (unless marked already), heal from the hub, Recall back.
         True if it went."""
@@ -156,18 +138,35 @@ class DungeonHealer:
             mark = True
         # (A mark outside, on the entrance sigil, would bring us back to the
         # start of the dungeon: mark this spot inside instead.)
-        if self.q._recall_pending and self.q._mark and self.q._mark.kind in RETURN_KINDS:
-            mark = False  # after a defeat: the mark in the dungeon waits for its Recall
-        logger.info(f"{why}: going to the hub to heal, then back by Recall")
+        if self.q._recall_pending:
+            mark = False  # after a defeat: the mark waits for its Recall
+        # The dungeon's own wisps first (another of its rooms): faster, and
+        # the dungeon isn't left (the player's rule).
+        from .upkeep import needed_wisps, wisp_memory
+
+        hp, mana = await health_mana(self.client)
+        need = needed_wisps(self.cfg, hp, mana)
+        heal_zone = None
+        if await self.q._in_dungeon(here) and self.q._dungeon:
+            heal_zone = dungeon_wisp_zone(here, self.q._dungeon[1], lambda z: wisp_memory().count(z, need))
+        where = f"{heal_zone.split('/')[-1]} (in the dungeon)" if heal_zone else "the hub"
+        logger.info(f"{why}: going to {where} to heal, then back by Recall")
         if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")
             return False
         zone = self.q._mark.zone if self.q._mark else zone
+        # Kept on disk: back from healing, the Recall comes before anything
+        # else, even after a restart (one lost it and the bot walked to the
+        # Labyrinth's sigil: a fresh copy, progress gone).
+        self.q._recall_pending = True
         self._busy = True
         self.q.controller.allow_idle(TRIP_MINUTES * 60)
         started = time.monotonic()
         try:
-            if not await go_to_hub(self.client):
+            if heal_zone and not await self.q.go_to_zone(heal_zone):
+                logger.warning(f"could not walk to {heal_zone}; healing from the hub instead")
+                heal_zone = None
+            if heal_zone is None and not await go_to_hub(self.client):
                 logger.warning("the hub button didn't move us; healing where we are")
             for _ in range(HEAL_TRIES):
                 # A fight that starts while healing (Hyde Park's patrols) ends
@@ -179,12 +178,14 @@ class DungeonHealer:
             took = (time.monotonic() - started) / 60
             logger.info(f"healed to {hp:.0%} health, {mana:.0%} mana in {took:.0f} min; recalling back")
             await wait_until_free(self.client)
-            if not await self.q._recall(zone, "the marked spot"):
-                # (A fight started while leaving: try again after it.)
+            if await self.client.zone_name() == zone or await self.q._recall(zone, "the marked spot"):
+                self.q._recall_pending = False
+            else:
+                # (A fight started while leaving: the step's Recall to the
+                # mark tries again first thing.)
                 logger.warning("could not recall back; will try again when free")
                 self.q._recall_blocked_until = 0.0
                 self.q._recalled_for = ""
-                self.return_to = zone
         finally:
             self._busy = False
             self.q.controller.end_idle()
