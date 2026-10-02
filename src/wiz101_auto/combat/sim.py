@@ -465,6 +465,12 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
             if not b.live_enemies:
                 return True
             action = decide(b, strat, discards_left=discards)
+        if action.kind is ActionKind.PASS and (action.reason or "").startswith(DIG) and action.plan_cards:
+            gone = {i for i in action.plan_cards if i < len(f.hand)}
+            for i in sorted(gone)[:max(0, discards)]:
+                _note(f, round=rnd, who="Wizard", act="discard", card=f.hand[i].name, reason="dig")
+            f.hand = [h for i, h in enumerate(f.hand) if i not in set(sorted(gone)[:max(0, discards)])]
+            discards = 0
         if action.kind is ActionKind.DISCARD and discards > 0:
             if record is not None:
                 record.append((rnd, action, [e.health for e in f.enemies], None))
@@ -675,6 +681,39 @@ def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
 MIN_DECK_TO_DISCARD = 4  # rollouts don't bin cards with fewer left in the deck
 
 
+DIG = "dig"  # a PASS whose plan_cards are discarded first (keep the pips, draw toward the plan)
+
+
+def dig_cards(battle: Battle) -> list[Card]:
+    """What a dig throws away: everything but the big hits (2+ pips), blades,
+    traps, the strongest heal, Reshuffle and treasure cards."""
+    heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
+    keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
+    out = []
+    for c in battle.cards:
+        if c.treasure or c.is_enchant or is_reshuffle(c) or c is keep_heal:
+            continue
+        if c.is_damage and c.pip_cost >= 2:
+            continue
+        if EffectKind.BLADE in c.kinds or EffectKind.TRAP in c.kinds:
+            continue
+        out.append(c)
+    return out
+
+
+def dig_action(battle: Battle, discards: int) -> Action | None:
+    """Discard what the plan won't use and pass, keeping the pips, so the next
+    draws (from what's left of the deck) bring the blade or trap that makes
+    one big hit enough (the player's: rather than two big hits, rounds apart)."""
+    if discards <= 0 or not battle.upcoming or not battle.live_enemies:
+        return None
+    junk = dig_cards(battle)[:discards]
+    if not junk:
+        return None
+    why = f"{DIG}: discard {', '.join(c.name for c in junk)} and keep the pips"
+    return Action(ActionKind.PASS, reason=why, plan_cards={c.index for c in junk})
+
+
 def candidates(battle: Battle, discards: int = 0) -> list[Action]:
     """Every move this step: each castable card on each target it can take
     (not chip hits that would waste a trap or blade), passing, and (with
@@ -729,6 +768,9 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
                 continue
             seen.add(key)
             out.append(Action(ActionKind.CAST, c, t, reason="rollout"))
+    dig = dig_action(battle, discards)
+    if dig is not None:
+        out.append(dig)
     return out
 
 

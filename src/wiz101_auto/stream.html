@@ -136,6 +136,14 @@
   .step { display: grid; grid-template-columns: 30px 66px 1fr; gap: 6px 8px; align-items: center; padding: 7px 9px; border-radius: 10px;
     background: rgba(255, 255, 255, 0.04); border-left: 4px solid var(--muted); }
   .steps.fresh .step { animation: slide 0.4s ease-out; }  /* a new plan only, not every refresh */
+  /* deck tracker: still to draw / in hand / used, per card */
+  .deck { margin-top: 10px; }
+  .deck .dh { display: flex; justify-content: space-between; font: 800 12px Inter; letter-spacing: 1px; color: var(--muted); }
+  .deck .dl { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+  .deck .dc { font-size: 12px; padding: 2px 7px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); white-space: nowrap; }
+  .deck .dc b { color: var(--gold); }
+  .deck .dc.out { opacity: 0.4; text-decoration: line-through; }
+  .deck .dc .h { color: var(--teal); }
   .step.now { background: var(--panel-2); box-shadow: 0 0 14px rgba(242, 193, 78, 0.25); border-left-color: var(--gold); }
   .step .r { color: var(--muted); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .step .what { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -372,8 +380,14 @@ function renderPlanner(p) {
   // Redrawn only when something changed: rebuilding it every poll replayed
   // the rows' slide-in every couple of seconds.
   const fresh = Date.now() < planFreshUntil ? " fresh" : "";
+  const deck = p.deck || [];
+  const left = deck.reduce((n, r) => n + r.left, 0);
+  const tracker = !deck.length ? "" : `<div class="deck"><div class="dh"><span>DECK</span><span>${left} to draw</span></div>
+    <div class="dl">${deck.map((r) => `<span class="dc${r.left + r.hand === 0 ? " out" : ""}"
+      title="${r.left} to draw, ${r.hand} in hand, ${r.used} used">${esc(r.name)} <b>${r.left}</b>${
+      r.hand ? ` <span class="h">+${r.hand}✋</span>` : ""}</span>`).join("")}</div></div>`;
   const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
-    ${foes}<div class="steps${fresh}">${rows}</div>`;
+    ${foes}<div class="steps${fresh}">${rows}</div>${tracker}`;
   if (html === lastPlannerHtml && $("lower").className === "card grow battle") return;
   lastPlannerHtml = html;
   $("lower").className = "card grow battle";

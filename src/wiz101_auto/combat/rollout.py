@@ -68,7 +68,7 @@ def _same(a: Action, b: Action) -> bool:
     if a.kind is not b.kind:
         return False
     if a.kind is ActionKind.PASS:
-        return True
+        return bool(a.plan_cards) == bool(b.plan_cards)  # (a dig isn't a plain pass)
     same_card = a.card is not None and b.card is not None and a.card.index == b.card.index
     ta, tb = a.target, b.target
     same_target = (ta is None and tb is None) or (ta is not None and tb is not None and ta.name == tb.name)

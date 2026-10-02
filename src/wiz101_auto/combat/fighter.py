@@ -16,7 +16,7 @@ from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
 from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage, prism_first
-from .model import ActionKind, Card, EffectKind
+from .model import Action, ActionKind, Card, EffectKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
@@ -98,7 +98,7 @@ def _minion_text(battle) -> str:
 PLAN_FILE = Path("state") / "battle_plan.json"
 
 
-def _write_plan(battle, action, strategy, discards: int) -> None:
+def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
     """The plan the stream page shows (state/battle_plan.json): the fight played
     on from this decision (sim.plan_preview); rewritten whenever the decision
     changes (a heal comes in), cleared when the fight ends."""
@@ -114,10 +114,33 @@ def _write_plan(battle, action, strategy, discards: int) -> None:
                 "me": {"hp": battle.me.health, "max": battle.me.max_health},
                 "now": {"kind": category(action), "spell": action.card.name if action.card else "",
                         "target": action.target.name if action.target else "", "why": action.reason},
+                "deck": deck_tracker(battle, gone or {}),
             })
         PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception as exc:
         logger.debug(f"battle plan not written: {exc!r}")
+
+
+def deck_tracker(battle, gone) -> list[dict]:
+    """The deck this fight: per card, copies still to draw, in hand and used
+    (cast or discarded), for the stream page; a deck that isn't known: []."""
+    if not battle.deck_known:
+        return []
+    rows: dict[str, dict] = {}
+
+    def row(card) -> dict:
+        key = _deck_name(card)
+        return rows.setdefault(key, {"name": card.name, "left": 0, "hand": 0, "used": int(gone.get(key, 0))})
+
+    for c in battle.upcoming:
+        row(c)["left"] += 1
+    for c in battle.cards:
+        if not c.treasure and not c.item:
+            row(c)["hand"] += 1
+    for key, n in gone.items():
+        if key not in rows and n:
+            rows[key] = {"name": key, "left": 0, "hand": 0, "used": int(n)}
+    return sorted(rows.values(), key=lambda r: (-r["left"], r["name"]))
 
 
 def _save_my_stats(me) -> None:
@@ -157,6 +180,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
+        self._dig: tuple[int, list[str]] | None = None  # (round, cards still to discard) of a dig
         self._deck: dict[str, int] = {}
         # deck spell name -> a card seen in hand (for planning); kept across
         # restarts (after one, Humongofrog wasn't known to be still in the
@@ -490,15 +514,33 @@ class Fighter(CombatHandler):
             battle.prismed = set(self._prismed) | {e.name for e in battle.enemies if e.myth_prism}
             battle.summoned = self._summons
             _save_my_stats(battle.me)
-            action = decide(battle, self.strategy, discards_left=discards_left)
+            dig = self._dig if self._dig and self._dig[0] == battle.round else None
+            if dig is not None:
+                card = next((c for c in battle.cards if c.name in dig[1]), None)
+                if card is not None and discards_left > 0:
+                    dig[1].remove(card.name)
+                    action = Action(ActionKind.DISCARD, card, reason="dig: discarding for the plan's draws")
+                else:
+                    self._dig = None
+                    logger.info(f"[round {battle.round}] dig done: passing, keeping the pips")
+                    await self.pass_button()
+                    return
+            else:
+                action = decide(battle, self.strategy, discards_left=discards_left)
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
-            if self.planner is not None and not reshuffling:
+            if self.planner is not None and not reshuffling and dig is None:
                 # (The simulator knows nothing of Reshuffle: its plays and the
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
-            _write_plan(battle, action, self.strategy, discards_left)
+            digging = (action.reason or "").startswith("dig") and action.plan_cards
+            if action.kind is ActionKind.PASS and digging:
+                # The rollouts' dig: the discards first (free), then the pass.
+                self._dig = (battle.round, [c.name for c in battle.cards if c.index in action.plan_cards])
+                logger.info(f"[round {battle.round}] {action.reason}")
+                continue
+            _write_plan(battle, action, self.strategy, discards_left, self._gone)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies
@@ -600,6 +642,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()
         self._summons = 0
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
+        self._dig = None  # (a dig doesn't carry over)
         self._deck = load_deck_counts()
         self._judged_fight = False
         self._fleeing = False
