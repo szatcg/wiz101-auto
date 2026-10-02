@@ -4926,7 +4926,10 @@ class Quester:
                 # stands, its boss, its NPCs and switches before anything else
                 # (the sweep and the zones around ran out first, and the quest
                 # was set aside).
-                tries = self._attempts_at.get((objective, zone_now, "marker_travel"), 0)
+                # (Counted over every zone: around Malistaire's door the bot
+                # went between three zones and none reached two tries.)
+                tries = sum(n for (o, _z, a), n in self._attempts_at.items()
+                            if o == objective and a == "marker_travel")
                 if (_real_marker(marker) and tries >= APPROACH_LIMITS["marker_travel"]
                         and self._may_try(objective, zone_now, "locked_door_early")
                         and await self.bring_out.step(objective, zone_now, target, fight=True)):
