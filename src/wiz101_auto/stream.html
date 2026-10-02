@@ -566,6 +566,16 @@
   /* panel titles a bit higher on their scrolls, like the dialog's name */
   .card > .label, .qhead > .label { line-height: 22px; padding-bottom: 18px; }
 </style>
+<style>
+  /* deck tracker: readable ink for the 'win in' note, bigger centred draw
+     odds, and cards two rows tall instead of three */
+  .dcol h4 .dig { color: #8a1c12; }
+  .thoughts .art, .thoughts .art img { height: 62px; }  /* (two rows fill a panel) */
+  .art .odds { top: -9px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1; padding: 3px 7px; border-radius: 7px; color: #1d1208; background: #f3cf62;
+    border: 1.5px solid #4f3115; white-space: nowrap; z-index: 2; }
+  .art .cnt { font-size: 14px; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
