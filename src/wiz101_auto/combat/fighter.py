@@ -610,6 +610,17 @@ class Fighter(CombatHandler):
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
+            if action.kind is ActionKind.PASS and not action.plan_cards:
+                # Waiting never wastes the turn when a 0-pip trap or blade is in
+                # hand: it costs nothing and the pips build all the same (the
+                # rollouts passed against Gurtok holding Myth Trap; the brain's
+                # wait for Reshuffle did too).
+                from .brain import Strategy, _free_setup
+
+                free = _free_setup(battle, self.strategy or Strategy())
+                if free is not None:
+                    free.reason = f"{free.reason}, instead of a plain pass ({action.reason})"
+                    action = free
             _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
