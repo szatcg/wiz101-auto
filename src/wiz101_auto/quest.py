@@ -703,7 +703,8 @@ def _write_quest_book(quests: list[QuestEntry], chosen: QuestEntry | None, world
             "tracking": chosen.name if chosen else "",
             "tracking_area": chosen.world if chosen else "",
             "quests": [
-                {"name": q.name, "area": q.world, "main": q.mainline, "spell": q.activity, "goal": q.goal}
+                {"name": q.name, "area": q.world, "world": q.zone, "main": q.mainline, "spell": q.activity,
+                 "goal": q.goal}
                 for q in quests
             ],
         }
@@ -786,6 +787,7 @@ class Quester:
         self._entry_quest: tuple[str, str] = ("", "")  # (dungeon first room, quest tracked on entering)
         self._ranked_outside = False  # ranked quests outside a dungeon this session
         self._spell_first_logged = ""  # the class quest last put ahead of the pin
+        self._chosen_entry: QuestEntry | None = None  # the tracked quest's book entry at the last ranking
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -1786,6 +1788,11 @@ class Quester:
         Marleybone's station). True if it went."""
         zone = await self.client.zone_name() or ""
         target = objective_zone(await self.objective())
+        if target is None and self._chosen_entry is not None:
+            # A place in several worlds ("The Library": Ravenwood's, or the
+            # one in Krokotopia): the quest book names the world.
+            if self._chosen_entry.zone.strip().lower() == "wizard city":
+                target = "WizardCity/" + (self._chosen_entry.world or "?")
         if not target or not target.startswith("WizardCity/") or zone.startswith("WizardCity/"):
             return False
         if not await is_free(self.client) or await self._in_dungeon(zone):
@@ -2802,6 +2809,7 @@ class Quester:
                                     f"then back to {chosen.name!r}")
                     chosen = errand
             _write_quest_book([q for _, q in all_quests], chosen, world)
+            self._chosen_entry = chosen
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
             # A spell quest that left the book was completed: it usually taught a spell.
             finished = self._activity_quests - activities
