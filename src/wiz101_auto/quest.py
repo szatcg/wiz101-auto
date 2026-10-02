@@ -4897,6 +4897,11 @@ class Quester:
                     where and self.doors.leading_to(where, here_zone))
                 if where and where != here_zone and not inside:
                     return  # "... in Hall of Champions": not here; the quest marker leads there
+                # The enemy nowhere in view and a duel circle in this zone: its
+                # fight first (the player: there's nearly always one to win before
+                # going on; Gurtok Firebender before Malistaire's door).
+                if await self._fight_zone_boss(objective, here_zone):
+                    return
                 # At the marker with the enemy nowhere in the zone: the marker is
                 # the way to it (a teleporter like the Djeserit tomb's "To the
                 # Sarcophagus", a door): use its X prompt first.
