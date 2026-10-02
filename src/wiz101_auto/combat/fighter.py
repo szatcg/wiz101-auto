@@ -16,7 +16,7 @@ from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
 from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage, prism_first
-from .model import Action, ActionKind, Card, EffectKind
+from .model import ActionKind, Card, EffectKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
@@ -116,7 +116,7 @@ def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
                 "now": {"kind": category(action), "spell": action.card.name if action.card else "",
                         "target": action.target.name if action.target else "", "why": action.reason},
                 "deck": deck_tracker(battle, gone or {}),
-                "dig": dig_odds(battle, action),
+                "improve": improve_odds(battle, action),
             })
         PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception as exc:
@@ -155,31 +155,26 @@ def draw_chance(left: int, wanted: int, draws: int) -> float:
     return 1.0 - comb(left - wanted, draws) / comb(left, draws) if left - wanted >= draws else 1.0
 
 
-def dig_odds(battle, action) -> dict:
-    """What the move digs for and the chances of drawing it next round (the
-    stream's deck tracker): {"want": [card names], "draws": n, "odds": {name:
-    %}, "any": %}; {} when the move isn't a dig."""
-    why = (action.reason or "").lower()
-    kinds = set()
-    if why.startswith("dig") or "digging for" in why:
-        if "blade" in why or why.startswith("dig"):
-            kinds.add(EffectKind.BLADE)
-        if "trap" in why or why.startswith("dig"):
-            kinds.add(EffectKind.TRAP)
-        if "hit" in why:
-            kinds.add(EffectKind.DAMAGE)
-    if not kinds or not battle.upcoming:
+def improve_odds(battle, action) -> dict:
+    """Cards still in the deck that would shorten the win if drawn (the
+    stream's deck tracker): {"base": rounds now, "draws": next round's draws,
+    "cards": {name: {"rounds": with it, "odds": % to draw}}, "any": %}."""
+    from .brain import improving_draws
+
+    try:
+        base, better = improving_draws(battle)
+    except Exception:
         return {}
-    wanted = [c for c in battle.upcoming if kinds & set(c.kinds) and not c.is_enchant]
-    if not wanted:
-        return {}
-    tossed = len(action.plan_cards) if action.plan_cards else (1 if action.card is not None else 0)
+    if not better:
+        return {"base": base}
+    tossed = 1 if action.kind in (ActionKind.CAST, ActionKind.DISCARD) else 0
     draws = max(1, HAND_MAX - len(battle.cards) + tossed)
     left = len(battle.upcoming)
-    names = sorted({c.name for c in wanted})
-    odds = {n: round(100 * draw_chance(left, sum(1 for c in wanted if c.name == n), draws)) for n in names}
-    any_odds = round(100 * draw_chance(left, len(wanted), draws))
-    return {"want": names, "draws": draws, "odds": odds, "any": any_odds}
+    counts = {n: sum(1 for c in battle.upcoming if c.name == n) for n in better}
+    cards = {n: {"rounds": r, "odds": round(100 * draw_chance(left, counts[n], draws))}
+             for n, r in better.items()}
+    return {"base": base, "draws": draws, "cards": cards,
+            "any": round(100 * draw_chance(left, sum(counts.values()), draws))}
 
 
 def _save_my_stats(me) -> None:
@@ -219,7 +214,6 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
-        self._dig: tuple[int, list[str]] | None = None  # (round, cards still to discard) of a dig
         self._deck: dict[str, int] = {}
         # deck spell name -> a card seen in hand (for planning); kept across
         # restarts (after one, Humongofrog wasn't known to be still in the
@@ -553,32 +547,14 @@ class Fighter(CombatHandler):
             battle.prismed = set(self._prismed) | {e.name for e in battle.enemies if e.myth_prism}
             battle.summoned = self._summons
             _save_my_stats(battle.me)
-            dig = self._dig if self._dig and self._dig[0] == battle.round else None
-            if dig is not None:
-                card = next((c for c in battle.cards if c.name in dig[1]), None)
-                if card is not None and discards_left > 0:
-                    dig[1].remove(card.name)
-                    action = Action(ActionKind.DISCARD, card, reason="dig: discarding for the plan's draws")
-                else:
-                    self._dig = None
-                    logger.info(f"[round {battle.round}] dig done: passing, keeping the pips")
-                    await self.pass_button()
-                    return
-            else:
-                action = decide(battle, self.strategy, discards_left=discards_left)
+            action = decide(battle, self.strategy, discards_left=discards_left, plan_discards=True)
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
-            if self.planner is not None and not reshuffling and dig is None:
+            if self.planner is not None and not reshuffling:
                 # (The simulator knows nothing of Reshuffle: its plays and the
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
-            digging = (action.reason or "").startswith("dig") and action.plan_cards
-            if action.kind is ActionKind.PASS and digging:
-                # The rollouts' dig: the discards first (free), then the pass.
-                self._dig = (battle.round, [c.name for c in battle.cards if c.index in action.plan_cards])
-                logger.info(f"[round {battle.round}] {action.reason}")
-                continue
             _write_plan(battle, action, self.strategy, discards_left, self._gone)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
@@ -681,7 +657,6 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()
         self._summons = 0
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
-        self._dig = None  # (a dig doesn't carry over)
         self._deck = load_deck_counts()
         self._judged_fight = False
         self._fleeing = False

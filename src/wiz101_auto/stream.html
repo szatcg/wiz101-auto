@@ -461,16 +461,20 @@ let trackerHtml = "";
 function renderTracker() {
   const p = battle || {};
   const deck = p.deck || [];
-  const dig = p.dig || {};
-  const want = new Set(dig.want || []);
-  const odds = dig.odds || {};
+  // Cards that would shorten the win if drawn: glowing, with the chance of
+  // drawing each next round and the rounds the win would take with it.
+  const imp = p.improve || {};
+  const better = imp.cards || {};
   const chips = (rows, field, cls) => rows.filter((r) => r[field] > 0).map((r) => {
-    const w = field === "left" && want.has(r.name);
-    return `<span class="chip ${cls}${w ? " want" : ""}">${esc(r.name)}<b>×${r[field]}</b>${
-      w ? `<span class="odds">${odds[r.name]}%</span>` : ""}</span>`;
+    const w = field === "left" ? better[r.name] : null;
+    return `<span class="chip ${cls}${w ? " want" : ""}"${w ? ` title="win in ${w.rounds} rounds with it"` : ""}>${
+      esc(r.name)}<b>×${r[field]}</b>${w ? `<span class="odds">${w.odds}% · ${w.rounds}r</span>` : ""}</span>`;
   }).join("");
   const n = (field) => deck.reduce((t, r) => t + r[field], 0);
-  const digNote = want.size ? `<span class="dig">digging: ${dig.any}% in ${dig.draws} draw${dig.draws === 1 ? "" : "s"}</span>` : "";
+  const plan = imp.base && imp.base < 99 ? `win in ~${imp.base}` : "";
+  const digNote = Object.keys(better).length
+    ? `<span class="dig">${plan} · a faster draw: ${imp.any}% in ${imp.draws} draw${imp.draws === 1 ? "" : "s"}</span>`
+    : (plan ? `<span class="dig">${plan}</span>` : "");
   const html = `<div class="dtrack">
     <div class="dcol"><h4><span>IN DECK · ${n("left")}</span>${digNote}</h4><div class="dchips">${chips(deck, "left", "")}</div></div>
     <div class="dcol"><h4><span>IN HAND · ${n("hand")}</span></h4><div class="dchips">${chips(deck, "hand", "")}</div></div>

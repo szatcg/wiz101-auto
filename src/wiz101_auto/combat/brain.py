@@ -1276,6 +1276,66 @@ def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
     return FightPlan(total, f"plan (~{total} rounds): " + " | ".join(parts) + note, skip)
 
 
+def plan_hand_use(battle: Battle) -> tuple[int, set[int]]:
+    """(rounds of the fastest win, the Card.index of every hand card that
+    plan plays); 99 rounds when nothing kills within PLAN_ROUNDS."""
+    enemies = sorted(battle.live_enemies, key=lambda e: e.health)
+    total, state, used_cards = 0, battle, set()
+    for e in enemies:
+        draws = sorted(state.upcoming, key=lambda c: -c.base_damage())
+        found = _kill_search(state, e, PLAN_ROUNDS, draws)
+        if found is None:
+            return 99, used_cards
+        n, spent, _action, _steps, used = found
+        pool = [c for c in state.cards if not c.is_enchant]
+        used_cards |= {pool[i].index for i in used if i < len(pool)}
+        left = max(0, state.pips + 2 * state.power_pips + n - spent)
+        cards = [c for i, c in enumerate(pool) if i not in used] + draws[:n]
+        state = replace(state, pips=left, power_pips=0, cards=cards, upcoming=draws[n:])
+        total += n
+    return total, used_cards
+
+
+def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
+    """(rounds of the fastest win now, {card still in the deck: rounds with it
+    in hand next round}) for the cards that would shorten the win."""
+    base, _used = plan_hand_use(battle)
+    better: dict[str, int] = {}
+    seen: set[str] = set()
+    for i, c in enumerate(battle.upcoming):
+        if c.name in seen:
+            continue
+        seen.add(c.name)
+        rest = battle.upcoming[:i] + battle.upcoming[i + 1:]
+        arriving = replace(c, index=1000 + i, castable=False)  # (in hand next round)
+        rounds, _ = plan_hand_use(replace(battle, cards=[*battle.cards, arriving], upcoming=rest))
+        if rounds < base:
+            better[c.name] = rounds
+    return base, better
+
+
+def _plan_discard(battle: Battle) -> Action | None:
+    """A hand card the fastest plan doesn't play, discarded while the deck
+    still holds a card that would shorten the win (the player's: Vermin
+    Virtuoso drawn into a Colossus plan goes, so the next draw can change the
+    plan). One heal stays (the strongest), and Reshuffle and treasure cards."""
+    if not battle.upcoming or not battle.live_enemies:
+        return None
+    base, better = improving_draws(battle)
+    if not better:
+        return None
+    _rounds, used = plan_hand_use(battle)
+    heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
+    keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
+    spare = [c for c in battle.cards if c.index not in used and c is not keep_heal and not c.treasure
+             and not c.is_enchant and not is_reshuffle(c) and not c.item]
+    if not spare:
+        return None
+    card = min(spare, key=lambda c: (c.is_heal, c.base_damage()))
+    hope = ", ".join(f"{n} ({r} rounds)" for n, r in sorted(better.items(), key=lambda kv: kv[1])[:3])
+    return Action(ActionKind.DISCARD, card, reason=f"not in the {base}-round plan; drawing for {hope}")
+
+
 FREE_TRAP_LIMIT = 4  # traps worth stacking for free while waiting (one is used per hit)
 
 
@@ -1611,10 +1671,20 @@ def is_reshuffle(card: Card) -> bool:
     return card.name.strip().lower() == "reshuffle"
 
 
-def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
+def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
+           plan_discards: bool = False) -> Action:
     """The action for this step. Reshuffle (the player's: never discarded)
     is kept out of every other rule; it's cast instead of passing when the
     deck is all but drawn (the cards played come back to draw from)."""
+    if plan_discards and discards_left > 0:
+        # The live fight only (the simulator's fights would be too slow): cards
+        # the fastest plan won't play make room for the draws that shorten it.
+        try:
+            toss = _plan_discard(battle)
+        except Exception:
+            toss = None
+        if toss is not None:
+            return toss
     shuffle = next((c for c in battle.cards if is_reshuffle(c)), None)
     if shuffle is None:
         return _decide_seen(battle, strat, discards_left=discards_left)
