@@ -195,9 +195,11 @@ def _note_unknown_cards(battle) -> None:
         deck = load_deck_counts()
         if not deck or STALE_FILE.exists():
             return
+        # (By the deck list's name: in a fight it's "Stone Colossus", in the
+        # deck "ColossusStone_Trainable", and every fight asked for a re-read.)
         odd = [c.name for c in battle.cards
                if not c.treasure and not c.item and not is_reshuffle(c) and " - " not in c.name
-               and c.name not in deck]
+               and _deck_name(c) not in deck and c.name not in deck]
         if odd:
             STALE_FILE.parent.mkdir(exist_ok=True)
             STALE_FILE.write_text(", ".join(odd), encoding="utf-8")
