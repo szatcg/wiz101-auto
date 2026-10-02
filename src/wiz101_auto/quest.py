@@ -202,7 +202,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
-EXIT_LEARN_SECONDS = 15.0  # out of a dungeon this soon after a landing: the landing was on its exit
+EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
