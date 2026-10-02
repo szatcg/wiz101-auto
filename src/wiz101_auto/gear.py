@@ -255,6 +255,7 @@ class GearManager:
         self._items: set[int] | None = None  # backpack item ids seen so far
         self._last_backpack_check = 0.0
         self.level_up_only = False  # (gear_checks_new_items: false) no checks for new loot
+        self.restore_only = False  # (gear_checks: false) only put on the items in memory.restore
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -530,7 +531,7 @@ class GearManager:
         in its slot only. After a level-up, items that couldn't be worn before
         (and any never tried) are tried; ones already beaten are not. Startups
         don't check."""
-        if await self.restore_pending():
+        if await self.restore_pending() or self.restore_only:
             return
         level = await self.client.stats.reference_level()
         if self._level is not None and level > self._level:

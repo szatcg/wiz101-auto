@@ -4900,6 +4900,11 @@ class Quester:
         zone_now = await self.client.zone_name() or ""
         if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
             await self._clear_of_enemies()
+        # After healing from a win or a loss: back to the mark first, before any
+        # pick-up or quest ranking (the player's rule; walking back in by the Labyrinth's
+        # sigil reset it). _recall_to_mark waits until we're healed.
+        if self._recall_pending and await self._recall_to_mark():
+            return
         # A boss's chest is each player's own loot (Zeus' Chest: the farm's
         # point): open it, team or not.
         if await self._loot_after_boss():
@@ -4951,11 +4956,6 @@ class Quester:
             self._team_with_us = False
         # After a defeat by a boss we marked beside: go back first and heal
         # there (Katzenstein's Lab), not slowly out in the hub.
-        # After healing from a win or a loss: back to the mark first, before any
-        # quest ranking (the player's rule; walking back in by the Labyrinth's
-        # sigil reset it). _recall_to_mark waits until we're healed.
-        if self._recall_pending and await self._recall_to_mark():
-            return
         in_dungeon = await self._in_dungeon(zone_now)
         # In a dungeon, leaving to heal resets it: first do everything that
         # needs no fight (the talk after beating Willie Marks), and heal only

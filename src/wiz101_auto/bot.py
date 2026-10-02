@@ -458,6 +458,13 @@ async def run(cfg: Config):
                     logger.info("gear checks after level-ups only (gear_checks_new_items: false)")
             else:
                 logger.info("gear checks are off (gear_checks: false)")
+                from .gear import GearMemory
+
+                if GearMemory().restore:
+                    # Items asked for in state/gear.json "restore" (the player's
+                    # pick, e.g. the Reshuffle amulet) still go on.
+                    quester.gear = GearManager(client, progression.school or "")
+                    quester.gear.restore_only = True
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
             quester.healer = DungeonHealer(quester, cfg.upkeep)
