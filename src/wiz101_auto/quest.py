@@ -201,11 +201,22 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8,
-                   "zone_boss": 4, "locked_door_late": 8}
+                   "zone_boss": 4, "locked_door_late": 8, "door_key": 3}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
 WANTED_FIGHT_SECONDS = 30.0  # a fight started on purpose within this long isn't fled
+# Doors that want an item first, from the player: target (lower case) ->
+# (the item, the zones it's found in, in the order to try them).
+DOOR_KEYS: dict[str, tuple[str, tuple[str, ...]]] = {
+    # "The door is locked. Find the crystal.": at the end of the Howling Cave
+    # or the Dragon's Maw (its boss), off the Great Spyre where the Oni roam.
+    "malistaire drake": ("Crystal", (
+        "DragonSpire/DS_A3_Kings/DS_A3Z3_Volcano/DS_Volcano_Cave1",
+        "DragonSpire/DS_A3_Kings/DS_A3Z3_Volcano/DS_Volcano_Cave3",
+        "DragonSpire/DS_A3_Kings/DS_A3Z3_Volcano/DS_Volcano_Cave2",
+    )),
+}
 ZONE_BOSS_RANGE = 1500.0  # enemies this near a zone's duel circle are its boss and guards
 SPIRAL_TRIP_SECONDS = 90.0  # one go at the trip to another world (dorm, World Tree, gate, map)
 GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" prompt shows
@@ -829,6 +840,7 @@ class Quester:
         self._route_written: list[str] | None = None  # the route last written for the stream page
         self._route_at = 0  # where on it we are
         self._loose_level: dict[str, int] = {}  # objective -> how loosely its item is searched for
+        self._door_keys_found: set[str] = set()  # objectives whose door key (DOOR_KEYS) was picked up
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -3385,6 +3397,30 @@ class Quester:
                 return True
         return False
 
+    async def _fetch_door_key(self, objective: str, target: str) -> bool:
+        """A target behind a door that wants an item first (DOOR_KEYS, from
+        the player): go to each place it can be and scout it out (collected
+        when found). True if it acted this step."""
+        hint = DOOR_KEYS.get((target or "").lower())
+        if not hint or objective in self._door_keys_found:
+            return False
+        item, places = hint
+        zone = await self.client.zone_name() or ""
+        for place in places:
+            if not self._may_try(objective, place, "door_key"):
+                continue
+            if zone != place:
+                logger.info(f"{target}'s door is locked: the {item} is at the end of {place.split('/')[-1]}")
+                await self.go_to_zone(place)
+                return True
+            logger.info(f"looking for the {item} through {place.split('/')[-1]}")
+            if await self._scout_for(item) and await is_free(self.client):
+                # Picked up (not a fight cutting the scouting short): back to the door.
+                self._door_keys_found.add(objective)
+                logger.info(f"got the {item}: back to {target}'s door")
+            return True  # (else this cave's tries count down; the next one after)
+        return False
+
     async def _fight_zone_boss(self, objective: str, zone: str) -> bool:
         """A locked door on the way to the objective: beat the boss on this
         zone's duel circle first (Gurtok Firebender guards the crystal that
@@ -4913,6 +4949,10 @@ class Quester:
                     where and self.doors.leading_to(where, here_zone))
                 if where and where != here_zone and not inside:
                     return  # "... in Hall of Champions": not here; the quest marker leads there
+                # A locked door whose key the player told us about (Malistaire's:
+                # the Crystal at the end of the Dragon's Maw or the Howling Cave).
+                if await self._fetch_door_key(objective, target):
+                    return
                 # The enemy nowhere in view and a duel circle in this zone: its
                 # fight first (the player: there's nearly always one to win before
                 # going on; Gurtok Firebender before Malistaire's door).
