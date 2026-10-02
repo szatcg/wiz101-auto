@@ -1,18 +1,178 @@
 {
+ "abaahhcalypse": {
+  "file": "fire/a_baahh_calypse_spell.png",
+  "name": "A-Baahh-Calypse",
+  "school": "fire"
+ },
+ "abominableweaver": {
+  "file": "ice/abominable_weaver_spell.png",
+  "name": "Abominable Weaver",
+  "school": "ice"
+ },
+ "abyssalwurm": {
+  "file": "balance/abyssal_wurm_spell.png",
+  "name": "Abyssal Wurm",
+  "school": "balance"
+ },
+ "accurate": {
+  "file": "sun/accurate_spell.png",
+  "name": "Accurate",
+  "school": "sun"
+ },
+ "adapt": {
+  "file": "star/adapt_spell.png",
+  "name": "Adapt",
+  "school": "star"
+ },
+ "aegis": {
+  "file": "sun/aegis_spell.png",
+  "name": "Aegis",
+  "school": "sun"
+ },
+ "ageofreckoning": {
+  "file": "death/age_of_reckoning_spell.png",
+  "name": "Age of Reckoning",
+  "school": "death"
+ },
+ "ammut": {
+  "file": "fire/ammut_spell.png",
+  "name": "Ammut",
+  "school": "fire"
+ },
+ "ammutsfury": {
+  "file": "fire/ammut_s_fury_spell.png",
+  "name": "Ammut's Fury",
+  "school": "fire"
+ },
+ "ammutsrage": {
+  "file": "fire/ammut_s_rage_spell.png",
+  "name": "Ammut's Rage",
+  "school": "fire"
+ },
+ "amplify": {
+  "file": "star/amplify_spell.png",
+  "name": "Amplify",
+  "school": "star"
+ },
+ "angrysnowpig": {
+  "file": "ice/angry_snowpig_spell.png",
+  "name": "Angry Snowpig",
+  "school": "ice"
+ },
+ "animate": {
+  "file": "death/animate_spell.png",
+  "name": "Animate",
+  "school": "death"
+ },
+ "anubis": {
+  "file": "death/anubis_spell.png",
+  "name": "Anubis",
+  "school": "death"
+ },
+ "anubisbite": {
+  "file": "death/anubis_bite_spell.png",
+  "name": "Anubis' Bite",
+  "school": "death"
+ },
+ "anubisgrasp": {
+  "file": "death/anubis_grasp_spell.png",
+  "name": "Anubis' Grasp",
+  "school": "death"
+ },
+ "aridhound": {
+  "file": "fire/arid_hound_spell.png",
+  "name": "Arid Hound",
+  "school": "fire"
+ },
+ "ashdraconian": {
+  "file": "death/ash_draconian_spell.png",
+  "name": "Ash Draconian",
+  "school": "death"
+ },
+ "astraphobia": {
+  "file": "storm/astraphobia_spell.png",
+  "name": "Astraphobia",
+  "school": "storm"
+ },
  "athenabattlesight": {
   "file": "myth/athena_battle_sight_spell.png",
   "name": "Athena Battle Sight",
   "school": "myth"
+ },
+ "attenuate": {
+  "file": "star/attenuate_spell.png",
+  "name": "Attenuate",
+  "school": "star"
+ },
+ "availinghands": {
+  "file": "balance/availing_hands_spell.png",
+  "name": "Availing Hands",
+  "school": "balance"
+ },
+ "avalanchetrap": {
+  "file": "ice/avalanche_trap_spell.png",
+  "name": "Avalanche Trap",
+  "school": "ice"
+ },
+ "avengingfossil": {
+  "file": "death/avenging_fossil_spell.png",
+  "name": "Avenging Fossil",
+  "school": "death"
+ },
+ "backdraft": {
+  "file": "fire/backdraft_spell.png",
+  "name": "Backdraft",
+  "school": "fire"
+ },
+ "backfire": {
+  "file": "fire/backfire_spell.png",
+  "name": "Backfire",
+  "school": "fire"
+ },
+ "badjuju": {
+  "file": "death/bad_juju_spell.png",
+  "name": "Bad Juju",
+  "school": "death"
+ },
+ "balanceblade": {
+  "file": "balance/balanceblade_spell.png",
+  "name": "Balanceblade",
+  "school": "balance"
+ },
+ "balanceofpower": {
+  "file": "balance/balance_of_power_spell.png",
+  "name": "Balance of Power",
+  "school": "balance"
+ },
+ "balaphant": {
+  "file": "fire/balaphant_spell.png",
+  "name": "Balaphant",
+  "school": "fire"
  },
  "balebarbarian": {
   "file": "myth/bale_barbarian_spell.png",
   "name": "Bale Barbarian",
   "school": "myth"
  },
+ "balefrost": {
+  "file": "ice/balefrost_spell.png",
+  "name": "Balefrost",
+  "school": "ice"
+ },
+ "banshee": {
+  "file": "death/banshee_spell.png",
+  "name": "Banshee",
+  "school": "death"
+ },
  "barbarianssaga": {
   "file": "myth/barbarian_s_saga_spell.png",
   "name": "Barbarian's Saga",
   "school": "myth"
+ },
+ "bardicelf": {
+  "file": "fire/bardic_elf_spell.png",
+  "name": "Bardic Elf",
+  "school": "fire"
  },
  "basilisk": {
   "file": "myth/basilisk_spell.png",
@@ -24,15 +184,70 @@
   "name": "Bat of Inspiration",
   "school": "myth"
  },
+ "bearysurprise": {
+  "file": "storm/beary_surprise_spell.png",
+  "name": "Beary Surprise",
+  "school": "storm"
+ },
+ "beguile": {
+  "file": "death/beguile_spell.png",
+  "name": "Beguile",
+  "school": "death"
+ },
+ "berserk": {
+  "file": "star/berserk_spell.png",
+  "name": "Berserk",
+  "school": "star"
+ },
  "betrayal": {
   "file": "myth/betrayal_spell.png",
   "name": "Betrayal",
   "school": "myth"
  },
+ "blackmantle": {
+  "file": "balance/black_mantle_spell.png",
+  "name": "Black Mantle",
+  "school": "balance"
+ },
+ "bladedilution": {
+  "file": "balance/blade_dilution_spell.png",
+  "name": "Blade Dilution",
+  "school": "balance"
+ },
+ "bladestorm": {
+  "file": "balance/bladestorm_spell.png",
+  "name": "Bladestorm",
+  "school": "balance"
+ },
+ "blastoff": {
+  "file": "fire/blast_off_spell.png",
+  "name": "Blast Off!",
+  "school": "fire"
+ },
+ "blehtheimpaler": {
+  "file": "death/bleh_the_impaler_spell.png",
+  "name": "Bleh the Impaler",
+  "school": "death"
+ },
+ "blightattenuate": {
+  "file": "ice/blight_attenuate_spell.png",
+  "name": "Blight Attenuate",
+  "school": "ice"
+ },
+ "blighthound": {
+  "file": "ice/blight_hound_spell.png",
+  "name": "Blight Hound",
+  "school": "ice"
+ },
  "blindinglight": {
   "file": "myth/blinding_light_spell.png",
   "name": "Blinding Light",
   "school": "myth"
+ },
+ "blizzard": {
+  "file": "ice/blizzard_spell.png",
+  "name": "Blizzard",
+  "school": "ice"
  },
  "blizzotaur": {
   "file": "myth/blizzotaur_spell.png",
@@ -44,25 +259,245 @@
   "name": "Blood Bat",
   "school": "myth"
  },
+ "boilingkraken": {
+  "file": "storm/boiling_kraken_spell.png",
+  "name": "Boiling Kraken",
+  "school": "storm"
+ },
+ "boxenspiel": {
+  "file": "balance/boxenspiel_spell.png",
+  "name": "Boxenspiel",
+  "school": "balance"
+ },
+ "brace": {
+  "file": "star/brace_spell.png",
+  "name": "Brace",
+  "school": "star"
+ },
+ "bravesirbadger": {
+  "file": "balance/brave_sir_badger_spell.png",
+  "name": "Brave Sir Badger",
+  "school": "balance"
+ },
+ "brilliantlight": {
+  "file": "life/brilliant_light_spell.png",
+  "name": "Brilliant Light",
+  "school": "life"
+ },
+ "brimstonerevenant": {
+  "file": "fire/brimstone_revenant_spell.png",
+  "name": "Brimstone Revenant",
+  "school": "fire"
+ },
  "buffminion": {
   "file": "myth/buff_minion_spell.png",
   "name": "Buff Minion",
   "school": "myth"
+ },
+ "bunyipsrage": {
+  "file": "storm/bunyip_s_rage_spell.png",
+  "name": "Bunyip's Rage",
+  "school": "storm"
+ },
+ "burningrampage": {
+  "file": "fire/burning_rampage_spell.png",
+  "name": "Burning Rampage",
+  "school": "fire"
+ },
+ "burrowingbane": {
+  "file": "life/burrowing_bane_spell.png",
+  "name": "Burrowing Bane",
+  "school": "life"
+ },
+ "calamitytrap": {
+  "file": "storm/calamity_trap_spell.png",
+  "name": "Calamity Trap",
+  "school": "storm"
+ },
+ "calderajinn": {
+  "file": "fire/caldera_jinn_spell.png",
+  "name": "Caldera Jinn",
+  "school": "fire"
+ },
+ "calderatrap": {
+  "file": "fire/caldera_trap_spell.png",
+  "name": "Caldera Trap",
+  "school": "fire"
+ },
+ "callofkhrulhu": {
+  "file": "death/call_of_khrulhu_spell.png",
+  "name": "Call of Khrulhu",
+  "school": "death"
+ },
+ "calm": {
+  "file": "life/calm_spell.png",
+  "name": "Calm",
+  "school": "life"
+ },
+ "campbandit": {
+  "file": "life/camp_bandit_spell.png",
+  "name": "Camp Bandit",
+  "school": "life"
+ },
+ "catalan": {
+  "file": "storm/catalan_spell.png",
+  "name": "Catalan",
+  "school": "storm"
+ },
+ "catchoftheday": {
+  "file": "storm/catch_of_the_day_spell.png",
+  "name": "Catch of the Day",
+  "school": "storm"
  },
  "celestialcalendar": {
   "file": "myth/celestial_calendar_spell.png",
   "name": "Celestial Calendar",
   "school": "myth"
  },
+ "celestialintervention": {
+  "file": "ice/celestial_intervention_spell.png",
+  "name": "Celestial Intervention",
+  "school": "ice"
+ },
+ "centaur": {
+  "file": "life/centaur_spell.png",
+  "name": "Centaur",
+  "school": "life"
+ },
+ "centaurion": {
+  "file": "life/centaurion_spell.png",
+  "name": "Centaurion",
+  "school": "life"
+ },
+ "chameleonclash": {
+  "file": "balance/chameleon_clash_spell.png",
+  "name": "Chameleon Clash",
+  "school": "balance"
+ },
+ "chameleoncover": {
+  "file": "balance/chameleon_cover_spell.png",
+  "name": "Chameleon Cover",
+  "school": "balance"
+ },
+ "chameleonmangle": {
+  "file": "balance/chameleon_mangle_spell.png",
+  "name": "Chameleon Mangle",
+  "school": "balance"
+ },
+ "chastisement": {
+  "file": "star/chastisement_spell.png",
+  "name": "Chastisement",
+  "school": "star"
+ },
+ "chillyelf": {
+  "file": "fire/chilly_elf_spell.png",
+  "name": "Chilly Elf",
+  "school": "fire"
+ },
+ "chillzilla": {
+  "file": "storm/chillzilla_spell.png",
+  "name": "Chillzilla",
+  "school": "storm"
+ },
+ "chimera": {
+  "file": "balance/chimera_spell.png",
+  "name": "Chimera",
+  "school": "balance"
+ },
+ "choke": {
+  "file": "fire/choke_spell.png",
+  "name": "Choke",
+  "school": "fire"
+ },
+ "circleofthorns": {
+  "file": "life/circle_of_thorns_spell.png",
+  "name": "Circle of Thorns",
+  "school": "life"
+ },
+ "clammyghoul": {
+  "file": "death/clammy_ghoul_spell.png",
+  "name": "Clammy Ghoul",
+  "school": "death"
+ },
+ "cleansecharm": {
+  "file": "storm/cleanse_charm_spell.png",
+  "name": "Cleanse Charm",
+  "school": "storm"
+ },
  "cleanseward": {
   "file": "myth/cleanse_ward_spell.png",
   "name": "Cleanse Ward",
   "school": "myth"
  },
+ "climaclysm": {
+  "file": "ice/climaclysm_spell.png",
+  "name": "Climaclysm",
+  "school": "ice"
+ },
+ "cloak": {
+  "file": "sun/cloak_spell.png",
+  "name": "Cloak",
+  "school": "sun"
+ },
  "coldbloodbat": {
   "file": "myth/coldblood_bat_spell.png",
   "name": "Coldblood Bat",
   "school": "myth"
+ },
+ "colossal": {
+  "file": "sun/colossal_spell.png",
+  "name": "Colossal",
+  "school": "sun"
+ },
+ "colossus": {
+  "file": "ice/colossus_spell.png",
+  "name": "Colossus",
+  "school": "ice"
+ },
+ "combustion": {
+  "file": "fire/combustion_spell.png",
+  "name": "Combustion",
+  "school": "fire"
+ },
+ "contagion": {
+  "file": "death/contagion_spell.png",
+  "name": "Contagion",
+  "school": "death"
+ },
+ "conviction": {
+  "file": "star/conviction_spell.png",
+  "name": "Conviction",
+  "school": "star"
+ },
+ "cooldown": {
+  "file": "ice/cooldown_spell.png",
+  "name": "Cooldown",
+  "school": "ice"
+ },
+ "coolestcentaur": {
+  "file": "life/coolest_centaur_spell.png",
+  "name": "Coolest Centaur",
+  "school": "life"
+ },
+ "cosmiccharge": {
+  "file": "star/cosmic_charge_spell.png",
+  "name": "Cosmic Charge",
+  "school": "star"
+ },
+ "countcroakula": {
+  "file": "ice/count_croakula_spell.png",
+  "name": "Count Croakula",
+  "school": "ice"
+ },
+ "counterforce": {
+  "file": "balance/counterforce_spell.png",
+  "name": "Counterforce",
+  "school": "balance"
+ },
+ "courageouscharge": {
+  "file": "balance/courageous_charge_spell.png",
+  "name": "Courageous Charge",
+  "school": "balance"
  },
  "creationamplify": {
   "file": "myth/creation_amplify_spell.png",
@@ -74,10 +509,30 @@
   "name": "Creation Blade",
   "school": "myth"
  },
+ "crimsonphantom": {
+  "file": "death/crimson_phantom_spell.png",
+  "name": "Crimson Phantom",
+  "school": "death"
+ },
+ "cryocat": {
+  "file": "fire/cryo_cat_spell.png",
+  "name": "Cryo Cat",
+  "school": "fire"
+ },
+ "curse": {
+  "file": "death/curse_spell.png",
+  "name": "Curse",
+  "school": "death"
+ },
  "cursedcolossus": {
   "file": "myth/cursed_colossus_spell.png",
   "name": "Cursed Colossus",
   "school": "myth"
+ },
+ "cycleoflife": {
+  "file": "star/cycle_of_life_spell.png",
+  "name": "Cycle of Life",
+  "school": "star"
  },
  "cyclops": {
   "file": "myth/cyclops_spell.png",
@@ -89,35 +544,350 @@
   "name": "Cyclops Minion",
   "school": "myth"
  },
+ "darkage": {
+  "file": "ice/dark_age_spell.png",
+  "name": "Dark Age",
+  "school": "ice"
+ },
+ "darkhunger": {
+  "file": "death/dark_hunger_spell.png",
+  "name": "Dark Hunger",
+  "school": "death"
+ },
+ "darksprite": {
+  "file": "death/dark_sprite_spell.png",
+  "name": "Dark Sprite",
+  "school": "death"
+ },
+ "darkstormy": {
+  "file": "storm/dark_stormy_spell.png",
+  "name": "Dark & Stormy",
+  "school": "storm"
+ },
+ "darktribute": {
+  "file": "death/dark_tribute_spell.png",
+  "name": "Dark Tribute",
+  "school": "death"
+ },
+ "darkweaver": {
+  "file": "ice/dark_weaver_spell.png",
+  "name": "Dark Weaver",
+  "school": "ice"
+ },
+ "darkwind": {
+  "file": "storm/darkwind_spell.png",
+  "name": "Darkwind",
+  "school": "storm"
+ },
+ "daybreaker": {
+  "file": "sun/daybreaker_spell.png",
+  "name": "Daybreaker",
+  "school": "sun"
+ },
+ "deadzone": {
+  "file": "death/deadzone_spell.png",
+  "name": "Deadzone",
+  "school": "death"
+ },
+ "deathblade": {
+  "file": "death/deathblade_spell.png",
+  "name": "Deathblade",
+  "school": "death"
+ },
+ "deathlydepths": {
+  "file": "ice/deathly_depths_spell.png",
+  "name": "Deathly Depths",
+  "school": "ice"
+ },
+ "deathprism": {
+  "file": "death/death_prism_spell.png",
+  "name": "Death Prism",
+  "school": "death"
+ },
+ "deathscuttler": {
+  "file": "balance/death_scuttler_spell.png",
+  "name": "Death Scuttler",
+  "school": "balance"
+ },
+ "deathshield": {
+  "file": "death/death_shield_spell.png",
+  "name": "Death Shield",
+  "school": "death"
+ },
+ "deathspear": {
+  "file": "death/deathspear_spell.png",
+  "name": "Deathspear",
+  "school": "death"
+ },
+ "deathtrap": {
+  "file": "death/death_trap_spell.png",
+  "name": "Death Trap",
+  "school": "death"
+ },
+ "deathweakness": {
+  "file": "death/death_weakness_spell.png",
+  "name": "Death Weakness",
+  "school": "death"
+ },
+ "deerknight": {
+  "file": "death/deer_knight_spell.png",
+  "name": "Deer Knight",
+  "school": "death"
+ },
+ "deermousetrap": {
+  "file": "ice/deermouse_trap_spell.png",
+  "name": "Deermouse Trap",
+  "school": "ice"
+ },
+ "delphiclamassu": {
+  "file": "life/delphic_lamassu_spell.png",
+  "name": "Delphic Lamassu",
+  "school": "life"
+ },
  "delusion": {
   "file": "myth/delusion_spell.png",
   "name": "Delusion",
   "school": "myth"
+ },
+ "desertbanshee": {
+  "file": "death/desert_banshee_spell.png",
+  "name": "Desert Banshee",
+  "school": "death"
+ },
+ "desertlord": {
+  "file": "life/desert_lord_spell.png",
+  "name": "Desert Lord",
+  "school": "life"
  },
  "desertminotaur": {
   "file": "myth/desert_minotaur_spell.png",
   "name": "Desert Minotaur",
   "school": "myth"
  },
+ "detonate": {
+  "file": "fire/detonate_spell.png",
+  "name": "Detonate",
+  "school": "fire"
+ },
+ "devotion": {
+  "file": "star/devotion_spell.png",
+  "name": "Devotion",
+  "school": "star"
+ },
  "dimensionshift": {
   "file": "myth/dimension_shift_spell.png",
   "name": "Dimension Shift",
   "school": "myth"
+ },
+ "disarm": {
+  "file": "storm/disarm_spell.png",
+  "name": "Disarm",
+  "school": "storm"
+ },
+ "dissipate": {
+  "file": "storm/dissipate_spell.png",
+  "name": "Dissipate",
+  "school": "storm"
+ },
+ "distract": {
+  "file": "ice/distract_spell.png",
+  "name": "Distract",
+  "school": "ice"
+ },
+ "donatepower": {
+  "file": "balance/donate_power_spell.png",
+  "name": "Donate Power",
+  "school": "balance"
+ },
+ "doomandgloom": {
+  "file": "death/doom_and_gloom_spell.png",
+  "name": "Doom and Gloom",
+  "school": "death"
+ },
+ "doomoni": {
+  "file": "death/doom_oni_spell.png",
+  "name": "Doom Oni",
+  "school": "death"
+ },
+ "drainhealth": {
+  "file": "life/drain_health_spell.png",
+  "name": "Drain Health",
+  "school": "life"
+ },
+ "drawhealth": {
+  "file": "ice/draw_health_spell.png",
+  "name": "Draw Health",
+  "school": "ice"
  },
  "drawpower": {
   "file": "myth/draw_power_spell.png",
   "name": "Draw Power",
   "school": "myth"
  },
+ "dreamgolem": {
+  "file": "death/dream_golem_spell.png",
+  "name": "Dream Golem",
+  "school": "death"
+ },
+ "dreamshield": {
+  "file": "death/dream_shield_spell.png",
+  "name": "Dream Shield",
+  "school": "death"
+ },
  "dropbearfury": {
   "file": "myth/drop_bear_fury_spell.png",
   "name": "Drop Bear Fury",
   "school": "myth"
  },
+ "droughtattenuate": {
+  "file": "balance/drought_attenuate_spell.png",
+  "name": "Drought Attenuate",
+  "school": "balance"
+ },
+ "drownedamplify": {
+  "file": "death/drowned_amplify_spell.png",
+  "name": "Drowned Amplify",
+  "school": "death"
+ },
+ "drownedblade": {
+  "file": "death/drowned_blade_spell.png",
+  "name": "Drowned Blade",
+  "school": "death"
+ },
+ "drvonsmonster": {
+  "file": "death/dr_von_s_monster_spell.png",
+  "name": "Dr. Von's Monster",
+  "school": "death"
+ },
+ "dryad": {
+  "file": "life/dryad_spell.png",
+  "name": "Dryad",
+  "school": "life"
+ },
+ "dunetrap": {
+  "file": "fire/dune_trap_spell.png",
+  "name": "Dune Trap",
+  "school": "fire"
+ },
+ "dustamplify": {
+  "file": "balance/dust_amplify_spell.png",
+  "name": "Dust Amplify",
+  "school": "balance"
+ },
+ "dustblade": {
+  "file": "balance/dust_blade_spell.png",
+  "name": "Dust Blade",
+  "school": "balance"
+ },
+ "duststormjinn": {
+  "file": "balance/duststorm_jinn_spell.png",
+  "name": "Duststorm Jinn",
+  "school": "balance"
+ },
+ "dyvimsresurgence": {
+  "file": "balance/dyvim_s_resurgence_spell.png",
+  "name": "Dyvim's Resurgence",
+  "school": "balance"
+ },
  "earthquake": {
   "file": "myth/earthquake_spell.png",
   "name": "Earthquake",
   "school": "myth"
+ },
+ "earthwalker": {
+  "file": "life/earth_walker_spell.png",
+  "name": "Earth Walker",
+  "school": "life"
+ },
+ "efreet": {
+  "file": "fire/efreet_spell.png",
+  "name": "Efreet",
+  "school": "fire"
+ },
+ "eldritchcheckmate": {
+  "file": "balance/eldritch_checkmate_spell.png",
+  "name": "Eldritch Checkmate",
+  "school": "balance"
+ },
+ "elementalblade": {
+  "file": "balance/elemental_blade_spell.png",
+  "name": "Elemental Blade",
+  "school": "balance"
+ },
+ "elementaldefuse": {
+  "file": "balance/elemental_defuse_spell.png",
+  "name": "Elemental Defuse",
+  "school": "balance"
+ },
+ "elementalgolem": {
+  "file": "balance/elemental_golem_spell.png",
+  "name": "Elemental Golem",
+  "school": "balance"
+ },
+ "elementalshield": {
+  "file": "balance/elemental_shield_spell.png",
+  "name": "Elemental Shield",
+  "school": "balance"
+ },
+ "elementalspear": {
+  "file": "balance/elemental_spear_spell.png",
+  "name": "Elemental Spear",
+  "school": "balance"
+ },
+ "elementaltrap": {
+  "file": "balance/elemental_trap_spell.png",
+  "name": "Elemental Trap",
+  "school": "balance"
+ },
+ "elementalweakness": {
+  "file": "balance/elemental_weakness_spell.png",
+  "name": "Elemental Weakness",
+  "school": "balance"
+ },
+ "emberattenuate": {
+  "file": "fire/ember_attenuate_spell.png",
+  "name": "Ember Attenuate",
+  "school": "fire"
+ },
+ "empower": {
+  "file": "death/empower_spell.png",
+  "name": "Empower",
+  "school": "death"
+ },
+ "empowerment": {
+  "file": "star/empowerment_spell.png",
+  "name": "Empowerment",
+  "school": "star"
+ },
+ "energyattenuate": {
+  "file": "life/energy_attenuate_spell.png",
+  "name": "Energy Attenuate",
+  "school": "life"
+ },
+ "energyblade": {
+  "file": "life/energy_blade_spell.png",
+  "name": "Energy Blade",
+  "school": "life"
+ },
+ "energytransfer": {
+  "file": "storm/energy_transfer_spell.png",
+  "name": "Energy Transfer",
+  "school": "storm"
+ },
+ "enfeeble": {
+  "file": "storm/enfeeble_spell.png",
+  "name": "Enfeeble",
+  "school": "storm"
+ },
+ "entangle": {
+  "file": "life/entangle_spell.png",
+  "name": "Entangle",
+  "school": "life"
+ },
+ "epic": {
+  "file": "sun/epic_spell.png",
+  "name": "Epic",
+  "school": "sun"
  },
  "epiphanyattenuate": {
   "file": "myth/epiphany_attenuate_spell.png",
@@ -139,15 +909,325 @@
   "name": "Ether Shield",
   "school": "myth"
  },
+ "everwinteroni": {
+  "file": "ice/everwinter_oni_spell.png",
+  "name": "Everwinter Oni",
+  "school": "ice"
+ },
+ "evilfreezeray": {
+  "file": "ice/evil_freeze_ray_spell.png",
+  "name": "Evil Freeze Ray",
+  "school": "ice"
+ },
+ "evilmagmaman": {
+  "file": "ice/evil_magmaman_spell.png",
+  "name": "Evil Magmaman",
+  "school": "ice"
+ },
+ "evilsandman": {
+  "file": "ice/evil_sandman_spell.png",
+  "name": "Evil Sandman",
+  "school": "ice"
+ },
+ "evilsnowman": {
+  "file": "ice/evil_snowman_spell.png",
+  "name": "Evil Snowman",
+  "school": "ice"
+ },
+ "extinctiontrap": {
+  "file": "death/extinction_trap_spell.png",
+  "name": "Extinction Trap",
+  "school": "death"
+ },
+ "extraordinary": {
+  "file": "sun/extraordinary_spell.png",
+  "name": "Extraordinary",
+  "school": "sun"
+ },
+ "eyeofvigilance": {
+  "file": "balance/eye_of_vigilance_spell.png",
+  "name": "Eye of Vigilance",
+  "school": "balance"
+ },
  "fabletrap": {
   "file": "myth/fable_trap_spell.png",
   "name": "Fable Trap",
   "school": "myth"
  },
+ "fairy": {
+  "file": "life/fairy_spell.png",
+  "name": "Fairy",
+  "school": "life"
+ },
+ "fearofthedark": {
+  "file": "storm/fear_of_the_dark_spell.png",
+  "name": "Fear of the Dark",
+  "school": "storm"
+ },
+ "feint": {
+  "file": "death/feint_spell.png",
+  "name": "Feint",
+  "school": "death"
+ },
  "finaleattenuate": {
   "file": "myth/finale_attenuate_spell.png",
   "name": "Finale Attenuate",
   "school": "myth"
+ },
+ "fireblade": {
+  "file": "fire/fireblade_spell.png",
+  "name": "Fireblade",
+  "school": "fire"
+ },
+ "firecat": {
+  "file": "fire/fire_cat_spell.png",
+  "name": "Fire Cat",
+  "school": "fire"
+ },
+ "firedragon": {
+  "file": "fire/fire_dragon_spell.png",
+  "name": "Fire Dragon",
+  "school": "fire"
+ },
+ "fireelemental": {
+  "file": "fire/fire_elemental_spell.png",
+  "name": "Fire Elemental",
+  "school": "fire"
+ },
+ "fireelf": {
+  "file": "fire/fire_elf_spell.png",
+  "name": "Fire Elf",
+  "school": "fire"
+ },
+ "firefromabove": {
+  "file": "fire/fire_from_above_spell.png",
+  "name": "Fire from Above",
+  "school": "fire"
+ },
+ "fireprism": {
+  "file": "fire/fire_prism_spell.png",
+  "name": "Fire Prism",
+  "school": "fire"
+ },
+ "fireshield": {
+  "file": "fire/fire_shield_spell.png",
+  "name": "Fire Shield",
+  "school": "fire"
+ },
+ "firesofmars": {
+  "file": "fire/fires_of_mars_spell.png",
+  "name": "Fires of Mars",
+  "school": "fire"
+ },
+ "firespear": {
+  "file": "fire/firespear_spell.png",
+  "name": "Firespear",
+  "school": "fire"
+ },
+ "firetrap": {
+  "file": "fire/fire_trap_spell.png",
+  "name": "Fire Trap",
+  "school": "fire"
+ },
+ "fireweakness": {
+  "file": "fire/fire_weakness_spell.png",
+  "name": "Fire Weakness",
+  "school": "fire"
+ },
+ "flawless": {
+  "file": "star/flawless_spell.png",
+  "name": "Flawless",
+  "school": "star"
+ },
+ "floodamplify": {
+  "file": "storm/flood_amplify_spell.png",
+  "name": "Flood Amplify",
+  "school": "storm"
+ },
+ "floodblade": {
+  "file": "storm/flood_blade_spell.png",
+  "name": "Flood Blade",
+  "school": "storm"
+ },
+ "foliagefarrago": {
+  "file": "balance/foliage_farrago_spell.png",
+  "name": "Foliage Farrago",
+  "school": "balance"
+ },
+ "forestfire": {
+  "file": "life/forest_fire_spell.png",
+  "name": "Forest Fire",
+  "school": "life"
+ },
+ "forestlord": {
+  "file": "life/forest_lord_spell.png",
+  "name": "Forest Lord",
+  "school": "life"
+ },
+ "fortify": {
+  "file": "star/fortify_spell.png",
+  "name": "Fortify",
+  "school": "star"
+ },
+ "freddo": {
+  "file": "ice/freddo_spell.png",
+  "name": "Freddo",
+  "school": "ice"
+ },
+ "freeze": {
+  "file": "ice/freeze_spell.png",
+  "name": "Freeze",
+  "school": "ice"
+ },
+ "freezeray": {
+  "file": "ice/freeze_ray_spell.png",
+  "name": "Freeze Ray",
+  "school": "ice"
+ },
+ "frenzy": {
+  "file": "star/frenzy_spell.png",
+  "name": "Frenzy",
+  "school": "star"
+ },
+ "frombeyond": {
+  "file": "death/from_beyond_spell.png",
+  "name": "From Beyond",
+  "school": "death"
+ },
+ "frostbeetle": {
+  "file": "ice/frost_beetle_spell.png",
+  "name": "Frost Beetle",
+  "school": "ice"
+ },
+ "frostbite": {
+  "file": "ice/frostbite_spell.png",
+  "name": "Frostbite",
+  "school": "ice"
+ },
+ "frostfeather": {
+  "file": "ice/frostfeather_spell.png",
+  "name": "Frostfeather",
+  "school": "ice"
+ },
+ "frostgiant": {
+  "file": "ice/frost_giant_spell.png",
+  "name": "Frost Giant",
+  "school": "ice"
+ },
+ "frozenarmor": {
+  "file": "ice/frozen_armor_spell.png",
+  "name": "Frozen Armor",
+  "school": "ice"
+ },
+ "frozenswarm": {
+  "file": "balance/frozen_swarm_spell.png",
+  "name": "Frozen Swarm",
+  "school": "balance"
+ },
+ "fuel": {
+  "file": "fire/fuel_spell.png",
+  "name": "Fuel",
+  "school": "fire"
+ },
+ "furnace": {
+  "file": "star/furnace_spell.png",
+  "name": "Furnace",
+  "school": "star"
+ },
+ "galvanicfield": {
+  "file": "star/galvanic_field_spell.png",
+  "name": "Galvanic Field",
+  "school": "star"
+ },
+ "gargantuan": {
+  "file": "sun/gargantuan_spell.png",
+  "name": "Gargantuan",
+  "school": "sun"
+ },
+ "gazeoffate": {
+  "file": "balance/gaze_of_fate_spell.png",
+  "name": "Gaze of Fate",
+  "school": "balance"
+ },
+ "gearheaddestroyer": {
+  "file": "balance/gearhead_destroyer_spell.png",
+  "name": "Gearhead Destroyer",
+  "school": "balance"
+ },
+ "ghostamplify": {
+  "file": "death/ghost_amplify_spell.png",
+  "name": "Ghost Amplify",
+  "school": "death"
+ },
+ "ghostblade": {
+  "file": "death/ghost_blade_spell.png",
+  "name": "Ghost Blade",
+  "school": "death"
+ },
+ "ghoul": {
+  "file": "death/ghoul_spell.png",
+  "name": "Ghoul",
+  "school": "death"
+ },
+ "giant": {
+  "file": "sun/giant_spell.png",
+  "name": "Giant",
+  "school": "sun"
+ },
+ "glacialfortress": {
+  "file": "ice/glacial_fortress_spell.png",
+  "name": "Glacial Fortress",
+  "school": "ice"
+ },
+ "glacialgolem": {
+  "file": "fire/glacial_golem_spell.png",
+  "name": "Glacial Golem",
+  "school": "fire"
+ },
+ "glacialshield": {
+  "file": "fire/glacial_shield_spell.png",
+  "name": "Glacial Shield",
+  "school": "fire"
+ },
+ "glacieramplify": {
+  "file": "ice/glacier_amplify_spell.png",
+  "name": "Glacier Amplify",
+  "school": "ice"
+ },
+ "glacierblade": {
+  "file": "ice/glacier_blade_spell.png",
+  "name": "Glacier Blade",
+  "school": "ice"
+ },
+ "glimpseofinfinity": {
+  "file": "fire/glimpse_of_infinity_spell.png",
+  "name": "Glimpse of Infinity",
+  "school": "fire"
+ },
+ "gloambugs": {
+  "file": "storm/gloambugs_spell.png",
+  "name": "Gloambugs!",
+  "school": "storm"
+ },
+ "glowbugsquall": {
+  "file": "storm/glowbug_squall_spell.png",
+  "name": "Glowbug Squall",
+  "school": "storm"
+ },
+ "gnomeostasis": {
+  "file": "life/gnomeostasis_spell.png",
+  "name": "Gnomeostasis!",
+  "school": "life"
+ },
+ "gnomes": {
+  "file": "life/gnomes_spell.png",
+  "name": "Gnomes!",
+  "school": "life"
+ },
+ "goatmonk": {
+  "file": "life/goat_monk_spell.png",
+  "name": "Goat Monk",
+  "school": "life"
  },
  "gobbler": {
   "file": "myth/gobbler_spell.png",
@@ -164,15 +1244,150 @@
   "name": "Golem: Taunt",
   "school": "myth"
  },
+ "gortaleprechaun": {
+  "file": "life/gorta_leprechaun_spell.png",
+  "name": "Gorta Leprechaun",
+  "school": "life"
+ },
+ "gravechill": {
+  "file": "death/grave_chill_spell.png",
+  "name": "Grave Chill",
+  "school": "death"
+ },
+ "gravestorm": {
+  "file": "death/gravestorm_spell.png",
+  "name": "Gravestorm",
+  "school": "death"
+ },
+ "greenblight": {
+  "file": "death/green_blight_spell.png",
+  "name": "Green Blight",
+  "school": "death"
+ },
+ "greenserpent": {
+  "file": "storm/green_serpent_spell.png",
+  "name": "Green Serpent",
+  "school": "storm"
+ },
  "grendelsamends": {
   "file": "myth/grendel_s_amends_spell.png",
   "name": "Grendel's Amends",
   "school": "myth"
  },
+ "grimgrrnadier": {
+  "file": "life/grim_grrnadier_spell.png",
+  "name": "Grim Grrnadier",
+  "school": "life"
+ },
+ "grimirredeemer": {
+  "file": "death/grim_irredeemer_spell.png",
+  "name": "Grim Irredeemer",
+  "school": "death"
+ },
+ "grimreader": {
+  "file": "death/grim_reader_spell.png",
+  "name": "Grim Reader",
+  "school": "death"
+ },
+ "grimzilla": {
+  "file": "storm/grimzilla_spell.png",
+  "name": "Grimzilla",
+  "school": "storm"
+ },
+ "grrnadier": {
+  "file": "life/grrnadier_spell.png",
+  "name": "Grrnadier",
+  "school": "life"
+ },
+ "guardianspirit": {
+  "file": "life/guardian_spirit_spell.png",
+  "name": "Guardian Spirit",
+  "school": "life"
+ },
+ "guidance": {
+  "file": "life/guidance_spell.png",
+  "name": "Guidance",
+  "school": "life"
+ },
+ "guidinglight": {
+  "file": "life/guiding_light_spell.png",
+  "name": "Guiding Light",
+  "school": "life"
+ },
+ "hailtrap": {
+  "file": "storm/hail_trap_spell.png",
+  "name": "Hail Trap",
+  "school": "storm"
+ },
+ "hammerofthor": {
+  "file": "storm/hammer_of_thor_spell.png",
+  "name": "Hammer of Thor",
+  "school": "storm"
+ },
+ "handsomefomori": {
+  "file": "ice/handsome_fomori_spell.png",
+  "name": "Handsome Fomori",
+  "school": "ice"
+ },
+ "headlesshorseman": {
+  "file": "death/headless_horseman_spell.png",
+  "name": "Headless Horseman",
+  "school": "death"
+ },
+ "healingcurrent": {
+  "file": "storm/healing_current_spell.png",
+  "name": "Healing Current",
+  "school": "storm"
+ },
+ "heatmander": {
+  "file": "balance/heat_mander_spell.png",
+  "name": "Heat Mander",
+  "school": "balance"
+ },
+ "heckhound": {
+  "file": "fire/heck_hound_spell.png",
+  "name": "Heck Hound",
+  "school": "fire"
+ },
+ "helephant": {
+  "file": "fire/helephant_spell.png",
+  "name": "Helephant",
+  "school": "fire"
+ },
+ "helpinghands": {
+  "file": "balance/helping_hands_spell.png",
+  "name": "Helping Hands",
+  "school": "balance"
+ },
+ "hephaestus": {
+  "file": "fire/hephaestus_spell.png",
+  "name": "Hephaestus",
+  "school": "fire"
+ },
+ "heqet": {
+  "file": "storm/heqet_spell.png",
+  "name": "Heqet",
+  "school": "storm"
+ },
+ "heqetscurse": {
+  "file": "storm/heqet_s_curse_spell.png",
+  "name": "Heqet's Curse",
+  "school": "storm"
+ },
+ "heqetsstrike": {
+  "file": "storm/heqet_s_strike_spell.png",
+  "name": "Heqet's Strike",
+  "school": "storm"
+ },
  "heroofkhrysalis": {
   "file": "myth/hero_of_khrysalis_spell.png",
   "name": "Hero of Khrysalis",
   "school": "myth"
+ },
+ "hex": {
+  "file": "balance/hex_spell.png",
+  "name": "Hex",
+  "school": "balance"
  },
  "hexhouse": {
   "file": "myth/hex_house_spell.png",
@@ -189,35 +1404,455 @@
   "name": "Humongofrog",
   "school": "myth"
  },
+ "hungrycaterpillar": {
+  "file": "life/hungry_caterpillar_spell.png",
+  "name": "Hungry Caterpillar",
+  "school": "life"
+ },
+ "huntingwyrm": {
+  "file": "life/hunting_wyrm_spell.png",
+  "name": "Hunting Wyrm",
+  "school": "life"
+ },
+ "hydra": {
+  "file": "balance/hydra_spell.png",
+  "name": "Hydra",
+  "school": "balance"
+ },
+ "icearmor": {
+  "file": "ice/ice_armor_spell.png",
+  "name": "Ice Armor",
+  "school": "ice"
+ },
+ "iceblade": {
+  "file": "ice/iceblade_spell.png",
+  "name": "Iceblade",
+  "school": "ice"
+ },
+ "iceburnjinn": {
+  "file": "ice/iceburn_jinn_spell.png",
+  "name": "Iceburn Jinn",
+  "school": "ice"
+ },
+ "iceelemental": {
+  "file": "ice/ice_elemental_spell.png",
+  "name": "Ice Elemental",
+  "school": "ice"
+ },
+ "iceguardian": {
+  "file": "ice/ice_guardian_spell.png",
+  "name": "Ice Guardian",
+  "school": "ice"
+ },
+ "iceprism": {
+  "file": "ice/ice_prism_spell.png",
+  "name": "Ice Prism",
+  "school": "ice"
+ },
+ "icespear": {
+  "file": "ice/icespear_spell.png",
+  "name": "Icespear",
+  "school": "ice"
+ },
+ "icetrap": {
+  "file": "ice/ice_trap_spell.png",
+  "name": "Ice Trap",
+  "school": "ice"
+ },
+ "iceweakness": {
+  "file": "ice/ice_weakness_spell.png",
+  "name": "Ice Weakness",
+  "school": "ice"
+ },
+ "icewyvern": {
+  "file": "ice/ice_wyvern_spell.png",
+  "name": "Ice Wyvern",
+  "school": "ice"
+ },
+ "immolate": {
+  "file": "fire/immolate_spell.png",
+  "name": "Immolate",
+  "school": "fire"
+ },
+ "imp": {
+  "file": "life/imp_spell.png",
+  "name": "Imp",
+  "school": "life"
+ },
+ "impair": {
+  "file": "ice/impair_spell.png",
+  "name": "Impair",
+  "school": "ice"
+ },
  "improbablegaze": {
   "file": "myth/improbable_gaze_spell.png",
   "name": "Improbable Gaze",
   "school": "myth"
+ },
+ "indemnity": {
+  "file": "sun/indemnity_spell.png",
+  "name": "Indemnity",
+  "school": "sun"
+ },
+ "infallible": {
+  "file": "star/infallible_spell.png",
+  "name": "Infallible",
+  "school": "star"
+ },
+ "infection": {
+  "file": "death/infection_spell.png",
+  "name": "Infection",
+  "school": "death"
+ },
+ "infernaloni": {
+  "file": "fire/infernal_oni_spell.png",
+  "name": "Infernal Oni",
+  "school": "fire"
+ },
+ "infernoattenuate": {
+  "file": "fire/inferno_attenuate_spell.png",
+  "name": "Inferno Attenuate",
+  "school": "fire"
+ },
+ "infernoblade": {
+  "file": "fire/inferno_blade_spell.png",
+  "name": "Inferno Blade",
+  "school": "fire"
+ },
+ "infernosalamander": {
+  "file": "fire/inferno_salamander_spell.png",
+  "name": "Inferno Salamander",
+  "school": "fire"
+ },
+ "infestation": {
+  "file": "life/infestation_spell.png",
+  "name": "Infestation",
+  "school": "life"
+ },
+ "insanebolt": {
+  "file": "storm/insane_bolt_spell.png",
+  "name": "Insane Bolt",
+  "school": "storm"
+ },
+ "intodarkness": {
+  "file": "fire/into_darkness_spell.png",
+  "name": "Into Darkness",
+  "school": "fire"
+ },
+ "ironcurse": {
+  "file": "balance/iron_curse_spell.png",
+  "name": "Iron Curse",
+  "school": "balance"
+ },
+ "ironsultan": {
+  "file": "storm/iron_sultan_spell.png",
+  "name": "Iron Sultan",
+  "school": "storm"
+ },
+ "jinnsaffliction": {
+  "file": "life/jinn_s_affliction_spell.png",
+  "name": "Jinn's Affliction",
+  "school": "life"
  },
  "jinnsdefense": {
   "file": "myth/jinn_s_defense_spell.png",
   "name": "Jinn's Defense",
   "school": "myth"
  },
+ "jinnsfortune": {
+  "file": "balance/jinn_s_fortune_spell.png",
+  "name": "Jinn's Fortune",
+  "school": "balance"
+ },
+ "jinnslarceny": {
+  "file": "death/jinn_s_larceny_spell.png",
+  "name": "Jinn's Larceny",
+  "school": "death"
+ },
+ "jinnsrestoration": {
+  "file": "storm/jinn_s_restoration_spell.png",
+  "name": "Jinn's Restoration",
+  "school": "storm"
+ },
+ "jinnsreversal": {
+  "file": "fire/jinn_s_reversal_spell.png",
+  "name": "Jinn's Reversal",
+  "school": "fire"
+ },
+ "jinnsvexation": {
+  "file": "ice/jinn_s_vexation_spell.png",
+  "name": "Jinn's Vexation",
+  "school": "ice"
+ },
+ "joltergeist": {
+  "file": "death/joltergeist_spell.png",
+  "name": "Joltergeist",
+  "school": "death"
+ },
+ "judgement": {
+  "file": "balance/judgement_spell.png",
+  "name": "Judgement",
+  "school": "balance"
+ },
+ "jupitersmight": {
+  "file": "storm/jupiter_s_might_spell.png",
+  "name": "Jupiter's Might",
+  "school": "storm"
+ },
+ "katabaticwind": {
+  "file": "ice/katabatic_wind_spell.png",
+  "name": "Katabatic Wind",
+  "school": "ice"
+ },
+ "keeneyes": {
+  "file": "sun/keen_eyes_spell.png",
+  "name": "Keen Eyes",
+  "school": "sun"
+ },
  "keeperoftheflame": {
   "file": "myth/keeper_of_the_flame_spell.png",
   "name": "Keeper of the Flame",
   "school": "myth"
  },
+ "kiiiiyaaaa": {
+  "file": "death/kiiii_yaaaa_spell.png",
+  "name": "Kiiii-Yaaaa!",
+  "school": "death"
+ },
  "kingartorius": {
-  "file": "myth/king_artorius_spell.png",
+  "file": "death/king_artorius_spell.png",
   "name": "King Artorius",
-  "school": "myth"
+  "school": "death"
+ },
+ "kingoforder": {
+  "file": "storm/king_of_order_spell.png",
+  "name": "King of Order",
+  "school": "storm"
+ },
+ "kraken": {
+  "file": "storm/kraken_spell.png",
+  "name": "Kraken",
+  "school": "storm"
+ },
+ "krampus": {
+  "file": "fire/krampus_spell.png",
+  "name": "Krampus",
+  "school": "fire"
+ },
+ "lamassu": {
+  "file": "life/lamassu_spell.png",
+  "name": "Lamassu",
+  "school": "life"
+ },
+ "legendgolem": {
+  "file": "life/legend_golem_spell.png",
+  "name": "Legend Golem",
+  "school": "life"
+ },
+ "legendshield": {
+  "file": "life/legend_shield_spell.png",
+  "name": "Legend Shield",
+  "school": "life"
+ },
+ "legionshield": {
+  "file": "ice/legion_shield_spell.png",
+  "name": "Legion Shield",
+  "school": "ice"
  },
  "lemortethoth": {
   "file": "myth/le_morte_thoth_spell.png",
   "name": "Le Morte Thoth",
   "school": "myth"
  },
+ "leprechaun": {
+  "file": "life/leprechaun_spell.png",
+  "name": "Leprechaun",
+  "school": "life"
+ },
+ "leviathan": {
+  "file": "storm/leviathan_spell.png",
+  "name": "Leviathan",
+  "school": "storm"
+ },
+ "lifeblade": {
+  "file": "life/lifeblade_spell.png",
+  "name": "Lifeblade",
+  "school": "life"
+ },
+ "lifeprism": {
+  "file": "life/life_prism_spell.png",
+  "name": "Life Prism",
+  "school": "life"
+ },
+ "lifeshield": {
+  "file": "life/life_shield_spell.png",
+  "name": "Life Shield",
+  "school": "life"
+ },
+ "lifespear": {
+  "file": "life/lifespear_spell.png",
+  "name": "Lifespear",
+  "school": "life"
+ },
+ "lifetrap": {
+  "file": "life/life_trap_spell.png",
+  "name": "Life Trap",
+  "school": "life"
+ },
+ "lifeweakness": {
+  "file": "life/life_weakness_spell.png",
+  "name": "Life Weakness",
+  "school": "life"
+ },
+ "lightningbats": {
+  "file": "storm/lightning_bats_spell.png",
+  "name": "Lightning Bats",
+  "school": "storm"
+ },
+ "lightningdragon": {
+  "file": "fire/lightning_dragon_spell.png",
+  "name": "Lightning Dragon",
+  "school": "fire"
+ },
+ "lightninggoon": {
+  "file": "storm/lightning_goon_spell.png",
+  "name": "Lightning Goon",
+  "school": "storm"
+ },
+ "lightninglocusts": {
+  "file": "balance/lightning_locusts_spell.png",
+  "name": "Lightning Locusts",
+  "school": "balance"
+ },
+ "lightningstrike": {
+  "file": "storm/lightning_strike_spell.png",
+  "name": "Lightning Strike",
+  "school": "storm"
+ },
+ "link": {
+  "file": "fire/link_spell.png",
+  "name": "Link",
+  "school": "fire"
+ },
+ "livinghelephant": {
+  "file": "fire/living_helephant_spell.png",
+  "name": "Living Helephant",
+  "school": "fire"
+ },
+ "locustswarm": {
+  "file": "balance/locust_swarm_spell.png",
+  "name": "Locust Swarm",
+  "school": "balance"
+ },
+ "lordoflightning": {
+  "file": "life/lord_of_lightning_spell.png",
+  "name": "Lord of Lightning",
+  "school": "life"
+ },
+ "lordofnight": {
+  "file": "death/lord_of_night_spell.png",
+  "name": "Lord of Night",
+  "school": "death"
+ },
+ "lordofthejungle": {
+  "file": "life/lord_of_the_jungle_spell.png",
+  "name": "Lord of the Jungle",
+  "school": "life"
+ },
+ "lordofthewilds": {
+  "file": "life/lord_of_the_wilds_spell.png",
+  "name": "Lord of the Wilds",
+  "school": "life"
+ },
+ "lordofwinter": {
+  "file": "ice/lord_of_winter_spell.png",
+  "name": "Lord of Winter",
+  "school": "ice"
+ },
+ "loremaster": {
+  "file": "balance/loremaster_spell.png",
+  "name": "Loremaster",
+  "school": "balance"
+ },
+ "luminousweaver": {
+  "file": "life/luminous_weaver_spell.png",
+  "name": "Luminous Weaver",
+  "school": "life"
+ },
+ "macabrejinn": {
+  "file": "death/macabre_jinn_spell.png",
+  "name": "Macabre Jinn",
+  "school": "death"
+ },
+ "magnify": {
+  "file": "star/magnify_spell.png",
+  "name": "Magnify",
+  "school": "star"
+ },
+ "malduit": {
+  "file": "death/malduit_spell.png",
+  "name": "Malduit",
+  "school": "death"
+ },
+ "manaburn": {
+  "file": "balance/mana_burn_spell.png",
+  "name": "Mana Burn",
+  "school": "balance"
+ },
+ "manderminion": {
+  "file": "balance/mander_minion_spell.png",
+  "name": "Mander Minion",
+  "school": "balance"
+ },
+ "markofshu": {
+  "file": "ice/mark_of_shu_spell.png",
+  "name": "Mark of Shu",
+  "school": "ice"
+ },
+ "massdeathprism": {
+  "file": "death/mass_death_prism_spell.png",
+  "name": "Mass Death Prism",
+  "school": "death"
+ },
+ "massfireprism": {
+  "file": "fire/mass_fire_prism_spell.png",
+  "name": "Mass Fire Prism",
+  "school": "fire"
+ },
+ "massiceprism": {
+  "file": "ice/mass_ice_prism_spell.png",
+  "name": "Mass Ice Prism",
+  "school": "ice"
+ },
+ "massinfection": {
+  "file": "death/mass_infection_spell.png",
+  "name": "Mass Infection",
+  "school": "death"
+ },
+ "masslifeprism": {
+  "file": "life/mass_life_prism_spell.png",
+  "name": "Mass Life Prism",
+  "school": "life"
+ },
  "massmythprism": {
   "file": "myth/mass_myth_prism_spell.png",
   "name": "Mass Myth Prism",
   "school": "myth"
+ },
+ "massstormprism": {
+  "file": "storm/mass_storm_prism_spell.png",
+  "name": "Mass Storm Prism",
+  "school": "storm"
+ },
+ "masstriage": {
+  "file": "life/mass_triage_spell.png",
+  "name": "Mass Triage",
+  "school": "life"
+ },
+ "meditation": {
+  "file": "life/meditation_spell.png",
+  "name": "Meditation",
+  "school": "life"
  },
  "medusa": {
   "file": "myth/medusa_spell.png",
@@ -229,15 +1864,80 @@
   "name": "Medusa's Fury",
   "school": "myth"
  },
+ "megacalm": {
+  "file": "life/mega_calm_spell.png",
+  "name": "Mega Calm",
+  "school": "life"
+ },
+ "megadistract": {
+  "file": "ice/mega_distract_spell.png",
+  "name": "Mega Distract",
+  "school": "ice"
+ },
+ "megapacify": {
+  "file": "death/mega_pacify_spell.png",
+  "name": "Mega Pacify",
+  "school": "death"
+ },
+ "megasoothe": {
+  "file": "storm/mega_soothe_spell.png",
+  "name": "Mega Soothe",
+  "school": "storm"
+ },
  "megasubdue": {
   "file": "myth/mega_subdue_spell.png",
   "name": "Mega Subdue",
   "school": "myth"
  },
+ "megataunt": {
+  "file": "ice/mega_taunt_spell.png",
+  "name": "Mega Taunt",
+  "school": "ice"
+ },
+ "megatranquilize": {
+  "file": "fire/mega_tranquilize_spell.png",
+  "name": "Mega Tranquilize",
+  "school": "fire"
+ },
+ "melt": {
+  "file": "ice/melt_spell.png",
+  "name": "Melt",
+  "school": "ice"
+ },
+ "meltdown": {
+  "file": "fire/meltdown_spell.png",
+  "name": "Meltdown",
+  "school": "fire"
+ },
+ "memorytrap": {
+  "file": "life/memory_trap_spell.png",
+  "name": "Memory Trap",
+  "school": "life"
+ },
+ "mend": {
+  "file": "star/mend_spell.png",
+  "name": "Mend",
+  "school": "star"
+ },
  "mendminion": {
   "file": "myth/mend_minion_spell.png",
   "name": "Mend Minion",
   "school": "myth"
+ },
+ "meteorstrike": {
+  "file": "fire/meteor_strike_spell.png",
+  "name": "Meteor Strike",
+  "school": "fire"
+ },
+ "mindblown": {
+  "file": "balance/mind_blown_spell.png",
+  "name": "Mind Blown!",
+  "school": "balance"
+ },
+ "minorblessing": {
+  "file": "life/minor_blessing_spell.png",
+  "name": "Minor Blessing",
+  "school": "life"
  },
  "minotaur": {
   "file": "myth/minotaur_spell.png",
@@ -249,6 +1949,86 @@
   "name": "Minotaur Minion",
   "school": "myth"
  },
+ "misttrap": {
+  "file": "fire/mist_trap_spell.png",
+  "name": "Mist Trap",
+  "school": "fire"
+ },
+ "mockenspiel": {
+  "file": "balance/mockenspiel_spell.png",
+  "name": "Mockenspiel",
+  "school": "balance"
+ },
+ "mokompo": {
+  "file": "storm/mokompo_spell.png",
+  "name": "Mokompo",
+  "school": "storm"
+ },
+ "monkofmourning": {
+  "file": "death/monk_of_mourning_spell.png",
+  "name": "Monk of Mourning",
+  "school": "death"
+ },
+ "monstermash": {
+  "file": "death/monster_mash_spell.png",
+  "name": "Monster Mash",
+  "school": "death"
+ },
+ "monstrous": {
+  "file": "sun/monstrous_spell.png",
+  "name": "Monstrous",
+  "school": "sun"
+ },
+ "moodycaterpillar": {
+  "file": "life/moody_caterpillar_spell.png",
+  "name": "Moody Caterpillar",
+  "school": "life"
+ },
+ "mortality": {
+  "file": "death/mortality_spell.png",
+  "name": "Mortality",
+  "school": "death"
+ },
+ "mountainman": {
+  "file": "ice/mountain_man_spell.png",
+  "name": "Mountain Man",
+  "school": "ice"
+ },
+ "mutatebanshee": {
+  "file": "sun/mutate_banshee_spell.png",
+  "name": "Mutate Banshee",
+  "school": "sun"
+ },
+ "mutatekraken": {
+  "file": "sun/mutate_kraken_spell.png",
+  "name": "Mutate Kraken",
+  "school": "sun"
+ },
+ "mutateminotaur": {
+  "file": "sun/mutate_minotaur_spell.png",
+  "name": "Mutate Minotaur",
+  "school": "sun"
+ },
+ "mutatephoenix": {
+  "file": "sun/mutate_phoenix_spell.png",
+  "name": "Mutate Phoenix",
+  "school": "sun"
+ },
+ "mutatesprite": {
+  "file": "sun/mutate_sprite_spell.png",
+  "name": "Mutate Sprite",
+  "school": "sun"
+ },
+ "mutateswarm": {
+  "file": "sun/mutate_swarm_spell.png",
+  "name": "Mutate Swarm",
+  "school": "sun"
+ },
+ "mutatewyvern": {
+  "file": "sun/mutate_wyvern_spell.png",
+  "name": "Mutate Wyvern",
+  "school": "sun"
+ },
  "mysticcolossus": {
   "file": "myth/mystic_colossus_spell.png",
   "name": "Mystic Colossus",
@@ -258,6 +2038,11 @@
   "file": "myth/mythblade_spell.png",
   "name": "Mythblade",
   "school": "myth"
+ },
+ "mythicmermaids": {
+  "file": "storm/mythic_mermaids_spell.png",
+  "name": "Mythic Mermaids",
+  "school": "storm"
  },
  "mythprism": {
   "file": "myth/myth_prism_spell.png",
@@ -284,75 +2069,610 @@
   "name": "Myth Weakness",
   "school": "myth"
  },
+ "namaste": {
+  "file": "life/namaste_spell.png",
+  "name": "Namaste",
+  "school": "life"
+ },
+ "naphthascarab": {
+  "file": "fire/naphtha_scarab_spell.png",
+  "name": "Naphtha Scarab",
+  "school": "fire"
+ },
+ "natureswrath": {
+  "file": "life/nature_s_wrath_spell.png",
+  "name": "Nature's Wrath",
+  "school": "life"
+ },
+ "nautilusunleashed": {
+  "file": "fire/nautilus_unleashed_spell.png",
+  "name": "Nautilus Unleashed",
+  "school": "fire"
+ },
+ "neptunesfury": {
+  "file": "ice/neptune_s_fury_spell.png",
+  "name": "Neptune's Fury",
+  "school": "ice"
+ },
+ "nerys": {
+  "file": "balance/nerys_spell.png",
+  "name": "Nerys",
+  "school": "balance"
+ },
+ "nesteddarkness": {
+  "file": "balance/nested_darkness_spell.png",
+  "name": "Nested Darkness",
+  "school": "balance"
+ },
+ "nestedfury": {
+  "file": "balance/nested_fury_spell.png",
+  "name": "Nested Fury",
+  "school": "balance"
+ },
+ "nightbringer": {
+  "file": "sun/nightbringer_spell.png",
+  "name": "Nightbringer",
+  "school": "sun"
+ },
+ "nightraid": {
+  "file": "fire/night_raid_spell.png",
+  "name": "Night Raid",
+  "school": "fire"
+ },
+ "ninjapiglets": {
+  "file": "balance/ninja_piglets_spell.png",
+  "name": "Ninja Piglets",
+  "school": "balance"
+ },
  "ninjapigs": {
   "file": "myth/ninja_pigs_spell.png",
   "name": "Ninja Pigs",
   "school": "myth"
+ },
+ "oasisamplify": {
+  "file": "balance/oasis_amplify_spell.png",
+  "name": "Oasis Amplify",
+  "school": "balance"
+ },
+ "oasisblade": {
+  "file": "balance/oasis_blade_spell.png",
+  "name": "Oasis Blade",
+  "school": "balance"
+ },
+ "obsidiancolossus": {
+  "file": "balance/obsidian_colossus_spell.png",
+  "name": "Obsidian Colossus",
+  "school": "balance"
+ },
+ "oldonesendgame": {
+  "file": "balance/old_one_s_endgame_spell.png",
+  "name": "Old One's Endgame",
+  "school": "balance"
+ },
+ "onisattrition": {
+  "file": "storm/oni_s_attrition_spell.png",
+  "name": "Oni's Attrition",
+  "school": "storm"
+ },
+ "onisdestruction": {
+  "file": "ice/oni_s_destruction_spell.png",
+  "name": "Oni's Destruction",
+  "school": "ice"
+ },
+ "onisforge": {
+  "file": "fire/oni_s_forge_spell.png",
+  "name": "Oni's Forge",
+  "school": "fire"
+ },
+ "onismorbidity": {
+  "file": "death/oni_s_morbidity_spell.png",
+  "name": "Oni's Morbidity",
+  "school": "death"
+ },
+ "onisnaturalism": {
+  "file": "life/oni_s_naturalism_spell.png",
+  "name": "Oni's Naturalism",
+  "school": "life"
  },
  "onisprojection": {
   "file": "myth/oni_s_projection_spell.png",
   "name": "Oni's Projection",
   "school": "myth"
  },
+ "onisshadow": {
+  "file": "balance/oni_s_shadow_spell.png",
+  "name": "Oni's Shadow",
+  "school": "balance"
+ },
  "orthrus": {
   "file": "myth/orthrus_spell.png",
   "name": "Orthrus",
   "school": "myth"
+ },
+ "pacify": {
+  "file": "death/pacify_spell.png",
+  "name": "Pacify",
+  "school": "death"
+ },
+ "pathogen": {
+  "file": "star/pathogen_spell.png",
+  "name": "Pathogen",
+  "school": "star"
+ },
+ "patiencetrap": {
+  "file": "life/patience_trap_spell.png",
+  "name": "Patience Trap",
+  "school": "life"
+ },
+ "permafrosttrap": {
+  "file": "death/permafrost_trap_spell.png",
+  "name": "Permafrost Trap",
+  "school": "death"
+ },
+ "phantasmania": {
+  "file": "fire/phantasmania_spell.png",
+  "name": "Phantasmania!",
+  "school": "fire"
  },
  "phantasticjinn": {
   "file": "myth/phantastic_jinn_spell.png",
   "name": "Phantastic Jinn",
   "school": "myth"
  },
+ "phoebuswill": {
+  "file": "life/phoebus_will_spell.png",
+  "name": "Phoebus' Will",
+  "school": "life"
+ },
+ "phoenix": {
+  "file": "fire/phoenix_spell.png",
+  "name": "Phoenix",
+  "school": "fire"
+ },
  "pierce": {
   "file": "myth/pierce_spell.png",
   "name": "Pierce",
   "school": "myth"
+ },
+ "pigsie": {
+  "file": "life/pigsie_spell.png",
+  "name": "Pigsie",
+  "school": "life"
+ },
+ "pixie": {
+  "file": "life/pixie_spell.png",
+  "name": "Pixie",
+  "school": "life"
+ },
+ "plague": {
+  "file": "death/plague_spell.png",
+  "name": "Plague",
+  "school": "death"
+ },
+ "plutosperil": {
+  "file": "death/pluto_s_peril_spell.png",
+  "name": "Pluto's Peril",
+  "school": "death"
+ },
+ "poison": {
+  "file": "death/poison_spell.png",
+  "name": "Poison",
+  "school": "death"
  },
  "poisonoustoad": {
   "file": "myth/poisonous_toad_spell.png",
   "name": "Poisonous Toad",
   "school": "myth"
  },
+ "potenttrap": {
+  "file": "sun/potent_trap_spell.png",
+  "name": "Potent Trap",
+  "school": "sun"
+ },
+ "powerlink": {
+  "file": "fire/power_link_spell.png",
+  "name": "Power Link",
+  "school": "fire"
+ },
+ "powernova": {
+  "file": "balance/power_nova_spell.png",
+  "name": "Power Nova",
+  "school": "balance"
+ },
+ "precision": {
+  "file": "balance/precision_spell.png",
+  "name": "Precision",
+  "school": "balance"
+ },
+ "primaloni": {
+  "file": "life/primal_oni_spell.png",
+  "name": "Primal Oni",
+  "school": "life"
+ },
+ "primalstampede": {
+  "file": "ice/primal_stampede_spell.png",
+  "name": "Primal Stampede",
+  "school": "ice"
+ },
+ "primordial": {
+  "file": "sun/primordial_spell.png",
+  "name": "Primordial",
+  "school": "sun"
+ },
+ "punishment": {
+  "file": "star/punishment_spell.png",
+  "name": "Punishment",
+  "school": "star"
+ },
  "purge": {
   "file": "myth/purge_spell.png",
   "name": "Purge",
   "school": "myth"
+ },
+ "putrefaction": {
+  "file": "death/putrefaction_spell.png",
+  "name": "Putrefaction",
+  "school": "death"
+ },
+ "pyredragon": {
+  "file": "death/pyre_dragon_spell.png",
+  "name": "Pyre Dragon",
+  "school": "death"
+ },
+ "qismahscurse": {
+  "file": "death/qismah_s_curse_spell.png",
+  "name": "Qismah's Curse",
+  "school": "death"
+ },
+ "qismahswrath": {
+  "file": "death/qismah_s_wrath_spell.png",
+  "name": "Qismah's Wrath",
+  "school": "death"
+ },
+ "queencalypso": {
+  "file": "storm/queen_calypso_spell.png",
+  "name": "Queen Calypso",
+  "school": "storm"
+ },
+ "quench": {
+  "file": "fire/quench_spell.png",
+  "name": "Quench",
+  "school": "fire"
+ },
+ "ra": {
+  "file": "balance/ra_spell.png",
+  "name": "Ra",
+  "school": "balance"
+ },
+ "radical": {
+  "file": "sun/radical_spell.png",
+  "name": "Radical",
+  "school": "sun"
+ },
+ "rafrigeration": {
+  "file": "balance/ra_frigeration_spell.png",
+  "name": "Ra-frigeration",
+  "school": "balance"
+ },
+ "ragingbull": {
+  "file": "fire/raging_bull_spell.png",
+  "name": "Raging Bull",
+  "school": "fire"
+ },
+ "rainbowserpent": {
+  "file": "balance/rainbow_serpent_spell.png",
+  "name": "Rainbow Serpent",
+  "school": "balance"
+ },
+ "rainoffire": {
+  "file": "fire/rain_of_fire_spell.png",
+  "name": "Rain of Fire",
+  "school": "fire"
+ },
+ "ratatoskrsspin": {
+  "file": "life/ratatoskr_s_spin_spell.png",
+  "name": "Ratatoskr's Spin",
+  "school": "life"
+ },
+ "reapthewhirlwind": {
+  "file": "storm/reap_the_whirlwind_spell.png",
+  "name": "Reap the Whirlwind",
+  "school": "storm"
+ },
+ "rebirth": {
+  "file": "life/rebirth_spell.png",
+  "name": "Rebirth",
+  "school": "life"
+ },
+ "regenerate": {
+  "file": "life/regenerate_spell.png",
+  "name": "Regenerate",
+  "school": "life"
+ },
+ "reindeerknight": {
+  "file": "ice/reindeer_knight_spell.png",
+  "name": "Reindeer Knight",
+  "school": "ice"
+ },
+ "reliquary": {
+  "file": "star/reliquary_spell.png",
+  "name": "Reliquary",
+  "school": "star"
+ },
+ "renew": {
+  "file": "star/renew_spell.png",
+  "name": "Renew",
+  "school": "star"
+ },
+ "reshuffle": {
+  "file": "balance/reshuffle_spell.png",
+  "name": "Reshuffle",
+  "school": "balance"
+ },
+ "reversechariot": {
+  "file": "fire/reverse_chariot_spell.png",
+  "name": "Reverse-Chariot",
+  "school": "fire"
  },
  "reverseemperor": {
   "file": "myth/reverse_emperor_spell.png",
   "name": "Reverse-Emperor",
   "school": "myth"
  },
+ "reversefortune": {
+  "file": "balance/reverse_fortune_spell.png",
+  "name": "Reverse-Fortune",
+  "school": "balance"
+ },
+ "reversehierophant": {
+  "file": "ice/reverse_hierophant_spell.png",
+  "name": "Reverse-Hierophant",
+  "school": "ice"
+ },
+ "reversemortality": {
+  "file": "death/reverse_mortality_spell.png",
+  "name": "Reverse-Mortality",
+  "school": "death"
+ },
+ "reversetower": {
+  "file": "storm/reverse_tower_spell.png",
+  "name": "Reverse-Tower",
+  "school": "storm"
+ },
+ "reverseworld": {
+  "file": "life/reverse_world_spell.png",
+  "name": "Reverse-World",
+  "school": "life"
+ },
+ "revolutionarystrike": {
+  "file": "storm/revolutionary_strike_spell.png",
+  "name": "Revolutionary Strike",
+  "school": "storm"
+ },
+ "rightingthescales": {
+  "file": "balance/righting_the_scales_spell.png",
+  "name": "Righting the Scales",
+  "school": "balance"
+ },
+ "rockmanofages": {
+  "file": "ice/rockman_of_ages_spell.png",
+  "name": "Rockman of Ages",
+  "school": "ice"
+ },
+ "rusalkasflood": {
+  "file": "storm/rusalka_s_flood_spell.png",
+  "name": "Rusalka's Flood",
+  "school": "storm"
+ },
+ "rusalkaswrath": {
+  "file": "storm/rusalka_s_wrath_spell.png",
+  "name": "Rusalka's Wrath",
+  "school": "storm"
+ },
+ "sabertooth": {
+  "file": "balance/sabertooth_spell.png",
+  "name": "Sabertooth",
+  "school": "balance"
+ },
+ "sacredcharge": {
+  "file": "life/sacred_charge_spell.png",
+  "name": "Sacred Charge",
+  "school": "life"
+ },
+ "sacrifice": {
+  "file": "death/sacrifice_spell.png",
+  "name": "Sacrifice",
+  "school": "death"
+ },
  "sagaofheroes": {
   "file": "myth/saga_of_heroes_spell.png",
   "name": "Saga of Heroes",
   "school": "myth"
+ },
+ "samoorai": {
+  "file": "balance/samoorai_spell.png",
+  "name": "Samoorai",
+  "school": "balance"
+ },
+ "sanctuary": {
+  "file": "life/sanctuary_spell.png",
+  "name": "Sanctuary",
+  "school": "life"
+ },
+ "sandcolossus": {
+  "file": "ice/sand_colossus_spell.png",
+  "name": "Sand Colossus",
+  "school": "ice"
+ },
+ "sandmonster": {
+  "file": "storm/sand_monster_spell.png",
+  "name": "Sand Monster",
+  "school": "storm"
+ },
+ "sandstorm": {
+  "file": "balance/sandstorm_spell.png",
+  "name": "Sandstorm",
+  "school": "balance"
  },
  "sandtroll": {
   "file": "myth/sand_troll_spell.png",
   "name": "Sand Troll",
   "school": "myth"
  },
+ "sandwurm": {
+  "file": "balance/sand_wurm_spell.png",
+  "name": "Sand Wurm",
+  "school": "balance"
+ },
+ "saphealth": {
+  "file": "balance/sap_health_spell.png",
+  "name": "Sap Health",
+  "school": "balance"
+ },
+ "sappower": {
+  "file": "storm/sap_power_spell.png",
+  "name": "Sap Power",
+  "school": "storm"
+ },
  "saturnsreaping": {
   "file": "myth/saturn_s_reaping_spell.png",
   "name": "Saturn's Reaping",
   "school": "myth"
+ },
+ "satyr": {
+  "file": "life/satyr_spell.png",
+  "name": "Satyr",
+  "school": "life"
+ },
+ "savagepaw": {
+  "file": "balance/savage_paw_spell.png",
+  "name": "Savage Paw",
+  "school": "balance"
+ },
+ "scald": {
+  "file": "fire/scald_spell.png",
+  "name": "Scald",
+  "school": "fire"
+ },
+ "scalesofdestiny": {
+  "file": "balance/scales_of_destiny_spell.png",
+  "name": "Scales of Destiny",
+  "school": "balance"
+ },
+ "scarab": {
+  "file": "balance/scarab_spell.png",
+  "name": "Scarab",
+  "school": "balance"
+ },
+ "scarecrow": {
+  "file": "death/scarecrow_spell.png",
+  "name": "Scarecrow",
+  "school": "death"
+ },
+ "scionofbalance": {
+  "file": "balance/scion_of_balance_spell.png",
+  "name": "Scion of Balance",
+  "school": "balance"
+ },
+ "scionofdeath": {
+  "file": "death/scion_of_death_spell.png",
+  "name": "Scion of Death",
+  "school": "death"
+ },
+ "scionoffire": {
+  "file": "fire/scion_of_fire_spell.png",
+  "name": "Scion of Fire",
+  "school": "fire"
+ },
+ "scionofice": {
+  "file": "ice/scion_of_ice_spell.png",
+  "name": "Scion of Ice",
+  "school": "ice"
+ },
+ "scionoflife": {
+  "file": "life/scion_of_life_spell.png",
+  "name": "Scion of Life",
+  "school": "life"
  },
  "scionofmyth": {
   "file": "myth/scion_of_myth_spell.png",
   "name": "Scion of Myth",
   "school": "myth"
  },
+ "scionofstorm": {
+  "file": "storm/scion_of_storm_spell.png",
+  "name": "Scion of Storm",
+  "school": "storm"
+ },
+ "scorchingscimitars": {
+  "file": "fire/scorching_scimitars_spell.png",
+  "name": "Scorching Scimitars",
+  "school": "fire"
+ },
+ "scorchpion": {
+  "file": "balance/scorchpion_spell.png",
+  "name": "Scorchpion",
+  "school": "balance"
+ },
+ "scorpion": {
+  "file": "balance/scorpion_spell.png",
+  "name": "Scorpion",
+  "school": "balance"
+ },
+ "seraph": {
+  "file": "life/seraph_spell.png",
+  "name": "Seraph",
+  "school": "life"
+ },
  "serpentbeguiler": {
   "file": "myth/serpent_beguiler_spell.png",
   "name": "Serpent Beguiler",
   "school": "myth"
  },
+ "shadeofmusicology": {
+  "file": "storm/shade_of_musicology_spell.png",
+  "name": "Shade of Musicology",
+  "school": "storm"
+ },
+ "shadescimitars": {
+  "file": "fire/shade_scimitars_spell.png",
+  "name": "Shade Scimitars",
+  "school": "fire"
+ },
+ "shadetrap": {
+  "file": "balance/shade_trap_spell.png",
+  "name": "Shade Trap",
+  "school": "balance"
+ },
+ "shadowhorn": {
+  "file": "ice/shadowhorn_spell.png",
+  "name": "Shadowhorn",
+  "school": "ice"
+ },
+ "shadowoffate": {
+  "file": "balance/shadow_of_fate_spell.png",
+  "name": "Shadow of Fate",
+  "school": "balance"
+ },
+ "shadowsultan": {
+  "file": "storm/shadow_sultan_spell.png",
+  "name": "Shadow Sultan",
+  "school": "storm"
+ },
+ "sharpenedblade": {
+  "file": "sun/sharpened_blade_spell.png",
+  "name": "Sharpened Blade",
+  "school": "sun"
+ },
  "shatter": {
   "file": "myth/shatter_spell.png",
   "name": "Shatter",
   "school": "myth"
+ },
+ "shatterhorn": {
+  "file": "ice/shatterhorn_spell.png",
+  "name": "Shatterhorn",
+  "school": "ice"
  },
  "shieldminion": {
   "file": "myth/shield_minion_spell.png",
@@ -364,45 +2684,405 @@
   "name": "Shift",
   "school": "myth"
  },
+ "shipoffools": {
+  "file": "death/ship_of_fools_spell.png",
+  "name": "Ship of Fools",
+  "school": "death"
+ },
+ "shiveringsnake": {
+  "file": "storm/shivering_snake_spell.png",
+  "name": "Shivering Snake",
+  "school": "storm"
+ },
+ "shu": {
+  "file": "ice/shu_spell.png",
+  "name": "Shu",
+  "school": "ice"
+ },
  "siphonhealth": {
   "file": "myth/siphon_health_spell.png",
   "name": "Siphon Health",
   "school": "myth"
+ },
+ "sirbedevere": {
+  "file": "life/sir_bedevere_spell.png",
+  "name": "Sir Bedevere",
+  "school": "life"
+ },
+ "sirens": {
+  "file": "storm/sirens_spell.png",
+  "name": "Sirens",
+  "school": "storm"
+ },
+ "sirlamorak": {
+  "file": "fire/sir_lamorak_spell.png",
+  "name": "Sir Lamorak",
+  "school": "fire"
+ },
+ "skeletaldragon": {
+  "file": "death/skeletal_dragon_spell.png",
+  "name": "Skeletal Dragon",
+  "school": "death"
+ },
+ "skeletalpirate": {
+  "file": "death/skeletal_pirate_spell.png",
+  "name": "Skeletal Pirate",
+  "school": "death"
+ },
+ "skeletalraider": {
+  "file": "death/skeletal_raider_spell.png",
+  "name": "Skeletal Raider",
+  "school": "death"
+ },
+ "sleetstorm": {
+  "file": "star/sleet_storm_spell.png",
+  "name": "Sleet Storm",
+  "school": "star"
+ },
+ "smokescreen": {
+  "file": "fire/smoke_screen_spell.png",
+  "name": "Smoke Screen",
+  "school": "fire"
+ },
+ "smoremachine": {
+  "file": "fire/s_more_machine_spell.png",
+  "name": "S'more Machine",
+  "school": "fire"
+ },
+ "snackattack": {
+  "file": "death/snack_attack_spell.png",
+  "name": "Snack Attack",
+  "school": "death"
  },
  "snakecharmer": {
   "file": "myth/snake_charmer_spell.png",
   "name": "Snake Charmer",
   "school": "myth"
  },
+ "sniper": {
+  "file": "sun/sniper_spell.png",
+  "name": "Sniper",
+  "school": "sun"
+ },
+ "snowangel": {
+  "file": "ice/snow_angel_spell.png",
+  "name": "Snow Angel",
+  "school": "ice"
+ },
+ "snowballbarrage": {
+  "file": "ice/snowball_barrage_spell.png",
+  "name": "Snowball Barrage",
+  "school": "ice"
+ },
+ "snowdrift": {
+  "file": "ice/snow_drift_spell.png",
+  "name": "Snow Drift",
+  "school": "ice"
+ },
+ "snownomercy": {
+  "file": "ice/snow_no_mercy_spell.png",
+  "name": "Snow No Mercy",
+  "school": "ice"
+ },
+ "snowserpent": {
+  "file": "ice/snow_serpent_spell.png",
+  "name": "Snow Serpent",
+  "school": "ice"
+ },
+ "snowshield": {
+  "file": "ice/snow_shield_spell.png",
+  "name": "Snow Shield",
+  "school": "ice"
+ },
+ "sokkwiburn": {
+  "file": "ice/sokkwi_burn_spell.png",
+  "name": "Sokkwi Burn",
+  "school": "ice"
+ },
+ "soothe": {
+  "file": "storm/soothe_spell.png",
+  "name": "Soothe",
+  "school": "storm"
+ },
+ "sorrowsshadow": {
+  "file": "death/sorrow_s_shadow_spell.png",
+  "name": "Sorrow's Shadow",
+  "school": "death"
+ },
+ "soulattenuate": {
+  "file": "life/soul_attenuate_spell.png",
+  "name": "Soul Attenuate",
+  "school": "life"
+ },
+ "soundofmusicology": {
+  "file": "storm/sound_of_musicology_spell.png",
+  "name": "Sound of Musicology",
+  "school": "storm"
+ },
+ "spectralblast": {
+  "file": "balance/spectral_blast_spell.png",
+  "name": "Spectral Blast",
+  "school": "balance"
+ },
+ "spectralminion": {
+  "file": "balance/spectral_minion_spell.png",
+  "name": "Spectral Minion",
+  "school": "balance"
+ },
+ "spinningscythe": {
+  "file": "balance/spinning_scythe_spell.png",
+  "name": "Spinning Scythe",
+  "school": "balance"
+ },
+ "spinysaur": {
+  "file": "life/spinysaur_spell.png",
+  "name": "Spinysaur",
+  "school": "life"
+ },
+ "spiritarmor": {
+  "file": "life/spirit_armor_spell.png",
+  "name": "Spirit Armor",
+  "school": "life"
+ },
+ "spiritblade": {
+  "file": "balance/spirit_blade_spell.png",
+  "name": "Spirit Blade",
+  "school": "balance"
+ },
+ "spiritdefuse": {
+  "file": "balance/spirit_defuse_spell.png",
+  "name": "Spirit Defuse",
+  "school": "balance"
+ },
+ "spiritshield": {
+  "file": "balance/spirit_shield_spell.png",
+  "name": "Spirit Shield",
+  "school": "balance"
+ },
+ "spiritspear": {
+  "file": "balance/spirit_spear_spell.png",
+  "name": "Spirit Spear",
+  "school": "balance"
+ },
+ "spirittrap": {
+  "file": "balance/spirit_trap_spell.png",
+  "name": "Spirit Trap",
+  "school": "balance"
+ },
+ "spiritualtribunal": {
+  "file": "balance/spiritual_tribunal_spell.png",
+  "name": "Spiritual Tribunal",
+  "school": "balance"
+ },
+ "spiritweakness": {
+  "file": "balance/spirit_weakness_spell.png",
+  "name": "Spirit Weakness",
+  "school": "balance"
+ },
  "splashsquatch": {
   "file": "myth/splashsquatch_spell.png",
   "name": "Splashsquatch",
   "school": "myth"
+ },
+ "sprite": {
+  "file": "life/sprite_spell.png",
+  "name": "Sprite",
+  "school": "life"
+ },
+ "spriteguardian": {
+  "file": "life/sprite_guardian_spell.png",
+  "name": "Sprite Guardian",
+  "school": "life"
+ },
+ "spriteswarm": {
+  "file": "life/sprite_swarm_spell.png",
+  "name": "Sprite Swarm",
+  "school": "life"
+ },
+ "squallamplify": {
+  "file": "ice/squall_amplify_spell.png",
+  "name": "Squall Amplify",
+  "school": "ice"
+ },
+ "squallblade": {
+  "file": "ice/squall_blade_spell.png",
+  "name": "Squall Blade",
+  "school": "ice"
+ },
+ "stabilize": {
+  "file": "star/stabilize_spell.png",
+  "name": "Stabilize",
+  "school": "star"
+ },
+ "starfall": {
+  "file": "star/starfall_spell.png",
+  "name": "Starfall",
+  "school": "star"
+ },
+ "starspawn": {
+  "file": "life/starspawn_spell.png",
+  "name": "Starspawn",
+  "school": "life"
+ },
+ "stealcharm": {
+  "file": "fire/steal_charm_spell.png",
+  "name": "Steal Charm",
+  "school": "fire"
+ },
+ "stealhealth": {
+  "file": "death/steal_health_spell.png",
+  "name": "Steal Health",
+  "school": "death"
+ },
+ "stealpip": {
+  "file": "balance/steal_pip_spell.png",
+  "name": "Steal Pip",
+  "school": "balance"
+ },
+ "stealward": {
+  "file": "ice/steal_ward_spell.png",
+  "name": "Steal Ward",
+  "school": "ice"
  },
  "stonecolossus": {
   "file": "myth/stone_colossus_spell.png",
   "name": "Stone Colossus",
   "school": "myth"
  },
+ "stormblade": {
+  "file": "storm/stormblade_spell.png",
+  "name": "Stormblade",
+  "school": "storm"
+ },
  "stormingorgon": {
   "file": "myth/stormin_gorgon_spell.png",
   "name": "Stormin' Gorgon",
   "school": "myth"
+ },
+ "stormlord": {
+  "file": "storm/storm_lord_spell.png",
+  "name": "Storm Lord",
+  "school": "storm"
+ },
+ "stormowl": {
+  "file": "storm/storm_owl_spell.png",
+  "name": "Storm Owl",
+  "school": "storm"
+ },
+ "stormprism": {
+  "file": "storm/storm_prism_spell.png",
+  "name": "Storm Prism",
+  "school": "storm"
+ },
+ "stormshark": {
+  "file": "storm/storm_shark_spell.png",
+  "name": "Storm Shark",
+  "school": "storm"
+ },
+ "stormshield": {
+  "file": "storm/storm_shield_spell.png",
+  "name": "Storm Shield",
+  "school": "storm"
+ },
+ "stormspear": {
+  "file": "storm/stormspear_spell.png",
+  "name": "Stormspear",
+  "school": "storm"
+ },
+ "stormtrap": {
+  "file": "storm/storm_trap_spell.png",
+  "name": "Storm Trap",
+  "school": "storm"
+ },
+ "stormweakness": {
+  "file": "storm/storm_weakness_spell.png",
+  "name": "Storm Weakness",
+  "school": "storm"
+ },
+ "stormwing": {
+  "file": "storm/stormwing_spell.png",
+  "name": "Stormwing",
+  "school": "storm"
+ },
+ "stormzilla": {
+  "file": "storm/stormzilla_spell.png",
+  "name": "Stormzilla",
+  "school": "storm"
+ },
+ "storytrap": {
+  "file": "balance/story_trap_spell.png",
+  "name": "Story Trap",
+  "school": "balance"
+ },
+ "strangle": {
+  "file": "death/strangle_spell.png",
+  "name": "Strangle",
+  "school": "death"
+ },
+ "strengthblade": {
+  "file": "life/strength_blade_spell.png",
+  "name": "Strength Blade",
+  "school": "life"
+ },
+ "strong": {
+  "file": "sun/strong_spell.png",
+  "name": "Strong",
+  "school": "sun"
  },
  "stun": {
   "file": "myth/stun_spell.png",
   "name": "Stun",
   "school": "myth"
  },
+ "stunblock": {
+  "file": "ice/stun_block_spell.png",
+  "name": "Stun Block",
+  "school": "ice"
+ },
  "subdue": {
   "file": "myth/subdue_spell.png",
   "name": "Subdue",
   "school": "myth"
  },
+ "sunbird": {
+  "file": "fire/sunbird_spell.png",
+  "name": "Sunbird",
+  "school": "fire"
+ },
+ "sunserpent": {
+  "file": "fire/sun_serpent_spell.png",
+  "name": "Sun Serpent",
+  "school": "fire"
+ },
+ "sunvulture": {
+  "file": "fire/sun_vulture_spell.png",
+  "name": "Sun Vulture",
+  "school": "fire"
+ },
+ "supercharge": {
+  "file": "storm/supercharge_spell.png",
+  "name": "Supercharge",
+  "school": "storm"
+ },
+ "supernova": {
+  "file": "balance/supernova_spell.png",
+  "name": "Supernova",
+  "school": "balance"
+ },
  "swampclops": {
   "file": "myth/swamp_clops_spell.png",
   "name": "Swamp-Clops",
   "school": "myth"
+ },
+ "taigaking": {
+  "file": "life/taiga_king_spell.png",
+  "name": "Taiga King",
+  "school": "life"
+ },
+ "takepower": {
+  "file": "fire/take_power_spell.png",
+  "name": "Take Power",
+  "school": "fire"
  },
  "talos": {
   "file": "myth/talos_spell.png",
@@ -419,10 +3099,90 @@
   "name": "Tatzlewurm Terror",
   "school": "myth"
  },
+ "taunt": {
+  "file": "ice/taunt_spell.png",
+  "name": "Taunt",
+  "school": "ice"
+ },
+ "taweret": {
+  "file": "life/taweret_spell.png",
+  "name": "Taweret",
+  "school": "life"
+ },
+ "taweretsgrace": {
+  "file": "life/taweret_s_grace_spell.png",
+  "name": "Taweret's Grace",
+  "school": "life"
+ },
+ "taweretstouch": {
+  "file": "life/taweret_s_touch_spell.png",
+  "name": "Taweret's Touch",
+  "school": "life"
+ },
+ "tempergrendel": {
+  "file": "life/temper_grendel_spell.png",
+  "name": "Temper Grendel",
+  "school": "life"
+ },
+ "tempest": {
+  "file": "storm/tempest_spell.png",
+  "name": "Tempest",
+  "school": "storm"
+ },
+ "tempestwyvern": {
+  "file": "ice/tempest_wyvern_spell.png",
+  "name": "Tempest Wyvern",
+  "school": "ice"
+ },
+ "tenebroustrebuchet": {
+  "file": "fire/tenebrous_trebuchet_spell.png",
+  "name": "Tenebrous Trebuchet",
+  "school": "fire"
+ },
+ "terminusstrike": {
+  "file": "balance/terminus_strike_spell.png",
+  "name": "Terminus' Strike",
+  "school": "balance"
+ },
+ "thechariot": {
+  "file": "fire/the_chariot_spell.png",
+  "name": "The Chariot",
+  "school": "fire"
+ },
  "theemperor": {
   "file": "myth/the_emperor_spell.png",
   "name": "The Emperor",
   "school": "myth"
+ },
+ "thehierophant": {
+  "file": "ice/the_hierophant_spell.png",
+  "name": "The Hierophant",
+  "school": "ice"
+ },
+ "thermicgolem": {
+  "file": "storm/thermic_golem_spell.png",
+  "name": "Thermic Golem",
+  "school": "storm"
+ },
+ "thermicshield": {
+  "file": "storm/thermic_shield_spell.png",
+  "name": "Thermic Shield",
+  "school": "storm"
+ },
+ "thetower": {
+  "file": "storm/the_tower_spell.png",
+  "name": "The Tower",
+  "school": "storm"
+ },
+ "theworld": {
+  "file": "life/the_world_spell.png",
+  "name": "The World",
+  "school": "life"
+ },
+ "thievingdragon": {
+  "file": "ice/thieving_dragon_spell.png",
+  "name": "Thieving Dragon",
+  "school": "ice"
  },
  "thoth": {
   "file": "myth/thoth_spell.png",
@@ -434,15 +3194,85 @@
   "name": "Thothic Twist",
   "school": "myth"
  },
+ "threefoldfever": {
+  "file": "death/threefold_fever_spell.png",
+  "name": "Threefold Fever",
+  "school": "death"
+ },
+ "thunderingjinn": {
+  "file": "storm/thundering_jinn_spell.png",
+  "name": "Thundering Jinn",
+  "school": "storm"
+ },
+ "thunderman": {
+  "file": "storm/thunderman_spell.png",
+  "name": "Thunderman",
+  "school": "storm"
+ },
+ "thundersnake": {
+  "file": "storm/thunder_snake_spell.png",
+  "name": "Thunder Snake",
+  "school": "storm"
+ },
  "timeoflegend": {
   "file": "myth/time_of_legend_spell.png",
   "name": "Time of Legend",
   "school": "myth"
  },
+ "tombblade": {
+  "file": "death/tomb_blade_spell.png",
+  "name": "Tomb Blade",
+  "school": "death"
+ },
+ "tornadoblade": {
+  "file": "storm/tornado_blade_spell.png",
+  "name": "Tornado Blade",
+  "school": "storm"
+ },
+ "towershield": {
+  "file": "ice/tower_shield_spell.png",
+  "name": "Tower Shield",
+  "school": "ice"
+ },
+ "tranquility": {
+  "file": "life/tranquility_spell.png",
+  "name": "Tranquility",
+  "school": "life"
+ },
+ "tranquilize": {
+  "file": "fire/tranquilize_spell.png",
+  "name": "Tranquilize",
+  "school": "fire"
+ },
+ "trapdilution": {
+  "file": "balance/trap_dilution_spell.png",
+  "name": "Trap Dilution",
+  "school": "balance"
+ },
+ "treeofstrife": {
+  "file": "storm/tree_of_strife_spell.png",
+  "name": "Tree of Strife",
+  "school": "storm"
+ },
+ "triage": {
+  "file": "life/triage_spell.png",
+  "name": "Triage",
+  "school": "life"
+ },
+ "tribunaloni": {
+  "file": "balance/tribunal_oni_spell.png",
+  "name": "Tribunal Oni",
+  "school": "balance"
+ },
  "tricksteroni": {
   "file": "myth/trickster_oni_spell.png",
   "name": "Trickster Oni",
   "school": "myth"
+ },
+ "triton": {
+  "file": "storm/triton_spell.png",
+  "name": "Triton",
+  "school": "storm"
  },
  "troll": {
   "file": "myth/troll_spell.png",
@@ -454,6 +3284,36 @@
   "name": "Troll Minion",
   "school": "myth"
  },
+ "turmoiloni": {
+  "file": "storm/turmoil_oni_spell.png",
+  "name": "Turmoil Oni",
+  "school": "storm"
+ },
+ "typhoonattenuate": {
+  "file": "storm/typhoon_attenuate_spell.png",
+  "name": "Typhoon Attenuate",
+  "school": "storm"
+ },
+ "unbalance": {
+  "file": "balance/unbalance_spell.png",
+  "name": "Unbalance",
+  "school": "balance"
+ },
+ "unicorn": {
+  "file": "life/unicorn_spell.png",
+  "name": "Unicorn",
+  "school": "life"
+ },
+ "unstoppable": {
+  "file": "sun/unstoppable_spell.png",
+  "name": "Unstoppable",
+  "school": "sun"
+ },
+ "vampire": {
+  "file": "death/vampire_spell.png",
+  "name": "Vampire",
+  "school": "death"
+ },
  "vaporize": {
   "file": "myth/vaporize_spell.png",
   "name": "Vaporize",
@@ -464,19 +3324,154 @@
   "name": "Vassanji",
   "school": "myth"
  },
+ "vengeance": {
+  "file": "star/vengeance_spell.png",
+  "name": "Vengeance",
+  "school": "star"
+ },
+ "verdurousjinn": {
+  "file": "life/verdurous_jinn_spell.png",
+  "name": "Verdurous Jinn",
+  "school": "life"
+ },
  "verminvirtuoso": {
   "file": "myth/vermin_virtuoso_spell.png",
   "name": "Vermin Virtuoso",
   "school": "myth"
+ },
+ "virulence": {
+  "file": "star/virulence_spell.png",
+  "name": "Virulence",
+  "school": "star"
+ },
+ "virulentplague": {
+  "file": "death/virulent_plague_spell.png",
+  "name": "Virulent Plague",
+  "school": "death"
+ },
+ "volcanicgolem": {
+  "file": "ice/volcanic_golem_spell.png",
+  "name": "Volcanic Golem",
+  "school": "ice"
+ },
+ "volcanicshield": {
+  "file": "ice/volcanic_shield_spell.png",
+  "name": "Volcanic Shield",
+  "school": "ice"
+ },
+ "wallofblades": {
+  "file": "ice/wall_of_blades_spell.png",
+  "name": "Wall of Blades",
+  "school": "ice"
+ },
+ "waterelemental": {
+  "file": "storm/water_elemental_spell.png",
+  "name": "Water Elemental",
+  "school": "storm"
+ },
+ "weakness": {
+  "file": "balance/weakness_spell.png",
+  "name": "Weakness",
+  "school": "balance"
+ },
+ "wheeloffortune": {
+  "file": "balance/wheel_of_fortune_spell.png",
+  "name": "Wheel of Fortune",
+  "school": "balance"
+ },
+ "whitehartfire": {
+  "file": "fire/whitehart_fire_spell.png",
+  "name": "Whitehart Fire",
+  "school": "fire"
+ },
+ "wickedbull": {
+  "file": "fire/wicked_bull_spell.png",
+  "name": "Wicked Bull",
+  "school": "fire"
+ },
+ "wildamplify": {
+  "file": "fire/wild_amplify_spell.png",
+  "name": "Wild Amplify",
+  "school": "fire"
+ },
+ "wildblade": {
+  "file": "fire/wild_blade_spell.png",
+  "name": "Wild Blade",
+  "school": "fire"
+ },
+ "wildbolt": {
+  "file": "storm/wild_bolt_spell.png",
+  "name": "Wild Bolt",
+  "school": "storm"
+ },
+ "windstorm": {
+  "file": "storm/windstorm_spell.png",
+  "name": "Windstorm",
+  "school": "storm"
+ },
+ "wingedsorrow": {
+  "file": "death/winged_sorrow_spell.png",
+  "name": "Winged Sorrow",
+  "school": "death"
+ },
+ "wingsoffate": {
+  "file": "life/wings_of_fate_spell.png",
+  "name": "Wings of Fate",
+  "school": "life"
+ },
+ "wingsofnight": {
+  "file": "life/wings_of_night_spell.png",
+  "name": "Wings of Night",
+  "school": "life"
+ },
+ "wintermoon": {
+  "file": "ice/winter_moon_spell.png",
+  "name": "Winter Moon",
+  "school": "ice"
+ },
+ "wintertrap": {
+  "file": "ice/winter_trap_spell.png",
+  "name": "Winter Trap",
+  "school": "ice"
  },
  "witchshousecall": {
   "file": "myth/witch_s_house_call_spell.png",
   "name": "Witch's House Call",
   "school": "myth"
  },
+ "wobbegongfrenzy": {
+  "file": "death/wobbegong_frenzy_spell.png",
+  "name": "Wobbegong Frenzy",
+  "school": "death"
+ },
+ "woeofshu": {
+  "file": "ice/woe_of_shu_spell.png",
+  "name": "Woe of Shu",
+  "school": "ice"
+ },
+ "woollymammoth": {
+  "file": "ice/woolly_mammoth_spell.png",
+  "name": "Woolly Mammoth",
+  "school": "ice"
+ },
+ "wraith": {
+  "file": "death/wraith_spell.png",
+  "name": "Wraith",
+  "school": "death"
+ },
  "wreckinettin": {
   "file": "myth/wreckin_ettin_spell.png",
   "name": "Wreckin' Ettin",
   "school": "myth"
+ },
+ "wyldfire": {
+  "file": "fire/wyldfire_spell.png",
+  "name": "Wyldfire",
+  "school": "fire"
+ },
+ "zandthebandit": {
+  "file": "life/zand_the_bandit_spell.png",
+  "name": "Zand the Bandit",
+  "school": "life"
  }
 }
