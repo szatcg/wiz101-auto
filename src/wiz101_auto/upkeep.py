@@ -306,6 +306,8 @@ async def unstick(client, frozen: bool = False) -> bool:
     to the nearest on-map landmark it can walk from. True if it was stuck.
     `frozen`: teleports are being refused too: straight to the relog."""
     try:
+        if not await is_free(client):
+            return False  # fighting, a dialogue or a cutscene: standing still is normal
         if await can_move(client):
             return False
         me = _pt(await client.body.position())

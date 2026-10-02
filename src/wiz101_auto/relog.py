@@ -111,7 +111,25 @@ async def play_from_character_select(client) -> bool:
         client._relogging_until = 0.0
 
 
+async def _fighting(client) -> bool:
+    """In a fight with enemies: logging out would throw it away (a stuck
+    check fired as Malistaire's cutscene began, the relog went through in
+    his first round and his lair reset)."""
+    try:
+        if not await client.in_battle():
+            return False
+        mobs = await client.get_mobs()
+    except Exception:
+        return False
+    if mobs:
+        logger.warning("relog: not during a fight (logging out would lose it and reset a dungeon)")
+        return True
+    return False  # (a duel circle 'battle' with nobody in it: the relog is what frees it)
+
+
 async def _relog(client) -> bool:
+    if await _fighting(client):
+        return False
     logger.warning("relogging: the wizard is stuck in place; quitting to character select and back")
     zone_before = await client.zone_name()
     if await _confirm_logout(client):
@@ -131,6 +149,9 @@ async def _relog(client) -> bool:
         logger.warning("relog: no Quit button after Escape; windows saved to state/relog_menu.txt")
         return False
     await _dump(client, "menu")
+    if await _fighting(client):
+        await client.send_key(Keycode.ESC, 0.1)  # (the menu, closed again)
+        return False
     if not await _click_text(client, QUIT_WORDS, "menu"):
         return False
     await asyncio.sleep(1.0)
