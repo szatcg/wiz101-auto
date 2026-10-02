@@ -12,6 +12,7 @@ Combat itself is handled concurrently by the Fighter task.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
 import json
 import math
@@ -149,6 +150,8 @@ SEEK_SPOTS = 12  # remembered spots of a Defeat target looked at, nearest first
 SEEK_NEAR = 600.0  # a remembered spot closer than this: already looked
 SEEK_CLEAR = 1200.0  # no other kind of enemy this close to a spot we go to
 LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close to it
+ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far, times the misses
+ENGAGE_BACKOFF_MAX = 2400.0
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -1529,6 +1532,27 @@ class Quester:
             return  # Recall can't come back in here: the entrance mark stays
         logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
         await self._mark_here("fight", objective=objective, require_clear=False)
+
+    async def _mark_before_boss(self, target: str, objective: str, zone: str):
+        """In a dungeon, right before going after the objective's enemy: mark
+        this spot, so a defeat's Recall lands beside it (the player, at
+        Malistaire: the mark made on arriving was rooms away after his Soul
+        Servants, and a heal trip came back to the wrong volcano zone). Once
+        per objective and zone."""
+        done = self.__dict__.setdefault("_boss_marked", set())
+        if (objective, zone) in done or self._recall_pending or is_team_up_zone(zone):
+            return
+        if not ("/interiors/" in zone.lower() or await self._in_dungeon(zone)):
+            return
+        from .dungeons import no_return
+
+        if no_return(zone):
+            return
+        if await self.client.in_battle():
+            return
+        logger.info(f"marking here before going after {target} (Recall back beside it after a defeat)")
+        if await self._mark_here("fight", objective=objective, require_clear=False):
+            done.add((objective, zone))
 
     async def _mark_here(self, kind: str = "dungeon", objective: str | None = None,
                          require_clear: bool = True) -> bool:
@@ -4947,12 +4971,39 @@ class Quester:
                     if adapter._pending is not None:
                         logger.info(f"{target} in view: the right deck goes in before the fight")
                         return  # (the next step's deck tick switches it, clear of enemies)
-                logger.info(f"going after {target} for {objective!r}")
-                allow_engage(self.client)  # this teleport is meant to start the fight
-                await self.client.teleport(pos)
-                await asyncio.sleep(3.0)
+                await self._mark_before_boss(target, objective, zone_now)
+                misses = self.__dict__.setdefault("_engage_misses", {})
+                key = (objective, zone_now, target)
+                miss = misses.get(key, 0)
+                if miss:
+                    # Landing on him started nothing (Malistaire: his fight comes
+                    # with a cutscene that walking up to him triggers): back off,
+                    # further each time, and walk in.
+                    back = min(ENGAGE_BACKOFF * miss, ENGAGE_BACKOFF_MAX)
+                    me = await self._position()
+                    dx, dy = me.x - pos.x, me.y - pos.y
+                    norm = math.hypot(dx, dy)
+                    if norm < 50.0:  # (standing on him: any direction)
+                        dx, dy, norm = 1.0, 0.0, 1.0
+                    start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
+                    logger.info(f"landing on {target} started no fight ({miss}x): "
+                                f"walking up to it from {back:.0f} away")
+                    allow_engage(self.client)
+                    await self.client.teleport(start)
+                    await asyncio.sleep(1.5)
+                    if not await self.client.in_battle():
+                        with contextlib.suppress(Exception):
+                            await asyncio.wait_for(self.client.goto(pos.x, pos.y), 20)
+                        await asyncio.sleep(4.0)
+                else:
+                    logger.info(f"going after {target} for {objective!r}")
+                    allow_engage(self.client)  # this teleport is meant to start the fight
+                    await self.client.teleport(pos)
+                    await asyncio.sleep(3.0)
                 if await self.client.in_battle():
+                    misses.pop(key, None)
                     return
+                misses[key] = miss + 1
             else:
                 where = objective_zone(objective)
                 here_zone = await self.client.zone_name() or ""
