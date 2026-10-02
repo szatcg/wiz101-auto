@@ -75,6 +75,21 @@ async def health_mana(client) -> tuple[float, float]:
     return (hp / max_hp if max_hp else 1.0), (mana / max_mana if max_mana else 1.0)
 
 
+async def potion_ok(client, tripped: bool = False) -> bool:
+    """Potions only when nothing else heals (the player's rule): inside a
+    dungeon we can't leave to heal and come back to (the Death Realm, a team
+    dungeon) or one a heal trip already failed from. Everywhere else the
+    wisps, or a mark and the hub, do it; the potions are kept for that."""
+    from .dungeons import DungeonMemory, no_return
+    from .teamup import is_team_up_zone
+
+    zone = await client.zone_name() or ""
+    if no_return(zone) or is_team_up_zone(zone):
+        return True
+    in_dungeon = zone in DungeonMemory.load().dungeons or "/interiors/" in zone.lower()
+    return tripped and in_dungeon
+
+
 async def maintain(client, cfg: UpkeepConfig):
     hp, mana = await health_mana(client)
 
@@ -91,7 +106,8 @@ async def maintain(client, cfg: UpkeepConfig):
             logger.debug(f"wisp collection failed: {exc}")
         hp, mana = await health_mana(client)
 
-    if cfg.use_potions and (hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio):
+    if (cfg.use_potions and (hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio)
+            and await potion_ok(client)):
         if await client.stats.potion_charge() >= 1.0:
             logger.info(f"drinking potion (hp {hp:.0%}, mana {mana:.0%})")
             await ui.click(client, ui.POTION_BUTTON)
@@ -565,13 +581,6 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             await back_to_start()
             return True
 
-        low = hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio
-        if cfg.use_potions and low and await client.stats.potion_charge() >= 1.0:
-            logger.info(f"drinking potion (hp {hp:.0%}, mana {mana:.0%})")
-            await ui.click(client, ui.POTION_BUTTON)
-            await asyncio.sleep(1.5)
-            continue
-
         if cfg.collect_wisps:
             # 1. wisps in view  2. remembered spawn points  3. search the zone once
             if await collect_wisps(client, cfg):
@@ -579,6 +588,17 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 now_hp, now_mana = await health_mana(client)
                 if now_hp > hp or now_mana > mana:
                     continue
+
+        # A potion only when stuck in a dungeon with no other way to heal.
+        low = hp < cfg.potion_health_ratio or mana < cfg.potion_mana_ratio
+        if (cfg.use_potions and low and await client.stats.potion_charge() >= 1.0
+                and await potion_ok(client, tripped)):
+            logger.info(f"drinking potion (hp {hp:.0%}, mana {mana:.0%}): no other way to heal here")
+            await ui.click(client, ui.POTION_BUTTON)
+            await asyncio.sleep(1.5)
+            continue
+
+        if cfg.collect_wisps:
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
             hub = zone.split("/")[-1].endswith("_Hub")  # the Oasis, the Commons: never any wisps

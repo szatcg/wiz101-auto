@@ -357,6 +357,14 @@ class QuestGivers:
                 await asyncio.sleep(0.2)
             if await ui.is_visible(self.client, ui.NPC_RANGE):
                 break
+        else:
+            # Still no prompt (Milos Bookwyrm behind his desk): walk right up
+            # to the NPC, as the quest step's talk does.
+            try:
+                await self.client.goto(pos.x, pos.y)
+            except Exception:
+                pass
+            await asyncio.sleep(0.4)
         prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
         if "talk" in prompt:
             if self.q.dialogue:
