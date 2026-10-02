@@ -200,7 +200,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
-                   "zone_first": 3, "fight_for_item": 2}
+                   "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
@@ -1198,6 +1198,26 @@ class Quester:
                 self._bad_gates.add((zone, next_zone))
             await wait_for_loading(self.client)
         return await self.client.zone_name() == dest
+
+    async def _hub_for_objective(self, objective: str, zone: str) -> bool:
+        """The objective is in this world's hub and we're elsewhere in the
+        world: the hub button, even out of a dungeon whose part is done ('Talk
+        To Cyrus Drake in The Basilica' after Pyromancer's Tomb: it walked out
+        through the dungeon's exit instead). True if it went."""
+        from .dungeon_heal import go_to_hub
+        from .travel_data import world_hub
+
+        dest = objective_zone(objective)
+        hub = world_hub(zone)
+        if not dest or not hub or dest != hub or zone == hub or is_team_up_zone(zone):
+            return False
+        if dest.split("/")[0] != zone.split("/")[0] or not await is_free(self.client):
+            return False
+        if not self._may_try(objective, zone, "hub_button"):
+            return False
+        logger.info(f"{objective!r} is in the hub: the hub button instead of walking there")
+        self._teleported = True  # (not a walk-through gate: don't learn it)
+        return await go_to_hub(self.client)
 
     async def _hub_shortcut(self, dest: str) -> bool:
         """The hub button first when the walk from the hub is shorter than
@@ -5355,6 +5375,8 @@ class Quester:
 
         logger.info(f"[{zone}] {objective}")
         await self.controller.checkpoint()
+        if await self._hub_for_objective(objective, zone or ""):
+            return
         near = distance(await self._position(), target) < 3000
         sigil = await self._sigil_at(target) if near else None
         if sigil is not None:

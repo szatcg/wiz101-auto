@@ -84,3 +84,9 @@ def test_same_objective_mark_farther_than_walking_isnt_the_place():
     # from A (1 zone) beats Recalling to B (2 zones from Hub).
     mark = Mark("B", "Explore Area in Hub", "room")
     assert not recall_is_faster("A", "Hub", mark, hops, objective="Explore Area in Hub")
+
+
+def test_never_recall_toward_a_hub_objective():
+    m = Mark("DragonSpire/DS_A2_Battle/Interiors/Tomb", "Talk To Cyrus Drake in The Basilica", "room")
+    assert not recall_is_faster("DragonSpire/DS_A2_Battle/Interiors/Tomb2", "DragonSpire/DS_Hub_Cathedral", m,
+                                lambda a, b: None, "Talk To Cyrus Drake in The Basilica")

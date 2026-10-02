@@ -88,15 +88,18 @@ def recall_is_faster(
     if is_world_hub(mark.zone):
         return False  # the hub button goes there without spending the mark
     other_world = bool(dest) and dest.split("/")[0] != mark.zone.split("/")[0]
-    if objective and mark.objective == objective and not other_world and (
+    # (A heal trip's "room" mark only notes the objective of the moment: not
+    # its place. One in Pyromancer's Tomb pulled the bot back in on its way
+    # to Cyrus Drake in the Basilica.)
+    if objective and mark.objective == objective and not other_world and mark.kind != "room" and (
         not dest or hops(mark.zone, dest) in (0, None)
     ):
         # (Not a mark in Wizard City for a Marleybone objective, nor a heal
         # trip's mark in the Necropolis when the objective had just moved on
         # to the Academy, nearer on foot.)
         return True
-    if not dest or dest == here:
-        return False
+    if not dest or dest == here or is_world_hub(dest):
+        return False  # (the hub: its button gets there)
     via = hops(mark.zone, dest)
     if via is None:
         return False
