@@ -129,3 +129,14 @@ def test_the_deck_call_holds_for_the_encounter(tmp_path, monkeypatch):
     a.mode = {"deck": "boss", "vs": ["Iona Pyrelance"], "cards": {"Feint": 3}}
     a.prepare_for("Iona Pyrelance", alone=False)  # a second look disagrees: the call holds
     assert a.wanted() is None
+
+
+def test_the_loss_ladder():
+    from wiz101_auto.deck_adapt import next_rung
+
+    assert next_rung({"aoe": 2}, "aoe") is None  # keep trying this deck
+    assert next_rung({"aoe": 3}, "aoe") == "single"  # then the other deck
+    assert next_rung({"aoe": 3, "single": 3}, "single") == "search"  # both lost: the simulator
+    assert next_rung({"single": 3}, "single") == "aoe"
+    assert next_rung({"aoe": 3, "single": 3, "custom": 3}, "custom") == "search"  # search again
+    assert next_rung({"custom": 1}, "custom") is None

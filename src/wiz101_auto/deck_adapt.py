@@ -76,19 +76,50 @@ AOE_LOSSES_BEFORE_SINGLE = 3
 DECISION_HOLD = 600.0  # seconds a deck call for an enemy holds (no flip-flopping)
 
 
-def aoe_losses(boss: str) -> int:
-    return int(_read(TACTICS_FILE).get(boss, {}).get("aoe_losses", 0))
+LADDER_LOSSES = 3  # losses with one deck before the next rung (the player's rule)
 
 
-def add_aoe_loss(boss: str) -> int:
+def _tactic(key: str) -> dict:
+    return _read(TACTICS_FILE).get(key, {})
+
+
+def _save_tactic(key: str, entry: dict):
     data = _read(TACTICS_FILE)
-    entry = data.setdefault(boss, {})
-    entry["aoe_losses"] = int(entry.get("aoe_losses", 0)) + 1
+    data[key] = entry
     try:
         TACTICS_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")
     except OSError:
         pass
-    return entry["aoe_losses"]
+
+
+def aoe_losses(boss: str) -> int:
+    """Losses with the AoE deck in encounters with `boss` (any group)."""
+    data = _read(TACTICS_FILE)
+    n = 0
+    for key, entry in data.items():
+        if boss in key.split(","):
+            n = max(n, int(entry.get("aoe_losses", 0)), int(entry.get("by_role", {}).get("aoe", 0)))
+    return n
+
+
+def ladder_role(name: str) -> str | None:
+    """The deck the loss ladder settled on for an encounter with `name`."""
+    for key, entry in _read(TACTICS_FILE).items():
+        if name in key.split(",") and entry.get("role"):
+            return entry["role"]
+    return None
+
+
+def next_rung(by_role: dict, role: str) -> str | None:
+    """After a loss with `role`: the deck to try next ('aoe', 'single', or
+    'search' for a simulator search), or None to keep the same deck."""
+    if by_role.get(role, 0) < LADDER_LOSSES:
+        return None
+    if role in ("aoe", "single"):
+        other = "single" if role == "aoe" else "aoe"
+        if by_role.get(other, 0) < LADDER_LOSSES:
+            return other
+    return "search"
 
 
 def wants_single(alone: bool | None, losses: int) -> bool | None:
@@ -126,44 +157,41 @@ class DeckAdapter:
             pass
 
     def on_defeat(self, enemies: list[str], bosses: set[str] = frozenset()):
-        """A lost fight: search a deck for exactly this group (once per group
-        at a time; the search runs as its own process)."""
+        """A lost fight (the player's ladder, instead of setting the quest
+        aside): each loss counts against the deck that lost; after
+        LADDER_LOSSES with one deck the other one goes in; after that many
+        with both, a simulator search for exactly this group, its deck in
+        the third deck item ('custom'); losing with that too, search again."""
         group = sorted(set(enemies))
-        if not group or (self._search is not None and self._search.poll() is None):
-            return
-        from .combat.sim import load_stats
-
-        known = load_stats().get("enemies", {})
-        # (A boss new to the stats, War Oni, is known from the battle's own flag.)
-        if not any(n in bosses or known.get(n, {}).get("boss") for n in group):
-            # Everyday enemies (Otomo Courier, Sanzoku Outlaw): the default deck
-            # stays; a boss deck is for bosses (the player's rule).
-            logger.info(f"deck: lost to {', '.join(group)} (no boss): keeping the default deck")
+        if not group:
             return
         key = ",".join(group)
-        cached = _read(BOSS_DECKS).get(key)
-        bosses_here = [n for n in group if n in bosses or known.get(n, {}).get("boss")]
-        company = len(group) >= 2
-        if company and self.mode.get("deck", "general") in ("general", "general-pending"):
-            for b in bosses_here:
-                n = add_aoe_loss(b)
-                logger.info(f"deck: lost to {b} with the AoE deck ({n}/{AOE_LOSSES_BEFORE_SINGLE} before "
-                            "the single-target deck)")
-        self._equip_search = not company or any(
-            aoe_losses(b) >= AOE_LOSSES_BEFORE_SINGLE for b in bosses_here)
-        if self.mode.get("deck") == "boss" and sorted(self.mode.get("vs") or []) == group:
-            # Already on the deck made for them: one loss is the fight's
-            # variance; losing again with it, search anew.
-            self.mode["losses"] = self.mode.get("losses", 0) + 1
-            self._save()
-            if self.mode["losses"] < CACHED_LOSSES_BEFORE_SEARCH:
-                return
-        elif _usable(cached) and self._equip_search:
-            logger.info(f"deck: lost to {', '.join(group)}; putting in the deck that was found for them")
-            self._pending = (cached["deck"], f"boss deck vs {key} (remembered)", group)
+        role = self.mode.get("role") or ("single" if self.mode.get("deck") == "boss" else "aoe")
+        entry = _tactic(key)
+        by_role = entry.setdefault("by_role", {})
+        by_role[role] = by_role.get(role, 0) + 1
+        entry["at"] = time.time()
+        rung = next_rung(by_role, role)
+        logger.info(f"deck: lost to {', '.join(group)} with the {role} deck "
+                    f"({by_role[role]}/{LADDER_LOSSES} before the next deck)")
+        if rung in ("aoe", "single"):
+            entry["role"] = rung
+            _save_tactic(key, entry)
+            deck = self.single_deck(group[0]) if rung == "single" else None
+            if rung == "single" and deck:
+                self._pending = (deck[0], f"boss deck: single-target vs {key} (after {LADDER_LOSSES} losses)",
+                                 group)
+            elif rung == "aoe" and _read(GENERAL_FILE).get("deck"):
+                self._pending = (_read(GENERAL_FILE)["deck"], "general deck", [])
+            logger.info(f"deck: switching to the {rung} deck for {key}")
             return
-        elif _usable(cached):
-            return  # (the AoE deck stays for now; that one's ready when it's due)
+        _save_tactic(key, entry)
+        if rung != "search" or (self._search is not None and self._search.poll() is None):
+            return
+        entry["searches"] = entry.get("searches", 0) + 1
+        by_role["custom"] = 0  # (a fresh deck: its own count)
+        _save_tactic(key, entry)
+        self._equip_search = True
         ADVICE_FILE.unlink(missing_ok=True)
         try:  # the search simulates from the stats: with this fight in them (a new boss)
             from .combat.calibrate import write_stats
@@ -171,7 +199,8 @@ class DeckAdapter:
             write_stats([Path("activity.log")])
         except Exception as exc:
             logger.debug(f"deck: stats rebuild failed: {exc}")
-        logger.info(f"deck: lost to {', '.join(group)}; searching a deck for them ({SEARCH_MINUTES:.0f} min)")
+        logger.info(f"deck: both decks lost to {', '.join(group)}; searching a deck for them "
+                    f"({SEARCH_MINUTES:.0f} min, search {entry['searches']})")
         self._search_vs = group
         self._search_started = time.time()
         self._search = subprocess.Popen(
@@ -239,6 +268,16 @@ class DeckAdapter:
             self._bosses = {n for n, e in load_stats().get("enemies", {}).items() if e.get("boss")}
         if boss not in self._bosses and alone is None:
             return  # (an everyday enemy of a boss's group: Imitsu Defouler with Plague Oni)
+        settled = ladder_role(boss)
+        if settled == "custom":
+            cached = next((e for k, e in _read(BOSS_DECKS).items() if boss in k.split(",") and e.get("deck")),
+                          None)
+            if cached and self.mode.get("role") != "custom":
+                logger.info(f"deck: {boss} is next: the custom deck found for it")
+                self._pending = (cached["deck"], f"boss deck: custom vs {boss} (remembered)", [boss])
+            return
+        if settled in ("aoe", "single"):
+            alone = settled == "single"
         single = wants_single(alone, aoe_losses(boss))
         if single is None:
             return
@@ -291,8 +330,12 @@ class DeckAdapter:
                     logger.info(f"deck: a deck for {advice['vs']} is ready; the AoE deck stays until "
                                 f"{AOE_LOSSES_BEFORE_SINGLE} losses with it")
                     return None
-                return advice["deck"], (f"boss deck vs {advice['vs']} (simulated: win {advice['win']:.0%} in "
-                                        f"~{advice['rounds']:.1f} rounds)")
+                for k in (",".join(self._search_vs),):
+                    entry = _tactic(k)
+                    entry["role"] = "custom"
+                    _save_tactic(k, entry)
+                return advice["deck"], (f"boss deck: custom vs {advice['vs']} (simulated: win "
+                                        f"{advice['win']:.0%} in ~{advice['rounds']:.1f} rounds)")
         if self._improve is not None and self._improve.poll() is not None:
             self._improve = None
             cand, cur = _read(CANDIDATE_FILE), _read(GENERAL_FILE)
@@ -345,12 +388,17 @@ class DeckAdapter:
         # when learned (Blinding Light) included: the player's call.
         from . import deckitems
 
-        role = "single" if why.startswith("boss") else "aoe"
-        if deckitems.ready():
+        role = "custom" if "custom" in why else ("single" if why.startswith("boss") else "aoe")
+        if deckitems.ready() and (role != "custom" or deckitems.load().get("custom")):
             # Two deck items, filled once: wear the other one (seconds, not a
-            # card-by-card rebuild).
+            # card-by-card rebuild). The custom one (a search's deck for one
+            # encounter, in the third item) is filled when it goes on.
             logger.info(f"deck: switching to the {role} deck item ({why})")
             if await deckitems.DeckItems(client).equip(role):
+                if role == "custom":
+                    await move_to_safety(client, 1500.0, "before filling the custom deck")
+                    got = await set_deck(client, deck)
+                    logger.info(f"deck: custom deck now {got}")
                 self._switch_retries = 0
                 self.mode = {"deck": "boss" if role == "single" else "general",
                              "vs": self._search_vs if role == "single" else None,

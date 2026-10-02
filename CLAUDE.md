@@ -126,7 +126,7 @@ while the bot is stopped.
 | `bring_out.py` | a "Talk to X" with no marker and X nowhere (Clockwork in Katzenstein's Lab): beat the room's boss, collect pick-ups, talk to NPCs, try switches, one per step, until X appears |
 | `givers.py` | talks once to each named NPC nearby (in the main world) to pick up quests |
 | `marks.py` | Mark/Recall decisions: mark before trips of 2+ zones, recall when mark + walk beats walking |
-| `setbacks.py` | quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight) |
+| `setbacks.py` | side quests set aside after losing the same fight twice, or 5 min without progress (no objective change, no won fight); main-story fights are never set aside for losses: the deck ladder in `deck_adapt.py` (3 losses with one deck item -> the other, 3 with both -> a simulator search whose deck goes in the third deck item, `custom`; `state/boss_tactics.json`) |
 | `questlist.py` | the quest order to follow (`docs/QuestList.txt`) and the completed-quest log |
 | `npc.py` | NPC multi-quest menu (`NPCServicesWin` / `NPCServicesOption*`) |
 | `collect.py` | "Collect X" objectives (entity name matching) |

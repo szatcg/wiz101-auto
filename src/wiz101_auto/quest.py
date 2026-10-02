@@ -1870,6 +1870,16 @@ class Quester:
         level = await self.client.stats.reference_level()
         quest = self._active_quest
         main = quest in self._mainline
+        if main:
+            # The player's rule: a main-story fight is never set aside for
+            # losses; the deck ladder (the other deck, then a simulator search)
+            # takes over, and a lost fight isn't a stall either.
+            n = self.setbacks.defeats.get(objective, 0) + 1
+            self.setbacks.defeats[objective] = n
+            self.setbacks.save()
+            self._last_progress_time = time.monotonic()
+            logger.info(f"defeat {n} on {objective!r}; trying again (the deck ladder decides the deck)")
+            return
         if self.setbacks.record_defeat(objective, quest, level, main=main):
             tries = MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER
             until = f"level {level + 1}" if main else f"level {level + 1} or an hour"
