@@ -4855,6 +4855,18 @@ class Quester:
                 self.controller.end_idle()
             if not await is_free(self.client):
                 return
+        shop = getattr(self, "potions", None)
+        if shop and not team and not await self._in_dungeon(zone_now) and not no_return(zone_now):
+            self.controller.allow_idle(300)  # the trip to the Commons and back
+            try:
+                acted = await shop.tick()
+            except Exception as exc:
+                logger.opt(exception=exc).warning("potion trip failed")
+                acted = True
+            finally:
+                self.controller.end_idle()
+            if acted:
+                return
         pet = getattr(self, "pet", None)
         if pet and not team and not await self._in_dungeon(zone_now):
             self.controller.allow_idle(1800)  # the trip and up to dozens of games

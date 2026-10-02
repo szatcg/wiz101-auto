@@ -141,6 +141,8 @@ while the bot is stopped.
 | `simviz.py`, `sim.html` | the /sim page (reports list, stats, battle-board replays from `sim.replay`) |
 | `combat/rollout.py` | boss/hard fights: each move played out in the simulator in worker processes (~3 s), the brain's move replaced when another is clearly better (`combat.rollouts`) |
 | `gear.py` | new backpack item: tries just it against what is worn; level-up: retries items that could not be worn before. `state/gear.json` remembers items already beaten (never retried) |
+| `potions.py` | out of potions (`upkeep.buy_potions`): Hilda Brewer in the Commons, Fill All, Buy, Recall back (window names from Deimos) |
+| `walkmap.py`, `geo/` | collision-aware teleports from the zone's collision.bcd (vendored from Deimos): every landing snapped to walkable ground; refused jumps step back; zone.nav squares for scouting a zone from under the map (collect) |
 | `petdance.py` | `pet` trips: the dance-game moves hook (from Deimos, by peechez; GPL-3.0), the Pet Pavilion route, playing, feeding, rewards |
 | `trainer.py` | trips to the school professor (Go Home, dorm door, school door) at `progression.train_levels`; trains new spells |
 | `bossfarm.py`, `dungeons.py` | `mode: boss` (`boss_farm.boss`, `until_item`, `max_runs`): repeat a learned dungeon boss |

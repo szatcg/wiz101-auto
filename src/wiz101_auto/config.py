@@ -28,6 +28,7 @@ class QuestConfig:
 @dataclass
 class UpkeepConfig:
     use_potions: bool = True
+    buy_potions: bool = True  # out of potions: a trip to Hilda Brewer in the Commons for a full set
     potion_health_ratio: float = 0.5
     potion_mana_ratio: float = 0.2
     collect_wisps: bool = True
