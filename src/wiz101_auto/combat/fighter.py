@@ -264,6 +264,7 @@ class Fighter(CombatHandler):
         self._unknown_left = 0  # deck cards to come not yet seen
         self._fleeing = False
         self._want_flee = False  # this fight isn't needed: try to flee every round
+        self._flee_refused = False  # a dungeon flee failed this fight: not tried again
         self._flee_spot: tuple[float, float] | None = None  # where on Flee a click worked
         self._action_spot: tuple[float, float] | None = None  # where on Pass a click worked
         self._flee_method = ""
@@ -389,7 +390,7 @@ class Fighter(CombatHandler):
         """Solo in a dungeon with our mark in it: flee while alive when the
         next enemy round could kill us (brain.flee_before_death); the quester
         then heals and Recalls back. True once fled."""
-        if self.flee_to_mark is None or self._flee_tried_this_round:
+        if self.flee_to_mark is None or self._flee_tried_this_round or self._flee_refused:
             return False
         from . import sim
         from .brain import flee_before_death
@@ -408,13 +409,18 @@ class Fighter(CombatHandler):
         self._flee_tried_this_round = True
         logger.warning(f"health {battle.me.health} and the enemies can hit for ~{threat:.0f}: "
                        "fleeing alive to heal and Recall back (dying would reset the dungeon)")
-        if await self._flee():
+        if await self._flee(quick=True):
             self.fled = True
             return True
+        # (Malistaire Drake's: no confirmation at the spot that worked all
+        # day, then 12 more spots took 1.5 min, the turn was lost and so was
+        # the wizard. Once it fails, fight on.)
+        logger.warning("could not flee this fight: fighting on")
+        self._flee_refused = True
         self._fleeing = False
         return False
 
-    async def _flee(self) -> bool:
+    async def _flee(self, quick: bool = False) -> bool:
         """Flee on purpose, then answer Yes to "Are you sure you want to flee?
         You will lose all your Mana..." (mana comes back quickly from wisps).
         True once the flee went through."""
@@ -429,6 +435,8 @@ class Fighter(CombatHandler):
             r = await flee_btn.scale_to_client()
             w, h = r.x2 - r.x1, r.y2 - r.y1
             spots = _ordered(ACTION_SPOTS, self._flee_spot or self._action_spot)
+            if quick:  # (the spot that works, and WizWalker's own click)
+                spots = spots[:1]
             for fx, fy in spots:
                 x, y = int(r.x1 + w * fx), int(r.y1 + h * fy)
 
@@ -763,6 +771,7 @@ class Fighter(CombatHandler):
         self._judged_fight = False
         self._fleeing = False
         self._want_flee = False
+        self._flee_refused = False
         self._last_plan = ""
         self._had_boss = False
         self.fled = False
