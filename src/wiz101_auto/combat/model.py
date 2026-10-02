@@ -118,10 +118,25 @@ class Combatant:
     # Per-school incoming damage reduction as a fraction (0.3 = resists 30%,
     # negative = takes extra). None when the stats couldn't be read.
     resist: dict[str, float] | None = None
-    damage_bonus: dict[str, float] = field(default_factory=dict)  # outgoing, per school
-    # Lasting boosts for the rest of the fight (Vermin Virtuoso: +25% myth),
-    # never used up by a hit, unlike blades: school -> fraction.
+    damage_bonus: dict[str, float] = field(default_factory=dict)  # outgoing, per school (players: curved)
+    # The rest of the damage formula (Deimos's combat_math): flat damage and
+    # flat resist (points), pierce (fraction), critical and block ratings.
+    damage_flat: dict[str, float] = field(default_factory=dict)
+    resist_flat: dict[str, float] = field(default_factory=dict)
+    pierce: dict[str, float] = field(default_factory=dict)
+    crit: dict[str, float] = field(default_factory=dict)
+    block: dict[str, float] = field(default_factory=dict)
+    level: int = 0
+    # Lasting boosts for the rest of the fight (Vermin Virtuoso: +25% myth;
+    # auras; the battle's global effect), never used up by a hit, unlike
+    # blades: school ("" = every school) -> fraction.
     aura: dict[str, float] = field(default_factory=dict)
+    # Flat hanging effects, in points: (key, school, value); incoming ones are
+    # flat wards and absorbs (negative), outgoing ones flat blades.
+    incoming_flat: list[tuple[str, str, float]] = field(default_factory=list)
+    outgoing_flat: list[tuple[str, str, float]] = field(default_factory=list)
+    incoming_pierce: float = 0.0  # pierce hits on this one gain (or lose: negative)
+    myth_prism: bool = False  # a prism hangs on it turning myth hits into storm (read from the game)
     # Summed percentages of hanging effects, e.g. two +25% blades -> 0.5
     outgoing_boost: float = 0.0  # blades (positive) / weaknesses (negative)
     incoming_boost: float = 0.0  # traps (positive) / shields (negative)

@@ -112,20 +112,96 @@ def effect_multiplier(effects: list[tuple[str, str, float]], fallback: float, sc
     return mult
 
 
+CRIT_SURE = 0.85  # a crit this likely is counted on (Deimos's threshold)
+
+
+def _resist(school: str, target: Combatant) -> float:
+    if target.resist is not None:
+        return target.resist.get(school, 0.0)
+    if target.school and school == target.school:
+        return DEFAULT_SAME_SCHOOL_RESIST
+    if target.school and OPPOSITE.get(target.school) == school:
+        return -DEFAULT_OPPOSITE_BOOST
+    return 0.0
+
+
+def _wards(target: Combatant, school: str, pierce: float) -> tuple[float, float]:
+    """(multiplier, pierce left) through the target's traps and shields, in
+    the order they hang (newest first): pierce breaks through shields and is
+    used up doing it (a 30% shield against 20% pierce: -10%, no pierce left)."""
+    if not target.incoming_effects:
+        boost = target.incoming_boost
+        if boost < 0:
+            through = min(0.0, boost + pierce)
+            pierce = max(0.0, pierce + boost)
+            boost = through
+        return 1 + boost, pierce
+    mult, seen = 1.0, set()
+    for key, eff_school, value in target.incoming_effects:
+        if key in seen or (eff_school and eff_school != school):
+            continue
+        seen.add(key)
+        if value < 0:
+            through = min(0.0, value + pierce)
+            pierce = max(0.0, pierce + value)
+            value = through
+        mult *= 1 + value
+    return mult, pierce
+
+
+def _flat(effects: list[tuple[str, str, float]], school: str) -> float:
+    seen, total = set(), 0.0
+    for key, eff_school, value in effects:
+        if key in seen or (eff_school and eff_school != school):
+            continue
+        seen.add(key)
+        total += value
+    return total
+
+
+def crit_chance(attacker: Combatant, target: Combatant, school: str) -> float:
+    """The game's crit chance from critical and block ratings (Deimos:
+    0.03 x level x crit / (3 x crit + block))."""
+    crit = attacker.crit.get(school, 0.0)
+    if crit <= 0 or not attacker.level:
+        return 0.0
+    return 0.03 * min(attacker.level, 100) * crit / (3 * crit + target.block.get(school, 0.0))
+
+
+def _one_hit(base: float, school: str, attacker: Combatant, target: Combatant, wards: bool) -> float:
+    """One hit's damage, in the game's order (Deimos's combat_math): damage
+    stat and flat damage, blades and auras, the target's traps and shields
+    (pierce breaking shields), a near-sure crit, flat resist, then resist
+    less what pierce is left (a negative resist is a boost)."""
+    dmg = base * (1 + attacker.damage_bonus.get(school, 0.0)) + attacker.damage_flat.get(school, 0.0)
+    dmg *= effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, school)
+    dmg *= (1 + attacker.aura.get(school, 0.0)) * (1 + attacker.aura.get("", 0.0))
+    dmg += _flat(attacker.outgoing_flat, school)
+    pierce = attacker.pierce.get(school, 0.0) + target.incoming_pierce
+    if wards:
+        mult, pierce = _wards(target, school, pierce)
+        dmg = dmg * mult + _flat(target.incoming_flat, school)
+    if crit_chance(attacker, target, school) >= CRIT_SURE:
+        crit, block = attacker.crit.get(school, 0.0), target.block.get(school, 0.0)
+        dmg *= 2 - block / (crit / 3 + block)
+    dmg = max(0.0, dmg - target.resist_flat.get(school, 0.0))
+    resist = _resist(school, target)
+    if resist > 0:
+        resist -= pierce
+        return dmg * (1 - resist) if resist > 0 else dmg
+    return dmg * (1 - resist)
+
+
 def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
-    """Damage if the spell lands: base damage with blades/weaknesses on the
-    attacker, traps/shields on the target, and school resist/bonus. A spell
-    that hits twice (Minotaur: 50, then 445): our blades boost both hits, but
-    the target's traps and shields break on the first (a Feint under a
-    Minotaur boosts only the 50)."""
-    blade = effect_multiplier(attacker.outgoing_effects, attacker.outgoing_boost, card.school)
-    blade *= 1 + attacker.aura.get(card.school.lower(), 0.0)
-    trap = effect_multiplier(target.incoming_effects, target.incoming_boost, card.school)
-    school = school_multiplier(card, attacker, target)
+    """Damage if the spell lands (`_one_hit` per hit). A spell that hits twice
+    (Minotaur: 50, then 445): our blades boost both hits, but the target's
+    traps and shields break on the first (a Feint under a Minotaur boosts
+    only the 50)."""
+    school = card.school.lower()
     hits = [e.value for e in card.effects if e.kind in DAMAGE_KINDS]
     if len(hits) <= 1:
-        return max(0.0, card.base_damage() * blade * trap * school)
-    return max(0.0, (hits[0] * trap + sum(hits[1:])) * blade * school)
+        return _one_hit(card.base_damage(), school, attacker, target, wards=True)
+    return sum(_one_hit(h, school, attacker, target, wards=i == 0) for i, h in enumerate(hits))
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:

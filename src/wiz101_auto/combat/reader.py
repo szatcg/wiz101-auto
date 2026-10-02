@@ -209,6 +209,42 @@ SCHOOL_ORDER = (
 _logged_stats: set[str] = set()
 
 
+def raw_per_school(values: list[float], all_schools: float = 0.0) -> dict[str, float]:
+    """A points stat (flat damage, ratings) per school, as it is."""
+    return {s: v + all_schools for s, v in zip(SCHOOL_ORDER, values, strict=False)}
+
+
+def curve_stat(stat: float, limit: float, k0: float, n0: float) -> float:
+    """A player's damage or resist past the game's soft cap, curved the way
+    the game does (Deimos's combat_math.curve_stat, by charlied134 and Major;
+    GPL-3.0). `stat` and `limit` are fractions, k0 and n0 percent."""
+    import math
+
+    if stat <= (k0 + n0) / 100 or limit <= 0:
+        return stat
+    lim = limit * 100
+    k = math.log(lim / (lim - k0)) / k0 if k0 else 1 / lim
+    n = math.log(1 - (k0 + n0) / lim) + k * (k0 + n0)
+    return limit - limit * math.e ** (-k * stat * 100 + n)
+
+
+@dataclass
+class Curves:
+    """The duel's soft caps for players' damage and resist: (limit, k0, n0)."""
+    damage: tuple[float, float, float] | None = None
+    resist: tuple[float, float, float] | None = None
+
+
+async def read_curves(handler) -> Curves:
+    try:
+        duel = handler.client.duel
+        return Curves((await duel.damage_limit(), await duel.d_k0(), await duel.d_n0()),
+                      (await duel.resist_limit(), await duel.r_k0(), await duel.r_n0()))
+    except Exception as exc:
+        logger.debug(f"duel curves unreadable: {exc}")
+        return Curves()
+
+
 def per_school(values: list[float], all_schools: float = 0.0) -> dict[str, float]:
     """Map a stat vector onto school names. Stats may be fractions or percents."""
     if any(abs(v) > 1.5 for v in [*values, all_schools]):
@@ -216,7 +252,7 @@ def per_school(values: list[float], all_schools: float = 0.0) -> dict[str, float
     return {s: v + all_schools for s, v in zip(SCHOOL_ORDER, values, strict=False)}
 
 
-async def _read_school_stats(c: Combatant, participant) -> None:
+async def _read_school_stats(c: Combatant, participant, curves: Curves | None = None) -> None:
     from wizwalker.memory.memory_objects.enums import MagicSchool
 
     try:
@@ -234,6 +270,21 @@ async def _read_school_stats(c: Combatant, participant) -> None:
         logger.debug(f"school stats unreadable for {c.name}: {exc}")
         c.resist = None
         return
+    try:  # the rest of the formula (Deimos's combat_math); a fight goes on without it
+        c.damage_flat = raw_per_school(await stats.dmg_bonus_flat(), await stats.dmg_bonus_flat_all())
+        c.resist_flat = raw_per_school(await stats.dmg_reduce_flat(), await stats.dmg_reduce_flat_all())
+        c.pierce = per_school(await stats.ap_bonus_percent(), await stats.ap_bonus_percent_all())
+        crit = await stats.critical_hit_rating_by_school()
+        c.crit = raw_per_school(crit, await stats.critical_hit_rating_all())
+        c.block = raw_per_school(await stats.block_rating_by_school(), await stats.block_rating_all())
+        c.level = await stats.reference_level()
+        if curves and await participant.is_player():  # players' stats are soft-capped
+            if curves.damage:
+                c.damage_bonus = {s: curve_stat(v, *curves.damage) for s, v in c.damage_bonus.items()}
+            if curves.resist:
+                c.resist = {s: curve_stat(v, *curves.resist) for s, v in c.resist.items()}
+    except Exception as exc:
+        logger.debug(f"extra stats unreadable for {c.name}: {exc}")
     if c.name not in _logged_stats:
         _logged_stats.add(c.name)
         shown = {s: round(v, 2) for s, v in c.resist.items() if v}
@@ -273,7 +324,18 @@ def _log_effects(c: Combatant):
         logger.info(f"{c.name} effects: {text}")
 
 
-async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
+async def _lasting(c: Combatant, participant):
+    """Auras: lasting outgoing boosts (never used up by a hit)."""
+    try:
+        for eff in await participant.aura_effects():
+            if (await eff.effect_type()).name == "modify_outgoing_damage":
+                _key, school = await _effect_identity(eff, 0)
+                c.aura[school] = c.aura.get(school, 0.0) + await eff.effect_param() / 100
+    except Exception as exc:
+        logger.debug(f"aura effects unreadable for {c.name}: {exc}")
+
+
+async def read_combatant(member: CombatMember, my_team: int, curves: Curves | None = None) -> Combatant:
     participant = await member.get_participant()
     team = await participant.team_id()
     c = Combatant(
@@ -293,7 +355,8 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
         c.is_stunned = await member.is_stunned()
     except Exception:
         pass
-    await _read_school_stats(c, participant)
+    await _read_school_stats(c, participant, curves)
+    await _lasting(c, participant)
     try:
         for eff in await participant.hanging_effects():
             et = (await eff.effect_type()).name
@@ -311,8 +374,19 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
                     c.trap_count += 1
                 else:
                     c.shield_count += 1
+            elif et == "intercept":
+                c.incoming_effects.append((key, school, param / 100))
             elif et == "absorb_damage":
                 c.shield_count += 1
+                c.incoming_flat.append((key, school, -abs(param)))
+            elif et == "modify_incoming_damage_flat":
+                c.incoming_flat.append((key, school, param))
+            elif et == "modify_outgoing_damage_flat":
+                c.outgoing_flat.append((key, school, param))
+            elif et == "modify_incoming_armor_piercing":
+                c.incoming_pierce += param / 100
+            elif et == "modify_incoming_damage_type" and school == "myth":
+                c.myth_prism = True
     except Exception as exc:
         logger.debug(f"hanging effects unreadable for {c.name}: {exc}")
     # One blade spell (Spirit Blade: myth, life and death parts) is one blade,
@@ -323,6 +397,24 @@ async def read_combatant(member: CombatMember, my_team: int) -> Combatant:
     c.blade_count = len({k for k, s, v in c.outgoing_effects if v > 0 and (not s or not mine or s == mine)})
     _log_effects(c)
     return c
+
+
+async def _global_effect(handler, everyone: list[Combatant]):
+    """The battle's bubble (a global effect boosting a school's hits): a
+    lasting boost on everyone's hits."""
+    try:
+        resolver = await handler.client.duel.combat_resolver()
+        eff = await resolver.global_effect() if resolver else None
+        if eff is None or (await eff.effect_type()).name != "modify_outgoing_damage":
+            return
+        _key, school = await _effect_identity(eff, 0)
+        value = await eff.effect_param() / 100
+    except Exception as exc:
+        logger.debug(f"global effect unreadable: {exc}")
+        return
+    logger.debug(f"global effect: {school or 'every school'} {value:+.0%}")
+    for c in everyone:
+        c.aura[school] = c.aura.get(school, 0.0) + value
 
 
 @dataclass
@@ -337,7 +429,8 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
     me_member = await handler.get_client_member()
     my_team = await (await me_member.get_participant()).team_id()
 
-    me = await read_combatant(me_member, my_team)
+    curves = await read_curves(handler)
+    me = await read_combatant(me_member, my_team, curves)
     try:
         me.mana = await me_member.mana()
     except Exception:
@@ -348,7 +441,7 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
     for m in await handler.get_members():
         if await m.is_client():
             continue
-        c = await read_combatant(m, my_team)
+        c = await read_combatant(m, my_team, curves)
         members[id(c)] = m
         (enemies if c.is_enemy else allies).append(c)
 
@@ -360,6 +453,7 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
             cards.append(card)
             card_map[i] = lc
 
+    await _global_effect(handler, [me, *allies, *enemies])
     battle = Battle(
         me=me,
         allies=allies,

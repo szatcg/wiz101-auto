@@ -486,7 +486,8 @@ class Fighter(CombatHandler):
             if plan != self._last_plan:
                 logger.info(plan)
                 self._last_plan = plan
-            battle.prismed = set(self._prismed)
+            # (and any myth prism the game shows hanging on an enemy)
+            battle.prismed = set(self._prismed) | {e.name for e in battle.enemies if e.myth_prism}
             battle.summoned = self._summons
             _save_my_stats(battle.me)
             action = decide(battle, self.strategy, discards_left=discards_left)
