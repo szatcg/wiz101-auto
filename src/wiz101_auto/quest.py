@@ -5069,8 +5069,15 @@ class Quester:
                 # going on; Gurtok Firebender before Malistaire's door).
                 if await self._fight_zone_boss(objective, here_zone):
                     return
+                # A boss that hasn't come out yet (Malistaire: his Soul Servants
+                # first): in a dungeon or a room, beat the enemies around it.
+                if ((inside or "/interiors/" in here_zone.lower())
+                        and await self._clear_dungeon(objective, here_zone)):
+                    return
                 # The boss standing as itself before its cutscene ("Malistaire"
                 # for "Malistaire Drake"): walking up to it starts the fight.
+                # (After the room is clear: walk-ins with his Soul Servants
+                # still up, the dungeon reset, started nothing.)
                 first = target.split()[0]
                 if len(first) >= 5 and first.lower() != target.lower():
                     from .bossfarm import mobs_named
@@ -5081,11 +5088,6 @@ class Quester:
                         await self._mark_before_boss(first, objective, here_zone)
                         await self._engage(first, stand_in, objective, here_zone, walk=True)
                         return
-                # A boss that hasn't come out yet (Malistaire: his Soul Servants
-                # first): in a dungeon or a room, beat the enemies around it.
-                if ((inside or "/interiors/" in here_zone.lower())
-                        and await self._clear_dungeon(objective, here_zone)):
-                    return
                 # At the marker with the enemy nowhere in the zone: the marker is
                 # the way to it (a teleporter like the Djeserit tomb's "To the
                 # Sarcophagus", a door): use its X prompt first.
