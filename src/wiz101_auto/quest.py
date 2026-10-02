@@ -1484,6 +1484,14 @@ class Quester:
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
         outside zone, another world) ends that; a heal trip Recalls back first."""
+        from .dungeons import INSTANCE_ZONES
+
+        if zone in INSTANCE_ZONES:
+            first = INSTANCE_ZONES[zone]
+            entry = DungeonMemory.load().dungeons.get(first)
+            if entry is not None and (not self._dungeon or self._dungeon[1] != first):
+                self._dungeon = (entry.outside, first)
+            return True
         if not self._dungeon:
             entry = DungeonMemory.load().dungeons.get(zone)  # e.g. after a restart inside
             if entry is None:

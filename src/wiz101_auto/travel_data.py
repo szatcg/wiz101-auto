@@ -149,8 +149,8 @@ def parse_spots(text: str) -> Spots:
 # Quest-text place names missing from displayZones.txt.
 EXTRA_DISPLAY_ZONES = [
     ("the commons", "WizardCity/WC_Hub"),
-    # The Hall of Time instance (the Grand Chasm's past): not the Grand Chasm itself.
-    ("grand chasm past", "DragonSpire/DS_A1_Knowledge/Interiors/DS_Chasm_HallOfTime"),
+    # The Grand Chasm's past, through the Hall of Time's portal: not the Grand Chasm itself.
+    ("grand chasm past", "DragonSpire/DS_A1_Knowledge/DS_A1Z4_GrandChasm_Past"),
     ("ravenwood", "WizardCity/WC_Ravenwood"),
     ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
     ("katzenstein's lab", "Marleybone/MB_ScotlandYard/MB_KatzLab"),  # a dungeon off Scotland Yard Roof

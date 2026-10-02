@@ -18,6 +18,14 @@ Point = tuple[float, float, float]
 # the bot fought every Otomo Scout it met and searched for War Oni at 30%
 # health, treating it as a dungeon.
 OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
+# Zones of a dungeon instance that aren't under its rooms' area (reached by a
+# portal inside it): zone -> the dungeon's first room. The Grand Chasm's past
+# is the Hall of Time's ('Back to the Beginning'); taken for outside, the
+# main quest was ranked first and the bot tried to Recall out of the instance.
+INSTANCE_ZONES = {
+    "DragonSpire/DS_A1_Knowledge/DS_A1Z4_GrandChasm_Past":
+        "DragonSpire/DS_A1_Knowledge/Interiors/DS_Chasm_HallOfTime",
+}
 
 
 def is_open_zone(zone: str) -> bool:
