@@ -532,6 +532,36 @@
   .side { left: 1480px; top: 7px; width: 433px; height: 1066px; }
   .thoughts { left: 7px; top: 850px; width: 1466px; height: 223px; }
 </style>
+<style>
+  /* more room between words: the spaces between game-font words are the
+     web font's, narrow next to the game's letters */
+  .gt { word-spacing: 0.28em; }
+  .label .gt, .dname .gt, h1 .gt { word-spacing: 0.12em; }
+  /* a title scroll straight on a card (Progress): measured from the card's
+     edge, not from content like the quest box's; the same middle-on-the-frame */
+  .card > .label { top: -24px; }
+</style>
+<style>
+  /* the level in the text colour; the pip ring around a smaller, lower
+     portrait (the pips' 12 o'clock under the name scroll) */
+  .vital.level b { color: var(--text); }
+  /* the pips sit on the portrait's gold ring (the portrait as it was: 172 px at 4 px, centred) */
+  .pipring { position: absolute; left: 90px; top: 50%; width: 0; height: 0; z-index: 3; }
+  .earlier .t { color: var(--text); }  /* (the times in the text colour: the light brown was hard to read) */
+  .pipring img { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+</style>
+<style>
+  /* darker ink for everything that was light brown on the parchment (hard to
+     read on its texture): muted text, the route's lines and dots, faded rows */
+  :root { --muted: #4f3618; --line: #5a3d1a; }
+  .earlier div { color: #3f2a12; }
+  .qstep.done, .qstep.next { color: #4f3618; }
+  .rnode::before { height: 3px; background: #5a3d1a; }
+  .rnode.passed::before, .rnode.here::before { background: #3a2612; }
+  .rdot { border-color: #5a3d1a; background: #e8d3a4; }
+  .where, .label, .timer small, .prog .n, .hptext, .dcol h4 { color: #4f3618; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
@@ -549,7 +579,7 @@
   <div class="card">
     <div class="vitals">
       <div class="vital level"><span class="label">Level</span><b id="level">–</b></div>
-      <div class="vital deaths"><span class="label">Deaths 💀</span><b id="deaths">–</b></div>
+      <div class="vital deaths"><span class="label">Deaths</span><b id="deaths">–</b></div>
       <div class="vital"><span class="label">This session</span><b id="sdeaths">–</b></div>
     </div>
     <div class="hp"><div id="hp" style="width:0%"></div></div>
@@ -586,6 +616,7 @@
 <div class="thoughts">
   <div class="dialog">
     <div class="portrait"><img src="/ui/portrait.png" alt=""></div>
+    <div class="pipring" id="pipring"></div>
     <div class="dname" id="stripTitle">Wizzbot</div>
     <div class="feed" id="feed"></div>
     <div class="dbtn" id="dbtn">THINKING</div>
@@ -659,7 +690,6 @@ const range = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
 let lastPlanKey = "", lastPlanRound = null, planChangedAt = 0, lastPlannerHtml = "", planFreshUntil = 0;
 
 function renderPlanner(p) {
-  const pips = pipRow(p.pips, p.power, p.school, p.myschool);
   const steps = p.steps || [];
   const first = steps[0];
   const key = JSON.stringify(steps.map((s) => [s.round, s.kind, s.spell, s.target]));
@@ -704,12 +734,37 @@ function renderPlanner(p) {
   // Redrawn only when something changed: rebuilding it every poll replayed
   // the rows' slide-in every couple of seconds.
   const fresh = Date.now() < planFreshUntil ? " fresh" : "";
-  const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
+  const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}</div>
     ${foes}<div class="steps${fresh}">${rows}</div>`;
   if (html === lastPlannerHtml && $("lower").className === "card grow battle") return;
   lastPlannerHtml = html;
   $("lower").className = "card grow battle";
   $("lower").innerHTML = html;
+}
+
+// The pips around the portrait, as the game draws them around a duelist:
+// from 12 o'clock, centred on it, close together; class pips on the left,
+// then power pips, then plain ones. Only during fights.
+const PIP_RADIUS = 83, PIP_STEP = 15.5;  // px from the portrait's centre; degrees between pips
+let lastRing = "";
+function renderPipRing(b) {
+  let html = "";
+  if (b) {
+    const cls = b.school || {};
+    const mine = b.myschool;
+    const cap = (k) => k.charAt(0).toUpperCase() + k.slice(1);
+    const off = Object.entries(cls).filter(([k]) => k !== mine).reduce((t, [, n]) => t + n, 0);
+    const pips = [];
+    for (const [k, n] of Object.entries(cls)) for (let i = 0; i < n; i++) pips.push(`${cap(k)}_School_Pip.png`);
+    for (let i = 0; i < (b.power || 0) - (cls[mine] || 0); i++) pips.push("Power_Pip.png");
+    for (let i = 0; i < (b.pips || 0) - off; i++) pips.push("Pip.png");
+    html = pips.map((f, i) => {
+      const a = ((i - (pips.length - 1) / 2) * PIP_STEP * Math.PI) / 180;
+      const x = PIP_RADIUS * Math.sin(a), y = -PIP_RADIUS * Math.cos(a);
+      return `<img src="/pips/${f}" alt="" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">`;
+    }).join("");
+  }
+  if (html !== lastRing) { lastRing = html; $("pipring").innerHTML = html; }
 }
 
 function renderLower() {
@@ -719,11 +774,11 @@ function renderLower() {
   document.body.classList.toggle("inbattle", !!s.in_battle);
   $("lower").style.display = "";
   $("questCard").classList.toggle("grow", !s.in_battle);
+  renderPipRing(planning ? battle : (s.in_battle && thoughts && thoughts.battle) || null);
   if (planning) { renderPlanner(battle); return; }
   lastPlannerHtml = "";  // (another card in its place: the plan is drawn again next time)
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
-    const pips = pipRow(b.pips, b.power, b.school, b.myschool);
     const predict = b.predict || {};
     const foes = b.enemies.map((e, i) => [e, predict[i] || 0]).filter(([e]) => !e.dead).map(([e, dmg]) => {
       const hpPct = e.max ? (100 * e.hp) / e.max : 0;
@@ -736,7 +791,7 @@ function renderLower() {
     }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     $("lower").className = "card grow battle";
-    $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3><div class="pips">${pips}</div></div>
+    $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3></div>
       ${foes}
       <div class="move"><span class="label">Wizzbot's move</span><div class="what">${what}</div></div>
       ${b.plan ? `<div class="plan">🧮 Plan: ${esc(b.plan.replaceAll(" > ", " → ").split(" | ").join(" · ").replace(/; skipping the minion.*/, ""))}</div>` : ""}`;
