@@ -7,3 +7,14 @@ def test_talks_only_to_the_person_the_objective_names():
     assert not should_talk("Locate Junho Shan in Hametsu Village", "Press X or  to Activate", "Teleporter")
     assert not should_talk("Talk To Junho Shan in Hametsu Village", "Press X or  to Talk", "Ma Chieh")
     assert not should_talk("Defeat 10 Cursed Ronins", "Press X or  to Talk", "Ken Shui")
+
+
+def test_use_prompt_for_the_named_object():
+    from wiz101_auto.prompt_watch import should_use
+
+    assert should_use("Use Crystal Charger in The Grand Chasm", "Press X to Interact", "Crystal Charger")
+    assert should_use("Repair East Bridge in Grand Chasm Past", "Press X to Activate", "East Bridge")
+    assert should_use("Lock Vault 1936 in Grand Chasm Past", "Press X to Activate", "Vault 1936")
+    assert not should_use("Use Crystal Charger", "Press X to Talk", "Crystal Charger")  # never a talk
+    assert not should_use("Use Crystal Charger", "Press X to Activate", "Portal to the Present")
+    assert not should_use("Talk To Edrik", "Press X to Activate", "Edrik")

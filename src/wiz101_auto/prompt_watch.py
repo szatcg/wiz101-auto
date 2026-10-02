@@ -17,6 +17,7 @@ instead of talking to the same person until the step noticed (five talks,
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 
 from loguru import logger
@@ -44,6 +45,27 @@ def should_talk(objective: str, prompt: str, title: str) -> bool:
     """A talk prompt titled with the person the objective names."""
     who = wanted_person(objective)
     return bool(who) and "talk" in (prompt or "").lower() and _norm(title) == _norm(who)
+
+
+_OPERATE = re.compile(
+    r"(?i)^\s*(?:use|repair|lock|unlock|open|light|burn|ring|pull|push|press|activate|turn|flip|place|"
+    r"charge|smash|destroy|read|study|examine|inspect|touch)\s+(?:the\s+)?(.+?)(?:\s+in\s+[^()]+)?"
+    r"(?:\s*\(\d+ of \d+\))?\s*$")
+
+
+def operated_thing(objective: str) -> str | None:
+    """The object a "Use Crystal Charger in The Grand Chasm" objective names."""
+    m = _OPERATE.match(objective or "")
+    return m.group(1).strip() if m else None
+
+
+def should_use(objective: str, prompt: str, title: str) -> bool:
+    """A use/activate prompt (not a talk prompt) titled with the object the
+    objective names ('Repair East Bridge': the East Bridge's prompt)."""
+    thing, name = _norm(operated_thing(objective) or ""), _norm(title)
+    if not thing or not name or "talk" in (prompt or "").lower() or "press" not in (prompt or "").lower():
+        return False
+    return name == thing or (min(len(name), len(thing)) >= 5 and (name in thing or thing in name))
 
 
 async def _goal_id(client):
@@ -88,6 +110,10 @@ async def prompt_loop(client, quester, controller):
             if should_talk(objective, prompt, title):
                 last_press = time.monotonic()
                 logger.info(f"talk prompt for {title} showed: talking at once")
+                await client.send_key(Keycode.X, 0.1)
+            elif should_use(objective, prompt, title):
+                last_press = time.monotonic()
+                logger.info(f"prompt for {title} showed: using it at once")
                 await client.send_key(Keycode.X, 0.1)
         except Exception as exc:  # a read during a zone change: look again next time
             logger.debug(f"prompt watch: {exc!r}")
