@@ -160,6 +160,26 @@
   .step .after .hitr { color: var(--gold-2); font-weight: 800; }
   body.fighting .progress-card { display: none; }
 
+  /* the route to the objective's zone (outside fights, while travelling) */
+  body.fighting .route-card { display: none; }
+  .transit { font: 800 11px Inter; letter-spacing: 1.5px; padding: 3px 9px; border-radius: 999px;
+    color: #10121f; background: var(--green); animation: pulse 1.6s ease-in-out infinite; }
+  .route { display: grid; margin-top: 12px; }
+  .rnode { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .rnode::before { content: ""; position: absolute; top: 7px; right: 50%; width: 100%; height: 2px; background: var(--line); }
+  .rnode:first-child::before { display: none; }
+  .rnode.passed::before, .rnode.here::before { background: var(--muted); }
+  .rdot { position: relative; z-index: 1; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--panel-2); border: 2px solid var(--line); }
+  .rnode.passed .rdot { background: var(--muted); border-color: var(--muted); }
+  .rnode.here .rdot { background: var(--green); border-color: var(--green); box-shadow: 0 0 0 4px rgba(95, 211, 141, 0.25); }
+  .rnode.dest .rdot { background: var(--gold); border-color: var(--gold); }
+  .rnode.here.dest .rdot { background: var(--green); }
+  .rname { margin-top: 6px; padding: 0 2px; font-size: 11px; line-height: 1.2; text-align: center; color: var(--muted);
+    overflow-wrap: anywhere; }
+  .rnode.here .rname { color: var(--green); font-weight: 800; }
+  .rnode.dest .rname { color: var(--gold-2); font-weight: 800; }
+
   /* quest steps (outside fights) */
   .qhead { display: flex; justify-content: space-between; align-items: center; }
   .kind { font: 800 11px Inter; letter-spacing: 1.5px; padding: 3px 9px; border-radius: 999px; color: #10121f; }
@@ -267,6 +287,11 @@
     <div id="qsteps"></div>
   </div>
 
+  <div class="card route-card" id="routeCard" style="display:none">
+    <div class="qhead"><span class="label">Route</span><span class="transit">IN TRANSIT</span></div>
+    <div class="route" id="route"></div>
+  </div>
+
   <div class="card progress-card">
     <span class="label">Progress</span>
     <div class="prog"><span class="n" id="wName">World</span><div class="bar"><div id="wBar"></div></div><span class="p" id="wPct">0%</span></div>
@@ -330,6 +355,7 @@ function renderSide() {
   $("kind").textContent = main == null || data.current.grinding ? "" : main ? "MAIN QUEST" : "SIDE QUEST";
   $("kind").style.display = $("kind").textContent ? "" : "none";
   renderSteps();
+  renderRoute();
   const zone = ((s.zone || "").split("/").slice(1).pop() || "")
     .replace(/^[A-Z]{2}_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
   $("where").textContent = [data.current.world, (data.sides || {}).area || zone].filter(Boolean).join(" · ");
@@ -436,6 +462,23 @@ function renderLower() {
   }
   $("lower").style.display = "none";  // outside fights the quest card takes the room
   $("questCard").classList.add("grow");
+}
+
+function renderRoute() {
+  // The zones the bot means to cross to the objective: passed (grey), here
+  // (green), on the way, the destination (yellow). None once there.
+  const r = data.route || {};
+  const zones = r.zones || [];
+  $("routeCard").style.display = zones.length > 1 ? "" : "none";
+  if (zones.length < 2) return;
+  const at = Math.min(r.at || 0, zones.length - 1);
+  const html = zones.map((z, i) => {
+    const cls = ["rnode", i < at ? "passed" : "", i === at ? "here" : "", i === zones.length - 1 ? "dest" : ""];
+    return `<div class="${cls.join(" ")}"><span class="rdot"></span><span class="rname">${esc(z.name)}</span></div>`;
+  }).join("");
+  const el = $("route");
+  el.style.gridTemplateColumns = `repeat(${zones.length}, minmax(0, 1fr))`;
+  if (el.innerHTML !== html) el.innerHTML = html;
 }
 
 function renderSteps() {

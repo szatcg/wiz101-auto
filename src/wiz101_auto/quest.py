@@ -792,6 +792,8 @@ class Quester:
         self._spell_first_logged = ""  # the class quest last put ahead of the pin
         self._chosen_entry: QuestEntry | None = None  # the tracked quest's book entry at the last ranking
         self._done_dungeon_logged = ""  # a finished dungeon whose own quest was skipped (logged once)
+        self._route_written: list[str] | None = None  # the route last written for the stream page
+        self._route_at = 0  # where on it we are
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -3713,6 +3715,11 @@ class Quester:
                 await asyncio.sleep(0.3)
             await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
             await wait_for_loading(self.client, appear_timeout=3.0)
+            landed = await self.client.zone_name() or ""
+            if landed.split("/")[0] == world:
+                from .route import note_arrival
+
+                note_arrival(world, landed)  # (the stream page's route lands there)
             return True
         if zone.split("/", 1)[0] != world:
             # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
@@ -3752,6 +3759,36 @@ class Quester:
             logger.info(f"{why}: walking to Ravenwood")
             return await self.go_to_zone(RAVENWOOD)
         return False
+
+    def _write_route(self, objective: str, zone: str, place: str | None, world: str | None):
+        """The zones the bot means to cross to the objective, for the stream
+        page's navigation graph (state/route.json); cleared once there."""
+        from .route import arrival_for, plan_route, write_route
+        from .travel_data import _data, world_hub
+
+        try:
+            gates, display, _spots = _data()
+            dest = place or (world_hub(f"{world}/x") if world else None)
+            final = None
+            target = talk_target(objective) or defeat_target(objective)
+            if dest and target:
+                # The room off the place where the one to see was last seen
+                # (Cyrus Drake in the Myth School, off Ravenwood).
+                rooms = [z for z, names in self.entity_map.zones.items() if target in names and z != dest]
+                final = next((z for z in rooms if self.doors.leading_to(dest, z)
+                              or any(t == z for _p, t in gates.get(dest, []))), None)
+            route = plan_route(zone, dest, gates, hub=world_hub(zone),
+                               arrival=arrival_for(dest.split("/")[0]), final=final) if dest else []
+            old = self._route_written or []
+            if route and old and old[-1] == route[-1] and zone in old:
+                route, at = old, old.index(zone)  # on the way: the planned route, further along
+            else:
+                at = 0
+            if (route, at) != (self._route_written, self._route_at):
+                self._route_written, self._route_at = route, at
+                write_route(route, objective, display, at)
+        except Exception as exc:
+            logger.debug(f"route not written: {exc!r}")
 
     def _book_world(self, objective: str) -> str | None:
         """The world the quest book gives for the tracked quest ("Krokotopia"
@@ -5425,6 +5462,7 @@ class Quester:
         # world gate as if it were a door for five minutes.
         place = objective_zone(objective) if objective else None
         world = self._book_world(objective) if place is None else None
+        self._write_route(objective, zone or "", place, world)
         if world and zone.startswith("WizardCity/") and world != "WizardCity":
             # A place in several worlds ('Talk To Zan'ne in The Library',
             # Krokotopia's): the quest book names the world. (It followed the

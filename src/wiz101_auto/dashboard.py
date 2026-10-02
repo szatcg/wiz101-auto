@@ -117,6 +117,23 @@ def _zone_sides(book: dict, zone: str, world: str | None, lists: dict, completed
         return {}
 
 
+ROUTE_STALE_SECONDS = 600.0  # a route not rewritten this long is old news
+
+
+def _route(running: bool) -> dict:
+    """The bot's planned way to the objective's zone (state/route.json), for
+    the stream page's navigation graph; {} when not travelling."""
+    if not running:
+        return {}
+    try:
+        data = json.loads((Path("state") / "route.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if len(data.get("zones") or []) < 2 or time.time() - data.get("time", 0) > ROUTE_STALE_SECONDS:
+        return {}
+    return data
+
+
 def build_data(docs: Path = Path("docs")) -> dict:
     status = _read_json(STATUS)
     book = _read_json(QUEST_BOOK)
@@ -204,6 +221,7 @@ def build_data(docs: Path = Path("docs")) -> dict:
         },
         "sides": _zone_sides(book, status.get("zone", ""), here, lists, completed),
         "steps": _quest_steps(book.get("tracking", ""), status.get("objective") or "", here),
+        "route": _route(running),
         "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),
         "recent": completed[-12:][::-1],
