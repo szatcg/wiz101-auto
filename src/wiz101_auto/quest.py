@@ -1149,6 +1149,8 @@ class Quester:
                 if not ground or any(math.dist((spot.x, spot.y), g[:2]) < ON_GROUND for g in ground):
                     spots.append(spot)
         for spot in spots[:APPROACH_TRIES]:
+            if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+                return True  # walked into a world gate: the map is the step's now (it sat a minute)
             if not await self._clear_spot(spot):
                 continue  # an enemy stands there: landing on it starts a fight
             before = await self._position()
@@ -3716,6 +3718,18 @@ class Quester:
             return await self.go_to_zone(RAVENWOOD)
         return False
 
+    def _book_world(self, objective: str) -> str | None:
+        """The world the quest book gives for the tracked quest ("Krokotopia"
+        -> "Krokotopia", "Dragonspyre" -> "DragonSpire"), when its entry is
+        for this objective."""
+        entry = self._chosen_entry
+        if entry is None or not entry.zone:
+            return None
+        if entry.goal and not objective.lower().startswith(entry.goal.lower()):
+            return None  # (the entry is from before the objective changed)
+        by_name = {v: k for k, v in SPIRAL_WORLD_NAMES.items()}
+        return by_name.get(entry.zone.strip().lower())
+
     async def _wait_visible(self, path, seconds: float) -> bool:
         """Poll for a window to show (every 0.2 s), up to `seconds`."""
         deadline = time.monotonic() + seconds
@@ -5375,6 +5389,13 @@ class Quester:
         # gate and the Spiral Map. Following the marker there walked at the
         # world gate as if it were a door for five minutes.
         place = objective_zone(objective) if objective else None
+        world = self._book_world(objective) if place is None else None
+        if world and zone.startswith("WizardCity/") and world != "WizardCity":
+            # A place in several worlds ('Talk To Zan'ne in The Library',
+            # Krokotopia's): the quest book names the world. (It followed the
+            # marker onto the World Tree's gate for three minutes instead.)
+            if await self._to_world(world, f"{objective!r} is in {world} (the quest book)"):
+                return
         # (From Wizard City only, where the World Tree is: a place name shared by
         # two worlds, a Throne Room, mustn't send the bot across the Spiral.)
         if place and zone.startswith("WizardCity/") and place.split("/", 1)[0] != "WizardCity":
