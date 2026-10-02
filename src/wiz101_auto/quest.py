@@ -200,7 +200,8 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
-                   "zone_first": 3}
+                   "zone_first": 3, "fight_for_item": 2}
+BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
@@ -3102,6 +3103,11 @@ class Quester:
         # before giving up.
         if await self._search_next_zone(item, objective):
             return True
+        # Inside a dungeon an item that's nowhere often comes from its boss
+        # (the Medallion of Fire in Pyromancer's Tomb spawns once the boss is
+        # beaten): fight the room's boss, else its enemies, then search again.
+        if await self._fight_for_item(item, objective):
+            return True
         # Nothing lying around anywhere near right now (they spawn over time):
         # follow the next best quest, and pick these up whenever they come into
         # view (see _pick_up_wanted).
@@ -3199,6 +3205,36 @@ class Quester:
                 logger.info(f"{target} is in view")
                 return True
         return False
+
+    async def _fight_for_item(self, item: str, objective: str) -> bool:
+        """`item` is nowhere in this dungeon room: start a fight with the enemy
+        on the room's duel circle (its boss), else the nearest enemy, so the
+        item can drop or appear; the search starts over after it. True if it
+        went into a fight."""
+        zone = await self.client.zone_name() or ""
+        if is_team_up_zone(zone) or not (await self._in_dungeon(zone) or "/interiors/" in zone.lower()):
+            return False
+        mobs = []
+        for mob in await self.client.get_mobs():
+            try:
+                mobs.append(await mob.location())
+            except Exception:
+                continue
+        if not mobs or not self._may_try(objective, zone, "fight_for_item"):
+            return False
+        here = await self._position()
+        circles = await self._duel_circles(zone)
+        on_circle = [m for m in mobs if any(math.dist((m.x, m.y), c[:2]) < BOSS_ON_CIRCLE for c in circles)]
+        target = min(on_circle or mobs, key=lambda m: distance(m, here))
+        who = "the boss on its duel circle" if on_circle else "the nearest enemy"
+        logger.info(f"no {item!r} anywhere here: fighting {who} (it may drop or appear after)")
+        # A fresh search after the fight (the item shows up once it's won).
+        self._scouted_for = self._far_swept_for = None
+        self._zones_searched.pop(objective, None)
+        allow_engage(self.client)  # this teleport is meant to start the fight
+        await self.client.teleport(target)
+        await asyncio.sleep(3.0)
+        return True
 
     async def _use_zone_teleporter(self, objective: str) -> bool:
         """Take the next untried in-zone teleporter (an object labelled "To
