@@ -438,7 +438,9 @@ def _expected_hits(f: Fight, action: Action) -> list[float] | None:
         return None
     out = []
     for e in f.enemies:
-        hit = not e.is_dead and (c.is_aoe or (action.target is not None and action.target.name == e.name))
+        # (The very enemy targeted, not every one of its name: two Confused
+        # Sentries both showed a Colossus hit on the overlay.)
+        hit = not e.is_dead and (c.is_aoe or action.target is e)
         seen = prism_view(e, "myth") if e.name in f.prism_on and c.school == "myth" else e
         out.append(hit_damage(c, f.me, seen) if hit else 0.0)
     return out
@@ -769,8 +771,7 @@ def _rollout(battle: Battle, action: Action, strat, stats: dict, seed: int, disc
         card = f.hand[battle.cards.index(action.card)]
         target = None
         if action.target is not None:
-            target = f.me if action.target is battle.me else next(
-                (e for e in f.enemies if e.name == action.target.name), None)
+            target = f.me if action.target is battle.me else _same_enemy(battle, f, action.target)
         first = Action(action.kind, card, target, reason=action.reason)
     won, rounds = _run(f, rng, strat, battle.round, first, discards, drawn=True, horizon=horizon)
     dead = f.me.health <= 0
@@ -842,6 +843,15 @@ def category(action: Action) -> str:
     return "other"
 
 
+def _same_enemy(battle: Battle, f: Fight, target: Combatant):
+    """The fight's copy of `target`: by position (two enemies can share a
+    name: Confused Sentry, Confused Sentry), else by name."""
+    for i, e in enumerate(battle.enemies):
+        if e is target and i < len(f.enemies) and f.enemies[i].name == target.name:
+            return f.enemies[i]
+    return next((e for e in f.enemies if e.name == target.name), None)
+
+
 def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None = None,
                  steps: int = PLAN_STEPS, discards: int = 2) -> dict:
     """The fight played on from the move just chosen, the way the bot means to
@@ -861,8 +871,7 @@ def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None =
         card = f.hand[battle.cards.index(first.card)]
         target = None
         if first.target is not None:
-            target = f.me if first.target is battle.me else next(
-                (e for e in f.enemies if e.name == first.target.name), None)
+            target = f.me if first.target is battle.me else _same_enemy(battle, f, first.target)
         forced = Action(first.kind, card, target, reason=first.reason)
     names = [e.name for e in f.enemies]
     lo = [max(0, e.health) for e in f.enemies]
