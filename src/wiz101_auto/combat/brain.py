@@ -573,6 +573,7 @@ def _group_aoe(battle: Battle) -> Card | None:
     return None
 
 
+SPARE_HEALS_ABOVE = 0.6  # healthier than this, heals beyond one may go when digging
 HAND_SIZE = 7  # cards in a full hand
 DESPERATE_HEALTH = 0.25  # below this: no minions or prisms, only what keeps us alive or hits
 BOSS_SUMMON_ROUNDS = 3  # against a boss, the minion comes in these first rounds
@@ -691,9 +692,20 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
         ]
     if not group:
         if len(singles) < 2:
-            return None
-        best = max(singles, key=lambda c: expected_damage(c, me, focus))
-        singles = [c for c in singles if c is not best]
+            singles = []
+        else:
+            best = max(singles, key=lambda c: expected_damage(c, me, focus))
+            singles = [c for c in singles if c is not best]
+    # Spare heals while healthy: one stays (the strongest), the rest make
+    # room for the plan's cards (three Pixies held the hand against Silver
+    # Sentinel while Mythblade and Myth Trap waited in the deck).
+    heals = [c for c in battle.cards if c.is_heal and not c.is_damage and not c.treasure]
+    if me.health_ratio >= SPARE_HEALS_ABOVE and len(heals) > 1:
+        keep = max(heals, key=lambda c: c.heal_amount())
+        spare = [c for c in heals if c is not keep]
+        if spare and not singles:
+            why = f"spare heal; digging for a {' / '.join(want)}"
+            return Action(ActionKind.DISCARD, spare[0], reason=why)
     if not singles:
         return None
     card = min(singles, key=lambda c: expected_damage(c, me, focus))
