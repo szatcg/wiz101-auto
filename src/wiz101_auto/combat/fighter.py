@@ -95,6 +95,7 @@ def _minion_text(battle) -> str:
     return f" minion={m.health}/{m.max_health}" if m else ""
 
 
+HAND_MAX = 7  # cards a hand refills to each round
 PLAN_FILE = Path("state") / "battle_plan.json"
 
 
@@ -115,6 +116,7 @@ def _write_plan(battle, action, strategy, discards: int, gone=None) -> None:
                 "now": {"kind": category(action), "spell": action.card.name if action.card else "",
                         "target": action.target.name if action.target else "", "why": action.reason},
                 "deck": deck_tracker(battle, gone or {}),
+                "dig": dig_odds(battle, action),
             })
         PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception as exc:
@@ -141,6 +143,43 @@ def deck_tracker(battle, gone) -> list[dict]:
         if key not in rows and n:
             rows[key] = {"name": key, "left": 0, "hand": 0, "used": int(n)}
     return sorted(rows.values(), key=lambda r: (-r["left"], r["name"]))
+
+
+def draw_chance(left: int, wanted: int, draws: int) -> float:
+    """Chance of at least one of `wanted` cards among `draws` from `left`."""
+    from math import comb
+
+    if wanted <= 0 or draws <= 0 or left <= 0:
+        return 0.0
+    draws = min(draws, left)
+    return 1.0 - comb(left - wanted, draws) / comb(left, draws) if left - wanted >= draws else 1.0
+
+
+def dig_odds(battle, action) -> dict:
+    """What the move digs for and the chances of drawing it next round (the
+    stream's deck tracker): {"want": [card names], "draws": n, "odds": {name:
+    %}, "any": %}; {} when the move isn't a dig."""
+    why = (action.reason or "").lower()
+    kinds = set()
+    if why.startswith("dig") or "digging for" in why:
+        if "blade" in why or why.startswith("dig"):
+            kinds.add(EffectKind.BLADE)
+        if "trap" in why or why.startswith("dig"):
+            kinds.add(EffectKind.TRAP)
+        if "hit" in why:
+            kinds.add(EffectKind.DAMAGE)
+    if not kinds or not battle.upcoming:
+        return {}
+    wanted = [c for c in battle.upcoming if kinds & set(c.kinds) and not c.is_enchant]
+    if not wanted:
+        return {}
+    tossed = len(action.plan_cards) if action.plan_cards else (1 if action.card is not None else 0)
+    draws = max(1, HAND_MAX - len(battle.cards) + tossed)
+    left = len(battle.upcoming)
+    names = sorted({c.name for c in wanted})
+    odds = {n: round(100 * draw_chance(left, sum(1 for c in wanted if c.name == n), draws)) for n in names}
+    any_odds = round(100 * draw_chance(left, len(wanted), draws))
+    return {"want": names, "draws": draws, "odds": odds, "any": any_odds}
 
 
 def _save_my_stats(me) -> None:

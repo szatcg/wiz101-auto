@@ -179,6 +179,21 @@
   .qstep.now .ic { color: var(--gold); }
   .qstep.next { color: var(--muted); font-style: italic; }
 
+  /* ---- deck tracker (the strip during a fight) ---- */
+  .dtrack { position: absolute; left: 184px; right: 0; top: 0; bottom: 0; display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr; gap: 10px; }
+  .dcol { background: var(--panel); border-radius: 12px; padding: 8px 12px; overflow: hidden; }
+  .dcol h4 { margin: 0 0 6px; font: 800 13px Inter; letter-spacing: 1.5px; color: var(--muted);
+    display: flex; justify-content: space-between; }
+  .dcol h4 .dig { color: var(--gold); letter-spacing: 0.5px; }
+  .dchips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { position: relative; font-size: 14px; padding: 4px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.07);
+    white-space: nowrap; border: 1px solid transparent; }
+  .chip b { color: var(--gold-2); margin-left: 4px; }
+  .chip.want { border-color: var(--gold); background: rgba(242, 193, 78, 0.16); box-shadow: 0 0 12px rgba(242, 193, 78, 0.45); }
+  .chip .odds { position: absolute; top: -9px; right: -6px; font: 800 11px Inter; color: #10121f; background: var(--gold);
+    border-radius: 6px; padding: 1px 5px; }
+  .chip.used { opacity: 0.45; }
   /* ---- thoughts strip ---- */
   .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
   .thoughts .title { position: absolute; left: 0; top: 0; width: 170px; height: 100%; display: flex; flex-direction: column;
@@ -261,7 +276,7 @@
 </div>
 
 <div class="thoughts">
-  <div class="title"><span>🧠</span><b>BOT'S<br>THOUGHTS</b></div>
+  <div class="title" id="stripTitle"><span>🧠</span><b>BOT'S<br>THOUGHTS</b></div>
   <div class="feed" id="feed"></div>
 </div>
 
@@ -380,14 +395,8 @@ function renderPlanner(p) {
   // Redrawn only when something changed: rebuilding it every poll replayed
   // the rows' slide-in every couple of seconds.
   const fresh = Date.now() < planFreshUntil ? " fresh" : "";
-  const deck = p.deck || [];
-  const left = deck.reduce((n, r) => n + r.left, 0);
-  const tracker = !deck.length ? "" : `<div class="deck"><div class="dh"><span>DECK</span><span>${left} to draw</span></div>
-    <div class="dl">${deck.map((r) => `<span class="dc${r.left + r.hand === 0 ? " out" : ""}"
-      title="${r.left} to draw, ${r.hand} in hand, ${r.used} used">${esc(r.name)} <b>${r.left}</b>${
-      r.hand ? ` <span class="h">+${r.hand}✋</span>` : ""}</span>`).join("")}</div></div>`;
   const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}<div class="pips">${pips}</div></div>
-    ${foes}<div class="steps${fresh}">${rows}</div>${tracker}`;
+    ${foes}<div class="steps${fresh}">${rows}</div>`;
   if (html === lastPlannerHtml && $("lower").className === "card grow battle") return;
   lastPlannerHtml = html;
   $("lower").className = "card grow battle";
@@ -448,6 +457,36 @@ function describe(e) {
   return `${tag}${round}${esc(e.say || e.text)}`;
 }
 
+let trackerHtml = "";
+function renderTracker() {
+  const p = battle || {};
+  const deck = p.deck || [];
+  const dig = p.dig || {};
+  const want = new Set(dig.want || []);
+  const odds = dig.odds || {};
+  const chips = (rows, field, cls) => rows.filter((r) => r[field] > 0).map((r) => {
+    const w = field === "left" && want.has(r.name);
+    return `<span class="chip ${cls}${w ? " want" : ""}">${esc(r.name)}<b>×${r[field]}</b>${
+      w ? `<span class="odds">${odds[r.name]}%</span>` : ""}</span>`;
+  }).join("");
+  const n = (field) => deck.reduce((t, r) => t + r[field], 0);
+  const digNote = want.size ? `<span class="dig">digging: ${dig.any}% in ${dig.draws} draw${dig.draws === 1 ? "" : "s"}</span>` : "";
+  const html = `<div class="dtrack">
+    <div class="dcol"><h4><span>IN DECK · ${n("left")}</span>${digNote}</h4><div class="dchips">${chips(deck, "left", "")}</div></div>
+    <div class="dcol"><h4><span>IN HAND · ${n("hand")}</span></h4><div class="dchips">${chips(deck, "hand", "")}</div></div>
+    <div class="dcol"><h4><span>USED · ${n("used")}</span></h4><div class="dchips">${chips(deck, "used", "used")}</div></div></div>`;
+  if (html !== trackerHtml) { trackerHtml = html; $("feed").innerHTML = html; }
+}
+
+function stripMode(fighting) {
+  const t = $("stripTitle");
+  const want = fighting ? "deck" : "thoughts";
+  if (t.dataset.mode === want) return;
+  t.dataset.mode = want;
+  t.innerHTML = fighting ? "<span>🃏</span><b>DECK<br>TRACKER</b>" : "<span>🧠</span><b>BOT'S<br>THOUGHTS</b>";
+  trackerHtml = ""; lastFeed = "";
+}
+
 function renderFeed() {
   const evs = (thoughts && thoughts.events) || [];
   $("feed").innerHTML = evs.slice(-4).map((e) => `
@@ -473,8 +512,14 @@ async function poll() {
     data = d; thoughts = t; battle = bp; fetchedAt = Date.now();
     renderSide();
     renderLower();
-    const key = JSON.stringify(t.events.slice(-4).map((e) => e.time + e.text));
-    if (key !== lastFeed) { lastFeed = key; renderFeed(); }  // re-render only on news: keeps the slide-in
+    const fighting = !!(bp && bp.active && (bp.deck || []).length && (d.status || {}).in_battle);
+    stripMode(fighting);
+    if (fighting) {
+      renderTracker();
+    } else {
+      const key = JSON.stringify(t.events.slice(-4).map((e) => e.time + e.text));
+      if (key !== lastFeed) { lastFeed = key; renderFeed(); }  // re-render only on news: keeps the slide-in
+    }
   } catch (e) {
     $("state").textContent = "OFFLINE";
   }
