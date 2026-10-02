@@ -548,7 +548,7 @@
   /* the pips sit on the portrait's gold ring (the portrait as it was: 172 px at 4 px, centred) */
   .pipring { position: absolute; left: 90px; top: 50%; width: 0; height: 0; z-index: 3; }
   .earlier .t { color: var(--text); }  /* (the times in the text colour: the light brown was hard to read) */
-  .pipring img { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  .pipring img { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
 </style>
 <style>
@@ -759,7 +759,7 @@ function renderPlanner(p) {
 // The pips around the portrait, as the game draws them around a duelist:
 // from 12 o'clock, centred on it, close together; class pips on the left,
 // then power pips, then plain ones. Only during fights.
-const PIP_RADIUS = 83, PIP_STEP = 15.5;  // px from the portrait's centre; degrees between pips
+const PIP_RADIUS = 86, PIP_STEP = 27;  // (44 px pips, touching like the game's)  // px from the portrait's centre; degrees between pips
 let lastRing = "";
 function renderPipRing(b) {
   let html = "";
