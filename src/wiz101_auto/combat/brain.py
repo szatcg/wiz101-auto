@@ -1315,6 +1315,17 @@ def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
 
 
 DISCARD_PLAN_HORIZON = 12  # no kill within PLAN_ROUNDS: the discard plan looks this far
+DISCARD_RESERVE = 8  # fewer cards than this left to draw: nothing is discarded for a draw
+
+
+def keep_from_discard(card: Card) -> bool:
+    """Never discarded for a draw: a big hit (2+ pips; Stone Colossus binned
+    in a boss's round 1 left the deck short later, and boss fights ran out
+    of cards and needed Reshuffle nearly every time), or a blade or trap
+    (Spirit Blade, Feint: a lot of damage for little; the player's rule)."""
+    if EffectKind.BLADE in card.kinds or EffectKind.TRAP in card.kinds:
+        return True
+    return card.is_damage and card.pip_cost >= 2
 
 
 def _plan_discard(battle: Battle) -> Action | None:
@@ -1323,8 +1334,8 @@ def _plan_discard(battle: Battle) -> Action | None:
     goes, every time, so the next draw can change the plan). One heal stays
     (the strongest), spare copies of a hit the plan plays (the plan counts on
     good draws), and Reshuffle and treasure cards."""
-    if not battle.upcoming or not battle.live_enemies:
-        return None
+    if len(battle.upcoming) < DISCARD_RESERVE or not battle.live_enemies:
+        return None  # (the deck has to last the fight)
     base, used = plan_hand_use(battle)
     if base >= 99:  # (a long fight: the plan to the end, further ahead)
         base, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON)
@@ -1339,7 +1350,8 @@ def _plan_discard(battle: Battle) -> Action | None:
     heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
     keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
     spare = [c for c in battle.cards if c.index not in used and c is not keep_heal and not c.treasure
-             and not c.is_enchant and not is_reshuffle(c) and not c.item and c.name not in plan_names]
+             and not c.is_enchant and not is_reshuffle(c) and not c.item and c.name not in plan_names
+             and not keep_from_discard(c)]
     if not spare:
         return None
     card = min(spare, key=lambda c: (c.is_heal, c.base_damage()))

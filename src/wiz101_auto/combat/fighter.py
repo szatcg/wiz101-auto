@@ -222,6 +222,7 @@ class Fighter(CombatHandler):
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
         self._discarded: Counter[str] = Counter()  # (of _gone: the discarded ones; the rest were played)
+        self._plan_toss_round = -1  # the round a plan discard was made in (one a round)
         self._deck: dict[str, int] = {}
         # deck spell name -> a card seen in hand (for planning); kept across
         # restarts (after one, Humongofrog wasn't known to be still in the
@@ -556,13 +557,17 @@ class Fighter(CombatHandler):
             battle.prismed = set(self._prismed) | {e.name for e in battle.enemies if e.myth_prism}
             battle.summoned = self._summons
             _save_my_stats(battle.me)
-            action = decide(battle, self.strategy, discards_left=discards_left, plan_discards=True)
+            # One plan discard a round at most (four in a round ran the deck dry).
+            action = decide(battle, self.strategy, discards_left=discards_left,
+                            plan_discards=self._plan_toss_round != battle.round)
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
             # Rollouts weigh the move that ends the turn, within a time budget:
             # run before each plan discard too, round 1 took 30 s and the timer
             # ran out (the discards are the brain's own free moves).
             plan_toss = action.kind is ActionKind.DISCARD and "plan" in (action.reason or "")
+            if plan_toss:
+                self._plan_toss_round = battle.round
             late = time.monotonic() - round_started > ROLLOUT_BUDGET
             if self.planner is not None and not reshuffling and not plan_toss and not late:
                 from .rollout import TIME_LIMIT

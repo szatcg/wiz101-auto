@@ -1198,7 +1198,7 @@ def test_keeps_heals_against_a_boss_at_full_health():
 
     cards = [dmg_card(0, "Fire Cat", 100), heal_card(1, "Pixie", 400)]
     b = battle(cards, [enemy("War Oni", 1600, boss=True)], my=me(hp=1912, max_hp=1912))
-    b.upcoming = [dmg_card(9, "Fire Cat", 100)] * 4
+    b.upcoming = [dmg_card(9, "Fire Cat", 100)] * 8
     binned = {a.card.name for a in candidates(b, discards=2) if a.kind is ActionKind.DISCARD}
     assert "Pixie" not in binned and "Fire Cat" in binned
 

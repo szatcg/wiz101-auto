@@ -110,9 +110,13 @@ def test_no_prism_move_on_an_enemy_without_a_storm_weakness():
 
 def test_discards_are_moves_while_there_are_discards_and_draws():
     foe = Combatant("Weakling", 250, 300, is_enemy=True, school="fire", resist={})
-    b = _battle([foe], [_hit(0, 400, 3)])
-    assert any(m.kind is ActionKind.DISCARD for m in sim.candidates(b, discards=1))
+    b = _battle([foe], [_hit(0, 400, 3), _hit(1, 90, 1, "Chip")])
+    b.upcoming = b.upcoming + b.upcoming  # (12 to draw: enough to discard)
+    binned = [m.card.name for m in sim.candidates(b, discards=1) if m.kind is ActionKind.DISCARD]
+    assert binned == ["Chip"]  # never the big hit
     assert not any(m.kind is ActionKind.DISCARD for m in sim.candidates(b, discards=0))
+    b.upcoming = b.upcoming[:7]  # under the reserve: the deck must last
+    assert not any(m.kind is ActionKind.DISCARD for m in sim.candidates(b, discards=1))
 
 
 def test_minion_share_from_the_logged_rounds(tmp_path):

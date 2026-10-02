@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .brain import (
+    DISCARD_RESERVE,
     Strategy,
     _is_prism,
     _overkill,
@@ -30,6 +31,7 @@ from .brain import (
     decide,
     hit_damage,
     is_reshuffle,
+    keep_from_discard,
     prism_view,
     setup_fits,
 )
@@ -672,7 +674,7 @@ def _wastes_setup(c: Card, t: Combatant, battle: Battle) -> bool:
     return c.base_damage() < best / 2 and hit_damage(c, battle.me, t) < t.health
 
 
-MIN_DECK_TO_DISCARD = 4  # rollouts don't bin cards with fewer left in the deck
+MIN_DECK_TO_DISCARD = DISCARD_RESERVE  # rollouts don't bin cards with fewer left in the deck
 
 
 def candidates(battle: Battle, discards: int = 0) -> list[Action]:
@@ -690,8 +692,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
         for c in battle.cards:
             if _is_prism(c) and not _prism_useless(c, battle):
                 continue  # a prism with work to do (Cyrus Drake: binned, then Colossus hit his resist)
-            if is_reshuffle(c):
-                continue  # (never discarded: the player's rule)
+            if is_reshuffle(c) or keep_from_discard(c):
+                continue  # (never discarded: the player's rules)
             if c.name not in binned and not c.treasure and not (keep_heals and c.is_heal):
                 binned.add(c.name)
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))

@@ -65,3 +65,18 @@ def test_no_plan_discard_when_the_kill_is_in_hand():
     b = Battle(me=me, allies=[], enemies=[troll], cards=cards, pips=4, deck_known=True,
                upcoming=[hit(10, "Colossus", 4, 900)])
     assert _plan_discard(b) is None
+
+
+def test_blades_traps_and_big_hits_are_never_discarded_for_a_draw():
+    from wiz101_auto.combat.brain import keep_from_discard
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    def card(i, name, pips, kind, target, value):
+        return Card(i, name, school="myth", pip_cost=pips, effects=[Effect(kind, target, value)])
+
+    blade = card(0, "Spirit Blade", 1, EffectKind.BLADE, Target.SELF, 35)
+    feint = card(1, "Feint", 1, EffectKind.TRAP, Target.ENEMY_SINGLE, 70)
+    colossus = card(2, "Stone Colossus", 3, EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)
+    pixie = card(3, "Pixie", 2, EffectKind.HEAL, Target.ALLY_SINGLE, 400)
+    assert keep_from_discard(blade) and keep_from_discard(feint) and keep_from_discard(colossus)
+    assert not keep_from_discard(pixie)
