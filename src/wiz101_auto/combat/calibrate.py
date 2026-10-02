@@ -191,12 +191,8 @@ def measure(fights: list[list[Round]], defeats: list[bool] | None = None):
         cast = CAST.search(a.action)
         taken = min(a.max_hp, a.hp + HEAL_SPELLS.get(cast["spell"] if cast else "", 0))
         foes = [f for f in a.foes if f[1] > 0]
-        if len(foes) == 1:
+        if len(foes) == 1 and taken > 0:  # (with several up, whose hit it was is unknown)
             theirs.setdefault(foes[0][0], []).append(taken)
-        elif foes:
-            total = sum(max(m, 1) for _n, _h, m in foes)
-            for name, _h, m in foes:
-                shared.setdefault(name, []).append(taken * max(m, 1) / total)
     return ours, fizzles, theirs, shared
 
 

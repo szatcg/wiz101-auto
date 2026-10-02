@@ -393,15 +393,15 @@ class Fighter(CombatHandler):
         if self.flee_to_mark is None or self._flee_tried_this_round or self._flee_refused:
             return False
         from . import sim
-        from .brain import flee_before_death
+        from .brain import flee_before_death, round_threat
 
         stats = self.__dict__.get("_sim_stats")
         if stats is None:
             stats = self._sim_stats = sim.load_stats()
         # (x FLEE_MARGIN: the worst logged round can be a lower bound, the
         # one that killed us; Malistaire hit 938 after a worst of 534.)
-        threat = FLEE_MARGIN * sum(max(sim.samples_for(e.name, e.max_health, e.is_boss, stats) or [0])
-                                   for e in battle.live_enemies)
+        threat = FLEE_MARGIN * round_threat(
+            [sim.samples_for(e.name, e.max_health, e.is_boss, stats) for e in battle.live_enemies])
         if not flee_before_death(battle, action, threat):
             return False
         if not await self.flee_to_mark():

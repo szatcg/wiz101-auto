@@ -1720,6 +1720,18 @@ def out_of_attacks(battle: Battle) -> bool:
     return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
 
 
+def round_threat(samples: list[list[int]]) -> float:
+    """A bad enemy round: the hardest hitter's worst logged round plus the
+    others' typical (median) ones. (Every enemy's worst at once, 2360 for
+    Malistaire Drake and three Soul Servants, fled at 2298 of 2380 health.)"""
+    worst = [max(s) if s else 0 for s in samples]
+    if not worst:
+        return 0.0
+    top = max(range(len(worst)), key=lambda i: worst[i])
+    rest = sum(sorted(s)[len(s) // 2] for i, s in enumerate(samples) if i != top and s)
+    return float(worst[top] + rest)
+
+
 def flee_before_death(battle: Battle, action: Action, threat: float) -> bool:
     """Solo in a dungeon (the caller checks): the enemies' worst round
     (`threat`) could finish us and this move neither heals nor ends the
