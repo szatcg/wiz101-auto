@@ -393,7 +393,11 @@ async def quest_loop(quester: Quester, controller: Controller):
                 # Standing on a duel circle whose fight never started, the game
                 # stopped taking moves: log out to character select and back.
                 stuck += 1
-                if stuck >= STUCK_TIMEOUTS_BEFORE_RELOG and not await quester.client.in_battle():
+                from .quest import WALK_IN_QUIET
+
+                cutscene = time.monotonic() < getattr(quester, "_walked_in_at", -1e9) + WALK_IN_QUIET
+                if (stuck >= STUCK_TIMEOUTS_BEFORE_RELOG and not cutscene
+                        and not await quester.client.in_battle()):
                     from .relog import relog
 
                     stuck = 0

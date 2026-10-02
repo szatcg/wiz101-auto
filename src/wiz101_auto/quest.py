@@ -153,6 +153,7 @@ LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close 
 ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far, times the misses
 ENGAGE_BACKOFF_MAX = 2400.0
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
+WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -4936,6 +4937,7 @@ class Quester:
         key = (objective, zone, target)
         miss = misses.get(key, 0)
         if miss or walk:
+            self._walked_in_at = time.monotonic()
             # The player: from where we fought the room's last enemies, walk in
             # (teleported near him, Malistaire showed but never fully loaded,
             # and his cutscene's trigger is further out); further back each try.
@@ -4951,6 +4953,7 @@ class Quester:
                 from .walkmap import walk_path
 
                 path = None if await self.client.in_battle() else await walk_path(zone, origin, pos)
+                self._walked_in_at = time.monotonic()
                 if path:
                     logger.info(f"following a {len(path)}-waypoint path around the walls")
                     for wp in path:
@@ -5728,6 +5731,15 @@ class Quester:
         # Teleports refused even after a long wait, twice running: check now
         # (a frozen wizard took 40 s of tries before the relog).
         frozen = getattr(self.client, "_refused_in_row", 0) >= FROZEN_REFUSALS
+        # Not after walking up to a boss (its cutscene holds the wizard still:
+        # twice the relog that followed reset Malistaire's Lair), and in a
+        # dungeon only when teleports fail too (a relog resets it).
+        cutscene = now < getattr(self, "_walked_in_at", -1e9) + WALK_IN_QUIET
+        if (not frozen and not cutscene and stalled
+                and await self._in_any_dungeon(zone or "")):
+            stalled = False
+        if cutscene:
+            frozen = stalled = False
         if frozen or (stalled and now - self._last_stuck_check > STUCK_CHECK_EVERY):
             self._last_stuck_check = now
             self.client._refused_in_row = 0
