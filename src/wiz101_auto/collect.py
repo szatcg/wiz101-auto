@@ -48,6 +48,25 @@ def item_alternatives(item: str) -> list[str]:
     return [f"{first} {rest}", f"{second} {rest}"]
 
 
+GENERIC_WORDS = {"sample", "samples", "piece", "pieces", "part", "parts", "item", "items", "bits", "bit"}
+
+
+def loose_names(item: str) -> list[str]:
+    """Looser names to search for when the quest's exact one finds nothing
+    (the player: every crystal sample is just "Crystal Sample", whatever the
+    quest's colour): the name, without its first word ("Crystal Sample"),
+    then its main noun ("Crystal")."""
+    out = [item]
+    base = item_alternatives(item)[-1]
+    words = base.split()
+    if len(words) >= 2:
+        out.append(" ".join(words[1:]))
+    nouns = [w for w in words[1:] if len(w) >= 4 and w.lower() not in GENERIC_WORDS]
+    if nouns:
+        out.append(max(nouns, key=len))
+    return list(dict.fromkeys(out))
+
+
 def matches_item(item: str, *names: str) -> bool:
     """True if any of the entity's names refers to the item (e.g. 'Cog' vs 'WC_Cog_01')."""
     alternatives = item_alternatives(item)

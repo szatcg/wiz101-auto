@@ -794,6 +794,7 @@ class Quester:
         self._done_dungeon_logged = ""  # a finished dungeon whose own quest was skipped (logged once)
         self._route_written: list[str] | None = None  # the route last written for the stream page
         self._route_at = 0  # where on it we are
+        self._loose_level: dict[str, int] = {}  # objective -> how loosely its item is searched for
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -3135,6 +3136,10 @@ class Quester:
 
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
+        from .collect import loose_names
+
+        names = loose_names(item)
+        item = names[min(self._loose_level.get(objective, 0), len(names) - 1)]
         if await self.collector.collect_once(item, self._press_collect):
             await asyncio.sleep(0.5)
             if await self.objective() != objective:
@@ -3217,6 +3222,15 @@ class Quester:
         # Hall of Champions' gemstones are out on the Krokosphinx streets).
         # Search the zones around the one the objective names (or this one)
         # before giving up.
+        # The exact name found nothing in the whole zone: look again for
+        # anything like it ('Red Crystal Sample' -> 'Crystal Sample' ->
+        # 'Crystal'; the player's: the samples are all just "Crystal Sample").
+        level = self._loose_level.get(objective, 0)
+        if level + 1 < len(names):
+            self._loose_level[objective] = level + 1
+            self._scouted_for = self._far_swept_for = None
+            logger.info(f"no {item!r} anywhere here: looking for anything like {names[level + 1]!r}")
+            return True
         if await self._search_next_zone(item, objective):
             return True
         # Inside a dungeon an item that's nowhere often comes from its boss

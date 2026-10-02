@@ -60,3 +60,12 @@ def test_an_objective_for_two_kinds_matches_either():
     assert matches_item("Red and Orange Crystal Sample", "Red Crystal Sample")
     assert not matches_item("Green and Purple Crystal Sample", "Orange Crystal Sample")
     assert item_alternatives("Cog") == ["Cog"]
+
+
+def test_loose_names_for_an_item_not_found_by_its_quest_name():
+    from wiz101_auto.collect import loose_names, matches_item
+
+    assert loose_names("Red Crystal Sample") == ["Red Crystal Sample", "Crystal Sample", "Crystal"]
+    assert loose_names("Green and Purple Crystal Sample")[1:] == ["Crystal Sample", "Crystal"]
+    assert loose_names("Cog") == ["Cog"]
+    assert matches_item("Crystal Sample", "Crystal Sample")
