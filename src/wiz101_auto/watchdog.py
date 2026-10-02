@@ -19,12 +19,13 @@ import random
 import time
 
 from loguru import logger
-from wizwalker import Keycode
+from wizwalker import XYZ, Keycode
 
 from . import ui
 from .upkeep import clear_popups
 
 LEVELS = 4
+HOP_SIDE, HOP_DOWN, HOP_WAIT = 500.0, 1500.0, 1.5  # the "away and back" hop (Deimos)
 
 
 class Watchdog:
@@ -107,6 +108,23 @@ class Watchdog:
                 logger.debug(f"watchdog nudge failed: {exc}")
             changed = time.monotonic()
 
+    async def _hop_away_and_back(self):
+        """Under the map and back (Deimos): a "Press X" prompt that stopped
+        showing beside an NPC or sigil comes back once we've left its range."""
+        c = self.client
+        try:
+            if await c.in_battle():
+                return
+            raw = getattr(c, "_teleport_raw", c.teleport)
+            here = await c.body.position()
+            await raw(XYZ(here.x + HOP_SIDE, here.y, here.z - HOP_DOWN))
+            await asyncio.sleep(HOP_WAIT)
+            await raw(here)
+            await asyncio.sleep(0.5)
+            logger.info("  hopped away and back (brings back a missing Press X prompt)")
+        except Exception as exc:
+            logger.debug(f"  hop away failed: {exc}")
+
     async def _nudge(self, level: int):
         c = self.client
         q = self.quester
@@ -122,6 +140,7 @@ class Watchdog:
             if q:
                 q.cancel_step()
                 q.reset_objective_memory()
+            await self._hop_away_and_back()
             await c.send_key(Keycode.W, 0.4)
             logger.info("  restarted the current step with a fresh start")
         elif level == 3:
