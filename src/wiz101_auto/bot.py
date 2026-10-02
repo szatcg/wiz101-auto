@@ -36,6 +36,7 @@ from .upkeep import (
 from .watchdog import Watchdog
 
 HOOK_TIMEOUT = 90
+CONNECT_TIMEOUT = 300.0  # the whole way into the world (reconnect, Play, hooks)
 DEATH_HEALTH_RATIO = 0.1
 DEFEAT_MOVE_DISTANCE = 1500.0  # a defeat puts you back at the zone's start (or another zone)
 
@@ -402,7 +403,17 @@ async def run(cfg: Config):
     tasks: list[asyncio.Task] = []
     stack = contextlib.AsyncExitStack()
     try:
-        client = await connect(handler)
+        try:
+            client = await asyncio.wait_for(connect(handler), CONNECT_TIMEOUT)
+        except TimeoutError:
+            # Stuck getting in (after pressing Reconnect on a lost connection it
+            # waited seven hours, the servers down, no watcher running yet):
+            # the supervisor restarts the game (every 15 min until it's in).
+            from . import gamerestart
+
+            gamerestart.request(f"could not get into the world within {CONNECT_TIMEOUT / 60:.0f} min")
+            raise SystemExit(f"could not get into the world within {CONNECT_TIMEOUT / 60:.0f} min; "
+                             "asked for a game restart") from None
         if s.mouseless:
             # Managed mode: helpers like DeckBuilder nest `async with mouse_handler`
             # and must not switch mouseless off underneath us.

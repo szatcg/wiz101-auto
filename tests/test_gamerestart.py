@@ -27,7 +27,7 @@ def test_one_restart_per_15_minutes(tmp_path, monkeypatch):
     now = time.time()
     assert gamerestart.wait_before_restart(now) == 0
     (tmp_path / "hist").write_text(f"{now - 300:.0f}\n", encoding="utf-8")
-    assert 590 < gamerestart.wait_before_restart(now) <= 600
+    assert 590 < gamerestart.wait_before_restart(now) <= 601  # (times are saved to the second)
     (tmp_path / "hist").write_text(f"{now - 1000:.0f}\n", encoding="utf-8")
     assert gamerestart.wait_before_restart(now) == 0
 
