@@ -75,6 +75,27 @@ def _same(a: Action, b: Action) -> bool:
     return same_card and same_target
 
 
+HEAL_NEEDED_BELOW = 0.5  # a rollout's heal instead of the brain's move: only under half health...
+
+
+def _early_heal(move: Action, battle: Battle, stats=None) -> bool:
+    """A heal the simulator would play while we're well (1364 of 2189 against
+    Boris Blackrock, over the brain's pass): not taken unless under half
+    health or the enemies' worst logged hit could take the rest."""
+    from . import sim
+
+    card = move.card
+    if move.kind is not ActionKind.CAST or card is None or not card.is_heal or card.is_damage:
+        return False
+    me = battle.me
+    if me.health_ratio < HEAL_NEEDED_BELOW:
+        return False
+    stats = stats if stats is not None else sim.load_stats()
+    worst = sum(max(sim.samples_for(e.name, e.max_health, e.is_boss, stats) or [0])
+                for e in battle.live_enemies)
+    return worst < me.health
+
+
 class RolloutPlanner:
     def __init__(self, workers: int | None = None, time_limit: float = TIME_LIMIT, stats: dict | None = None):
         self.workers = workers or max(2, min(8, (os.cpu_count() or 4) - 2))
@@ -100,7 +121,8 @@ class RolloutPlanner:
         kinds = (ActionKind.CAST, ActionKind.PASS, ActionKind.DISCARD)
         if brain.kind not in kinds or not worth_it(battle, brain):
             return brain
-        moves = sim.candidates(battle, discards)
+        moves = [m for m in sim.candidates(battle, discards)
+                 if _same(m, brain) or not _early_heal(m, battle, self.stats)]
         try:  # the last battle planned, to replay offline (state/rollout_battle.pkl); not from tests
             if self.stats is not None:
                 raise RuntimeError("test stats")
