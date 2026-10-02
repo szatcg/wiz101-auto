@@ -268,3 +268,16 @@ def test_dungeon_quest_never_picks_a_skipped_quest():
     assert dungeon_quest(quests[:1], zone, zones.get) is None
     odd = [QuestEntry(0, "Odd Job", world=area)]
     assert dungeon_quest(odd, zone, zones.get, skipped={"Odd Job"}) is None
+
+
+def test_dungeon_quest_keeps_the_one_the_game_tracked_on_entering():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    zone = "DragonSpire/DS_A1_Knowledge/Interiors/DS_Chasm_HallOfTime"
+    quests = [
+        QuestEntry(0, "Forward... Into History!", mainline=True, world="The Grand Chasm"),
+        QuestEntry(1, "Back to the Beginning", world="Somewhere Else", active=True),
+        QuestEntry(2, "The Secret History", world="The Great Spyre"),
+    ]
+    zones = {"The Grand Chasm": "DragonSpire/DS_A1_Knowledge/DS_A1Z3_GrandChasm"}
+    assert dungeon_quest(quests, zone, zones.get).name == "Back to the Beginning"

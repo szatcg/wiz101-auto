@@ -489,7 +489,11 @@ def dungeon_quest(
         q for q in quests
         if not q.mainline and q.world and q.name not in never and not in_side_world(q)
         and (zone_of(q.world) == zone or named_here(q.world)
-             or (zone_of(q.world) is None and q.world in main_areas))
+             or (zone_of(q.world) is None and q.world in main_areas)
+             # The one the game tracked on entering ('Back to the Beginning' in
+             # the Hall of Time, its area 'Grand Chasm Past'): the bot walked
+             # to the portal home for the main quest and lost the instance.
+             or q.active)
     ]
     local.sort(key=lambda q: q.name in set_aside)  # ones not set aside first
     if not local:
