@@ -5077,6 +5077,9 @@ class Quester:
                     if time.monotonic() - getattr(self, "_search_wait_logged", 0.0) > 60:
                         self._search_wait_logged = time.monotonic()
                         logger.info(f"waiting for the deck search against {name} before fighting it again")
+                    # (Not a stall: the main quest 'It's an Honor' was set aside
+                    # for 30 min while this wait ran, and the bot went grinding.)
+                    self._last_progress_time = time.monotonic()
                     self.controller.allow_idle(30)
                     await asyncio.sleep(10.0)
                     return
