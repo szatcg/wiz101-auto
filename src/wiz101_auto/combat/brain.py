@@ -1330,6 +1330,11 @@ def _plan_discard(battle: Battle) -> Action | None:
         base, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON)
     if base >= 99 or not used:
         return None
+    if base <= 1:
+        # The kill is in hand this round: nothing to draw for, and a miss
+        # would want the heal and trap it threw away (it binned Spirit Blade,
+        # Myth Trap and Pixie before a Colossus that ended the fight).
+        return None
     plan_names = {c.name for c in battle.cards if c.index in used}
     heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
     keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None

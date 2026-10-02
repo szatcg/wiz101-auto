@@ -48,3 +48,20 @@ def test_plan_discard_bins_what_the_plan_skips():
     got = _plan_discard(b)
     if got is not None:  # (only when a draw shortens the win)
         assert got.kind is ActionKind.DISCARD and got.card.index not in used and got.card.name != "Pixie"
+
+
+def test_no_plan_discard_when_the_kill_is_in_hand():
+    from wiz101_auto.combat.brain import _plan_discard
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    def hit(i, name, cost, dmg):
+        fx = [Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, dmg)]
+        return Card(i, name, school="myth", pip_cost=cost, effects=fx)
+
+    trap = Card(1, "Myth Trap", school="myth", effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30)])
+    cards = [hit(0, "Colossus", 4, 900), trap, hit(2, "Minor Scorch", 0, 60)]
+    me = Combatant("me", 2000, 2000, is_client=True, school="myth")
+    troll = Combatant("Troll", 700, 765, is_enemy=True, resist={})
+    b = Battle(me=me, allies=[], enemies=[troll], cards=cards, pips=4, deck_known=True,
+               upcoming=[hit(10, "Colossus", 4, 900)])
+    assert _plan_discard(b) is None
