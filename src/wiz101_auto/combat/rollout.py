@@ -177,6 +177,12 @@ class RolloutPlanner:
             return brain
         idle = moves[best].kind in (ActionKind.PASS, ActionKind.DISCARD) and brain.kind is ActionKind.CAST
         margin = IDLE_MARGIN if idle else MARGIN
+        heal = brain.kind is ActionKind.CAST and brain.card is not None and brain.card.is_heal
+        if heal and not brain.card.is_damage:
+            # A heal has no head start (the player: low health and a fast win
+            # often beats 4 pips and 4 rounds for 500 health): whatever plays
+            # out better, deaths counted, goes instead.
+            margin = 0.0
         if best != mine and values[best][0] > values[mine][0] + margin:
             logger.info(f"rollouts ({took:.1f}s): {line(best)} beats the brain's {line(mine)}")
             chosen = moves[best]
