@@ -700,6 +700,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
             continue
         if EffectKind.SUMMON in c.kinds:
             continue  # no minions at all (the player's rule)
+        if is_reshuffle(c):
+            continue  # (the brain casts it, on ourselves, when the deck runs dry)
         if not c.is_damage and not setup_fits(c, battle):
             continue  # a trap/blade boosting none of our hits (an ice trap, no ice hits)
         if c.target is Target.ENEMY_SINGLE:
