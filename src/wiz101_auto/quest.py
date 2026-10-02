@@ -2686,6 +2686,12 @@ class Quester:
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
+            if complete and await self._in_dungeon(await self.client.zone_name() or ""):
+                # Inside a dungeon the book can leave quests out (the Haunted
+                # Cave's Halloween dungeon showed 4, Wizard Tours not among
+                # them): twice a false "no main quest" alert, and the pin
+                # dropped. Such a read decides nothing is done.
+                complete = False
             for _, q in all_quests:
                 if q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
