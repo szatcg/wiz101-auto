@@ -4816,6 +4816,18 @@ class Quester:
                 self.controller.end_idle()
             if not await is_free(self.client):
                 return
+        pet = getattr(self, "pet", None)
+        if pet and not team and not await self._in_dungeon(zone_now):
+            self.controller.allow_idle(1800)  # the trip and up to dozens of games
+            try:
+                acted = await pet.tick()
+            except Exception as exc:
+                logger.opt(exception=exc).warning("pet dance trip failed")
+                acted = True
+            finally:
+                self.controller.end_idle()
+            if acted:
+                return
         if self.trainer and not team:
             self.controller.allow_idle(240)  # the trip crosses zones and a training window
             try:

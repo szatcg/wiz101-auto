@@ -24,6 +24,7 @@ to **run, watch, fix and restart** the bot without the user relaying anything.
 | (sim) | http://127.0.0.1:8101/sim: the combat simulator's visualizer: every deck search's report (`state/sim_runs/`): decks tried, the 5 fastest winners iterated on, the chosen deck, casts/moves per fight, and recorded sample fights on a battle board (step / auto-play; `#step=N&fight=I` opens a step); start a search against chosen enemies from the page |
 | `farm` / `farm --stop` | farm Mount Olympus with teams (`state/farm.json`); turns on by itself when the main quest is stuck; run count and set pieces on /stream |
 | `publish-setup owner/repo` | one-time: publish the dashboard on GitHub Pages (public repo; the dashboard server then pushes data every 2 min). Live: https://szatcg.github.io/wizzbot-tracker/ |
+| `pet [--games N]` | the running bot goes to the Pet Pavilion at its next free moment, plays the dance game (moves read from memory) until the pet is out of energy or snacks (or N games), feeds the first snack after each win, then Recalls back (`state/pet.request`) |
 | `pin "Quest"` / `pin` | follow that quest until it's done or set aside / unpin (the main-story quest tracked at start is pinned too; `state/quest_pin.json`) |
 | `stop` | clean stop (unhooks the game); force-kills only after 30s |
 | `restart [--supervise]` | stop + start |
@@ -140,6 +141,7 @@ while the bot is stopped.
 | `simviz.py`, `sim.html` | the /sim page (reports list, stats, battle-board replays from `sim.replay`) |
 | `combat/rollout.py` | boss/hard fights: each move played out in the simulator in worker processes (~3 s), the brain's move replaced when another is clearly better (`combat.rollouts`) |
 | `gear.py` | new backpack item: tries just it against what is worn; level-up: retries items that could not be worn before. `state/gear.json` remembers items already beaten (never retried) |
+| `petdance.py` | `pet` trips: the dance-game moves hook (from Deimos, by peechez; GPL-3.0), the Pet Pavilion route, playing, feeding, rewards |
 | `trainer.py` | trips to the school professor (Go Home, dorm door, school door) at `progression.train_levels`; trains new spells |
 | `bossfarm.py`, `dungeons.py` | `mode: boss` (`boss_farm.boss`, `until_item`, `max_runs`): repeat a learned dungeon boss |
 | `deck.py`, `deck_plan.py`, `progression.py` | spellbook reading, deck planning, level-ups, trainer |

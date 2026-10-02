@@ -17,6 +17,7 @@ from .combat.fighter import Fighter
 from .config import Config
 from .dungeon_heal import DungeonHealer
 from .gear import GearManager
+from .petdance import PetDancer
 from .progression import Progression
 from .quest import Quester
 from .safety import BotStopped, Controller
@@ -429,6 +430,7 @@ async def run(cfg: Config):
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
             quester.healer = DungeonHealer(quester, cfg.upkeep)
+            quester.pet = PetDancer(quester)
             quester.fighter = fighter
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight

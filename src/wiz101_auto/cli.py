@@ -139,6 +139,8 @@ def main(argv: list[str] | None = None):
     farm_p.add_argument("--name", default=None)
     farm_p.add_argument("--boss", default=None, help="the boss whose defeat ends a run")
     farm_p.add_argument("--reset", action="store_true", help="set the run count back to 0")
+    pet_p = sub.add_parser("pet", help="have the bot play the pet dance game until the pet's energy runs out")
+    pet_p.add_argument("--games", type=int, default=0, help="at most this many games (0: no limit)")
     pin_p = sub.add_parser("pin", help="follow this quest until it's done or set aside (no name: unpin)")
     pin_p.add_argument("quest", nargs="?", default="")
     dash_p = sub.add_parser("dashboard", help="serve the progress dashboard at http://127.0.0.1:8101/")
@@ -250,6 +252,14 @@ def main(argv: list[str] | None = None):
         farm.save()
         state = "on" if farm.active else "off"
         print(f"farming {farm.name}: {state} ({farm.runs} runs so far; a run ends on {farm.final_boss})")
+        return 0
+    if args.command == "pet":
+        from .petdance import PET_REQUEST
+
+        PET_REQUEST.parent.mkdir(exist_ok=True)
+        PET_REQUEST.write_text(str(max(0, args.games)), encoding="utf-8")
+        n = f"{args.games} game(s)" if args.games else "games until the pet is out of energy"
+        print(f"requested: at its next free moment the bot goes to the Pet Pavilion for {n}, then comes back")
         return 0
     if args.command == "pin":
         from .quest import save_pin
