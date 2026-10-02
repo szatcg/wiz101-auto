@@ -153,6 +153,29 @@ async def read_effects(effect, depth: int = 0) -> list[Effect]:
     return [mapped]
 
 
+
+SCHOOL_PIP_KINDS = ("balance", "death", "fire", "ice", "life", "myth", "storm")
+_school_pips_logged = False
+
+
+async def school_pips(member) -> int:
+    """Class (school) pips: they count like power pips, and the bot didn't
+    see them (spells planned a round late). Read beside the generic and
+    power pips in the participant's pip count."""
+    global _school_pips_logged
+    try:
+        part = await member.get_participant()
+        count = await part.pip_count()
+        found = {k: await getattr(count, f"{k}_pips")() for k in SCHOOL_PIP_KINDS}
+    except Exception:
+        return 0
+    total = sum(found.values())
+    if total and not _school_pips_logged:
+        _school_pips_logged = True
+        seen = ", ".join(f"{k} {n}" for k, n in found.items() if n)
+        logger.info(f"class pips: {seen} (counted as power pips)")
+    return total
+
 async def _is_item(card) -> bool:
     try:
         return bool(await card.is_item_card())
@@ -460,7 +483,7 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
         enemies=enemies,
         cards=cards,
         pips=await me_member.normal_pips(),
-        power_pips=await me_member.power_pips(),
+        power_pips=await me_member.power_pips() + await school_pips(me_member),
         round=await handler.round_number(),
     )
     return BattleSnapshot(battle, card_map, members)
