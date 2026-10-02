@@ -28,7 +28,10 @@ from .givers import is_named_npc
 from .puzzles import is_switch
 
 BOSS_MARK_DISTANCE = 700.0  # land (and mark) this far short of a remembered boss
-PICKUP_WORDS = ("crate", "box", "part", "gear", "cog", "spring", "bolt", "piece")
+PICKUP_WORDS = ("crate", "box", "part", "gear", "cog", "spring", "bolt", "piece",
+                # (Malistaire's door: "The door is locked. Find the crystal.":
+                # Firebender's Chest, the Crystal Stand)
+                "chest", "crystal", "stand", "key", "gem", "orb")
 _PICKUP = re.compile(r"\b(" + "|".join(PICKUP_WORDS) + r")s?\b", re.IGNORECASE)
 
 

@@ -4937,9 +4937,11 @@ class Quester:
                 # Inside a dungeon the boss may only come out once the place is
                 # worked through (Counterweight East: talk to Gus, use the
                 # Counterweight Levers): talk, pick up, try the switches first.
-                if await self._in_dungeon(zone_now) and await self.bring_out.step(
-                    objective, zone_now, target, fight=True
-                ):
+                # Outside dungeons too, once the marker's door keeps refusing us
+                # ("The door is locked. Find the crystal." at Malistaire's).
+                worked = (await self._in_dungeon(zone_now)
+                          or not self._may_try(objective, zone_now, "locked_door"))
+                if worked and await self.bring_out.step(objective, zone_now, target, fight=True):
                     return
                 if self._may_try(objective, zone_now, "walk_circle") and await self._walk_into_circle(marker):
                     return

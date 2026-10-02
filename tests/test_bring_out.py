@@ -6,6 +6,8 @@ def test_pickups():
     assert is_pickup("Clockwork Parts")
     assert not is_pickup("Planks")
     assert not is_pickup("Power Lever")
+    assert is_pickup("Firebender's Chest") and is_pickup("Crystal Stand")  # (Malistaire's locked door)
+    assert not is_pickup("Monkey Bandstand")
 
 
 def test_order_boss_pickups_npcs_switches():
