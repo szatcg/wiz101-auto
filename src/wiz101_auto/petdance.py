@@ -165,24 +165,145 @@ async def _wait_for(check, timeout: float, every: float = 0.15) -> bool:
     return False
 
 
-class PetDancer:
-    """Runs the `pet` request from inside the bot (the one process hooked in)."""
+STAGES = ("baby", "teen", "adult", "ancient", "epic", "mega", "ultra")
+PET_STATE = Path("state") / "pet.json"  # the equipped pet as last seen: kind, stage
+PET_WINDOWS = Path("state") / "pet_windows.txt"  # every text of the pet-game windows (for mapping)
+ENERGY_CHECK_SECONDS = 60.0
 
-    def __init__(self, quester, feed: bool = True):
+
+def stage_in(texts: list[str]) -> str | None:
+    """The furthest pet stage named in `texts` ('...is now an Adult!')."""
+    found = [st for st in STAGES for t in texts if re.search(rf"\b{st}\b", t, re.I)]
+    return max(found, key=STAGES.index) if found else None
+
+
+def kind_in(texts: list[str], kinds) -> str | None:
+    """A pet kind from `kinds` (lower case) named in `texts`."""
+    for k in kinds:
+        if any(re.search(rf"\b{re.escape(k)}\b", t, re.I) for t in texts):
+            return k
+    return None
+
+
+def goal_reached(kind: str | None, stage: str | None, goals: dict, default_goal: str) -> bool:
+    goal = (goals.get((kind or "").lower()) or default_goal).lower()
+    if not stage or goal not in STAGES or stage not in STAGES:
+        return False
+    return STAGES.index(stage) >= STAGES.index(goal)
+
+
+def load_pet() -> dict:
+    import json
+
+    try:
+        return json.loads(PET_STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_pet(data: dict):
+    import json
+
+    try:
+        PET_STATE.parent.mkdir(exist_ok=True)
+        PET_STATE.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+async def _all_texts(window, depth: int = 0) -> list[str]:
+    out: list[str] = []
+    if window is None or depth > 10:
+        return out
+    try:
+        text = ui._TAGS.sub("", await window.maybe_text() or "").strip()
+        if text:
+            out.append(text)
+        for child in await window.children():
+            out += await _all_texts(child, depth + 1)
+    except Exception:
+        pass
+    return out
+
+
+class PetDancer:
+    """Pet trips from inside the bot (the one process hooked in): a `pet`
+    request, or (cfg.auto) whenever the wizard's energy is full, until the
+    pet reaches its goal stage."""
+
+    def __init__(self, quester, cfg=None):
+        from .config import PetConfig
+
         self.q = quester
         self.client = quester.client
-        self.feed = feed
+        self.cfg = cfg or PetConfig()
+        self.feed = self.cfg.feed
+        self._next_check = 0.0
+        self._dumped: set[str] = set()
+
+    def done(self) -> bool:
+        pet = load_pet()
+        return goal_reached(pet.get("kind"), pet.get("stage"), self.cfg.goals, self.cfg.default_goal)
+
+    async def energy(self) -> tuple[int | None, int | None]:
+        """(the wizard's energy now, its maximum): pet games cost energy."""
+        now = first_number(await ui.named_text(self.client, "textEnergy"))
+        try:
+            most = await self.client.stats.energy_max()
+        except Exception:
+            most = None
+        return now, most
 
     async def tick(self) -> bool:
         """Call while free. True if it made the trip."""
         wanted = games_requested()
-        if wanted is None:
+        if wanted is not None:
+            try:
+                await self.trip(wanted)
+            finally:
+                PET_REQUEST.unlink(missing_ok=True)
+            return True
+        if not self.cfg.auto or time.monotonic() < self._next_check:
             return False
-        try:
-            await self.trip(wanted)
-        finally:
-            PET_REQUEST.unlink(missing_ok=True)
+        self._next_check = time.monotonic() + ENERGY_CHECK_SECONDS
+        if self.done():
+            return False
+        now, most = await self.energy()
+        if now is None or not most or now < most:
+            return False
+        pet = load_pet()
+        what = f"{pet.get('kind') or 'pet'} {pet.get('stage') or ''}".strip()
+        logger.info(f"pet: energy full ({now}/{most}): off to the dance game ({what})")
+        await self.trip(0)
         return True
+
+    async def _learn(self, window_name: str):
+        """Read the pet's kind and stage from a pet-game window's texts."""
+        w = await _visible(self.client.root_window, window_name)
+        if w is None:
+            return
+        texts = await _all_texts(w)
+        if window_name not in self._dumped and texts:
+            self._dumped.add(window_name)
+            try:
+                with PET_WINDOWS.open("a", encoding="utf-8") as f:
+                    when = time.strftime("%Y-%m-%d %H:%M")
+                    f.write(f"--- {window_name} ({when})\n" + "\n".join(texts) + "\n")
+            except OSError:
+                pass
+        pet = load_pet()
+        kind = kind_in(texts, list(self.cfg.goals))
+        stage = stage_in(texts)
+        changed = False
+        if kind and kind != pet.get("kind"):
+            pet["kind"], changed = kind, True
+        old = pet.get("stage")
+        if stage and stage != old and (window_name == "PetLevelUpWindow" or old not in STAGES
+                                       or STAGES.index(stage) > STAGES.index(old)):
+            pet["stage"], changed = stage, True
+        if changed:
+            save_pet(pet)
+            logger.info(f"pet: {pet.get('kind') or 'the pet'} is {pet.get('stage') or '?'}")
 
     async def trip(self, wanted: int):
         start = await self.client.zone_name() or ""
@@ -207,6 +328,11 @@ class PetDancer:
                     break
                 games += 1
                 logger.success(f"pet: dance game {games} won")
+                if self.done():
+                    pet = load_pet()
+                    why = f"{pet.get('kind') or 'the pet'} reached {pet.get('stage')}: its goal"
+                    logger.success(f"pet: {why}")
+                    break
         finally:
             await self._close_all()
             await deactivate_dance_hook(self.client.hook_handler)
@@ -255,6 +381,7 @@ class PetDancer:
                     break
             else:
                 return "no game"
+        await self._learn("PetGameTracks")
         cost = first_number(await _text(root, "PetGameTracks", "txtEnergyCost"))
         have = first_number(await _text(root, "PetGameTracks", "txtYourEnergy"))
         logger.info(f"pet: energy {have} (a game costs {cost})")
@@ -296,6 +423,7 @@ class PetDancer:
         root = self.client.root_window
         if not await _wait_for(lambda: _visible(root, "PetGameRewards"), 30):
             return "no game"
+        await self._learn("PetGameRewards")
         await _click(self.client, "PetGameRewards", "btnNext")  # Next
         await asyncio.sleep(1.5)
         await self._close_level_up()
@@ -329,6 +457,7 @@ class PetDancer:
         for _ in range(10):
             if not await _visible(root, "PetLevelUpWindow"):
                 return
+            await self._learn("PetLevelUpWindow")
             logger.success("pet: the pet leveled up")
             await _click(self.client, "PetLevelUpWindow", "btnPetLevelClose")
             await asyncio.sleep(0.3)

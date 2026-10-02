@@ -105,6 +105,19 @@ class DeckSearchConfig:
 
 
 @dataclass
+class PetConfig:
+    """Pet dance-game grinding (petdance.py). `auto`: whenever the wizard's
+    energy is full, mark, go to the Pet Pavilion and play until it runs out,
+    then Recall back. A pet stops at its goal stage (`goals`, by pet kind,
+    lower case), any other pet at `default_goal` (the top: Mega)."""
+
+    auto: bool = True
+    goals: dict = field(default_factory=lambda: {"bloodbat": "adult"})
+    default_goal: str = "mega"
+    feed: bool = True  # feed the first snack offered after each win
+
+
+@dataclass
 class Config:
     mode: str = "quest"  # quest | fight | farm | boss
     farm_seconds_between_fights: float = 2.0
@@ -117,6 +130,7 @@ class Config:
     progression: ProgressionConfig = field(default_factory=ProgressionConfig)
     boss_farm: BossFarmConfig = field(default_factory=BossFarmConfig)
     deck_search: DeckSearchConfig = field(default_factory=DeckSearchConfig)
+    pet: PetConfig = field(default_factory=PetConfig)
 
 
 def _merge(obj: Any, data: dict[str, Any], path: str = "") -> Any:

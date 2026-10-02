@@ -19,3 +19,14 @@ def test_request(tmp_path, monkeypatch):
     assert petdance.games_requested() == 0
     (tmp_path / "pet.request").write_text("3")
     assert petdance.games_requested() == 3
+
+
+def test_stage_and_goal():
+    assert petdance.stage_in(["Your pet is now an Adult!", "Teen"]) == "adult"
+    assert petdance.stage_in(["nothing here"]) is None
+    assert petdance.kind_in(["Rudy the Bloodbat"], ["bloodbat"]) == "bloodbat"
+    goals = {"bloodbat": "adult"}
+    assert not petdance.goal_reached("bloodbat", "teen", goals, "mega")
+    assert petdance.goal_reached("bloodbat", "adult", goals, "mega")
+    assert not petdance.goal_reached("wolf", "adult", goals, "mega")
+    assert petdance.goal_reached("wolf", "mega", goals, "mega")

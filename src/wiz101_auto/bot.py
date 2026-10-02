@@ -431,7 +431,7 @@ async def run(cfg: Config):
             if cfg.progression.enabled:
                 quester.trainer = SpellTrainer(quester, progression, cfg.progression.train_levels)
             quester.healer = DungeonHealer(quester, cfg.upkeep)
-            quester.pet = PetDancer(quester)
+            quester.pet = PetDancer(quester, cfg.pet)
             quester.potions = PotionShopper(quester, cfg.upkeep.use_potions and cfg.upkeep.buy_potions)
             quester.fighter = fighter
             if cfg.quest.flee_unneeded_fights:
