@@ -163,6 +163,9 @@ class Battle:
     cards: list[Card]
     pips: int = 0
     power_pips: int = 0
+    # Class (school) pips by school, for the overlay: our own school's are in
+    # power_pips (worth 2 for its spells, like power pips), others' in pips.
+    school_pips: dict[str, int] = field(default_factory=dict)
     round: int = 0
     prismed: set[str] = field(default_factory=set)  # enemies we already cast a prism on this fight
     summoned: int = 0  # minions we summoned this fight

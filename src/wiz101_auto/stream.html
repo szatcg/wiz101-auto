@@ -102,6 +102,7 @@
   .pips { display: flex; gap: 5px; }
   .pip { width: 16px; height: 16px; border-radius: 50%; background: #e6e6f5; box-shadow: 0 0 6px rgba(255,255,255,0.5); }
   .pip.power { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  img.pipimg { width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35)); }
   .foe { margin-top: 10px; }
   .foe .fn { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
   .foe .fn .boss { color: var(--orange); }
@@ -375,8 +376,7 @@ const range = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
 let lastPlanKey = "", lastPlanRound = null, planChangedAt = 0, lastPlannerHtml = "", planFreshUntil = 0;
 
 function renderPlanner(p) {
-  const pips = [...Array(p.pips || 0)].map(() => '<span class="pip"></span>').join("") +
-               [...Array(p.power || 0)].map(() => '<span class="pip power"></span>').join("");
+  const pips = pipRow(p.pips, p.power, p.school, p.myschool);
   const steps = p.steps || [];
   const first = steps[0];
   const key = JSON.stringify(steps.map((s) => [s.round, s.kind, s.spell, s.target]));
@@ -440,8 +440,7 @@ function renderLower() {
   lastPlannerHtml = "";  // (another card in its place: the plan is drawn again next time)
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
-    const pips = [...Array(b.pips)].map(() => '<span class="pip"></span>').join("") +
-                 [...Array(b.power)].map(() => '<span class="pip power"></span>').join("");
+    const pips = pipRow(b.pips, b.power, b.school, b.myschool);
     const predict = b.predict || {};
     const foes = b.enemies.map((e, i) => [e, predict[i] || 0]).filter(([e]) => !e.dead).map(([e, dmg]) => {
       const hpPct = e.max ? (100 * e.hp) / e.max : 0;
@@ -498,6 +497,19 @@ function describe(e) {
   const tag = e.tag ? `<span class="tag t-${e.tag}">${e.tag}</span>` : "";
   const round = e.round != null ? `<em>R${e.round} · </em>` : "";
   return `${tag}${round}${esc(e.say || e.text)}`;
+}
+
+// Pips as the game draws them (docs/pip_images): plain, power, and class
+// pips by school. Our school's class pips are counted in `power`, other
+// schools' in `pips` (how they're spent); here each shows as itself.
+function pipRow(pips, power, school, myschool) {
+  const cls = school || {};
+  const img = (f) => `<img class="pipimg" src="/pips/${f}" alt="">`;
+  const rep = (n, f) => (n > 0 ? img(f).repeat(n) : "");
+  const off = Object.entries(cls).filter(([k]) => k !== myschool).reduce((t, [, n]) => t + n, 0);
+  const cap = (k) => k.charAt(0).toUpperCase() + k.slice(1);
+  return rep((pips || 0) - off, "Pip.png") + rep((power || 0) - (cls[myschool] || 0), "Power_Pip.png") +
+    Object.entries(cls).map(([k, n]) => rep(n, `${cap(k)}_School_Pip.png`)).join("");
 }
 
 let trackerHtml = "", cardIndex = null;

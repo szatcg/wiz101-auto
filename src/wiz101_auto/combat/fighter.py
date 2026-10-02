@@ -114,6 +114,7 @@ def _write_plan(battle, action, strategy, discards: int, gone=None, discarded=No
             data.update({
                 "active": True, "time": time.time(), "round": battle.round,
                 "pips": battle.pips, "power": battle.power_pips,
+                "school": battle.school_pips, "myschool": (battle.me.school or "").lower(),
                 "me": {"hp": battle.me.health, "max": battle.me.max_health},
                 "now": {"kind": category(action), "spell": action.card.name if action.card else "",
                         "target": action.target.name if action.target else "", "why": action.reason},

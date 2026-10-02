@@ -264,8 +264,12 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
-        elif self.path.split("?")[0].startswith("/cards/"):
-            got = _card_file(self.path.split("?")[0][len("/cards/"):])
+        elif self.path.split("?")[0].startswith(("/cards/", "/pips/")):
+            path = self.path.split("?")[0]
+            if path.startswith("/pips/"):
+                got = _card_file(path[len("/pips/"):], PIPS)  # the overlay's pip images
+            else:
+                got = _card_file(path[len("/cards/"):])
             if got is None:
                 self.send_error(404)
                 return
@@ -290,14 +294,16 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
 
+PIPS = Path("docs") / "pip_images"  # Pip.png, Power_Pip.png, <School>_School_Pip.png
 CARDS = Path("docs") / "spell_images"  # card art: <school>/<name>_spell.png, index.json (name -> file)
 
 
-def _card_file(rel: str) -> tuple[bytes, str] | None:
-    """A file of the card art folder (the stream's deck tracker), never outside it."""
+def _card_file(rel: str, folder: Path | None = None) -> tuple[bytes, str] | None:
+    """A file of the card art folder (the stream's deck tracker), or of
+    `folder` (the pip images), never outside it."""
     from urllib.parse import unquote
 
-    base = CARDS.resolve()
+    base = (folder or CARDS).resolve()
     f = (base / unquote(rel)).resolve()
     if base not in f.parents or not f.is_file():
         return None

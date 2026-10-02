@@ -158,23 +158,23 @@ SCHOOL_PIP_KINDS = ("balance", "death", "fire", "ice", "life", "myth", "storm")
 _school_pips_logged = False
 
 
-async def school_pips(member) -> int:
-    """Class (school) pips: they count like power pips, and the bot didn't
-    see them (spells planned a round late). Read beside the generic and
-    power pips in the participant's pip count."""
+async def school_pips(member) -> dict[str, int]:
+    """Class (school) pips by school ({} if none): the bot didn't see them
+    (spells planned a round late). Read beside the generic and power pips in
+    the participant's pip count."""
     global _school_pips_logged
     try:
         part = await member.get_participant()
         count = await part.pip_count()
         found = {k: await getattr(count, f"{k}_pips")() for k in SCHOOL_PIP_KINDS}
     except Exception:
-        return 0
-    total = sum(found.values())
-    if total and not _school_pips_logged:
+        return {}
+    found = {k: n for k, n in found.items() if n}
+    if found and not _school_pips_logged:
         _school_pips_logged = True
-        seen = ", ".join(f"{k} {n}" for k, n in found.items() if n)
-        logger.info(f"class pips: {seen} (counted as power pips)")
-    return total
+        seen = ", ".join(f"{k} {n}" for k, n in found.items())
+        logger.info(f"class pips: {seen} (our school's count as power pips, others' as pips)")
+    return found
 
 async def _is_item(card) -> bool:
     try:
@@ -477,13 +477,18 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
             card_map[i] = lc
 
     await _global_effect(handler, [me, *allies, *enemies])
+    # Class pips count double only for their own school's spells: ours are
+    # power pips, another school's a plain pip (the player's).
+    classes = await school_pips(me_member)
+    own = (me.school or "").lower()
     battle = Battle(
         me=me,
         allies=allies,
         enemies=enemies,
         cards=cards,
-        pips=await me_member.normal_pips(),
-        power_pips=await me_member.power_pips() + await school_pips(me_member),
+        pips=await me_member.normal_pips() + sum(n for s, n in classes.items() if s != own),
+        power_pips=await me_member.power_pips() + classes.get(own, 0),
+        school_pips=classes,
         round=await handler.round_number(),
     )
     return BattleSnapshot(battle, card_map, members)
