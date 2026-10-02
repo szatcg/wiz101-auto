@@ -173,7 +173,14 @@ def game_windows() -> list[int]:
     pid = bot_game_pid()
     if not pid:
         return handles
-    return [h for h in handles if window_pid(h) == pid]
+    mine = [h for h in handles if window_pid(h) == pid]
+    if not mine and len(handles) == 1:
+        # The remembered game is gone and one game is open (the player started
+        # it again): that's the bot's now. (Two open: the player's own may be
+        # one of them, so neither is taken.)
+        remember_game(window_pid(handles[0]), handles[0])
+        return handles
+    return mine
 
 
 def window_hung(handle: int) -> bool:
