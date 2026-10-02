@@ -1720,6 +1720,20 @@ def out_of_attacks(battle: Battle) -> bool:
     return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
 
 
+def flee_before_death(battle: Battle, action: Action, threat: float) -> bool:
+    """Solo in a dungeon (the caller checks): the enemies' worst round
+    (`threat`) could finish us and this move neither heals nor ends the
+    fight. Fleeing alive keeps the dungeon for 30 minutes, so a heal trip
+    and a Recall to the mark come back to it; dying solo resets it (the
+    player, after losing to Malistaire Drake)."""
+    if not battle.live_enemies or battle.me.health > threat:
+        return False
+    card = action.card if action.kind is ActionKind.CAST else None
+    if card is not None and card.is_heal and not card.is_damage:
+        return False  # healing still has its chance
+    return not (card is not None and card.is_damage and _kills_all(battle, action))
+
+
 RESHUFFLE_WHEN_LEFT = 2  # the deck this close to empty: Reshuffle rather than pass
 RESHUFFLE_HEAL_BELOW = 0.5  # saving pips for Reshuffle, a heal below this health still goes first
 

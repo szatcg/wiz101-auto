@@ -3606,6 +3606,16 @@ class Quester:
         Only the user's state/flee.request still flees there."""
         return not await self._in_any_dungeon(await self.client.zone_name() or "")
 
+    async def flee_to_mark(self) -> bool:
+        """Fleeing to come back (the player's rule for soloing a dungeon):
+        solo in a dungeon whose zone holds our mark. A flee keeps the dungeon
+        30 minutes; the heal trip then Recalls to the mark."""
+        zone = await self.client.zone_name() or ""
+        if is_team_up_zone(zone) or not await self._in_any_dungeon(zone):
+            return False
+        m = self._mark
+        return bool(m and m.zone == zone)
+
     async def unneeded_fight(self, battle) -> bool:
         """True if the fight that just started isn't needed for the tracked quest."""
         try:

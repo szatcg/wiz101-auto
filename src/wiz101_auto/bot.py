@@ -508,6 +508,7 @@ async def run(cfg: Config):
             if cfg.quest.flee_unneeded_fights:
                 fighter.unneeded_fight = quester.unneeded_fight
             fighter.may_flee = quester.may_flee
+            fighter.flee_to_mark = quester.flee_to_mark
             tasks.append(asyncio.create_task(quest_loop(quester, controller), name="quest"))
             from .prompt_watch import prompt_loop
 

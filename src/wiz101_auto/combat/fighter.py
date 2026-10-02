@@ -243,6 +243,7 @@ class Fighter(CombatHandler):
         self.last_enemy_names: list[str] = []  # enemies of the current/last fight
         self.last_bosses: set[str] = set()  # which of them the game marks as bosses
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
+        self.flee_to_mark = None  # async () -> bool: solo in a dungeon with our mark there
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
@@ -382,6 +383,33 @@ class Fighter(CombatHandler):
         fled = await self._flee()
         self.fled = self.fled or fled
         return fled
+
+    async def _flee_to_return(self, battle, action) -> bool:
+        """Solo in a dungeon with our mark in it: flee while alive when the
+        next enemy round could kill us (brain.flee_before_death); the quester
+        then heals and Recalls back. True once fled."""
+        if self.flee_to_mark is None or self._flee_tried_this_round:
+            return False
+        from . import sim
+        from .brain import flee_before_death
+
+        stats = self.__dict__.get("_sim_stats")
+        if stats is None:
+            stats = self._sim_stats = sim.load_stats()
+        threat = sum(max(sim.samples_for(e.name, e.max_health, e.is_boss, stats) or [0])
+                     for e in battle.live_enemies)
+        if not flee_before_death(battle, action, threat):
+            return False
+        if not await self.flee_to_mark():
+            return False
+        self._flee_tried_this_round = True
+        logger.warning(f"health {battle.me.health} and the enemies can hit for ~{threat:.0f}: "
+                       "fleeing alive to heal and Recall back (dying would reset the dungeon)")
+        if await self._flee():
+            self.fled = True
+            return True
+        self._fleeing = False
+        return False
 
     async def _flee(self) -> bool:
         """Flee on purpose, then answer Yes to "Are you sure you want to flee?
@@ -622,6 +650,8 @@ class Fighter(CombatHandler):
                 if free is not None:
                     free.reason = f"{free.reason}, instead of a plain pass ({action.reason})"
                     action = free
+            if await self._flee_to_return(battle, action):
+                return
             _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
