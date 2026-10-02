@@ -1974,6 +1974,14 @@ class Quester:
         if zone == marked_zone:
             self._recall_pending = False  # (back already)
             return False
+        if await self._in_dungeon(zone or "") and self._dungeon:
+            first = self._dungeon[1]
+            if marked_zone == first or in_same_area(marked_zone, first):
+                # A defeat in the Labyrinth respawned us in its hall: still in
+                # the dungeon, where Recall to its other room is refused.
+                logger.info(f"already inside the marked dungeon ({zone.split('/')[-1]}): no Recall needed")
+                self._recall_pending = False
+                return False
         # Whatever quest the game tracks now: a defeat takes us out of the
         # dungeon, and the quest shown changes with it (the player's rule:
         # heal, then back to the mark, no matter what).
