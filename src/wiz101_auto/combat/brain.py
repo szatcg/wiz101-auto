@@ -257,6 +257,28 @@ def heal_threshold(battle: Battle, strat: Strategy) -> float:
     return max(strat.heal_threshold, strat.boss_heal_threshold) if boss else strat.heal_threshold
 
 
+HEAL_FLOOR = 0.30  # below this a heal always goes first
+KILL_SOON_ROUNDS = 2  # the fastest plan kills everyone this soon: no heal above HEAL_FLOOR
+
+
+def _heal_can_wait(battle: Battle, card: Card) -> bool:
+    """Above HEAL_FLOOR, a heal waits when the win is a round or two away
+    (Myth Trap then Orthrus next round: a Pixie at 926 put it off by rounds),
+    or when it would be paid with power or class pips: another school's spell
+    spends them at 1 pip each, losing what they're worth to our own (2)."""
+    me = battle.me
+    if me.health_ratio < HEAL_FLOOR:
+        return False
+    off_school = card.school.lower() != (me.school or "").lower()
+    if off_school and battle.pips < card.pip_cost and battle.power_pips:
+        return True
+    try:
+        rounds, _ = plan_hand_use(battle)
+    except Exception:
+        return False
+    return rounds <= KILL_SOON_ROUNDS
+
+
 def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
     heals = [c for c in _castable(battle.cards) if c.is_heal and not c.is_enchant]
     if not heals:
@@ -269,7 +291,8 @@ def _best_heal(battle: Battle, strat: Strategy) -> Action | None:
         fitting = [c for c in heals if c.heal_amount() <= missing * 1.25]
         card = max(fitting or heals, key=lambda c: c.heal_amount())
         target = None if card.target in (Target.SELF, Target.ALLY_ALL, Target.NONE) else me
-        return Action(ActionKind.CAST, card, target, reason=f"health {me.health}/{me.max_health}")
+        if not _heal_can_wait(battle, card):
+            return Action(ActionKind.CAST, card, target, reason=f"health {me.health}/{me.max_health}")
 
     hurt = [a for a in battle.allies if not a.is_dead and a.health_ratio < strat.ally_heal_threshold]
     ally_heals = [c for c in heals if c.target in (Target.ALLY_SINGLE, Target.ALLY_ALL)]
@@ -403,6 +426,12 @@ def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
     if not waiting:
         return None
     card = max(waiting, key=lambda c: c.heal_amount())
+    if battle.me.health_ratio >= HEAL_FLOOR:
+        try:
+            if plan_hand_use(battle)[0] <= KILL_SOON_ROUNDS:
+                return None  # (the win is close: the pips go to it, not a heal)
+        except Exception:
+            pass
     return Action(ActionKind.PASS, reason=f"saving pips to cast {card.name} next round")
 
 

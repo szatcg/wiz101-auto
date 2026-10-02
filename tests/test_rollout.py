@@ -97,3 +97,19 @@ def test_a_draw_only_counts_if_the_shorter_plan_plays_it():
     b = Battle(me=me, allies=[], enemies=[boss], cards=[hit], pips=3, deck_known=True, upcoming=deck)
     _base, better = improving_draws(b)
     assert "Pixie" not in better  # a heal shortens no fight
+
+
+def test_heal_waits_when_power_pips_would_pay_for_an_off_school_heal():
+    from wiz101_auto.combat.brain import Strategy, _best_heal
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    pixie = Card(0, "Pixie", school="life", pip_cost=2, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)])
+    boss = Combatant("Gurtok", 5000, 5600, is_enemy=True, is_boss=True, resist={})
+    me = Combatant("me", 926, 2380, is_client=True, school="myth")  # 39%: under the boss heal line
+    with_power = Battle(me=me, allies=[], enemies=[boss], cards=[pixie], pips=0, power_pips=2)
+    assert _best_heal(with_power, Strategy()) is None  # 2 power pips = 4 of Orthrus's 7
+    plain = Battle(me=me, allies=[], enemies=[boss], cards=[pixie], pips=2, power_pips=0)
+    assert _best_heal(plain, Strategy()) is not None  # plain pips: heal as before
+    low = Combatant("me", 600, 2380, is_client=True, school="myth")  # 25%: under the floor
+    assert _best_heal(Battle(me=low, allies=[], enemies=[boss], cards=[pixie], pips=0, power_pips=2),
+                      Strategy()) is not None
