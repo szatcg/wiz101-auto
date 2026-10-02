@@ -107,6 +107,7 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
+OBJECT_REACH_SLACK = 120.0  # landed this near a hop spot around an object: we stood beside it
 GUARD_RANGE = 1500.0  # enemies this close to a lever are its guards: fought before pulling it
 FLOOR_HEIGHT_STEP = 1000.0  # spots this far apart in height are on different floors
 # Dungeons where a pulled lever needs time (Counterweight East: the
@@ -1046,13 +1047,19 @@ class Quester:
     async def _use_object_at(self, spot: XYZ) -> bool:
         """An object to use at `spot` (the Burial Ground Tablet: the teleport
         onto it lands inside it and is refused): land beside it, nudge until
-        its X prompt shows, press it. True if it pressed."""
+        its X prompt shows, press it. True if it pressed. Sets
+        self._object_reached when it stood beside the object at all."""
+        self._object_reached = False
         for radius in (160.0, 260.0):
             for i in range(8):
                 a = i * math.pi / 4
                 near = XYZ(spot.x + radius * math.cos(a), spot.y + radius * math.sin(a), spot.z)
+                if not await self._clear_spot(near):
+                    continue
                 await self.client.teleport(near)
                 await asyncio.sleep(0.6)
+                if distance(await self._position(), spot) < radius + OBJECT_REACH_SLACK:
+                    self._object_reached = True
                 for nudge in (None, (Keycode.W, 0.2), (Keycode.W, 0.2), (Keycode.S, 0.3)):
                     if nudge:
                         await self.client.send_key(*nudge)
@@ -2269,7 +2276,11 @@ class Quester:
             # No prompt anywhere around it: inside an instance the room's
             # enemies may have to go first (the Mantra 2 tablet opened once the
             # Kakeda Shadows were beaten). Then the object again.
-            if "/interiors/" in (zone or "").lower() and await self._fight_guards(
+            # Only when we stood beside it: never reaching it (the hops
+            # refused, Crystal Storage in the Labyrinth) isn't a locked object,
+            # and the "guard" was a boss across the room.
+            reached = getattr(self, "_object_reached", False)
+            if reached and "/interiors/" in (zone or "").lower() and await self._fight_guards(
                 target, "object", reach=float("inf")
             ):
                 logger.info("the object gave no prompt; fought the room's enemies first")

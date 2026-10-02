@@ -146,11 +146,26 @@ def install(client):
                         f"{'it worked' if took else 'still refused'}")
         return result
 
+    async def _hazards() -> list:
+        """Enemies and duel-circle seats, read now."""
+        from .collect import duel_circles
+        from .upkeep import mob_positions
+
+        try:
+            ring = [
+                XYZ(cx + DUEL_CIRCLE_RING * math.cos(a), cy + DUEL_CIRCLE_RING * math.sin(a), cz)
+                for cx, cy, cz in await duel_circles(client) for a in (i * math.pi / 4 for i in range(8))
+            ]
+            return [XYZ(*m) for m in await mob_positions(client)] + ring
+        except Exception:
+            return []
+
     async def refused_fallbacks(asked, tried, before) -> bool:
         """A refused jump (Deimos's order): the strict walkable spot (every
         collision volume counted), then spots stepping back toward where we
         were. True if one took (the caller sees how near it got)."""
         from . import walkmap
+        from .quest import clear_of
 
         try:
             if await walkmap.world_for(await client.zone_name() or "") is None:
@@ -159,9 +174,12 @@ def install(client):
             return False
         options = [await walkmap.landing(client, asked, strict=True)]
         options += [await walkmap.landing(client, p) for p in walkmap.retreat_points(tried, before)]
+        hazards = [] if time.monotonic() < getattr(client, "_engage_until", 0.0) else await _hazards()
         for spot in options:
             if math.dist((spot.x, spot.y), (tried.x, tried.y)) < 5:
                 continue
+            if hazards and not clear_of(spot, same_level(spot, hazards), LANDING_CLEARANCE):
+                continue  # (a fallback landing is checked for enemies too: one landed on Zora Steelwielder)
             try:
                 await wizwalker_teleport(spot)
                 now = await client.body.position()
