@@ -20,10 +20,12 @@ from pathlib import Path
 from loguru import logger
 
 from . import ui
-from .gear import PAGE, GearManager
+from .gear import NEXT_PAGE, PAGE, GearManager
 
+DECK_PAGE = ["WorldView", "DeckConfiguration", "DeckConfigurationWindow", "ControlSprite", "DeckPage"]
 ITEMS_FILE = Path("state") / "deck_items.json"  # {"aoe": name, "single": name, "tab": window name}
 BUTTONS = [*PAGE, "ButtonLayout"]
+DECK_SLOTS = 8  # decks the arrows go through before giving up
 
 
 def load() -> dict:
@@ -90,21 +92,92 @@ class DeckItems:
     async def list_decks(self, tab: str) -> list[tuple[str, bool]]:
         return await self.gear._scan_tab(tab)
 
+    async def equip_on_deck_page(self, name: str) -> bool:
+        """The fast way (the player's): the spellbook's deck page, its arrows
+        to the deck named `name`, Equip, close. True if it's worn after."""
+        from .deck import close_spellbook, open_spellbook
+
+        def norm(t: str) -> str:
+            return "".join(c for c in ui._TAGS.sub("", t or "").lower() if c.isalnum())
+
+        await open_spellbook(self.client)
+        try:
+            want = norm(name)
+            for _ in range(DECK_SLOTS):
+                shown = norm(await ui.text_at(self.client, [*DECK_PAGE, "DeckName"]))
+                if shown and (want.startswith(shown) or shown.startswith(want)):
+                    break  # (the page cuts long names short)
+                if not await ui.click(self.client, [*DECK_PAGE, "NextDeck"]):
+                    return False
+                await asyncio.sleep(0.4)
+            else:
+                return False
+            if await ui.is_visible(self.client, [*DECK_PAGE, "equipFist"]):
+                return True  # worn already
+            await ui.click(self.client, [*DECK_PAGE, "EquipButton"])
+            await asyncio.sleep(0.8)
+            box = await ui.modal_box(self.client)
+            if box is not None and "copy" in (await ui.modal_text(box)).lower():
+                await ui.modal_click(self.client, box, "rightButton")  # no: each deck has its cards
+                await asyncio.sleep(0.6)
+            return await ui.is_visible(self.client, [*DECK_PAGE, "equipFist"])
+        finally:
+            await close_spellbook(self.client)
+
     async def equip(self, role: str) -> bool:
         """Put on the deck item for `role` ('aoe' or 'single'). True if worn after."""
         d = load()
         name, tab = d.get(role), d.get("tab")
         if not name or not tab:
             return False
+        try:
+            if await self.equip_on_deck_page(name):
+                logger.info(f"decks: wearing {name!r} ({role} deck)")
+                return True
+        except Exception as exc:
+            logger.debug(f"decks: deck page switch failed: {exc!r}")
+        logger.info("decks: the deck page didn't do it; through the backpack")
         if not await self.gear._open():
             logger.warning("decks: the backpack didn't open")
             return False
         try:
-            ok = await self.gear._equip_by_name(tab, name)
+            ok = await self._put_on(tab, name)
         finally:
             await self.gear._close()
         logger.info(f"decks: {'wearing' if ok else 'could not put on'} {name!r} ({role} deck)")
         return ok
+
+    async def _put_on(self, tab: str, name: str) -> bool:
+        """Equip the deck item `name`; an empty deck asks to copy the old
+        deck's spells: no (each deck holds its own cards)."""
+        await self.gear._open_tab(tab)
+        for _ in range(3):
+            for window, n, worn in await self.gear._items_on_page():
+                if n != name:
+                    continue
+                if worn:
+                    return True
+                await self.gear._equip(window)
+                await asyncio.sleep(1.2)
+                box = await ui.modal_box(self.client)
+                if box is not None and "copy" in (await ui.modal_text(box)).lower():
+                    await ui.modal_click(self.client, box, "rightButton")  # no copying
+                    await asyncio.sleep(1.0)
+                break
+            else:
+                if not await ui.click(self.client, NEXT_PAGE):
+                    break
+                await asyncio.sleep(0.6)
+                continue
+        await self.gear._open_tab(tab)
+        for _ in range(3):
+            for _w, n, worn in await self.gear._items_on_page():
+                if n == name:
+                    return worn
+            if not await ui.click(self.client, NEXT_PAGE):
+                break
+            await asyncio.sleep(0.6)
+        return False
 
     async def setup(self, aoe: str = "", single: str = "") -> bool:
         """Find the deck items, choose the roles, fill each once."""
@@ -133,6 +206,8 @@ class DeckItems:
         save(data)
         decks = {role: json.loads(path.read_text(encoding="utf-8"))["deck"]
                  for role, path in (("aoe", GENERAL_FILE), ("single", SINGLE_FILE))}
+        for cards in decks.values():
+            cards.setdefault("Reshuffle", 1)  # (the player's: in every deck)
         for role in ("aoe", "single"):
             if not await self.equip(role):
                 print(f"could not put on {data[role]!r}")
