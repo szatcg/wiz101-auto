@@ -1582,7 +1582,13 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
         return _decide_seen(battle, strat, discards_left=discards_left)
     rest = replace(battle, cards=[c for c in battle.cards if c is not shuffle])
     action = _decide_seen(rest, strat, discards_left=discards_left)
-    deck_low = battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT
+    # The deck is spent: the count says so, or (the count can be off: it said
+    # 13 left while the hand held only Reshuffle for twenty rounds) the hand
+    # is short of a full one with nothing else to cast. Each round refills
+    # the hand to 7 from the deck, so a short hand means an empty deck.
+    nothing_else = not any(c.castable for c in rest.cards)
+    deck_low = (battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT) or (
+        len(battle.cards) < HAND_SIZE and nothing_else)
     if action.kind is ActionKind.PASS and deck_low and shuffle.castable and (
             battle.pips + battle.power_pips >= shuffle.pip_cost):
         # Cast on ourselves: Reshuffle wants a target (clicking the card alone

@@ -1316,9 +1316,25 @@ def test_reshuffle_is_kept_and_cast_when_the_deck_runs_dry():
                  upcoming=[])
     action = decide(dry)
     assert not (action.kind is ActionKind.DISCARD and action.card.name == "Reshuffle")
-    full = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=1, deck_known=True,
+    from dataclasses import replace
+
+    stuck = [replace(useless, index=i, castable=False) for i in range(1, 7)]
+    full = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle, *stuck], pips=1, deck_known=True,
                   upcoming=[useless] * 10)
-    assert decide(full).kind is ActionKind.PASS  # cards left to draw: keep it
+    assert decide(full).kind is not ActionKind.CAST  # a full hand, cards left to draw: keep it
     only = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=1, deck_known=True, upcoming=[])
     got = decide(only)
+    assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle" and got.target is me
+
+
+def test_reshuffle_when_the_hand_runs_short_even_with_a_stale_count():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant
+
+    me = Combatant("me", 2000, 2000, is_client=True, school="myth")
+    foe = Combatant("foe", 3000, 3000, is_enemy=True, school="fire", resist={})
+    shuffle = Card(0, "Reshuffle", school="balance", pip_cost=0, effects=[])
+    stale = [Card(9, "Pixie", school="life")] * 13  # the count said 13 left
+    b = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=2, deck_known=True, upcoming=stale)
+    got = decide(b)
     assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle" and got.target is me

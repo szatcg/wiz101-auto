@@ -43,6 +43,23 @@ def save(data: dict):
         pass
 
 
+def _note_cards(role: str):
+    """The cards of the deck now worn, for fights (state/deck.json): its role's
+    deck, plus what's kept in every deck (a stale count said 13 cards left
+    with the deck spent, and Reshuffle was never played)."""
+    from .combat.deckopt import GENERAL_FILE
+    from .deck import save_deck_counts
+    from .deck_adapt import SINGLE_FILE
+
+    path = SINGLE_FILE if role == "single" else GENERAL_FILE
+    try:
+        cards = json.loads(path.read_text(encoding="utf-8"))["deck"]
+    except (OSError, ValueError, KeyError):
+        return
+    names = [n for n, k in cards.items() for _ in range(k)] + ["Reshuffle"]
+    save_deck_counts(names)
+
+
 def ready() -> bool:
     d = load()
     return bool(d.get("aoe") and d.get("single") and d.get("tab") and d.get("filled") == ["aoe", "single"])
@@ -133,6 +150,7 @@ class DeckItems:
         try:
             if await self.equip_on_deck_page(name):
                 logger.info(f"decks: wearing {name!r} ({role} deck)")
+                _note_cards(role)
                 return True
         except Exception as exc:
             logger.debug(f"decks: deck page switch failed: {exc!r}")
@@ -145,6 +163,8 @@ class DeckItems:
         finally:
             await self.gear._close()
         logger.info(f"decks: {'wearing' if ok else 'could not put on'} {name!r} ({role} deck)")
+        if ok:
+            _note_cards(role)
         return ok
 
     async def _put_on(self, tab: str, name: str) -> bool:
