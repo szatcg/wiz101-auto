@@ -3406,6 +3406,11 @@ class Quester:
             return False
         item, places = hint
         zone = await self.client.zone_name() or ""
+        # Only in front of the door: past it (in Malistaire's Lair, the player
+        # had opened it) the caves aren't the way on, and going there looped.
+        before_door = places[0].rsplit("/", 1)[0] + "/"  # (the area the key's places are in)
+        if not zone.startswith(before_door):
+            return False
         # Something here named for it first (the Crystal Stand in the volcano:
         # using it was all Malistaire's door needed): walk up and press X.
         for name, spots in (self.entity_map.zones.get(zone, {}) or {}).items():
