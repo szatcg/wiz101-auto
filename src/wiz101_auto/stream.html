@@ -438,6 +438,54 @@
   .thoughts .feed { top: 44px; }
   body.fighting-strip .thoughts .feed { top: 36px; }
 </style>
+<style>
+  /* ===== The game's own UI textures (Root.wad GUI/, in docs/ui_images/game):
+     the message box's red-and-gold frame (Art_Message_Box_*, 13 px) around
+     its parchment (Background_Message_Box05), the quest page's title scroll
+     (QuestPage/Art_Scroll01), the NPC dialog (Dialog/Background_Dialog: the
+     scroll on top and the framed parchment), the red bar (Art_Text02).
+     Replaces the curl pieces and the cut-out label above. ===== */
+  .card::before, .card::after, .dialog::before, .dialog::after { content: none; }
+  .card {
+    background: url("/ui/game/parchment.png") repeat; background-clip: padding-box;
+    border: 11px solid transparent; border-image: url("/ui/game/frame.png") 13 / 11px stretch;
+    padding: 12px 16px 14px; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+  }
+  .frame { left: 7px; top: 7px; width: 1466px; height: 836px; border: 13px solid transparent;
+    border-image: url("/ui/game/frame.png") 13 / 13px stretch; border-radius: 0; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
+  .frame .tag { top: -26px; left: 40px; }
+
+  /* titles on the quest page's scroll, over the frame like the game's headers */
+  .card > .label, .qhead > .label, .farmhead > .label {
+    height: 40px; line-height: 27px; padding: 0 4px 13px; margin: -32px 0 0 -4px;
+    border-width: 0 40px; border-image: url("/ui/game/title_scroll.png") 0 64 fill / 0 40px stretch;
+    font-size: 15px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
+  }
+  .qhead { align-items: flex-start; }
+  .qhead > .label, .card > .label { flex-shrink: 0; white-space: nowrap; }
+  .thoughts .art, .thoughts .art img { height: 50px; }
+
+  /* the bot's thoughts: the game's NPC dialog itself */
+  .dialog {
+    background: url("/ui/game/parchment.png") repeat; background-clip: padding-box; border-radius: 0;
+    border-style: solid; border-color: transparent; border-width: 44px 22px 20px 20px;
+    border-image: url("/ui/game/dialog.png") 44 22 20 20 / 44px 22px 20px 20px stretch;
+    box-shadow: none; filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.6));
+  }
+  .portrait { left: -2px; top: 50%; transform: translateY(-58%); }
+  .dname { left: 200px; top: -40px; height: auto; line-height: 1; padding: 0; border: none; border-image: none;
+    filter: none; font-size: 24px; }
+  body.fighting-strip .dname { top: -40px; font-size: 22px; }
+  .thoughts .feed { left: 196px; right: 12px; top: 2px; bottom: 2px; }
+  body.fighting-strip .thoughts .feed { top: 0; bottom: 0; }
+  .dbtn { right: 4px; bottom: 2px; background: none; box-shadow: none; border-radius: 0; padding: 2px 10px;
+    border: 8px solid transparent; border-image: url("/ui/game/red_bar.png") 8 fill / 8px stretch; }
+
+  /* the deck tracker's panels: the same frame, thinner */
+  .dcol { background: url("/ui/game/parchment.png") repeat; background-clip: padding-box; border-radius: 0;
+    border: 7px solid transparent; border-image: url("/ui/game/frame.png") 13 / 7px stretch; box-shadow: none; }
+  body.fighting-strip .dcol { border-width: 7px; box-shadow: none; }
+</style>
 </head>
 <body>
 <div class="backdrop"></div>
