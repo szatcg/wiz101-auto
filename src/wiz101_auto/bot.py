@@ -61,6 +61,35 @@ def release_mouse_buttons(client) -> None:
         logger.debug(f"could not release the mouse buttons: {exc!r}")
 
 
+async def mouse_on_pause(client, controller, mouseless: bool):
+    """Paused, the game gets the player's mouse back: the mouseless hook (the
+    bot clicks without moving the real cursor) is switched off, and on again
+    on resume (the player couldn't use the mouse while paused)."""
+    if not mouseless:
+        return
+    released = False
+    try:
+        while not controller.stopped.is_set():
+            if controller.paused and not released:
+                release_mouse_buttons(client)
+                await client.mouse_handler.__aexit__(None, None, None)
+                released = True
+                logger.info("paused: the mouse is yours")
+            elif not controller.paused and released:
+                await client.mouse_handler.__aenter__()
+                released = False
+                logger.info("resumed: the bot has the mouse again")
+            await asyncio.sleep(0.3)
+    finally:
+        if released:
+            # (The shutdown closes the managed mouseless once: take it back so
+            # that close is balanced.)
+            try:
+                await client.mouse_handler.__aenter__()
+            except Exception:
+                pass
+
+
 async def close_handler(handler: ClientHandler):
     """Unhook from the game. Each client is closed separately and failures are
     logged, so one bad unhook doesn't leave the rest of the game patched."""
@@ -441,6 +470,7 @@ async def run(cfg: Config):
             adapter = DeckAdapter()  # a boss deck after a loss, the general deck after the win
         tasks = [
             asyncio.create_task(controller.watch(), name="safety"),
+            asyncio.create_task(mouse_on_pause(client, controller, s.mouseless), name="mouse"),
             asyncio.create_task(combat_loop(client, fighter, cfg, controller, adapter), name="combat"),
             asyncio.create_task(dialogue_loop(client, cfg.quest, controller, dialogue), name="dialogue"),
         ]

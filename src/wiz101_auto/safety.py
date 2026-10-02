@@ -142,6 +142,13 @@ class Controller:
                 self.stop("stop requested from the terminal")
                 break
             if _combo_down(self.stop_keys):
+                # Also the terminal's stop request: the supervisor then doesn't
+                # restart it (the player's: stopped means stopped until told).
+                try:
+                    STOP_FILE.parent.mkdir(exist_ok=True)
+                    STOP_FILE.touch()
+                except OSError:
+                    pass
                 self.stop("stop key pressed")
                 break
             pause_down = _combo_down(self.pause_keys)
