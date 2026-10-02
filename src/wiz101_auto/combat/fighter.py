@@ -491,7 +491,11 @@ class Fighter(CombatHandler):
             battle.summoned = self._summons
             _save_my_stats(battle.me)
             action = decide(battle, self.strategy, discards_left=discards_left)
-            if self.planner is not None:
+            reshuffling = "reshuffle" in (action.reason or "").lower() or (
+                action.card is not None and action.card.name.strip().lower() == "reshuffle")
+            if self.planner is not None and not reshuffling:
+                # (The simulator knows nothing of Reshuffle: its plays and the
+                # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
             _write_plan(battle, action, self.strategy, discards_left)

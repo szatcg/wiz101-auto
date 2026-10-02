@@ -1338,3 +1338,17 @@ def test_reshuffle_when_the_hand_runs_short_even_with_a_stale_count():
     b = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=2, deck_known=True, upcoming=stale)
     got = decide(b)
     assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle" and got.target is me
+
+
+def test_saves_pips_for_reshuffle_once_the_deck_is_spent():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    me = Combatant("me", 1800, 2000, is_client=True, school="myth")
+    boss = Combatant("Valerik", 3000, 4000, is_enemy=True, is_boss=True, school="storm", resist={})
+    shuffle = Card(0, "Reshuffle", school="balance", pip_cost=4, castable=False, effects=[])
+    frog = Card(1, "Humongofrog", school="myth", pip_cost=3,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 400)])
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[shuffle, frog], pips=3, deck_known=True, upcoming=[])
+    got = decide(b)
+    assert got.kind is ActionKind.PASS and "Reshuffle" in got.reason

@@ -266,9 +266,11 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
                 # health; winning on a sliver leaves you standing where you fought.
                 controller.record_death(fight_zone)
                 if adapter is not None and not _team_zone(fight_zone):
+                    adapter.on_fight(list(fighter.last_enemy_names))
                     adapter.on_defeat(list(fighter.last_enemy_names), fighter.last_bosses)
             elif await is_free(client):
                 if adapter is not None and not fighter.fled:
+                    adapter.on_fight(list(fighter.last_enemy_names))
                     adapter.on_win(list(fighter.last_enemy_names))
                 await scan_wisps(client)
                 await maintain(client, cfg.upkeep)

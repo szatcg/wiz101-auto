@@ -102,6 +102,29 @@ def aoe_losses(boss: str) -> int:
     return n
 
 
+def note_fight(enemies: list[str]):
+    """Remember how many enemies a fight with each of them had (the next
+    fight with them is judged by it, not by who stands near in view: an
+    enemy 420 away from Valerik Brightsword never joined)."""
+    group = sorted(set(enemies))
+    if not group:
+        return
+    data = _read(TACTICS_FILE)
+    seen = data.setdefault("_seen", {})
+    for name in group:
+        seen[name] = len(group)
+    try:
+        TACTICS_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def fought_alone(name: str) -> bool | None:
+    """Was `name` alone in its last fight (None: never fought)."""
+    n = _read(TACTICS_FILE).get("_seen", {}).get(name)
+    return None if n is None else n == 1
+
+
 def ladder_role(name: str) -> str | None:
     """The deck the loss ladder settled on for an encounter with `name`."""
     for key, entry in _read(TACTICS_FILE).items():
@@ -155,6 +178,9 @@ class DeckAdapter:
             MODE_FILE.write_text(json.dumps(self.mode), encoding="utf-8")
         except OSError:
             pass
+
+    def on_fight(self, enemies: list[str]):
+        note_fight(enemies)
 
     def on_defeat(self, enemies: list[str], bosses: set[str] = frozenset()):
         """A lost fight (the player's ladder, instead of setting the quest
@@ -268,6 +294,9 @@ class DeckAdapter:
             self._bosses = {n for n, e in load_stats().get("enemies", {}).items() if e.get("boss")}
         if boss not in self._bosses and alone is None:
             return  # (an everyday enemy of a boss's group: Imitsu Defouler with Plague Oni)
+        past = fought_alone(boss)
+        if past is not None:
+            alone = past  # (its last fight says better than who stands near now)
         settled = ladder_role(boss)
         if settled == "custom":
             cached = next((e for k, e in _read(BOSS_DECKS).items() if boss in k.split(",") and e.get("deck")),

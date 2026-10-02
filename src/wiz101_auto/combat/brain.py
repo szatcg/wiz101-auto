@@ -1567,6 +1567,7 @@ def out_of_attacks(battle: Battle) -> bool:
 
 
 RESHUFFLE_WHEN_LEFT = 2  # the deck this close to empty: Reshuffle rather than pass
+RESHUFFLE_HEAL_BELOW = 0.5  # saving pips for Reshuffle, a heal below this health still goes first
 
 
 def is_reshuffle(card: Card) -> bool:
@@ -1589,6 +1590,20 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     nothing_else = not any(c.castable for c in rest.cards)
     deck_low = (battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT) or (
         len(battle.cards) < HAND_SIZE and nothing_else)
+    if deck_low and not shuffle.castable and action.kind is ActionKind.CAST and action.card is not None:
+        # Reshuffle costs 4 pips (once a battle): with the deck spent, pips go
+        # to it, not to the next hit (a Humongofrog spent them against Valerik
+        # every time Reshuffle came close, and the bot died with it in hand).
+        # A heal when low and a sure kill still go first; 0-pip cards are free.
+        card = action.card
+        kills = action.target is not None and card.is_damage and (
+            hit_damage(card, battle.me, action.target) >= action.target.health)
+        kills = kills or (card.is_aoe and all(hit_damage(card, battle.me, e) >= e.health
+                                              for e in battle.live_enemies))
+        low = battle.me.health_ratio < RESHUFFLE_HEAL_BELOW and card.is_heal
+        if card.pip_cost > 0 and not kills and not low:
+            why = f"saving pips for Reshuffle ({shuffle.pip_cost}; deck spent)"
+            return Action(ActionKind.PASS, reason=why)
     if action.kind is ActionKind.PASS and deck_low and shuffle.castable and (
             battle.pips + battle.power_pips >= shuffle.pip_cost):
         # Cast on ourselves: Reshuffle wants a target (clicking the card alone
