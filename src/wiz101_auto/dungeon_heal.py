@@ -133,7 +133,9 @@ class DungeonHealer:
         True if it went."""
         if self._busy:
             return False  # recover() inside the trip must not start another
-        if zone.split("/")[-1].endswith("_Hub"):
+        from .travel_data import is_world_hub
+
+        if is_world_hub(zone) or is_world_hub(await self.client.zone_name() or ""):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
         from .dungeons import no_return
 
@@ -154,6 +156,8 @@ class DungeonHealer:
             mark = True
         # (A mark outside, on the entrance sigil, would bring us back to the
         # start of the dungeon: mark this spot inside instead.)
+        if self.q._recall_pending and self.q._mark and self.q._mark.kind in RETURN_KINDS:
+            mark = False  # after a defeat: the mark in the dungeon waits for its Recall
         logger.info(f"{why}: going to the hub to heal, then back by Recall")
         if mark and not await self.q._mark_here("room"):
             logger.warning("could not mark the spot; healing here instead")

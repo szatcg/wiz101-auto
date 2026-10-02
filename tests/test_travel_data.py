@@ -208,3 +208,12 @@ def test_world_hub_names():
              "DragonSpire/DS_A2_Battle/DS_A2Hub_Necropolis": [], "DragonSpire/DS_Hub_Cathedral": []}
     assert world_hub("Krokotopia/KT_Somewhere", gates) == "Krokotopia/KT_Hub"
     assert world_hub("DragonSpire/DS_A2_Battle/DS_A2Z2_Arena", gates) == "DragonSpire/DS_Hub_Cathedral"
+
+
+def test_is_world_hub():
+    from wiz101_auto.travel_data import is_world_hub
+
+    assert is_world_hub("Krokotopia/KT_Hub")
+    assert is_world_hub("DragonSpire/DS_Hub_Cathedral")
+    assert not is_world_hub("DragonSpire/DS_A2_Battle/DS_A2Hub_Necropolis")
+    assert not is_world_hub("")

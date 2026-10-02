@@ -17,8 +17,10 @@ from .wisps import ANY, BOTH, HEALTH, MANA, WispMemory, usable, wisp_kind
 
 
 def is_hub_zone(zone: str) -> bool:
-    """A world's hub (the Oasis, the Commons...): never any wisps."""
-    return zone.split("/")[-1].endswith("_Hub")
+    """A world's hub (the Oasis, the Commons, the Basilica): never any wisps."""
+    from .travel_data import is_world_hub
+
+    return is_world_hub(zone)
 
 
 async def is_free(client) -> bool:
@@ -468,7 +470,7 @@ def best_wisp_zone(
         # check and took the wizard into Mount Olympus alone.
         if z in dungeons or "/interiors/" in z.lower():
             continue
-        if z != current_zone and z not in avoid and not z.split("/")[-1].endswith("_Hub"):
+        if z != current_zone and z not in avoid and not is_hub_zone(z):
             return z
     if in_world:
         return in_world[0]
@@ -601,7 +603,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         if cfg.collect_wisps:
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
-            hub = zone.split("/")[-1].endswith("_Hub")  # the Oasis, the Commons: never any wisps
+            hub = is_hub_zone(zone)  # the Oasis, the Commons, the Basilica: never any wisps
             known_elsewhere = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones(),
                                              hops=hops_from_hub) is not None
             if hub:

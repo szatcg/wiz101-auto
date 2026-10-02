@@ -566,8 +566,10 @@ def operate_target(objective: str) -> str | None:
 
 
 def is_hub(zone: str) -> bool:
-    """A world's hub (the Oasis, the Commons...): "Krokotopia/KT_Hub"."""
-    return zone.split("/")[-1].endswith("_Hub")
+    """A world's hub (the Oasis, the Commons, Dragonspyre's Basilica)."""
+    from .travel_data import is_world_hub
+
+    return is_world_hub(zone)
 
 
 def defeat_names(objective: str) -> list[str]:
@@ -1882,7 +1884,9 @@ class Quester:
         self._seen_deaths = deaths
         self._recall_pending = bool(self._mark and self._mark.kind in RETURN_KINDS)
         self._last_defeat = time.monotonic()
-        objective = await self.objective()
+        # The objective the fight was for: after the respawn the game may track
+        # another quest (a Wysteria one), which took the blame for a Labyrinth loss.
+        objective = self._last_progress[0] or await self.objective()
         if not objective:
             return
         # Every loss counts, not only on "Defeat X": "Talk To Willie Marks" is

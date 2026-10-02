@@ -83,7 +83,9 @@ def recall_is_faster(
     very objective ("Talk To Zan'ne", marked in her building) is the place."""
     if not mark or not mark.zone or mark.zone == here:
         return False
-    if mark.zone.split("/")[-1].endswith("_Hub"):
+    from .travel_data import is_world_hub
+
+    if is_world_hub(mark.zone):
         return False  # the hub button goes there without spending the mark
     other_world = bool(dest) and dest.split("/")[0] != mark.zone.split("/")[0]
     if objective and mark.objective == objective and not other_world:

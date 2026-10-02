@@ -297,6 +297,14 @@ def learn_hub(zone: str):
         pass
 
 
+def is_world_hub(zone: str) -> bool:
+    """`zone` is its world's hub (Krokotopia/KT_Hub, Dragonspyre's
+    DS_Hub_Cathedral: a heal trip from it is pointless, no wisps there)."""
+    if not zone:
+        return False
+    return zone.split("/")[-1].endswith("_Hub") or zone == world_hub(zone)
+
+
 def world_hub(zone: str, gates: Gates | None = None) -> str | None:
     """The hub of `zone`'s world: where the hub button landed before, else a
     zone named as one ("Krokotopia/KT_Hub", Dragonspyre's "DS_Hub_Cathedral";
