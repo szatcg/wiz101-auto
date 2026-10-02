@@ -85,7 +85,6 @@
 
   .prog { display: grid; grid-template-columns: 110px 1fr 52px; gap: 10px; align-items: center; margin-top: 9px; font-size: 14px; }
   .prog .n { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #sRow { grid-template-columns: 1fr 52px; row-gap: 4px; } #sRow .n { grid-column: 1 / 3; }  /* the area name above its bar */
   .prog .p { text-align: right; font-weight: 800; color: var(--gold); }
   .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
   .bar > div { height: 100%; background: linear-gradient(90deg, #c99a2e, var(--gold)); transition: width 0.8s; }
@@ -273,7 +272,6 @@
     <div class="prog"><span class="n" id="wName">World</span><div class="bar"><div id="wBar"></div></div><span class="p" id="wPct">0%</span></div>
     <div class="prog"><span class="n" id="aName">Arc</span><div class="bar"><div id="aBar"></div></div><span class="p" id="aPct">0%</span></div>
     <div class="prog"><span class="n">Spiral</span><div class="bar"><div id="oBar"></div></div><span class="p" id="oPct">0%</span></div>
-    <div class="prog" id="sRow"><span class="n" id="sName">Side quests</span><div class="bar"><div id="sBar"></div></div><span class="p" id="sPct">0%</span></div>
   </div>
 
   <div class="card farm" id="farm" style="display:none">
@@ -332,13 +330,6 @@ function renderSide() {
   $("kind").textContent = main == null || data.current.grinding ? "" : main ? "MAIN QUEST" : "SIDE QUEST";
   $("kind").style.display = $("kind").textContent ? "" : "none";
   renderSteps();
-  const sq = data.sides || {};
-  $("sRow").style.display = sq.area ? "" : "none";
-  if (sq.area) {  // (no side quests known for the area yet: "—")
-    $("sName").textContent = `Side quests · ${sq.area}`;
-    $("sPct").textContent = sq.total ? `${sq.done}/${sq.total}` : "—";
-    $("sBar").style.width = `${sq.total ? sq.pct : 0}%`;
-  }
   const zone = ((s.zone || "").split("/").slice(1).pop() || "")
     .replace(/^[A-Z]{2}_/, "").replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
   $("where").textContent = [data.current.world, (data.sides || {}).area || zone].filter(Boolean).join(" · ");
