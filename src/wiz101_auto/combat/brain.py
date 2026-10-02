@@ -1566,7 +1566,31 @@ def out_of_attacks(battle: Battle) -> bool:
     return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
 
 
+RESHUFFLE_WHEN_LEFT = 2  # the deck this close to empty: Reshuffle rather than pass
+
+
+def is_reshuffle(card: Card) -> bool:
+    return card.name.strip().lower() == "reshuffle"
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
+    """The action for this step. Reshuffle (the player's: never discarded)
+    is kept out of every other rule; it's cast instead of passing when the
+    deck is all but drawn (the cards played come back to draw from)."""
+    shuffle = next((c for c in battle.cards if is_reshuffle(c)), None)
+    if shuffle is None:
+        return _decide_seen(battle, strat, discards_left=discards_left)
+    rest = replace(battle, cards=[c for c in battle.cards if c is not shuffle])
+    action = _decide_seen(rest, strat, discards_left=discards_left)
+    deck_low = battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT
+    if action.kind is ActionKind.PASS and deck_low and shuffle.castable and (
+            battle.pips + battle.power_pips >= shuffle.pip_cost):
+        return Action(ActionKind.CAST, shuffle, target=None,
+                      reason=f"reshuffle: {len(battle.upcoming)} card(s) left to draw, nothing good in hand")
+    return action
+
+
+def _decide_seen(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
     """The action for this step, with enemies holding our unused prism seen
     as our hits will find them (prism_view): the big myth hit is worth its
     storm damage on Meowiarty. The target maps back to the real enemy."""

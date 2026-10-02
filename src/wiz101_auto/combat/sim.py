@@ -29,6 +29,7 @@ from .brain import (
     _prism_useless,
     decide,
     hit_damage,
+    is_reshuffle,
     prism_view,
     setup_fits,
 )
@@ -687,6 +688,8 @@ def candidates(battle: Battle, discards: int = 0) -> list[Action]:
         for c in battle.cards:
             if _is_prism(c) and not _prism_useless(c, battle):
                 continue  # a prism with work to do (Cyrus Drake: binned, then Colossus hit his resist)
+            if is_reshuffle(c):
+                continue  # (never discarded: the player's rule)
             if c.name not in binned and not c.treasure and not (keep_heals and c.is_heal):
                 binned.add(c.name)
                 out.append(Action(ActionKind.DISCARD, c, reason="rollout: discard for a draw"))

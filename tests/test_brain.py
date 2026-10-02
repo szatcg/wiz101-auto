@@ -1302,3 +1302,23 @@ def test_a_prism_comes_before_the_big_hit_on_a_myth_boss():
     b.pips = 7
     a = decide(b)
     assert a.card.name == "Myth Prism" and a.target.name == "Cyrus Drake"
+
+
+def test_reshuffle_is_kept_and_cast_when_the_deck_runs_dry():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant
+
+    me = Combatant("me", 2000, 2000, is_client=True, school="myth")
+    foe = Combatant("foe", 3000, 3000, is_enemy=True, school="fire", resist={})
+    shuffle = Card(0, "Reshuffle", school="balance", pip_cost=0, effects=[])
+    useless = Card(1, "Ether Shield", school="myth", pip_cost=0, effects=[])
+    dry = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle, useless], pips=1, deck_known=True,
+                 upcoming=[])
+    action = decide(dry)
+    assert not (action.kind is ActionKind.DISCARD and action.card.name == "Reshuffle")
+    full = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=1, deck_known=True,
+                  upcoming=[useless] * 10)
+    assert decide(full).kind is ActionKind.PASS  # cards left to draw: keep it
+    only = Battle(me=me, allies=[], enemies=[foe], cards=[shuffle], pips=1, deck_known=True, upcoming=[])
+    got = decide(only)
+    assert got.kind is ActionKind.CAST and got.card.name == "Reshuffle"
