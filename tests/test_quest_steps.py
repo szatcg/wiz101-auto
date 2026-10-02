@@ -44,3 +44,15 @@ def test_pick_goal_waits_for_the_new_goals_text():
     assert 2 not in known
     # ...so the new text is taken as soon as it shows.
     assert pick_goal(["Talk To Edrik", "Use Crystal Charger"], 2, known) == "Use Crystal Charger"
+
+
+def test_recall_refusal_marks_no_return_unless_the_timer_ran_out(tmp_path, monkeypatch):
+    from wiz101_auto import dungeons
+
+    monkeypatch.setattr(dungeons, "NO_RETURN_FILE", tmp_path / "nr.json")
+    assert dungeons.refusal_means_no_return("You cannot teleport to that location.")
+    assert not dungeons.refusal_means_no_return(
+        "You cannot teleport to that location.  The dungeon timer has ended and the dungeon has been reset.")
+    assert dungeons.learn_no_return("DragonSpire/X/Interiors/DS_Tower")
+    assert dungeons.no_return("DragonSpire/X/Interiors/DS_Tower")
+    assert not dungeons.learn_no_return("DragonSpire/X/Interiors/DS_Tower")  # known already

@@ -1347,6 +1347,12 @@ class Quester:
         self._sigil_failed_at = sigil
         return False
 
+    async def _is_dungeon_zone(self, zone: str) -> bool:
+        from .dungeons import INSTANCE_ZONES
+
+        return (zone in DungeonMemory.load().dungeons or zone in INSTANCE_ZONES
+                or "/interiors/" in zone.lower() or is_team_up_zone(zone))
+
     async def _mark_in_dungeon_fight(self, objective: str, zone: str):
         """Inside a dungeon, before its fight: mark here, so a defeat is
         followed by a Recall back into this copy of the dungeon (the sigil
@@ -1357,6 +1363,10 @@ class Quester:
             return
         if self._recall_pending:
             return  # a defeat's Recall to the current mark comes first
+        from .dungeons import no_return
+
+        if no_return(zone):
+            return  # Recall can't come back in here: the entrance mark stays
         logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
         await self._mark_here("fight", objective=objective, require_clear=False)
 
@@ -1925,7 +1935,15 @@ class Quester:
                         logger.info(f"recall message: {text[:120]!r}")
                         await ui.confirm_modal(self.client)
                         if "cannot teleport" in text.lower():
-                            # e.g. the dungeon reset while we were away healing
+                            # e.g. the dungeon reset while we were away healing;
+                            # otherwise a dungeon Recall can't come back into:
+                            # remembered (mark at its entrance, potions there).
+                            from .dungeons import learn_no_return, refusal_means_no_return
+
+                            if (refusal_means_no_return(text) and await self._is_dungeon_zone(marked_zone)
+                                    and learn_no_return(marked_zone)):
+                                logger.warning(f"{marked_zone.split('/')[-1]} can't be Recalled into: "
+                                               "a no-return dungeon from now on (mark at its entrance)")
                             logger.warning("the game refused the recall; walking back instead")
                             return False
                     if await self.client.is_loading():

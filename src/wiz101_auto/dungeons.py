@@ -34,10 +34,35 @@ def is_open_zone(zone: str) -> bool:
 
 # Zones Recall can't bring us back into (the Death Realm, MooShu's Spirit
 # World: "You cannot teleport to that location"): no leaving them to heal,
-# fight on. (Not learned from refusals: an expired dungeon timer says the
-# same.) More can be listed in state/no_return_zones.json.
+# fight on (wisps in the room, else a potion); the mark stays at the
+# entrance. Learned from a Recall refusal into a dungeon (the player's rule)
+# unless the message says its timer ended (that copy is gone, not barred);
+# kept in state/no_return_zones.json.
 NO_RETURN_FILE = Path("state") / "no_return_zones.json"
 NO_RETURN_WORDS = ("spiritworld",)
+
+
+def refusal_means_no_return(message: str) -> bool:
+    """A Recall refusal that bars the dungeon (not one whose timer ran out)."""
+    low = (message or "").lower()
+    return "cannot teleport" in low and "timer" not in low and "reset" not in low
+
+
+def learn_no_return(zone: str) -> bool:
+    """Remember `zone` as one Recall can't come back into. True if new."""
+    if not zone or no_return(zone):
+        return False
+    try:
+        known = json.loads(NO_RETURN_FILE.read_text(encoding="utf-8")) if NO_RETURN_FILE.exists() else []
+    except (OSError, ValueError):
+        known = []
+    known.append(zone)
+    try:
+        NO_RETURN_FILE.parent.mkdir(exist_ok=True)
+        NO_RETURN_FILE.write_text(json.dumps(sorted(set(known)), indent=1), encoding="utf-8")
+    except OSError:
+        return False
+    return True
 
 
 def no_return(zone: str) -> bool:
