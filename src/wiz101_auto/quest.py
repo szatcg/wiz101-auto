@@ -240,7 +240,6 @@ FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
 FIND_AT_MARKER = 500.0  # this near a Find objective's marker: a prompt there is the way on
 COMPANY_RANGE = 1200.0  # another enemy this near a boss joins its fight: the AoE deck
 NOT_SAME_MOB = 5.0  # (the boss itself)
-HUB_JUMP_HOPS = 1  # the hub button counts as this many gate hops when comparing routes
 RECALL_KINDS = (*RETURN_KINDS, "room")  # marks a defeat or heal trip Recalls back to
 RECALL_TRIES = 3  # failed Recalls to the mark before giving it up
 RECALL_PENDING_FILE = Path("state") / "recall_pending.json"  # a defeat's Recall to the dungeon mark is due
@@ -294,6 +293,17 @@ AREA_ORDER = (
     "storm tower",
     "lost city",
 )
+
+
+def hub_is_closer(walk: int | None, via: int | None) -> bool:
+    """The hub button beats walking: the hub is fewer gates from the place
+    than this zone is (the player's rule). From a zone with no known route
+    (an interior), only when the place is the hub itself."""
+    if via is None:
+        return False
+    if walk is None:
+        return via == 0
+    return via < walk
 
 
 def area_rank(world: str) -> int | None:
@@ -1201,22 +1211,33 @@ class Quester:
         return await self.client.zone_name() == dest
 
     async def _hub_for_objective(self, objective: str, zone: str) -> bool:
-        """The objective is in this world's hub and we're elsewhere in the
-        world: the hub button, even out of a dungeon whose part is done ('Talk
-        To Cyrus Drake in The Basilica' after Pyromancer's Tomb: it walked out
-        through the dungeon's exit instead). True if it went."""
+        """The hub button whenever the world's hub is nearer the objective
+        than this zone (the player's rule): an objective in the hub ('Talk To
+        Cyrus Drake in The Basilica' after Pyromancer's Tomb walked out by the
+        dungeon's exit), one further on from it, or one in another world (its
+        gate is by the hub: the Royal Hall walked through the Altar of Kings
+        to the Oasis). Not inside a dungeon the objective is in. True if it
+        went."""
         from .dungeon_heal import go_to_hub
         from .travel_data import world_hub
 
         dest = objective_zone(objective)
         hub = world_hub(zone)
-        if not dest or not hub or dest != hub or zone == hub or is_team_up_zone(zone):
+        if not dest or not hub or zone == hub or is_team_up_zone(zone):
             return False
-        if dest.split("/")[0] != zone.split("/")[0] or not await is_free(self.client):
+        target = dest if dest.split("/")[0] == zone.split("/")[0] else hub
+        walk, via = zone_hops(zone, target), zone_hops(hub, target)
+        if not hub_is_closer(walk, via):
             return False
-        if not self._may_try(objective, zone, "hub_button"):
+        if await self._in_dungeon(zone) and self._dungeon and (
+                dest == zone or dest == self._dungeon[1] or in_same_area(dest, self._dungeon[1])):
+            return False  # (the objective is in this dungeon: leaving resets it)
+        if not await is_free(self.client) or not self._may_try(objective, zone, "hub_button"):
             return False
-        logger.info(f"{objective!r} is in the hub: the hub button instead of walking there")
+        where = "in the hub" if via == 0 and target == dest else (
+            "in another world" if target != dest else f"{via} gate(s) from the hub")
+        logger.info(f"{objective!r} is {where}: the hub button instead of walking"
+                    + (f" {walk} zone(s)" if walk is not None else ""))
         self._teleported = True  # (not a walk-through gate: don't learn it)
         return await go_to_hub(self.client)
 
@@ -1234,7 +1255,7 @@ class Quester:
         if not zone or not hub or zone == hub or dest.split("/")[0] != zone.split("/")[0]:
             return False
         walk, via = zone_hops(zone, dest), zone_hops(hub, dest)
-        if walk is None or via is None or via + HUB_JUMP_HOPS >= walk:
+        if walk is None or not hub_is_closer(walk, via):
             return False
         if is_team_up_zone(zone) or no_return(zone) or await self._in_dungeon(zone):
             return False

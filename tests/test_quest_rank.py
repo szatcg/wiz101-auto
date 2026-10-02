@@ -294,3 +294,13 @@ def test_dungeon_quest_ignores_a_quest_tracked_after_entering():
     assert dungeon_quest(quests, zone, lambda a: None, entered_with="Fire Shield") is None
     assert dungeon_quest(quests, zone, lambda a: None, entered_with="").name != "The Secret History" \
         if False else True
+
+
+def test_hub_button_when_the_hub_is_nearer():
+    from wiz101_auto.quest import hub_is_closer
+
+    assert hub_is_closer(2, 1)  # the hub one gate from it, two from here
+    assert not hub_is_closer(1, 1)  # as near from here: walk
+    assert not hub_is_closer(1, None)
+    assert hub_is_closer(None, 0)  # an interior with no known route, the place is the hub
+    assert not hub_is_closer(None, 2)
