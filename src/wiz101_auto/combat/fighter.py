@@ -96,6 +96,8 @@ def _minion_text(battle) -> str:
 
 
 HAND_MAX = 7  # cards a hand refills to each round
+ROLLOUT_BUDGET = 20.0  # seconds into a round after which the brain's move stands (no rollouts)
+ROLLOUT_GRACE = 8.0  # ... and no rollout runs past budget + this (time left for the clicks)
 PLAN_FILE = Path("state") / "battle_plan.json"
 
 
@@ -453,6 +455,7 @@ class Fighter(CombatHandler):
         self.strategy.no_minions = True
         self._unusable.clear()  # a card that failed last round may sit in a working slot now
         self._flee_tried_this_round = False
+        round_started = time.monotonic()
         discards_left = self.max_discards
         for _ in range(MAX_STEPS_PER_ROUND):
             snap = await read_battle(self)
@@ -550,7 +553,16 @@ class Fighter(CombatHandler):
             action = decide(battle, self.strategy, discards_left=discards_left, plan_discards=True)
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
-            if self.planner is not None and not reshuffling:
+            # Rollouts weigh the move that ends the turn, within a time budget:
+            # run before each plan discard too, round 1 took 30 s and the timer
+            # ran out (the discards are the brain's own free moves).
+            plan_toss = action.kind is ActionKind.DISCARD and "plan" in (action.reason or "")
+            late = time.monotonic() - round_started > ROLLOUT_BUDGET
+            if self.planner is not None and not reshuffling and not plan_toss and not late:
+                from .rollout import TIME_LIMIT
+
+                left = ROLLOUT_BUDGET + ROLLOUT_GRACE - (time.monotonic() - round_started)
+                self.planner.time_limit = max(2.0, min(TIME_LIMIT, left))
                 # (The simulator knows nothing of Reshuffle: its plays and the
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
