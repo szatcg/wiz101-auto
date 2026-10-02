@@ -4933,9 +4933,11 @@ class Quester:
                 dx, dy, norm = 1.0, 0.0, 1.0
             start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
             logger.info(f"walking up to {target} from {back:.0f} away (try {miss + 1})")
-            allow_engage(self.client)
-            await self.client.teleport(start)
-            await asyncio.sleep(1.5)
+            # Walking both ways (the player: teleported in, Malistaire showed
+            # but never fully loaded, and nothing started).
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self.client.goto(start.x, start.y), 20)
+            await asyncio.sleep(1.0)
             if not await self.client.in_battle():
                 with contextlib.suppress(Exception):
                     await asyncio.wait_for(self.client.goto(pos.x, pos.y), 20)
