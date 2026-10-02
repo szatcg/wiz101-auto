@@ -105,6 +105,7 @@ def install(client):
     if getattr(client, "_safe_teleport", False):
         return
     wizwalker_teleport = client.teleport
+    client._teleport_raw = wizwalker_teleport  # (scouting under the map: no snapping to the ground)
     blocked: dict[tuple[int, int], int] = {}
 
     async def original(xyz, *args, **kwargs):

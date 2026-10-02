@@ -236,6 +236,8 @@ SIGIL_WAIT = 25.0  # the countdown after pressing X is ~10s
 SIGIL_LEAVE_MOB_DISTANCE = 1000.0  # re-arm spots must be this clear of mobs
 SIGIL_LEAVE = 3000.0  # the prompt re-arms only after leaving this far (~20m in game)
 FAR_SWEEP_SPACING = 3000.0  # pickups load within roughly this range
+SCOUT_MAX = 60  # squares visited from under the map when scouting a zone for an item
+SCOUT_SETTLE = 1.0  # seconds for things to load after each hop
 FAR_SWEEP_MAX = 25
 ENTITY_SCAN_SECONDS = 30.0  # how often to note what's around (for the entity map)
 KNOWN_SPOTS_FIRST = 6  # remembered spots tried before a zone sweep
@@ -2826,6 +2828,36 @@ class Quester:
                 return True
         return went
 
+    async def _scout_for(self, item: str) -> bool:
+        """Hop under the map across the zone until `item` loads, then fetch
+        it. True if it found it (or a fight interrupted)."""
+        from . import walkmap
+
+        zone = await self.client.zone_name() or ""
+        start = await self.client.body.position()
+        centers = walkmap.chunk_centers(await walkmap.nav_points(zone), (start.x, start.y))[:SCOUT_MAX]
+        if len(centers) < 2:
+            return False
+        raw = getattr(self.client, "_teleport_raw", self.client.teleport)
+        logger.info(f"scouting {zone.split('/')[-1]} for {item!r} from under the map ({len(centers)} spots)")
+        for c in centers:
+            if not await is_free(self.client):
+                return True
+            self.controller.allow_idle(10)
+            try:
+                await raw(XYZ(c[0], c[1], c[2] - walkmap.UNDER_MAP))
+            except Exception:
+                continue
+            await asyncio.sleep(SCOUT_SETTLE)
+            await scan_entities(self.client, zone, self.entity_map)
+            if await self.collector._candidates(item):
+                logger.info(f"{item!r} is near ({c[0]:.0f}, {c[1]:.0f})")
+                if await self.collector.collect_once(item, self._press_collect):
+                    return True
+        await raw(start)
+        logger.info(f"no {item!r} anywhere in {zone.split('/')[-1]} right now")
+        return False
+
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
         if await self.collector.collect_once(item, self._press_collect):
@@ -2878,7 +2910,14 @@ class Quester:
                     return True
             await self.client.teleport(start)
             return True
-        # Nothing nearby: pickups only load close to the wizard, so hop across the
+        # Nothing nearby: from under the map, every part of the zone loads in
+        # turn without an enemy seeing us (the zone's nav graph, in squares
+        # of the load range: Deimos's auto-collect); go only where it is.
+        if getattr(self, "_scouted_for", None) != objective:
+            self._scouted_for = objective
+            if await self._scout_for(item):
+                return True
+        # Pickups only load close to the wizard, so hop across the
         # zone's landmarks and walkways (e.g. Triton's cogs are ~20k units from
         # the entrance).
         if getattr(self, "_far_swept_for", None) != objective:

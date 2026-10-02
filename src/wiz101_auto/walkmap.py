@@ -100,3 +100,74 @@ def retreat_points(dest: XYZ, start: XYZ) -> list[XYZ]:
             break
         out.append(XYZ(dest.x + dx / length * step, dest.y + dy / length * step, dest.z))
     return out
+
+
+# --- the zone's navigation graph: coverage for searches -----------------------
+
+LOAD_RANGE = 3147.0  # entities load within this of the wizard (Deimos)
+CHUNK = math.sqrt(2) * LOAD_RANGE  # a square this wide sits inside one load circle
+UNDER_MAP = 550.0  # scouting this far below the ground: things load, nothing sees us
+
+_nav: dict[str, list[tuple[float, float, float]]] = {}
+
+
+def parse_nav(data: bytes) -> list[tuple[float, float, float]]:
+    """The vertices of a zone.nav (format from Deimos's teleport_math.parse_nav_data,
+    by starrfox, from navwiz: Boost licence): vertex count, max index, then
+    x, y, z floats and the index per vertex (entries off the sequence are skipped)."""
+    import struct
+
+    out: list[tuple[float, float, float]] = []
+    if len(data) < 6:
+        return out
+    _count, vmax, _unknown = struct.unpack_from("<hhh", data, 0)
+    pos, idx = 6, 0
+    while idx <= vmax - 1 and pos + 14 <= len(data):
+        x, y, z, index = struct.unpack_from("<fffh", data, pos)
+        pos += 14
+        if index != idx:
+            vmax -= 1
+            continue
+        out.append((x, y, z))
+        idx += 1
+    return out
+
+
+async def nav_points(zone: str) -> list[tuple[float, float, float]]:
+    if zone in _nav:
+        return _nav[zone]
+
+    def load() -> list[tuple[float, float, float]]:
+        from wizwalker import Wad
+
+        async def read() -> bytes:
+            return await Wad.from_game_data(zone.replace("/", "-")).get_file("zone.nav")
+
+        return parse_nav(asyncio.run(read()))
+
+    try:
+        points = await asyncio.wait_for(asyncio.to_thread(load), LOAD_TIMEOUT)
+    except Exception as exc:
+        logger.debug(f"walkmap: no nav graph for {zone}: {exc!r}")
+        points = []
+    _nav[zone] = points
+    return points
+
+
+def chunk_centers(points: list[tuple[float, float, float]], start: tuple[float, float],
+                  side: float = CHUNK) -> list[tuple[float, float, float]]:
+    """One spot per square of the zone that has nav points in it (at their
+    mean height), nearest first and then each nearest the last: from these,
+    everything in the zone has loaded once."""
+    cells: dict[tuple[int, int], list[tuple[float, float, float]]] = {}
+    for p in points:
+        cells.setdefault((math.floor(p[0] / side), math.floor(p[1] / side)), []).append(p)
+    centers = [((cx + 0.5) * side, (cy + 0.5) * side, sum(p[2] for p in ps) / len(ps))
+               for (cx, cy), ps in cells.items()]
+    tour, here = [], start
+    while centers:
+        nxt = min(centers, key=lambda c: math.dist(c[:2], here))
+        centers.remove(nxt)
+        tour.append(nxt)
+        here = nxt[:2]
+    return tour
