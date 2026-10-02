@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
 import json
 import time
@@ -732,6 +733,11 @@ class Fighter(CombatHandler):
         self._last_plan = ""
         self._had_boss = False
         self.fled = False
+        with contextlib.suppress(Exception):  # where we fought (a boss's walk-in starts there)
+            from ..dungeons import note_last_fight
+
+            p = await self.client.body.position()
+            note_last_fight(await self.client.zone_name() or "", (p.x, p.y, p.z))
         await super().handle_combat()
         self.fights += 1
         self.combat_ended_at = time.monotonic()

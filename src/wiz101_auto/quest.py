@@ -152,6 +152,7 @@ SEEK_CLEAR = 1200.0  # no other kind of enemy this close to a spot we go to
 LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close to it
 ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far, times the misses
 ENGAGE_BACKOFF_MAX = 2400.0
+WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -4925,22 +4926,33 @@ class Quester:
         key = (objective, zone, target)
         miss = misses.get(key, 0)
         if miss or walk:
-            back = min(ENGAGE_BACKOFF * (miss + 1), ENGAGE_BACKOFF_MAX)
-            me = await self._position()
-            dx, dy = me.x - pos.x, me.y - pos.y
-            norm = math.hypot(dx, dy)
-            if norm < 50.0:  # (standing on it: any direction)
-                dx, dy, norm = 1.0, 0.0, 1.0
-            start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
-            logger.info(f"walking up to {target} from {back:.0f} away (try {miss + 1})")
-            # Walking both ways (the player: teleported in, Malistaire showed
-            # but never fully loaded, and nothing started).
-            with contextlib.suppress(Exception):
-                await asyncio.wait_for(self.client.goto(start.x, start.y), 20)
-            await asyncio.sleep(1.0)
+            # The player: from where we fought the room's last enemies, walk in
+            # (teleported near him, Malistaire showed but never fully loaded,
+            # and his cutscene's trigger is further out); further back each try.
+            origin = self._walk_in_origin(target, pos, zone)
+            if origin is not None:
+                dx, dy = origin.x - pos.x, origin.y - pos.y
+                norm = math.hypot(dx, dy) or 1.0
+                back = min(norm + ENGAGE_BACKOFF * miss, norm + ENGAGE_BACKOFF_MAX)
+                start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, origin.z)
+                logger.info(f"walking up to {target} from where we fought, {back:.0f} away (try {miss + 1})")
+                await self.client.teleport(start)
+                await asyncio.sleep(2.0)
+            else:
+                back = min(ENGAGE_BACKOFF * (miss + 1), ENGAGE_BACKOFF_MAX)
+                me = await self._position()
+                dx, dy = me.x - pos.x, me.y - pos.y
+                norm = math.hypot(dx, dy)
+                if norm < 50.0:  # (standing on it: any direction)
+                    dx, dy, norm = 1.0, 0.0, 1.0
+                start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
+                logger.info(f"walking up to {target} from {back:.0f} away (try {miss + 1})")
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(self.client.goto(start.x, start.y), 20)
+                await asyncio.sleep(1.0)
             if not await self.client.in_battle():
                 with contextlib.suppress(Exception):
-                    await asyncio.wait_for(self.client.goto(pos.x, pos.y), 20)
+                    await asyncio.wait_for(self.client.goto(pos.x, pos.y), 45)
                 await asyncio.sleep(4.0)
         else:
             logger.info(f"going after {target} for {objective!r}")
@@ -4952,6 +4964,23 @@ class Quester:
             return True
         misses[key] = miss + 1
         return False
+
+    def _walk_in_origin(self, target: str, pos: XYZ, zone: str) -> XYZ | None:
+        """Where a walk up to `target` starts: our last fight in this zone, else
+        the nearest spot another enemy was seen here (not one of the zone's
+        objects, 'DS_DragonEye'), at least WALK_IN_MIN from it."""
+        from .dungeons import last_fight
+
+        p = last_fight(zone)
+        if p is not None and distance(XYZ(*p), pos) >= WALK_IN_MIN:
+            return XYZ(*p)
+        key = target.lower()
+
+        def enemy_like(n: str) -> bool:
+            return " " in n and "_" not in n and key not in n.lower() and n.lower() not in key
+
+        spots = [XYZ(*s) for s in self.entity_map.spots(zone, enemy_like, (pos.x, pos.y, pos.z))]
+        return next((s for s in spots if distance(s, pos) >= WALK_IN_MIN), None)
 
     async def _lone_target(self, name: str) -> XYZ | None:
         """The nearest enemy called `name` with no other kind of enemy within

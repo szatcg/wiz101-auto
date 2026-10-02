@@ -95,6 +95,30 @@ def note_zone_boss(zone: str, name: str, path: Path = ZONE_BOSSES_FILE) -> bool:
     return True
 
 
+LAST_FIGHTS_FILE = Path("state") / "last_fights.json"  # zone -> where our last fight there was
+
+
+def note_last_fight(zone: str, pos: tuple[float, float, float], path: Path = LAST_FIGHTS_FILE):
+    if not zone:
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    data[zone] = [round(c, 1) for c in pos]
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+
+
+def last_fight(zone: str, path: Path = LAST_FIGHTS_FILE) -> tuple[float, float, float] | None:
+    """Where we last fought in `zone` (walkable ground near its enemies)."""
+    try:
+        p = json.loads(path.read_text(encoding="utf-8")).get(zone)
+        return (float(p[0]), float(p[1]), float(p[2])) if p else None
+    except (OSError, ValueError, AttributeError, TypeError, IndexError):
+        return None
+
+
 OPEN_ZONES = frozenset({"MooShu/MS_War/MS_War_BattlefieldA"})
 # Zones of a dungeon instance that aren't under its rooms' area (reached by a
 # portal inside it): zone -> the dungeon's first room. The Grand Chasm's past
