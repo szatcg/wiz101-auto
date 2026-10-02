@@ -194,6 +194,15 @@
   .chip .odds { position: absolute; top: -9px; right: -6px; font: 800 11px Inter; color: #10121f; background: var(--gold);
     border-radius: 6px; padding: 1px 5px; }
   .chip.used { opacity: 0.45; }
+  /* card art (docs/spell_images via /cards/) */
+  .art { position: relative; display: inline-block; height: 84px; }
+  .art img { height: 84px; border-radius: 6px; display: block; }
+  .art .cnt { position: absolute; right: 2px; bottom: 2px; font: 900 15px Inter; color: #fff;
+    background: rgba(16, 18, 31, 0.85); border-radius: 6px; padding: 0 5px; }
+  .art.want img { outline: 3px solid var(--gold); box-shadow: 0 0 14px rgba(242, 193, 78, 0.8); }
+  .art .odds { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font: 800 11px Inter;
+    color: #10121f; background: var(--gold); border-radius: 6px; padding: 1px 5px; white-space: nowrap; }
+  .art.used img { opacity: 0.4; filter: grayscale(0.7); }
   /* ---- thoughts strip ---- */
   .thoughts { position: absolute; left: 14px; top: 852px; width: 1452px; height: 214px; }
   .thoughts .title { position: absolute; left: 0; top: 0; width: 170px; height: 100%; display: flex; flex-direction: column;
@@ -457,7 +466,13 @@ function describe(e) {
   return `${tag}${round}${esc(e.say || e.text)}`;
 }
 
-let trackerHtml = "";
+let trackerHtml = "", cardIndex = null;
+fetch("/cards/index.json").then((r) => r.json()).then((d) => { cardIndex = d; trackerHtml = ""; }).catch(() => {});
+function cardArt(name) {  // the card's art file (docs/spell_images), or null: shown as text
+  if (!cardIndex) return null;
+  const hit = cardIndex[String(name).toLowerCase().replace(/[^a-z0-9]/g, "")];
+  return hit ? hit.file : null;
+}
 function renderTracker() {
   const p = battle || {};
   const deck = p.deck || [];
@@ -467,8 +482,14 @@ function renderTracker() {
   const better = imp.cards || {};
   const chips = (rows, field, cls) => rows.filter((r) => r[field] > 0).map((r) => {
     const w = field === "left" ? better[r.name] : null;
+    const odds = w ? `<span class="odds">${w.odds}% · ${w.rounds}r</span>` : "";
+    const art = cardArt(r.name);
+    if (art) {
+      return `<span class="art ${cls}${w ? " want" : ""}" title="${esc(r.name)}"><img src="/cards/${art}" alt="">${
+        odds}<span class="cnt">×${r[field]}</span></span>`;
+    }
     return `<span class="chip ${cls}${w ? " want" : ""}"${w ? ` title="win in ${w.rounds} rounds with it"` : ""}>${
-      esc(r.name)}<b>×${r[field]}</b>${w ? `<span class="odds">${w.odds}% · ${w.rounds}r</span>` : ""}</span>`;
+      esc(r.name)}<b>×${r[field]}</b>${odds}</span>`;
   }).join("");
   const n = (field) => deck.reduce((t, r) => t + r[field], 0);
   const plan = imp.base && imp.base < 99 ? `win in ~${imp.base}` : "";

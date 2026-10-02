@@ -246,6 +246,12 @@ class _Handler(BaseHTTPRequestHandler):
         elif self.path.split("?")[0].rstrip("/") == "/stream":
             body = STREAM.read_bytes()  # the 1920x1080 stream layout
             kind = "text/html; charset=utf-8"
+        elif self.path.split("?")[0].startswith("/cards/"):
+            got = _card_file(self.path.split("?")[0][len("/cards/"):])
+            if got is None:
+                self.send_error(404)
+                return
+            body, kind = got
         elif self.path.split("?")[0].startswith("/sim"):
             got = _sim_route(self.path)
             if got is None:
@@ -264,6 +270,21 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, *args):  # keep the console quiet
         pass
+
+
+CARDS = Path("docs") / "spell_images"  # card art: <school>/<name>_spell.png, index.json (name -> file)
+
+
+def _card_file(rel: str) -> tuple[bytes, str] | None:
+    """A file of the card art folder (the stream's deck tracker), never outside it."""
+    from urllib.parse import unquote
+
+    base = CARDS.resolve()
+    f = (base / unquote(rel)).resolve()
+    if base not in f.parents or not f.is_file():
+        return None
+    kind = {".png": "image/png", ".json": "application/json"}.get(f.suffix.lower())
+    return (f.read_bytes(), kind) if kind else None
 
 
 def _sim_route(path: str) -> tuple[bytes, str] | None:

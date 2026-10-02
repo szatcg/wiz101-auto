@@ -1,0 +1,482 @@
+{
+ "athenabattlesight": {
+  "file": "myth/athena_battle_sight_spell.png",
+  "name": "Athena Battle Sight",
+  "school": "myth"
+ },
+ "balebarbarian": {
+  "file": "myth/bale_barbarian_spell.png",
+  "name": "Bale Barbarian",
+  "school": "myth"
+ },
+ "barbarianssaga": {
+  "file": "myth/barbarian_s_saga_spell.png",
+  "name": "Barbarian's Saga",
+  "school": "myth"
+ },
+ "basilisk": {
+  "file": "myth/basilisk_spell.png",
+  "name": "Basilisk",
+  "school": "myth"
+ },
+ "batofinspiration": {
+  "file": "myth/bat_of_inspiration_spell.png",
+  "name": "Bat of Inspiration",
+  "school": "myth"
+ },
+ "betrayal": {
+  "file": "myth/betrayal_spell.png",
+  "name": "Betrayal",
+  "school": "myth"
+ },
+ "blindinglight": {
+  "file": "myth/blinding_light_spell.png",
+  "name": "Blinding Light",
+  "school": "myth"
+ },
+ "blizzotaur": {
+  "file": "myth/blizzotaur_spell.png",
+  "name": "Blizzotaur",
+  "school": "myth"
+ },
+ "bloodbat": {
+  "file": "myth/blood_bat_spell.png",
+  "name": "Blood Bat",
+  "school": "myth"
+ },
+ "buffminion": {
+  "file": "myth/buff_minion_spell.png",
+  "name": "Buff Minion",
+  "school": "myth"
+ },
+ "celestialcalendar": {
+  "file": "myth/celestial_calendar_spell.png",
+  "name": "Celestial Calendar",
+  "school": "myth"
+ },
+ "cleanseward": {
+  "file": "myth/cleanse_ward_spell.png",
+  "name": "Cleanse Ward",
+  "school": "myth"
+ },
+ "coldbloodbat": {
+  "file": "myth/coldblood_bat_spell.png",
+  "name": "Coldblood Bat",
+  "school": "myth"
+ },
+ "creationamplify": {
+  "file": "myth/creation_amplify_spell.png",
+  "name": "Creation Amplify",
+  "school": "myth"
+ },
+ "creationblade": {
+  "file": "myth/creation_blade_spell.png",
+  "name": "Creation Blade",
+  "school": "myth"
+ },
+ "cursedcolossus": {
+  "file": "myth/cursed_colossus_spell.png",
+  "name": "Cursed Colossus",
+  "school": "myth"
+ },
+ "cyclops": {
+  "file": "myth/cyclops_spell.png",
+  "name": "Cyclops",
+  "school": "myth"
+ },
+ "cyclopsminion": {
+  "file": "myth/cyclops_minion_spell.png",
+  "name": "Cyclops Minion",
+  "school": "myth"
+ },
+ "delusion": {
+  "file": "myth/delusion_spell.png",
+  "name": "Delusion",
+  "school": "myth"
+ },
+ "desertminotaur": {
+  "file": "myth/desert_minotaur_spell.png",
+  "name": "Desert Minotaur",
+  "school": "myth"
+ },
+ "dimensionshift": {
+  "file": "myth/dimension_shift_spell.png",
+  "name": "Dimension Shift",
+  "school": "myth"
+ },
+ "drawpower": {
+  "file": "myth/draw_power_spell.png",
+  "name": "Draw Power",
+  "school": "myth"
+ },
+ "dropbearfury": {
+  "file": "myth/drop_bear_fury_spell.png",
+  "name": "Drop Bear Fury",
+  "school": "myth"
+ },
+ "earthquake": {
+  "file": "myth/earthquake_spell.png",
+  "name": "Earthquake",
+  "school": "myth"
+ },
+ "epiphanyattenuate": {
+  "file": "myth/epiphany_attenuate_spell.png",
+  "name": "Epiphany Attenuate",
+  "school": "myth"
+ },
+ "epiphanyblade": {
+  "file": "myth/epiphany_blade_spell.png",
+  "name": "Epiphany Blade",
+  "school": "myth"
+ },
+ "ethergolem": {
+  "file": "myth/ether_golem_spell.png",
+  "name": "Ether Golem",
+  "school": "myth"
+ },
+ "ethershield": {
+  "file": "myth/ether_shield_spell.png",
+  "name": "Ether Shield",
+  "school": "myth"
+ },
+ "fabletrap": {
+  "file": "myth/fable_trap_spell.png",
+  "name": "Fable Trap",
+  "school": "myth"
+ },
+ "finaleattenuate": {
+  "file": "myth/finale_attenuate_spell.png",
+  "name": "Finale Attenuate",
+  "school": "myth"
+ },
+ "gobbler": {
+  "file": "myth/gobbler_spell.png",
+  "name": "Gobbler",
+  "school": "myth"
+ },
+ "golemminion": {
+  "file": "myth/golem_minion_spell.png",
+  "name": "Golem Minion",
+  "school": "myth"
+ },
+ "golemtaunt": {
+  "file": "myth/golem_taunt_spell.png",
+  "name": "Golem: Taunt",
+  "school": "myth"
+ },
+ "grendelsamends": {
+  "file": "myth/grendel_s_amends_spell.png",
+  "name": "Grendel's Amends",
+  "school": "myth"
+ },
+ "heroofkhrysalis": {
+  "file": "myth/hero_of_khrysalis_spell.png",
+  "name": "Hero of Khrysalis",
+  "school": "myth"
+ },
+ "hexhouse": {
+  "file": "myth/hex_house_spell.png",
+  "name": "Hex House",
+  "school": "myth"
+ },
+ "historytrap": {
+  "file": "myth/history_trap_spell.png",
+  "name": "History Trap",
+  "school": "myth"
+ },
+ "humongofrog": {
+  "file": "myth/humongofrog_spell.png",
+  "name": "Humongofrog",
+  "school": "myth"
+ },
+ "improbablegaze": {
+  "file": "myth/improbable_gaze_spell.png",
+  "name": "Improbable Gaze",
+  "school": "myth"
+ },
+ "jinnsdefense": {
+  "file": "myth/jinn_s_defense_spell.png",
+  "name": "Jinn's Defense",
+  "school": "myth"
+ },
+ "keeperoftheflame": {
+  "file": "myth/keeper_of_the_flame_spell.png",
+  "name": "Keeper of the Flame",
+  "school": "myth"
+ },
+ "kingartorius": {
+  "file": "myth/king_artorius_spell.png",
+  "name": "King Artorius",
+  "school": "myth"
+ },
+ "lemortethoth": {
+  "file": "myth/le_morte_thoth_spell.png",
+  "name": "Le Morte Thoth",
+  "school": "myth"
+ },
+ "massmythprism": {
+  "file": "myth/mass_myth_prism_spell.png",
+  "name": "Mass Myth Prism",
+  "school": "myth"
+ },
+ "medusa": {
+  "file": "myth/medusa_spell.png",
+  "name": "Medusa",
+  "school": "myth"
+ },
+ "medusasfury": {
+  "file": "myth/medusa_s_fury_spell.png",
+  "name": "Medusa's Fury",
+  "school": "myth"
+ },
+ "megasubdue": {
+  "file": "myth/mega_subdue_spell.png",
+  "name": "Mega Subdue",
+  "school": "myth"
+ },
+ "mendminion": {
+  "file": "myth/mend_minion_spell.png",
+  "name": "Mend Minion",
+  "school": "myth"
+ },
+ "minotaur": {
+  "file": "myth/minotaur_spell.png",
+  "name": "Minotaur",
+  "school": "myth"
+ },
+ "minotaurminion": {
+  "file": "myth/minotaur_minion_spell.png",
+  "name": "Minotaur Minion",
+  "school": "myth"
+ },
+ "mysticcolossus": {
+  "file": "myth/mystic_colossus_spell.png",
+  "name": "Mystic Colossus",
+  "school": "myth"
+ },
+ "mythblade": {
+  "file": "myth/mythblade_spell.png",
+  "name": "Mythblade",
+  "school": "myth"
+ },
+ "mythprism": {
+  "file": "myth/myth_prism_spell.png",
+  "name": "Myth Prism",
+  "school": "myth"
+ },
+ "mythshield": {
+  "file": "myth/myth_shield_spell.png",
+  "name": "Myth Shield",
+  "school": "myth"
+ },
+ "mythspear": {
+  "file": "myth/mythspear_spell.png",
+  "name": "Mythspear",
+  "school": "myth"
+ },
+ "mythtrap": {
+  "file": "myth/myth_trap_spell.png",
+  "name": "Myth Trap",
+  "school": "myth"
+ },
+ "mythweakness": {
+  "file": "myth/myth_weakness_spell.png",
+  "name": "Myth Weakness",
+  "school": "myth"
+ },
+ "ninjapigs": {
+  "file": "myth/ninja_pigs_spell.png",
+  "name": "Ninja Pigs",
+  "school": "myth"
+ },
+ "onisprojection": {
+  "file": "myth/oni_s_projection_spell.png",
+  "name": "Oni's Projection",
+  "school": "myth"
+ },
+ "orthrus": {
+  "file": "myth/orthrus_spell.png",
+  "name": "Orthrus",
+  "school": "myth"
+ },
+ "phantasticjinn": {
+  "file": "myth/phantastic_jinn_spell.png",
+  "name": "Phantastic Jinn",
+  "school": "myth"
+ },
+ "pierce": {
+  "file": "myth/pierce_spell.png",
+  "name": "Pierce",
+  "school": "myth"
+ },
+ "poisonoustoad": {
+  "file": "myth/poisonous_toad_spell.png",
+  "name": "Poisonous Toad",
+  "school": "myth"
+ },
+ "purge": {
+  "file": "myth/purge_spell.png",
+  "name": "Purge",
+  "school": "myth"
+ },
+ "reverseemperor": {
+  "file": "myth/reverse_emperor_spell.png",
+  "name": "Reverse-Emperor",
+  "school": "myth"
+ },
+ "sagaofheroes": {
+  "file": "myth/saga_of_heroes_spell.png",
+  "name": "Saga of Heroes",
+  "school": "myth"
+ },
+ "sandtroll": {
+  "file": "myth/sand_troll_spell.png",
+  "name": "Sand Troll",
+  "school": "myth"
+ },
+ "saturnsreaping": {
+  "file": "myth/saturn_s_reaping_spell.png",
+  "name": "Saturn's Reaping",
+  "school": "myth"
+ },
+ "scionofmyth": {
+  "file": "myth/scion_of_myth_spell.png",
+  "name": "Scion of Myth",
+  "school": "myth"
+ },
+ "serpentbeguiler": {
+  "file": "myth/serpent_beguiler_spell.png",
+  "name": "Serpent Beguiler",
+  "school": "myth"
+ },
+ "shatter": {
+  "file": "myth/shatter_spell.png",
+  "name": "Shatter",
+  "school": "myth"
+ },
+ "shieldminion": {
+  "file": "myth/shield_minion_spell.png",
+  "name": "Shield Minion",
+  "school": "myth"
+ },
+ "shift": {
+  "file": "myth/shift_spell.png",
+  "name": "Shift",
+  "school": "myth"
+ },
+ "siphonhealth": {
+  "file": "myth/siphon_health_spell.png",
+  "name": "Siphon Health",
+  "school": "myth"
+ },
+ "snakecharmer": {
+  "file": "myth/snake_charmer_spell.png",
+  "name": "Snake Charmer",
+  "school": "myth"
+ },
+ "splashsquatch": {
+  "file": "myth/splashsquatch_spell.png",
+  "name": "Splashsquatch",
+  "school": "myth"
+ },
+ "stonecolossus": {
+  "file": "myth/stone_colossus_spell.png",
+  "name": "Stone Colossus",
+  "school": "myth"
+ },
+ "stormingorgon": {
+  "file": "myth/stormin_gorgon_spell.png",
+  "name": "Stormin' Gorgon",
+  "school": "myth"
+ },
+ "stun": {
+  "file": "myth/stun_spell.png",
+  "name": "Stun",
+  "school": "myth"
+ },
+ "subdue": {
+  "file": "myth/subdue_spell.png",
+  "name": "Subdue",
+  "school": "myth"
+ },
+ "swampclops": {
+  "file": "myth/swamp_clops_spell.png",
+  "name": "Swamp-Clops",
+  "school": "myth"
+ },
+ "talos": {
+  "file": "myth/talos_spell.png",
+  "name": "Talos",
+  "school": "myth"
+ },
+ "tatzlewurmhorror": {
+  "file": "myth/tatzlewurm_horror_spell.png",
+  "name": "Tatzlewurm Horror",
+  "school": "myth"
+ },
+ "tatzlewurmterror": {
+  "file": "myth/tatzlewurm_terror_spell.png",
+  "name": "Tatzlewurm Terror",
+  "school": "myth"
+ },
+ "theemperor": {
+  "file": "myth/the_emperor_spell.png",
+  "name": "The Emperor",
+  "school": "myth"
+ },
+ "thoth": {
+  "file": "myth/thoth_spell.png",
+  "name": "Thoth",
+  "school": "myth"
+ },
+ "thothictwist": {
+  "file": "myth/thothic_twist_spell.png",
+  "name": "Thothic Twist",
+  "school": "myth"
+ },
+ "timeoflegend": {
+  "file": "myth/time_of_legend_spell.png",
+  "name": "Time of Legend",
+  "school": "myth"
+ },
+ "tricksteroni": {
+  "file": "myth/trickster_oni_spell.png",
+  "name": "Trickster Oni",
+  "school": "myth"
+ },
+ "troll": {
+  "file": "myth/troll_spell.png",
+  "name": "Troll",
+  "school": "myth"
+ },
+ "trollminion": {
+  "file": "myth/troll_minion_spell.png",
+  "name": "Troll Minion",
+  "school": "myth"
+ },
+ "vaporize": {
+  "file": "myth/vaporize_spell.png",
+  "name": "Vaporize",
+  "school": "myth"
+ },
+ "vassanji": {
+  "file": "myth/vassanji_spell.png",
+  "name": "Vassanji",
+  "school": "myth"
+ },
+ "verminvirtuoso": {
+  "file": "myth/vermin_virtuoso_spell.png",
+  "name": "Vermin Virtuoso",
+  "school": "myth"
+ },
+ "witchshousecall": {
+  "file": "myth/witch_s_house_call_spell.png",
+  "name": "Witch's House Call",
+  "school": "myth"
+ },
+ "wreckinettin": {
+  "file": "myth/wreckin_ettin_spell.png",
+  "name": "Wreckin' Ettin",
+  "school": "myth"
+ }
+}
