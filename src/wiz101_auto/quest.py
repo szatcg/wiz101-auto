@@ -200,7 +200,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "walk_in": 1, "reenter": 1, "lone_wait": 5, "boss_room_door": 3,
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
-                   "zone_first": 3, "fight_for_item": 2, "hub_button": 2}
+                   "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
@@ -4920,6 +4920,16 @@ class Quester:
                         and self._may_try(objective, zone_now, "marker_travel")):
                     logger.info(f"no {target} in view: to the quest marker first (it may be a way in)")
                     await self.travel(marker)
+                    return
+                # The marker's door refused us twice ("The door is locked. Find
+                # the crystal." at Malistaire's): the zone's chests, crystals,
+                # stands, its boss, its NPCs and switches before anything else
+                # (the sweep and the zones around ran out first, and the quest
+                # was set aside).
+                tries = self._attempts_at.get((objective, zone_now, "marker_travel"), 0)
+                if (_real_marker(marker) and tries >= APPROACH_LIMITS["marker_travel"]
+                        and self._may_try(objective, zone_now, "locked_door_early")
+                        and await self.bring_out.step(objective, zone_now, target, fight=True)):
                     return
                 # Far from the marker: walk toward it (enemies only load nearby;
                 # King Shemet was 26000 away, easy to reach on foot).
