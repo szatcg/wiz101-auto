@@ -201,7 +201,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8,
-                   "zone_boss": 4, "locked_door_late": 8, "door_key": 3}
+                   "zone_boss": 4, "locked_door_late": 8, "door_key": 3, "door_key_use": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
@@ -3406,6 +3406,14 @@ class Quester:
             return False
         item, places = hint
         zone = await self.client.zone_name() or ""
+        # Something here named for it first (the Crystal Stand in the volcano:
+        # using it was all Malistaire's door needed): walk up and press X.
+        for name, spots in (self.entity_map.zones.get(zone, {}) or {}).items():
+            named = item.lower() in name.lower() and spots
+            if named and self._may_try(objective, f"{zone}|{name}", "door_key_use"):
+                logger.info(f"{target}'s door is locked: using the {name} here first")
+                await self._use_object_at(XYZ(*spots[0]))
+                return True
         for place in places:
             if not self._may_try(objective, place, "door_key"):
                 continue
