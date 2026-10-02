@@ -4916,6 +4916,41 @@ class Quester:
             return True
         return False
 
+    async def _engage(self, target: str, pos: XYZ, objective: str, zone: str, walk: bool = False) -> bool:
+        """Start the fight with `target` at `pos`: land on it; after a landing
+        that started nothing (Malistaire: his fight comes with a cutscene that
+        walking up to him triggers), or with `walk`, back off, further each
+        time, and walk in. True if a fight started."""
+        misses = self.__dict__.setdefault("_engage_misses", {})
+        key = (objective, zone, target)
+        miss = misses.get(key, 0)
+        if miss or walk:
+            back = min(ENGAGE_BACKOFF * (miss + 1), ENGAGE_BACKOFF_MAX)
+            me = await self._position()
+            dx, dy = me.x - pos.x, me.y - pos.y
+            norm = math.hypot(dx, dy)
+            if norm < 50.0:  # (standing on it: any direction)
+                dx, dy, norm = 1.0, 0.0, 1.0
+            start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
+            logger.info(f"walking up to {target} from {back:.0f} away (try {miss + 1})")
+            allow_engage(self.client)
+            await self.client.teleport(start)
+            await asyncio.sleep(1.5)
+            if not await self.client.in_battle():
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(self.client.goto(pos.x, pos.y), 20)
+                await asyncio.sleep(4.0)
+        else:
+            logger.info(f"going after {target} for {objective!r}")
+            allow_engage(self.client)  # this teleport is meant to start the fight
+            await self.client.teleport(pos)
+            await asyncio.sleep(3.0)
+        if await self.client.in_battle() or not await is_free(self.client):
+            misses.pop(key, None)  # (a cutscene or dialogue: the dialogue loop has it)
+            return True
+        misses[key] = miss + 1
+        return False
+
     async def _lone_target(self, name: str) -> XYZ | None:
         """The nearest enemy called `name` with no other kind of enemy within
         LONE_TARGET_CLEARANCE (those would join, or start the fight instead)."""
@@ -4972,38 +5007,8 @@ class Quester:
                         logger.info(f"{target} in view: the right deck goes in before the fight")
                         return  # (the next step's deck tick switches it, clear of enemies)
                 await self._mark_before_boss(target, objective, zone_now)
-                misses = self.__dict__.setdefault("_engage_misses", {})
-                key = (objective, zone_now, target)
-                miss = misses.get(key, 0)
-                if miss:
-                    # Landing on him started nothing (Malistaire: his fight comes
-                    # with a cutscene that walking up to him triggers): back off,
-                    # further each time, and walk in.
-                    back = min(ENGAGE_BACKOFF * miss, ENGAGE_BACKOFF_MAX)
-                    me = await self._position()
-                    dx, dy = me.x - pos.x, me.y - pos.y
-                    norm = math.hypot(dx, dy)
-                    if norm < 50.0:  # (standing on him: any direction)
-                        dx, dy, norm = 1.0, 0.0, 1.0
-                    start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, pos.z)
-                    logger.info(f"landing on {target} started no fight ({miss}x): "
-                                f"walking up to it from {back:.0f} away")
-                    allow_engage(self.client)
-                    await self.client.teleport(start)
-                    await asyncio.sleep(1.5)
-                    if not await self.client.in_battle():
-                        with contextlib.suppress(Exception):
-                            await asyncio.wait_for(self.client.goto(pos.x, pos.y), 20)
-                        await asyncio.sleep(4.0)
-                else:
-                    logger.info(f"going after {target} for {objective!r}")
-                    allow_engage(self.client)  # this teleport is meant to start the fight
-                    await self.client.teleport(pos)
-                    await asyncio.sleep(3.0)
-                if await self.client.in_battle():
-                    misses.pop(key, None)
+                if await self._engage(target, pos, objective, zone_now):
                     return
-                misses[key] = miss + 1
             else:
                 where = objective_zone(objective)
                 here_zone = await self.client.zone_name() or ""
@@ -5023,6 +5028,18 @@ class Quester:
                 # going on; Gurtok Firebender before Malistaire's door).
                 if await self._fight_zone_boss(objective, here_zone):
                     return
+                # The boss standing as itself before its cutscene ("Malistaire"
+                # for "Malistaire Drake"): walking up to it starts the fight.
+                first = target.split()[0]
+                if len(first) >= 5 and first.lower() != target.lower():
+                    from .bossfarm import mobs_named
+
+                    stand_in = await find_entity_named(self.client, first)
+                    mobs = [p for _n, p in await mobs_named(self.client)]
+                    if stand_in is not None and all(distance(stand_in, p) > 50 for p in mobs):
+                        await self._mark_before_boss(first, objective, here_zone)
+                        await self._engage(first, stand_in, objective, here_zone, walk=True)
+                        return
                 # A boss that hasn't come out yet (Malistaire: his Soul Servants
                 # first): in a dungeon or a room, beat the enemies around it.
                 if ((inside or "/interiors/" in here_zone.lower())
