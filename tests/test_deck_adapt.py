@@ -57,6 +57,7 @@ def test_a_remembered_boss_deck_goes_in_before_its_fight(tmp_path, monkeypatch):
     a.mode = {"deck": "boss", "vs": ["Haru", "Ronin Blademaster"]}
     monkeypatch.setattr(deck_adapt, "GENERAL_FILE", tmp_path / "general.json")
     (tmp_path / "general.json").write_text(json.dumps({"deck": {"Humongofrog": 3}}), encoding="utf-8")
+    a._decided.clear()  # (a later encounter)
     a.prepare_for("Haru", alone=False)  # company: the AoE deck
     deck, why = a.wanted()
     assert deck == {"Humongofrog": 3}
@@ -108,4 +109,23 @@ def test_a_lone_enemy_gets_the_single_deck_once(tmp_path, monkeypatch):
     assert deck == single and why.startswith("boss")
     a.mode = {"deck": "boss", "vs": ["Wandering Wizard"], "cards": single}
     a.prepare_for("Restless Soldier", alone=True)  # already in: no switch
+    assert a.wanted() is None
+
+
+def test_the_deck_call_holds_for_the_encounter(tmp_path, monkeypatch):
+    import json
+
+    from wiz101_auto import deck_adapt
+
+    for name in ("BOSS_DECKS", "MODE_FILE", "TACTICS_FILE", "SINGLE_FILE", "GENERAL_FILE"):
+        monkeypatch.setattr(deck_adapt, name, tmp_path / f"{name}.json")
+    (tmp_path / "SINGLE_FILE.json").write_text(json.dumps({"deck": {"Feint": 3}}), encoding="utf-8")
+    (tmp_path / "GENERAL_FILE.json").write_text(json.dumps({"deck": {"Humongofrog": 3}}), encoding="utf-8")
+    a = deck_adapt.DeckAdapter()
+    a._bosses = {"Iona Pyrelance"}
+    a.prepare_for("Iona Pyrelance", alone=True)
+    deck, _why = a.wanted()
+    assert deck == {"Feint": 3}
+    a.mode = {"deck": "boss", "vs": ["Iona Pyrelance"], "cards": {"Feint": 3}}
+    a.prepare_for("Iona Pyrelance", alone=False)  # a second look disagrees: the call holds
     assert a.wanted() is None

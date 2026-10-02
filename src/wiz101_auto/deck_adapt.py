@@ -73,6 +73,7 @@ def _usable(entry: dict | None) -> bool:
 SINGLE_FILE = Path("state") / "deck_single.json"  # the single-target deck for a lone boss
 TACTICS_FILE = Path("state") / "boss_tactics.json"  # boss -> {"aoe_losses": n}
 AOE_LOSSES_BEFORE_SINGLE = 3
+DECISION_HOLD = 600.0  # seconds a deck call for an enemy holds (no flip-flopping)
 
 
 def aoe_losses(boss: str) -> int:
@@ -116,6 +117,7 @@ class DeckAdapter:
         self._bosses: set[str] | None = None  # boss names in the stats (read once)
         self._switch_retries = 0
         self._equip_search = True  # put the search's deck in when it's done (single-target due)
+        self._decided: dict[str, tuple[bool, float]] = {}  # boss -> (single-target?, when decided)
 
     def _save(self):
         try:
@@ -240,6 +242,16 @@ class DeckAdapter:
         single = wants_single(alone, aoe_losses(boss))
         if single is None:
             return
+        # One call per encounter: the step's look and the look before engaging
+        # disagreed on Iona Pyrelance's company (enemies wander in and out of
+        # range), and the deck went back and forth, a rebuild each time.
+        now = time.time()
+        held = self._decided.get(boss)
+        if held is not None and now - held[1] < DECISION_HOLD and not (
+                single and aoe_losses(boss) >= AOE_LOSSES_BEFORE_SINGLE):
+            single = held[0]
+        else:
+            self._decided[boss] = (single, now)
         if single:
             found = self.single_deck(boss)
             if found is None:
