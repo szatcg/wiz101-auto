@@ -1777,7 +1777,61 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     return action
 
 
-def _decide_seen(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
+BOSS_SETUP_TRAPS = 3  # traps on a boss before a big hit that won't kill it (no kill plan in reach)
+BOSS_SETUP_BLADES = 2  # our blades likewise
+
+
+def _boss_setup_first(battle: Battle, action: Action) -> Action | None:
+    """The player's: against a boss too big to kill with what's in hand and
+    to come, a hit that doesn't kill waits for the setup (Feint first: the
+    highest boost, then Myth Trap, then blades). Hits that finish an add, or
+    that a kill plan uses, go as chosen."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or not card.is_damage or card.is_heal:
+        return None
+    bosses = [e for e in battle.live_enemies if e.is_boss]
+    if not bosses:
+        return None
+    boss = max(bosses, key=lambda e: e.health)
+    adds = [e for e in battle.live_enemies if not e.is_boss]
+    aimed = getattr(action.target, "name", None)
+    struck = adds if card.is_aoe else [e for e in adds if e is action.target or e.name == aimed]
+    if any(hit_damage(card, battle.me, e) >= e.health for e in struck):
+        return None  # it clears an add: worth it now
+    if action.target is not None and not action.target.is_boss:
+        return None
+    dmg = hit_damage(card, battle.me, boss)
+    if dmg >= boss.health:
+        return None
+    try:
+        if plan_hand_use(battle)[0] < 99:
+            return None  # a kill is in reach and the plan says how
+    except Exception:
+        return None
+    setups = [c for c in _castable(battle.cards) if not c.is_enchant and setup_fits(c, battle)
+              and (EffectKind.TRAP in c.kinds or EffectKind.BLADE in c.kinds) and c is not card]
+    traps = [c for c in setups if EffectKind.TRAP in c.kinds]
+    blades = [c for c in setups if EffectKind.BLADE in c.kinds]
+    why = f"setting up before {card.name}: ~{dmg:.0f} of {boss.name}'s {boss.health} won't kill"
+    if traps and boss.trap_count < BOSS_SETUP_TRAPS:
+        best = max(traps, key=_power)
+        return Action(ActionKind.CAST, best, None if best.target is Target.ENEMY_ALL else boss, reason=why)
+    if blades and battle.me.blade_count < BOSS_SETUP_BLADES:
+        best = max(blades, key=_power)
+        target = battle.me if best.target is Target.ALLY_SINGLE else None
+        return Action(ActionKind.CAST, best, target, reason=why)
+    return None
+
+
+def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
+    action = _decide_seen_raw(battle, strat, **kw)
+    try:
+        return _boss_setup_first(battle, action) or action
+    except Exception:
+        return action
+
+
+def _decide_seen_raw(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:
     """The action for this step, with enemies holding our unused prism seen
     as our hits will find them (prism_view): the big myth hit is worth its
     storm damage on Meowiarty. The target maps back to the real enemy."""

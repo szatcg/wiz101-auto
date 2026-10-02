@@ -113,3 +113,30 @@ def test_heal_waits_when_power_pips_would_pay_for_an_off_school_heal():
     low = Combatant("me", 600, 2380, is_client=True, school="myth")  # 25%: under the floor
     assert _best_heal(Battle(me=low, allies=[], enemies=[boss], cards=[pixie], pips=0, power_pips=2),
                       Strategy()) is not None
+
+
+def test_a_boss_too_big_to_kill_gets_feint_before_orthrus():
+    from wiz101_auto.combat.brain import _boss_setup_first
+    from wiz101_auto.combat.model import (
+        Action,
+        ActionKind,
+        Battle,
+        Card,
+        Combatant,
+        Effect,
+        EffectKind,
+        Target,
+    )
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    me = Combatant("me", 2000, 2380, is_client=True, school="myth")
+    boss = Combatant("Gurtok", 5600, 5600, is_enemy=True, is_boss=True, resist={})
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[orthrus, feint], pips=1, power_pips=3)
+    got = _boss_setup_first(b, Action(ActionKind.CAST, orthrus, None))
+    assert got is not None and got.card is feint and got.target is boss
+    weak = Combatant("Gurtok", 500, 5600, is_enemy=True, is_boss=True, resist={})
+    b2 = Battle(me=me, allies=[], enemies=[weak], cards=[orthrus, feint], pips=1, power_pips=3)
+    assert _boss_setup_first(b2, Action(ActionKind.CAST, orthrus, None)) is None  # it kills: go
