@@ -3713,7 +3713,8 @@ class Quester:
             except Exception:
                 continue
             if off_circle((pos.x, pos.y, pos.z)):
-                logger.info("clearing the dungeon before its boss: fighting the enemies here")
+                logger.info("clearing the room before its boss: fighting the enemies here")
+                self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS  # (not fled)
                 allow_engage(self.client)
                 await self.client.teleport(pos)
                 await asyncio.sleep(3.0)
@@ -4970,6 +4971,11 @@ class Quester:
                 # fight first (the player: there's nearly always one to win before
                 # going on; Gurtok Firebender before Malistaire's door).
                 if await self._fight_zone_boss(objective, here_zone):
+                    return
+                # A boss that hasn't come out yet (Malistaire: his Soul Servants
+                # first): in a dungeon or a room, beat the enemies around it.
+                if ((inside or "/interiors/" in here_zone.lower())
+                        and await self._clear_dungeon(objective, here_zone)):
                     return
                 # At the marker with the enemy nowhere in the zone: the marker is
                 # the way to it (a teleporter like the Djeserit tomb's "To the
