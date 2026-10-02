@@ -115,6 +115,12 @@ def install(client):
             before = await client.body.position()
         except Exception:
             return await wizwalker_teleport(xyz, *args, **kwargs)
+        # The zone's collision geometry: land on walkable ground clear of walls
+        # (inside a forge or a door frame the game refused or bounced us).
+        from . import walkmap
+
+        asked = xyz
+        xyz = await walkmap.landing(client, xyz)
         result = await wizwalker_teleport(xyz, *args, **kwargs)
         far = math.dist((before.x, before.y), (xyz.x, xyz.y)) > NOT_TAKEN * 10
         try:
@@ -133,9 +139,39 @@ def install(client):
             # Refused even with the long wait, twice running: the wizard is frozen
             # (it couldn't walk either; a relog fixed it). The quest step checks.
             client._refused_in_row = 0 if took else getattr(client, "_refused_in_row", 0) + 1
+            if not took:
+                took = await refused_fallbacks(asked, xyz, before)
             logger.info(f"teleport to ({xyz.x:.0f}, {xyz.y:.0f}) didn't happen; retried with a longer wait: "
                         f"{'it worked' if took else 'still refused'}")
         return result
+
+    async def refused_fallbacks(asked, tried, before) -> bool:
+        """A refused jump (Deimos's order): the strict walkable spot (every
+        collision volume counted), then spots stepping back toward where we
+        were. True if one took (the caller sees how near it got)."""
+        from . import walkmap
+
+        try:
+            if await walkmap.world_for(await client.zone_name() or "") is None:
+                return False  # (no geometry: stepping back would be guessing)
+        except Exception:
+            return False
+        options = [await walkmap.landing(client, asked, strict=True)]
+        options += [await walkmap.landing(client, p) for p in walkmap.retreat_points(tried, before)]
+        for spot in options:
+            if math.dist((spot.x, spot.y), (tried.x, tried.y)) < 5:
+                continue
+            try:
+                await wizwalker_teleport(spot)
+                now = await client.body.position()
+            except Exception:
+                continue
+            if math.dist((now.x, now.y), (before.x, before.y)) >= NOT_TAKEN:
+                client._refused_in_row = 0
+                logger.info(f"teleport refused at ({tried.x:.0f}, {tried.y:.0f}); landed at "
+                            f"({spot.x:.0f}, {spot.y:.0f}) instead")
+                return True
+        return False
 
     async def off_map_fallback(xyz):
         """Known ground to land on if `xyz` turns out to be off the map (the

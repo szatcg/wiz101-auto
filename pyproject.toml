@@ -12,6 +12,8 @@ requires-python = ">=3.13"
 dependencies = [
     "loguru>=0.7.2",
     "pyyaml>=6.0.1",
+    "numpy>=2.0",  # geo/: zone collision geometry (collision-aware teleports)
+    "shapely>=2.0",
     # Game-facing libraries are Windows-only. We use the actively maintained
     # copies vendored by the Deimos project, which track game patches much
     # faster than the PyPI releases.
@@ -38,6 +40,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 110
 target-version = "py313"
+extend-exclude = ["src/wiz101_auto/geo/bcd.py", "src/wiz101_auto/geo/walk.py"]  # vendored as-is
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
