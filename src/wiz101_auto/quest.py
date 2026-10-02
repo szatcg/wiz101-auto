@@ -190,7 +190,6 @@ FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one ob
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
-BOSS_CHEST_SETTLE_SECONDS = 3.0  # after a boss fight, before teleporting to its chest
 GRIND_RERANK_SECONDS = 90.0  # while grinding, re-read the quest book this often
 STUCK_TIMES_TO_FARM = 3  # a main quest found stuck this often: farm Aquila instead
 ALERT_REPEAT_SECONDS = 3600.0  # the same main quest is alerted about at most hourly
@@ -738,7 +737,7 @@ class Quester:
         self._last_defeat = -1e9
         self._last_win_zone = _load_last_main(2)  # where a fight was last won (to gain experience there)
         self._book_dumped = False  # quest book slot layout saved (state/quest_book_window.txt)
-        self._boss_fights_seen = 0  # fighter.boss_fights already checked for a loot chest
+        self._boss_fights_seen = 0  # fighter.boss_fights already checked (a farm run's end)
         self._step_is_fight = False  # the tracked quest's step has the book's encounter icon
         self._book_names: set[str] = set()  # quests in the book at the last full read
         self._pin_new_from: set[str] | None = None  # after a visit: pin a quest not in this set
@@ -769,10 +768,9 @@ class Quester:
         self._farm_alerted = 0.0  # last "can't get to the farmed dungeon" alert
         self._world_tree_zone = ""  # the World Tree's inside, once walked into from Ravenwood
         self._tree_tried: set[tuple[str, int, int]] = set()  # ways tried in there
-        self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave after its chest
+        self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
-        self._chests_checked: set[str] = set()  # team dungeon rooms already checked for a boss chest
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
         self._npc_search: dict[str, dict] = {}  # objective -> door search state (a Talk To target not found)
         self._alerted: dict[str, float] = {}  # main quest -> last ALERT (monotonic)
@@ -1724,26 +1722,15 @@ class Quester:
             logger.debug(f"loot pickup failed: {exc!r}")
             return False
 
-    async def _loot_after_boss(self) -> bool:
-        """A boss fight was just won: look for its loot chest and open it
-        before anything else (a heal trip would leave the room). True if it
-        looked."""
+    def _note_boss_win(self):
+        """A boss fight was just won: the farm's boss ends a farm run."""
         if not self.fighter or self.fighter.boss_fights == self._boss_fights_seen:
-            return False
-        if time.monotonic() - self.fighter.combat_ended_at < BOSS_CHEST_SETTLE_SECONDS:
-            return False  # let the defeat check see where the fight ended first
+            return
         won = self.controller.deaths == self._boss_deaths_seen
         self._boss_fights_seen, self._boss_deaths_seen = self.fighter.boss_fights, self.controller.deaths
-        if not won or await self.client.in_battle():
-            return False
-        try:
-            await self.collector.loot_boss_chest(self._press_collect)
-        except Exception as exc:
-            logger.debug(f"boss chest looting failed: {exc!r}")
         farm = Farm.load()
-        if farm.active and farm.ends_run(self.fighter.last_boss_names):
+        if won and farm.active and farm.ends_run(self.fighter.last_boss_names):
             self._farm_run_done = True
-        return True
 
     async def _dorm_to_wizard_city(self) -> bool:
         """The objective is in Wizard City and we're in another world: the dorm
@@ -4952,19 +4939,7 @@ class Quester:
         # sigil reset it). _recall_to_mark waits until we're healed.
         if self._recall_pending and await self._recall_to_mark():
             return
-        # A boss's chest is each player's own loot (Zeus' Chest: the farm's
-        # point): open it, team or not.
-        if await self._loot_after_boss():
-            return
-        if is_team_up_zone(zone_now) and zone_now not in self._chests_checked:
-            # A boss chest already standing in this room (a restart after Zeus
-            # lost the "just won a boss fight" moment): open it once.
-            self._chests_checked.add(zone_now)
-            try:
-                if await self.collector.loot_boss_chest(self._press_collect, wait=1.0, max_range=3000.0):
-                    return
-            except Exception as exc:
-                logger.debug(f"chest check failed: {exc!r}")
+        self._note_boss_win()
         # With a team, no other detours for pick-ups (it teleported all over
         # Mount Olympus): the team's shared objectives are left to the others.
         if not is_team_up_zone(zone_now):

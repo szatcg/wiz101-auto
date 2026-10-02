@@ -3,7 +3,7 @@
 `state/farm.json` says which dungeon (its first room's zone id), which boss
 ends a run, whether farming is on, and how many runs are done. The bot goes
 to the dungeon's sigil, waits for a team (teamup.py), follows it through the
-dungeon joining its fights, opens the final boss's chest, counts the run and
+dungeon joining its fights, counts the run once the final boss is beaten and
 leaves by the world hub button for the next one. `farm` / `farm --stop` on the
 command line turn it on and off; the run count and the loot targets show on
 the stream page (/stream). A stuck main quest turns it on by itself.

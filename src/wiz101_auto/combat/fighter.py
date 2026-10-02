@@ -209,7 +209,7 @@ class Fighter(CombatHandler):
         self.max_discards = max_discards
         self.flee_below = flee_below
         self.fights = 0
-        self.boss_fights = 0  # fights that had a boss in them (a loot chest may spawn after)
+        self.boss_fights = 0  # fights that had a boss in them
         self.combat_ended_at = 0.0  # monotonic time the last fight ended
         self.fled = False  # the last fight ended by fleeing (not a defeat)
         self.last_boss_names: list[str] = []  # bosses in the current/last fight (farm runs end on one)
