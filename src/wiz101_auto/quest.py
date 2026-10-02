@@ -775,6 +775,7 @@ class Quester:
         self._farm_run_done = False  # the farmed dungeon's final boss is beaten: leave
         self._entry_quest: tuple[str, str] = ("", "")  # (dungeon first room, quest tracked on entering)
         self._ranked_outside = False  # ranked quests outside a dungeon this session
+        self._spell_first_logged = ""  # the class quest last put ahead of the pin
         self._mate_trail: list[tuple[str, XYZ]] = []  # last teammate sightings (their direction of travel)
         self._track_tries: dict[tuple[str, int, int], int] = {}  # walks along their tracks, per spot
         self._mate_doors: set[tuple[str, int, int]] = set()  # doors already taken after the team
@@ -2877,6 +2878,16 @@ class Quester:
             self._pin = ""
             save_pin("")
             return chosen
+        # A class/spell quest comes before the pin (the player's rule: the new
+        # spell first; 'Two Heads Are Better...' waited behind Wizard Tours'
+        # trip around the Spiral). The pin stays for afterwards.
+        spell = next((q for q in quests if q.activity and q.name not in set_aside and q is not pinned), None)
+        if spell is not None and not pinned.activity:
+            if self._spell_first_logged != spell.name:
+                self._spell_first_logged = spell.name
+                logger.info(f"the class quest {spell.name!r} first (a new spell), "
+                            f"then back to {pinned.name!r}")
+            return spell
         return pinned
 
     async def switch_quest(self) -> bool:
