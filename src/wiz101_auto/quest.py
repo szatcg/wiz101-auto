@@ -1569,6 +1569,19 @@ class Quester:
         entry = mem.dungeons.get(target or "")  # the entrance mark, outside on the sigil
         return entry is not None and entry.outside == m.zone
 
+    def _same_dungeon(self, objective: str, marked_zone: str) -> bool:
+        """The objective (after a defeat the game may track another quest:
+        'Go To Dean's Cell in The Labyrinth' instead of 'Defeat Andor
+        Bristleback') is still in the marked dungeon, or doesn't say where:
+        Recall back rather than walk in again (a fresh copy, progress lost)."""
+        place = objective_zone(objective) if objective else None
+        if place is None or place == marked_zone:
+            return True
+        if in_same_area(place, marked_zone) or in_same_area(marked_zone, place):
+            return True
+        entry = DungeonMemory.load().dungeons.get(marked_zone)
+        return entry is not None and entry.outside == place
+
     def _retire_dungeon_mark(self):
         """The dungeon mark has served (or can't any more); the game still holds
         it, so it stays on as a travel mark in the sigil's zone."""
@@ -1938,8 +1951,9 @@ class Quester:
         zone = await self.client.zone_name()
         if zone == marked_zone:
             return False
-        if await self.objective() != self._mark.objective:
-            self._recall_pending = False  # moved on: the dungeon mark is done with
+        objective = await self.objective()
+        if objective != self._mark.objective and not self._same_dungeon(objective, marked_zone):
+            self._recall_pending = False  # moved on elsewhere: the dungeon mark is done with
             self._retire_dungeon_mark()
             return False
         if not await is_free(self.client):
