@@ -3215,6 +3215,17 @@ class Quester:
         await asyncio.sleep(3.0)
         return True
 
+    async def _alone_at(self, pos: XYZ) -> bool:
+        """No other enemy within COMPANY_RANGE of the one at `pos`."""
+        try:
+            for mob in await self.client.get_mobs():
+                d = distance(await mob.location(), pos)
+                if NOT_SAME_MOB < d < COMPANY_RANGE:
+                    return False
+        except Exception:
+            pass
+        return True
+
     async def _boss_alone(self, name: str) -> bool | None:
         """Is the enemy `name` alone (no other enemy within COMPANY_RANGE of
         it)? None when it isn't in view (the deck choice waits)."""
@@ -4396,6 +4407,15 @@ class Quester:
                     await asyncio.sleep(3.0)
                     return
                 pos = clean or pos  # (always in company, like a boss's guards: go anyway)
+                # The deck for this encounter, now that the enemy is in view
+                # (Vasek Ashweaver loaded only on the way in: the step's check
+                # before saw nobody, and the fight went in on the AoE deck).
+                adapter = getattr(self, "deck_adapter", None)
+                if adapter is not None:
+                    adapter.prepare_for(target, await self._alone_at(pos))
+                    if adapter._pending is not None:
+                        logger.info(f"{target} in view: the right deck goes in before the fight")
+                        return  # (the next step's deck tick switches it, clear of enemies)
                 logger.info(f"going after {target} for {objective!r}")
                 allow_engage(self.client)  # this teleport is meant to start the fight
                 await self.client.teleport(pos)
