@@ -27,3 +27,12 @@ def test_the_death_realm_is_no_return():
 
     assert no_return("MooShu/MS_Death/Interiors/MS_Death3_SpiritWorld")
     assert not no_return("MooShu/MS_Death/Interiors/MS_Death3_T4")
+
+
+def test_bot_game_pid_round_trip(tmp_path, monkeypatch):
+    from wiz101_auto import gamerestart
+
+    monkeypatch.setattr(gamerestart, "GAME_FILE", tmp_path / "game.json")
+    assert gamerestart.bot_game_pid() == 0
+    gamerestart.remember_game(1234, 99)
+    assert gamerestart.bot_game_pid() == 1234

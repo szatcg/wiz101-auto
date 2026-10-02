@@ -77,13 +77,27 @@ WORLD_HOOKS = ("player_struct", "player_stat_struct", "current_client", "current
 
 
 async def connect(handler: ClientHandler):
+    from .gamerestart import bot_game_pid, remember_game
+
     clients = handler.get_new_clients()
     if not clients:
         raise SystemExit("No Wizard101 window found. Start the game and log in to your wizard first.")
-    focused = handler.get_foreground_client()
-    client = focused or clients[0]
+    # The player may play another copy (another account): only the bot's own
+    # game is hooked (hooks patch the game's memory), never the focused one.
+    pid = bot_game_pid()
+    mine = [c for c in clients if c.process_id == pid]
+    if mine:
+        client = mine[0]
+    elif len(clients) == 1:
+        client = clients[0]
+    else:
+        raise SystemExit(
+            f"{len(clients)} Wizard101 windows are open and none is known as the bot's "
+            "(state/game_client.json).\nClose the other copy, or put the bot's game process id in "
+            "state/game_client.json, then start again.")
     if len(clients) > 1:
-        logger.info(f"{len(clients)} game windows found; using the {'focused' if focused else 'first'} one")
+        logger.info(f"{len(clients)} game windows open; using the bot's own (process {client.process_id})")
+    remember_game(client.process_id, client.window_handle)
     logger.info("activating hooks (can take a few seconds; move your wizard a step if it stalls)")
     try:
         hooks = client.hook_handler

@@ -18,6 +18,7 @@ At most MAX_PER_HOUR game restarts an hour.
 from __future__ import annotations
 
 import ctypes
+import json
 import subprocess
 import sys
 import time
@@ -110,13 +111,53 @@ def _note_restart():
         pass
 
 
-def game_windows() -> list[int]:
+GAME_FILE = Path("state") / "game_client.json"  # the bot's own game: {"pid", "hwnd"}
+
+
+def all_game_windows() -> list[int]:
     try:
         from wizwalker.utils import get_all_wizard_handles
 
         return list(get_all_wizard_handles())
     except Exception:
         return []
+
+
+def window_pid(handle: int) -> int:
+    from ctypes import wintypes
+
+    pid = wintypes.DWORD()
+    try:
+        ctypes.windll.user32.GetWindowThreadProcessId(handle, ctypes.byref(pid))
+    except Exception:
+        return 0
+    return pid.value
+
+
+def bot_game_pid() -> int:
+    """The process of the game the bot plays (the player may run another)."""
+    try:
+        return int(json.loads(GAME_FILE.read_text(encoding="utf-8")).get("pid", 0))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return 0
+
+
+def remember_game(pid: int, handle: int = 0):
+    try:
+        GAME_FILE.parent.mkdir(exist_ok=True)
+        GAME_FILE.write_text(json.dumps({"pid": pid, "hwnd": handle}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def game_windows() -> list[int]:
+    """The bot's own game window(s): the one it remembers, when that's still
+    running; with none remembered, every game window."""
+    handles = all_game_windows()
+    pid = bot_game_pid()
+    if not pid:
+        return handles
+    return [h for h in handles if window_pid(h) == pid]
 
 
 def window_hung(handle: int) -> bool:
@@ -168,26 +209,36 @@ def restart_game(log=print) -> bool:
     _note_restart()
     from wizwalker.utils import instance_login, start_instance
 
-    log("game restart: closing Wizard101")
-    subprocess.call(["taskkill", "/IM", GAME_EXE, "/F"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Only the bot's own game: the player may be playing another copy.
+    pid = bot_game_pid()
+    others = [h for h in all_game_windows() if window_pid(h) != pid]
+    if pid:
+        log(f"game restart: closing the bot's Wizard101 (process {pid})")
+        subprocess.call(["taskkill", "/PID", str(pid), "/F"],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    elif others:
+        log("game restart: several games open and none known as the bot's; not closing any")
+        return False
     for _ in range(30):
-        if not game_windows():
+        if not game_windows() or (pid and not any(window_pid(h) == pid for h in all_game_windows())):
             break
         time.sleep(1.0)
     time.sleep(3.0)
+    before = set(all_game_windows())
     log("game restart: starting Wizard101")
     start_instance()
     deadline = time.monotonic() + WINDOW_WAIT
-    handles: list[int] = []
-    while time.monotonic() < deadline and not handles:
+    new: list[int] = []
+    while time.monotonic() < deadline and not new:
         time.sleep(2.0)
-        handles = game_windows()
-    if not handles:
+        new = [h for h in all_game_windows() if h not in before]
+    if not new:
         log("game restart: the game window never appeared")
         return False
+    remember_game(window_pid(new[0]), new[0])
     time.sleep(LOGIN_SCREEN_WAIT)
     username, password = login
     log(f"game restart: logging in as {username}")
-    instance_login(handles[0], username, password)
+    instance_login(new[0], username, password)
     time.sleep(AFTER_LOGIN_WAIT)
     return True

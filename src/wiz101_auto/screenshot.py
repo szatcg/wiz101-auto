@@ -34,6 +34,13 @@ class _BITMAPINFOHEADER(ctypes.Structure):
 
 
 def find_game_window() -> int:
+    """The bot's own game window (the player may run another copy)."""
+    from .gamerestart import bot_game_pid, game_windows
+
+    if bot_game_pid():
+        mine = game_windows()
+        if mine:
+            return mine[0]
     user32 = ctypes.windll.user32
     for title in ("Wizard101",):
         hwnd = user32.FindWindowW(None, title)
