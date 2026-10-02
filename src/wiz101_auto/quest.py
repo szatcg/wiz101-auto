@@ -4941,13 +4941,23 @@ class Quester:
             # and his cutscene's trigger is further out); further back each try.
             origin = self._walk_in_origin(target, pos, zone)
             if origin is not None:
-                dx, dy = origin.x - pos.x, origin.y - pos.y
-                norm = math.hypot(dx, dy) or 1.0
-                back = min(norm + ENGAGE_BACKOFF * miss, norm + ENGAGE_BACKOFF_MAX)
-                start = XYZ(pos.x + dx / norm * back, pos.y + dy / norm * back, origin.z)
-                logger.info(f"walking up to {target} from where we fought, {back:.0f} away (try {miss + 1})")
-                await self.client.teleport(start)
+                # Always from the fight's own spot (floor we stood on: starts
+                # pushed further back ended inside the lair's rock), along a
+                # path around the walls.
+                logger.info(f"walking up to {target} from where we fought, "
+                            f"{distance(origin, pos):.0f} away (try {miss + 1})")
+                await self.client.teleport(origin)
                 await asyncio.sleep(2.0)
+                from .walkmap import walk_path
+
+                path = None if await self.client.in_battle() else await walk_path(zone, origin, pos)
+                if path:
+                    logger.info(f"following a {len(path)}-waypoint path around the walls")
+                    for wp in path:
+                        if await self.client.in_battle() or not await is_free(self.client):
+                            break
+                        with contextlib.suppress(Exception):
+                            await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
             else:
                 back = min(ENGAGE_BACKOFF * (miss + 1), ENGAGE_BACKOFF_MAX)
                 me = await self._position()

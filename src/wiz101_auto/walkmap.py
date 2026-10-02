@@ -88,6 +88,33 @@ async def landing(client, xyz: XYZ, strict: bool = False) -> XYZ:
     return point
 
 
+WALK_WAYPOINT_EVERY = 6  # hex nodes between the waypoints walked to (straight runs between)
+
+
+async def walk_path(zone: str, start: XYZ, goal: XYZ) -> list[XYZ] | None:
+    """Waypoints to walk from `start` to `goal` around the zone's walls (A*
+    over its collision), or None (no collision data, or no way on foot)."""
+    world = await world_for(zone)
+    if world is None:
+        return None
+    from .geo import walk
+
+    def solve():
+        return walk.get_walk_grid(world, zone).find_walk_path(start, goal)
+
+    try:
+        path = await asyncio.wait_for(asyncio.to_thread(solve), LOAD_TIMEOUT)
+    except Exception as exc:
+        logger.debug(f"walkmap: no walk path ({exc!r})")
+        return None
+    if not path:
+        return None
+    picked = path[WALK_WAYPOINT_EVERY::WALK_WAYPOINT_EVERY]
+    if not picked or picked[-1] != path[-1]:
+        picked.append(path[-1])
+    return [XYZ(x, y, z if z is not None else goal.z) for x, y, z in picked]
+
+
 def retreat_points(dest: XYZ, start: XYZ) -> list[XYZ]:
     """Spots on the way back from `dest` toward `start` (a refused jump's fallbacks)."""
     dx, dy = start.x - dest.x, start.y - dest.y
