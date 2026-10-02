@@ -201,7 +201,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8,
-                   "zone_boss": 4}
+                   "zone_boss": 4, "locked_door_late": 8}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
@@ -5010,6 +5010,11 @@ class Quester:
                     await self._look_for(target)
                 elif in_dungeon and await self._reenter_for_npc(objective, zone_now):
                     pass  # a fresh copy of the dungeon
+                elif await self._fight_zone_boss(objective, zone_now):
+                    pass  # (a locked way on: the zone's boss first; Gurtok before Malistaire's door)
+                elif (self._may_try(objective, zone_now, "locked_door_late")
+                      and await self.bring_out.step(objective, zone_now, target, fight=True)):
+                    pass  # its chests, crystals, stands, NPCs, switches
                 else:
                     await self._all_approaches_used(objective, f"find {target}")
                 return
