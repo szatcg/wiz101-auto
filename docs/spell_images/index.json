@@ -3473,5 +3473,10 @@
   "file": "life/zand_the_bandit_spell.png",
   "name": "Zand the Bandit",
   "school": "life"
+ },
+ "minorfirescorch": {
+  "file": "wand/minor_fire_scorch_spell.png",
+  "name": "Minor Fire Scorch",
+  "school": "wand"
  }
 }

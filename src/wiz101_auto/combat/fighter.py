@@ -184,6 +184,29 @@ def improve_odds(battle, action) -> dict:
             "any": round(100 * draw_chance(left, sum(counts.values()), draws))}
 
 
+def _note_unknown_cards(battle) -> None:
+    """A card in hand that the stored deck lacks (a spell the game put in
+    when it was learned: Orthrus): the deck keeper re-reads the spellbook."""
+    from ..deck import load_deck_counts
+    from ..deck_keeper import STALE_FILE
+    from .brain import is_reshuffle
+
+    try:
+        deck = load_deck_counts()
+        if not deck or STALE_FILE.exists():
+            return
+        odd = [c.name for c in battle.cards
+               if not c.treasure and not c.item and not is_reshuffle(c) and " - " not in c.name
+               and c.name not in deck]
+        if odd:
+            STALE_FILE.parent.mkdir(exist_ok=True)
+            STALE_FILE.write_text(", ".join(odd), encoding="utf-8")
+            logger.info(f"deck: {', '.join(odd)} in hand but not in the stored deck; "
+                        "re-reading it after the fight")
+    except Exception:
+        pass
+
+
 def _save_my_stats(me) -> None:
     """Our wizard as the game reads it (max health, gear's damage bonus and
     resists), for the simulator's fights from the start (sim.simulate)."""
@@ -547,6 +570,7 @@ class Fighter(CombatHandler):
                 logger.warning("flee didn't go through; playing this round and trying again next round")
                 self._fleeing = False  # let a stray confirmation be cancelled while we play
 
+            _note_unknown_cards(battle)
             hand = ", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
             logger.debug(f"hand: {hand}; deck left: {len(battle.upcoming)}")
             plan = plan_fight(battle, self.strategy).text

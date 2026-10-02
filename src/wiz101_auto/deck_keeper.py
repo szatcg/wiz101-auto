@@ -23,6 +23,7 @@ from loguru import logger
 GENERAL_FILE = Path("state") / "deck_general.json"
 PROGRESS_FILE = Path("state") / "progress.json"
 CHECK_SECONDS = 60.0  # how often the deck file is compared with the game's
+STALE_FILE = Path("state") / "deck_stale.flag"  # a fight drew a card the stored deck lacks
 TRIES_PER_TARGET = 2  # set_deck runs for one target before leaving it (a card short of max copies)
 ALWAYS_KEPT = {"reshuffle"}  # the player's own cards, never taken out
 
@@ -89,8 +90,44 @@ class DeckKeeper:
         self._tries[key] = self._tries.get(key, 0) + 1
         return target, changes
 
+    async def refresh(self, client) -> bool:
+        """Re-read the deck and the known spells from the spellbook (a spell
+        learned from a quest: Orthrus was in fights but neither the stored
+        deck nor the known spells had it, so the deck was never fixed and the
+        fights counted cards that weren't there). True if it read."""
+        from .deck import (
+            _attach_builder,
+            _log_current_deck,
+            close_spellbook,
+            open_spellbook,
+            read_known_spells,
+            save_deck_counts,
+        )
+        from .upkeep import move_to_safety
+
+        await move_to_safety(client, 1500.0, "before reading the spellbook")
+        await open_spellbook(client)
+        try:
+            builder = await _attach_builder(client)
+            names = await _log_current_deck(client, builder) or []
+            known = [s.name for s in await read_known_spells(builder)]
+        finally:
+            await close_spellbook(client)
+        if names:
+            save_deck_counts(names)
+        if known:
+            progress = _load(PROGRESS_FILE)
+            progress["known_spells"] = sorted(set(known))
+            PROGRESS_FILE.write_text(json.dumps(progress, indent=1), encoding="utf-8")
+        STALE_FILE.unlink(missing_ok=True)
+        self._checked = 0.0  # compare at once
+        logger.info(f"deck: re-read the spellbook ({len(names)} cards, {len(known)} spells known)")
+        return True
+
     async def tick(self, client) -> bool:
         """Between steps: put the deck back if it differs. True if it did."""
+        if STALE_FILE.exists():
+            return await self.refresh(client)
         due = self.due()
         if due is None:
             return False

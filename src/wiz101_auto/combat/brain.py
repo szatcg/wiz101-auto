@@ -509,7 +509,10 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
     # hit we can cast now (the player's). Heals stay; only while cards are left.
     live = battle.live_enemies
     hits = [c for c in [*battle.cards, *battle.upcoming] if c.is_damage and not c.is_enchant]
-    if len(live) == 1 and hits and battle.upcoming and all(
+    # (Only with the deck well stocked: against Vika Markmaker at 46 it binned
+    # Spirit Blade and Feint with the deck nearly out, and passed three rounds
+    # holding nothing but Reshuffle.)
+    if len(live) == 1 and hits and len(battle.upcoming) >= DISCARD_RESERVE and all(
             hit_damage(c, battle.me, live[0]) >= live[0].health for c in hits):
         setup = [c for c in battle.cards if not c.treasure and not c.is_damage and not c.is_heal
                  and not is_reshuffle(c)]
@@ -524,7 +527,7 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
         singles = [c for c in [*battle.cards, *battle.upcoming]
                    if c.is_damage and not c.is_aoe and c.pip_cost >= 2]
         aoes = [c for c in battle.cards if c.is_damage and c.is_aoe and not c.treasure
-                and not _plan_needs(battle, c)]
+                and not _plan_needs(battle, c) and not keep_from_discard(c)]  # (never Orthrus)
         if aoes and singles:
             card = min(aoes, key=lambda c: c.base_damage())
             why = "one enemy: an AoE hit; drawing for single-target hits"

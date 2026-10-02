@@ -43,13 +43,16 @@ def test_a_stalled_quest_is_set_aside_until_a_level_up(tmp_path):
     assert s.set_aside(14, now=60) - ALWAYS_SKIP == set()
 
 
-def test_a_set_aside_main_quest_waits_for_a_level_up(tmp_path):
+def test_a_set_aside_main_quest_comes_back_soon(tmp_path):
+    from wiz101_auto.setbacks import MAIN_RETRY_SECONDS
+
     s = Setbacks(tmp_path / "s.json")
     s.set_quest_aside("Payback", "Defeat Akori Nirini in Akori's Chamber", 14, now=0, main=True)
     s.set_quest_aside("Collecting Gems", "Collect Flame Gems", 14, now=0)
-    later = DEFER_SECONDS + 10
-    assert s.set_aside(14, now=later) - ALWAYS_SKIP == {"Payback"}  # the side quest's hour is up
-    assert s.set_aside(15, now=later) - ALWAYS_SKIP == set()
+    assert s.set_aside(14, now=10) - ALWAYS_SKIP == {"Payback", "Collecting Gems"}
+    # (not until a level-up: 'Quest for Perfection' left the bot grinding)
+    assert s.set_aside(14, now=MAIN_RETRY_SECONDS + 10) - ALWAYS_SKIP == {"Collecting Gems"}
+    assert s.set_aside(14, now=DEFER_SECONDS + 10) - ALWAYS_SKIP == set()
 
 
 def test_stuck_main_quest_comes_back_after_its_retry_time(tmp_path):

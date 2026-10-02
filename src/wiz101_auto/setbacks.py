@@ -16,6 +16,7 @@ from pathlib import Path
 DEFEATS_TO_DEFER = 2  # side quests
 MAIN_DEFEATS_TO_DEFER = 5  # main-story objectives: fights have variance, keep trying
 DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
+MAIN_RETRY_SECONDS = 900.0  # a main-story quest set aside for being stuck: tried again after this
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
 # be found (nor interacted with).
@@ -71,6 +72,10 @@ class Setbacks:
         until then); others also after DEFER_SECONDS. `retry_after`: stuck
         rather than beaten, so try again after that many seconds anyway."""
         now = time.time() if now is None else now
+        if main and retry_after is None:
+            # (Not until a level-up: 'Quest for Perfection', set aside while an
+            # Orange Crystal Sample couldn't be found, left the bot grinding.)
+            retry_after = MAIN_RETRY_SECONDS
         self.deferred[quest] = {"level": level, "at": now, "objective": objective, "main": main}
         if retry_after is not None:
             self.deferred[quest]["until"] = now + retry_after
