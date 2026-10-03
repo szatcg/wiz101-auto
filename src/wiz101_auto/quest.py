@@ -5185,6 +5185,32 @@ class Quester:
             logger.info(f"no prompt at {obj}")
         return True
 
+    async def _to_enemy_spot(self, zone: str) -> bool:
+        """Grinding with no enemy in view (they load only nearby): teleport to
+        the next spot here where an enemy we've fought was seen. True if it
+        went."""
+        import json as _json
+
+        try:
+            fought = set(_json.loads(Path("state", "enemy_stats.json").read_text(encoding="utf-8"))
+                         .get("enemies", {}))
+        except (OSError, ValueError):
+            fought = set()
+        if not fought:
+            return False
+        me = await self._position()
+        spots = self.entity_map.spots(zone, lambda n: n in fought, (me.x, me.y, me.z))
+        spots = [s for s in spots if distance(XYZ(*s), me) > 800]
+        if not spots:
+            return False
+        i = self.__dict__.get("_enemy_spot_i", 0) % len(spots)
+        self._enemy_spot_i = i + 1
+        x, y = spots[i][0], spots[i][1]
+        logger.info(f"grinding: no enemies in view; to where some were seen ({x:.0f}, {y:.0f})")
+        await self.client.teleport(XYZ(*spots[i]))
+        await asyncio.sleep(1.5)
+        return True
+
     async def _lone_target(self, name: str) -> XYZ | None:
         """The nearest enemy called `name` with no other kind of enemy within
         LONE_TARGET_CLEARANCE (those would join, or start the fight instead)."""
@@ -5785,6 +5811,8 @@ class Quester:
             indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
             if not indoors and await self.sprinter.get_mobs():
                 await self.pull_mob("")
+            elif not indoors and await self._to_enemy_spot(here):
+                pass  # (enemies load only nearby: went where some were seen)
             elif self._main_world and here.split("/", 1)[0] != self._main_world:
                 # (The main world's, as _grind does: going to the last win in
                 # Celestia while _grind went back to Grizzleheim bounced
