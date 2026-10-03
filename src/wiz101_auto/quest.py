@@ -2245,6 +2245,10 @@ class Quester:
                                 logger.warning(f"{marked_zone.split('/')[-1]} can't be Recalled into: "
                                                "a no-return dungeon from now on (mark at its entrance)")
                             logger.warning("the game refused the recall; walking back instead")
+                            if "has been reset" in text.lower():
+                                # Final: the dungeon is gone (twice more the same
+                                # Recall and the same refusal).
+                                self._recall_pending = False
                             return False
                     if await self.client.is_loading():
                         await wait_for_loading(self.client)
