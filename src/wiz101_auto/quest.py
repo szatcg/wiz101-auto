@@ -105,6 +105,9 @@ BOOK_FIELDS = {
     "imgEncounter", "txtGoalCounter", "imgActivityQuestType", "LeftMainline", "imgActiveQuest",
 }
 QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
+# (Landings beside a refused marker end up to ~300 off: the object there, or
+# the marker reached, within this.)
+MARKER_REACHED = 800.0
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
@@ -1242,6 +1245,18 @@ class Quester:
                     logger.info(f"the marker itself refused the teleport; landed {radius:.0f} beside it")
                     return True
         return False
+
+    async def _object_at_marker(self, objective: str, target: XYZ) -> bool:
+        """Is the object a 'Use X' names at the refused marker? Not there: the
+        marker is a door on the way (pressing X at Frostmantle's Chamber's door
+        did nothing, the room's enemies were fought as 'guards' and a landing
+        left the fortress). Collect objectives can't be checked by name (the
+        Ice Water is a 'GH_Jar'): yes."""
+        name = operate_target(objective)
+        if not name or not _USE_OBJECT.match(objective):
+            return True
+        pos = await self._npc_named(name, near=target)
+        return pos is not None and distance(pos, target) < MARKER_REACHED
 
     async def _use_object_at(self, spot: XYZ) -> bool:
         """An object to use at `spot` (the Burial Ground Tablet: the teleport
@@ -2614,6 +2629,7 @@ class Quester:
         # (And "Collect Ice Water in Jar": the jar refused the teleport, and the
         # walk path ran under Ravenscar's map, stuck at z 0 for minutes.)
         if (objective and (_USE_OBJECT.match(objective) or objective.lower().startswith("collect "))
+                and await self._object_at_marker(objective, target)
                 and self._may_try(objective, zone or "", "use_walk")):
             logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
             if await self._use_object_at(target):
@@ -4020,6 +4036,11 @@ class Quester:
         used = self.__dict__.setdefault("_used_objects", {}).setdefault((name, zone), [])
         pos = await self._npc_named(name, near=near, skip=used)  # exact name, not an enemy
         if pos is None:
+            if near is marker and distance(await self._position(), marker) > MARKER_REACHED:
+                # A marker not reached yet: it leads there (the Heart of Winter
+                # is in the room past a door; sweeping Northguard and
+                # Savarstaad Pass for it went on for minutes, fleeing fights).
+                return False
             # Not loaded here (no marker; the fallback spot was across the
             # zone): sweep the zone for it, where it was seen first.
             return await self._seek_object(name, zone, used)
