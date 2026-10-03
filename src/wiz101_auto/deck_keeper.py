@@ -84,6 +84,7 @@ class DeckKeeper:
         self._checked = 0.0
         self._tries: dict[str, int] = {}
         self._boss = False  # the boss deck was the one asked for last
+        self.last_boss = False
         self._worn: str | None = None  # deck item role worn ("aoe" everyday, "single" boss)
         self._wear_failed_at = -1e9
 
@@ -172,6 +173,7 @@ class DeckKeeper:
 
     async def tick(self, client, boss: bool = False) -> bool:
         """Between steps: put the deck back if it differs. True if it did."""
+        self.last_boss = boss  # (the deck asked for: kept while no fight decides)
         if STALE_FILE.exists():
             return await self.refresh(client)
         if await self._wear(client, boss):

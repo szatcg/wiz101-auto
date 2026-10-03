@@ -136,6 +136,8 @@ TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
 WORLD_TREE = "WizardCity/WC_Ravenwood_Teleporter"  # inside Bartleby: the Spiral Map's world gate
+DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where the detour's quest ended
+DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
                       "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia",
@@ -2142,6 +2144,8 @@ class Quester:
         fight was last won. True if it acted this step."""
         if await self.client.in_battle():
             return True
+        if await self._detour_ask():
+            return True
         zone = await self.client.zone_name() or ""
         world = self._grind_world()  # (the highest-level world we've reached: Celestia)
         in_main_world = not world or zone.split("/", 1)[0] == world
@@ -3036,7 +3040,9 @@ class Quester:
                 elif q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
             if det is not None and complete:
-                self._detour_start(det[0], any(norm(q.name) in det[2] for _, q in all_quests))
+                has = any(norm(q.name) in det[2] for _, q in all_quests)
+                self._detour_start(det[0], has)
+                await self._note_detour_gap(has)
             activities = {q.name for _, q in all_quests if q.activity}
             self._wanted_items = {  # main-story/spell quests only: side quests are ignored
                 collect_item_name(q.goal): q.name
@@ -4356,6 +4362,49 @@ class Quester:
         listed = self._world_lists.get(entry["world"], [])
         main = {norm(q.name) for q in listed if not any("SIDE" in t for t in q.tags)}
         return entry, main, {norm(q.name) for q in listed}
+
+    async def _note_detour_gap(self, has: bool):
+        """The detour world's quest just left the book with none after it
+        ('News of the North' ended in Hrundle Fjord; 'Cold Day in Hrundle'
+        waits with someone there): remember where, to ask its NPCs."""
+        had = getattr(self, "_detour_had", None)
+        self._detour_had = has
+        if has or not had:
+            return
+        zone = await self.client.zone_name() or ""
+        if zone:
+            DETOUR_GAP_FILE.write_text(json.dumps({"zone": zone, "asked": 0}), encoding="utf-8")
+            logger.info(f"the detour's quest ended in {zone.split('/')[-1]}: its NPCs have the next one")
+
+    async def _detour_ask(self) -> bool:
+        """No detour quest in the book: to the zone where the last one ended
+        and ask its NPCs, before any grinding (it went to grind in Celestia).
+        Once an hour. True if it acted."""
+        if self._mainline or self._detour_names() is None:
+            return False
+        try:
+            gap = json.loads(DETOUR_GAP_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        dest = gap.get("zone") or ""
+        if not dest or time.time() - gap.get("asked", 0) < DETOUR_ASK_SECONDS:
+            return False
+        zone = await self.client.zone_name() or ""
+        if zone != dest:
+            world = dest.split("/", 1)[0]
+            if zone.split("/", 1)[0] != world:
+                return await self._to_world(world, f"to {dest.split('/')[-1]} for the detour's next quest")
+            logger.info(f"no detour quest: to {dest.split('/')[-1]} to ask its NPCs for the next one")
+            if await self.go_to_zone(dest) or await self.client.zone_name() != zone:
+                return True
+        gap["asked"] = time.time()
+        DETOUR_GAP_FILE.write_text(json.dumps(gap), encoding="utf-8")
+        if zone == dest:
+            logger.info(f"asking the NPCs of {dest.split('/')[-1]} for the detour's next quest")
+            self.givers.sweep_now(dest)
+            self._ranked_for = None
+            return True
+        return False
 
     def _detour_start(self, entry: dict, started: bool):
         """No quest of the detour world in the book yet: visit the NPC who
@@ -6348,9 +6397,18 @@ class Quester:
                 here = await self.client.zone_name() or ""
                 # The boss deck (deck_general.json 'boss_deck', the player's
                 # heavier deck) in a dungeon or room, or with a boss fight next.
+                # Only a fight decides (talking in the Northguard throne room,
+                # an interior, swapped the deck items every few seconds):
+                # otherwise the deck worn stays.
                 bosses = DungeonMemory.load().bosses
-                boss = ("/interiors/" in here.lower() or await self._in_any_dungeon(here)
-                        or any(bosses.get(n) for n in defeat_names(await self.objective())))
+                obj = await self.objective() or ""
+                if is_combat_objective(obj):
+                    target = defeat_target(obj) or ""
+                    boss = (await self._in_any_dungeon(here) or "/interiors/" in here.lower()
+                            or any(bosses.get(n) for n in defeat_names(obj))
+                            or bool(target and is_known_boss(target)))
+                else:
+                    boss = getattr(keeper, "last_boss", False)
                 if await keeper.tick(self.client, boss=boss):
                     return
             except Exception as exc:
