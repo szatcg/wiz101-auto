@@ -157,7 +157,10 @@ WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
-GRIND_FALLBACK = {"Grizzleheim": "Grizzleheim/GH_Wolf"}  # outdoor zones with enemies, per world
+# Outdoor zones with enemies, per world (until a fight there is won).
+GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
+# Where to grind, highest level first.
+GRIND_WORLDS = ["Celestia", "DragonSpire", "MooShu", "Marleybone", "Krokotopia", "Grizzleheim", "WizardCity"]
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -1994,13 +1997,14 @@ class Quester:
         if await self.client.in_battle():
             return True
         zone = await self.client.zone_name() or ""
-        in_main_world = not self._main_world or zone.split("/", 1)[0] == self._main_world
+        world = self._grind_world()  # (the highest-level world we've reached: Celestia)
+        in_main_world = not world or zone.split("/", 1)[0] == world
         if not in_main_world and not self._mainline:
             # No main quest to lead back: an auto-tracked side quest led here
             # (Grizzleheim from Dragonspyre); go back rather than follow it
             # (before re-ranking: a ranking on the way let the step follow it).
-            why = f"back to {self._main_world} to fight for experience"
-            return await self._to_world(self._main_world, why)
+            why = f"back to {world} to fight for experience"
+            return await self._to_world(world, why)
         if time.monotonic() - self._last_rank > GRIND_RERANK_SECONDS:
             # A quest may have come in (an NPC offered one, the next main
             # quest): read the book again before more grinding.
@@ -2017,7 +2021,7 @@ class Quester:
                 return True
             self.givers.main_sweep_zone = ""  # no way there known
         place = objective_zone(await self.objective() or "")
-        off_world = not self._mainline and place and place.split("/", 1)[0] != self._main_world
+        off_world = not self._mainline and place and place.split("/", 1)[0] != world
         # (No main quest and the tracked one is a side world's: its marker
         # leads to the world gate; fight here instead.)
         # Outdoors only: in a dungeon a grinding fight pulled the Runed
@@ -2029,7 +2033,12 @@ class Quester:
             return True
         if not indoors and await self._to_enemy_spot(zone):
             return True  # (none in view: enemies load only nearby; GH_Wolf stood idle)
-        if (self._last_win_zone.split("/", 1)[0] == self._main_world and self._last_win_zone != zone
+        spot = self.__dict__.get("_win_zones", {}).get(world) or GRIND_FALLBACK.get(world, "")
+        if spot and spot != zone:
+            logger.info(f"grinding: to {spot.split('/')[-1]} for its enemies")
+            if await self.go_to_zone(spot):
+                return True
+        if (self._last_win_zone.split("/", 1)[0] == world and self._last_win_zone != zone
                 and not await self._in_any_dungeon(self._last_win_zone)
                 and "interiors" not in self._last_win_zone.lower()):
             logger.info(f"no enemies here; going to {self._last_win_zone} to fight for experience")
@@ -5191,13 +5200,24 @@ class Quester:
             logger.info(f"no prompt at {obj}")
         return True
 
+    def _grind_world(self) -> str | None:
+        """Where to fight for experience: the highest-level world we've been
+        to (the player: Celestia's enemies give far more than Grizzleheim's,
+        where 50 fights moved the bar 8%), else the main world."""
+        known = set(self.__dict__.get("_win_zones", {}))
+        for w in GRIND_WORLDS:
+            if w in known or w in GRIND_FALLBACK:
+                return w
+        return self._main_world
+
     async def _grind_beside_set_aside(self, objective: str | None) -> bool:
         """Grinding while the game still tracks a set-aside quest's objective:
         not walked into (Jotun's trio); fight outdoors here, else where a
         fight was last won outdoors in the main world. True if it acted."""
         waiting = {d.get("objective") for d in self.setbacks.deferred.values()}
         place = objective_zone(objective or "")
-        elsewhere = bool(place and self._main_world and place.split("/", 1)[0] != self._main_world)
+        world = self._grind_world()
+        elsewhere = bool(place and world and place.split("/", 1)[0] != world)
         # (Or another world's: Wysteria's 'Go To Spiral Cup' tracked by the game
         # led the grinding wizard to the Spiral Map again and again.)
         if not self._grinding or (objective not in waiting and not elsewhere):
@@ -5208,10 +5228,9 @@ class Quester:
             await self.pull_mob("")
         elif not indoors and await self._to_enemy_spot(here):
             pass  # (enemies load only nearby: went where some were seen)
-        elif self._main_world and here.split("/", 1)[0] != self._main_world:
-            await self._to_world(self._main_world, f"grinding in {self._main_world}")
-        elif (spot := self.__dict__.get("_win_zones", {}).get(self._main_world or "",
-                                                               GRIND_FALLBACK.get(self._main_world or ""))
+        elif world and here.split("/", 1)[0] != world:
+            await self._to_world(world, f"grinding in {world}")
+        elif (spot := self.__dict__.get("_win_zones", {}).get(world or "", GRIND_FALLBACK.get(world or ""))
               ) and spot != here:
             logger.info(f"grinding: to {spot.split('/')[-1]} for its enemies")
             if not await self.go_to_zone(spot):
