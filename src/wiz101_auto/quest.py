@@ -2611,7 +2611,9 @@ class Quester:
         # "Use Brazier" (Cave of Solitude): the teleport onto the object is
         # refused, but it isn't a door; walking through it from every side took
         # 5 minutes. Walk up to it and press X.
-        if (objective and _USE_OBJECT.match(objective)
+        # (And "Collect Ice Water in Jar": the jar refused the teleport, and the
+        # walk path ran under Ravenscar's map, stuck at z 0 for minutes.)
+        if (objective and (_USE_OBJECT.match(objective) or objective.lower().startswith("collect "))
                 and self._may_try(objective, zone or "", "use_walk")):
             logger.info("an object to use, the teleport onto it refused: from beside it, pressing X")
             if await self._use_object_at(target):
