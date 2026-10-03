@@ -108,6 +108,7 @@ QUEST_BOOK_ALL = [*QUEST_LIST, "QuestLogAllButton"]
 # (Landings beside a refused marker end up to ~300 off: the object there, or
 # the marker reached, within this.)
 MARKER_REACHED = 800.0
+FALL_DROP = 600.0  # a walk that drops this much went off a ledge
 USE_OBJECT_RANGE = 200.0  # already this close to a "Use X" object: no need to announce the trip
 RECALL_KINDS = ("travel", "room", "dungeon")  # marks a travel Recall may use
 CIRCLE_NEAR_MARKER = 1500.0  # a duel circle this close to a Defeat marker is the fight's spot
@@ -1325,6 +1326,30 @@ class Quester:
                 return True  # a dialogue or menu opened: the step takes it from here
         return await self._zone_changed(zone)
 
+    async def _follow_path(self, path: list[XYZ], zone: str | None) -> bool | None:
+        """Walk the waypoints. The collision grid doesn't know ledges: in
+        Ravenscar the walk went off a cliff, the wizard fell under the map
+        and walked on at z 0 for minutes (twice). A drop of FALL_DROP: back
+        to the last spot on the ground, path dropped. True when walked, False
+        after a fall, None when the zone changed or something else came up."""
+        last = await self._position()
+        for wp in path:
+            if await self.client.in_battle() or not await is_free(self.client):
+                return None
+            if zone and await self._zone_changed(zone):
+                return None
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
+            now = await self._position()
+            if now.z < last.z - FALL_DROP:
+                logger.warning(f"fell {last.z - now.z:.0f} off the walk path: "
+                               "back to the last spot on the ground")
+                await self.client.teleport(last)
+                await asyncio.sleep(1.0)
+                return False
+            last = now
+        return True
+
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
         """Teleport to a spot in front of `target` (on the side we came from), then walk in."""
         pos = await self._position()
@@ -1336,11 +1361,8 @@ class Quester:
         path = await walk_path(zone or "", pos, target) if zone else None
         if path and len(path) > 1:
             logger.info(f"walking a {len(path)}-waypoint path to it")
-            for wp in path:
-                if await self._zone_changed(zone) or not await is_free(self.client):
-                    return True
-                with contextlib.suppress(Exception):
-                    await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
+            if await self._follow_path(path, zone) is None:
+                return True
             if await self._zone_changed(zone) or distance(await self._position(), target) < WALKED_CLOSE:
                 return True
         dx, dy = pos.x - target.x, pos.y - target.y
@@ -5312,11 +5334,8 @@ class Quester:
                 self._walked_in_at = time.monotonic()
                 if path:
                     logger.info(f"following a {len(path)}-waypoint path around the walls")
-                    for wp in path:
-                        if await self.client.in_battle() or not await is_free(self.client):
-                            break
-                        with contextlib.suppress(Exception):
-                            await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
+                    if await self._follow_path(path, zone) is False:
+                        return False  # (off a ledge: no straight walk at him after it either)
             else:
                 back = min(ENGAGE_BACKOFF * (miss + 1), ENGAGE_BACKOFF_MAX)
                 me = await self._position()
