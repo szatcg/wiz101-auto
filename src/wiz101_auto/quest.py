@@ -155,7 +155,7 @@ ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far,
 ENGAGE_BACKOFF_MAX = 2400.0
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
-DETOUR_RETRY_SECONDS = 3600.0
+DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
@@ -2122,7 +2122,7 @@ class Quester:
                 self.setbacks.defeats.pop(objective, None)
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
-                logger.warning(f"lost {objective!r} {n} times: {quest!r} waits an hour; "
+                logger.warning(f"lost {objective!r} {n} times: {quest!r} waits 3 hours (or a level-up); "
                                "the main story meanwhile")
                 self._alert_main_stuck(quest, f"lost {objective!r} {n} times", hard=True)
                 self._recall_pending = False
