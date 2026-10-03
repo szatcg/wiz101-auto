@@ -2247,8 +2247,11 @@ class Quester:
                             logger.warning("the game refused the recall; walking back instead")
                             if "has been reset" in text.lower():
                                 # Final: the dungeon is gone (twice more the same
-                                # Recall and the same refusal).
+                                # Recall and the same refusal, and every heal
+                                # trip after tried it again): forget the mark.
                                 self._recall_pending = False
+                                self._mark = None
+                                save_mark(None)
                             return False
                     if await self.client.is_loading():
                         await wait_for_loading(self.client)
