@@ -636,6 +636,25 @@ def _saving_for_aoe(battle: Battle, kill: Action) -> bool:
     )
 
 
+def _hit_all_waits(battle: Battle, kill: Action, strat: Strategy) -> bool:
+    """A hit-all spell that would kill only some (Humongofrog finished one of
+    two Crustacean Clawcutters, the other left at 148; a blade first and it
+    takes both): it waits while blades/traps in hand make it kill more, so
+    the whole fight ends sooner (the player). Not when a boss has more health
+    than the rest (then kill what it can), nor when we're low."""
+    card = kill.card
+    enemies = battle.live_enemies
+    if card is None or not card.is_aoe or len(enemies) < AOE_MIN_ENEMIES or _kills_all(battle, kill):
+        return False
+    bosses = [e for e in enemies if e.is_boss]
+    others = max((e.health for e in enemies if not e.is_boss), default=0)
+    if bosses and max(e.health for e in bosses) > others:
+        return False
+    if battle.me.health_ratio < AOE_BLADE_WAIT_HEALTH:
+        return False
+    return _hit_all_setup(battle, card, strat) is not None
+
+
 def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
     """Where the next trap helps the hit-all spell most: an enemy it would then
     kill outright (the Napper at 525 with Humongofrog doing ~400), else the
@@ -1936,7 +1955,7 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
     # With several enemies, removing one means one fewer attacker every round;
     # but with the hit-all spell in hand or deck, 2+ pips on one kill leave
     # nothing for it (a Cyclops on one Napper, then nothing for the other).
-    if kill and not _saving_for_aoe(battle, kill):
+    if kill and not _saving_for_aoe(battle, kill) and not _hit_all_waits(battle, kill, strat):
         return kill
 
     if discards_left > 0:
