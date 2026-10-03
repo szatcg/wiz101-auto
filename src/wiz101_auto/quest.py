@@ -2027,6 +2027,8 @@ class Quester:
         if await self.sprinter.get_mobs() and not indoors:
             await self.pull_mob("")
             return True
+        if not indoors and await self._to_enemy_spot(zone):
+            return True  # (none in view: enemies load only nearby; GH_Wolf stood idle)
         if (self._last_win_zone.split("/", 1)[0] == self._main_world and self._last_win_zone != zone
                 and not await self._in_any_dungeon(self._last_win_zone)
                 and "interiors" not in self._last_win_zone.lower()):
