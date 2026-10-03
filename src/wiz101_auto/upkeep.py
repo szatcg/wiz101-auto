@@ -402,7 +402,6 @@ STUCK_MOVE_DISTANCE = 25.0  # walking 0.5s moves ~100+; less means wedged in geo
 WISP_GAIN = 0.03  # smallest health/mana ratio gain that means a wisp was taken
 REST_WORLDS = {"Aquila"}  # no easily reached wisps: resting (regeneration) is allowed here
 RESPAWN_WAITS = 2  # waits for empty wisp spots to refill before carrying on / healing elsewhere
-CARRY_ON_HEALTH = 0.5  # ... carrying on from this much health
 WISP_RESPAWN_WAIT = 15.0  # empty wisp spots in a wisp zone: wait this long, then go round again
 REST_SAFE_DISTANCE = 2000.0  # resting spot: no enemy (or duel circle) this close
 FRUITLESS_VISITS = 3  # empty wisp spots in a row before going elsewhere to heal
@@ -646,13 +645,9 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             if (wisp_zone and fruitless >= FRUITLESS_VISITS and in_time and not busy
                     and respawn_waits >= RESPAWN_WAITS):
                 # Waited twice and the same spots stayed empty (GH_Wolf: 3 spots
-                # checked every 15 s for minutes at 54%): carry on if it's
-                # enough to fight, else heal elsewhere.
-                if hp >= CARRY_ON_HEALTH:
-                    logger.info(f"no wisps came back after {respawn_waits} waits; {hp:.0%} health, "
-                                f"{mana:.0%} mana: carrying on")
-                    await back_to_start()
-                    return True
+                # checked every 15 s for minutes at 54%): heal elsewhere and
+                # come back (the player: not carrying on half healed).
+                logger.info(f"no wisps came back after {respawn_waits} waits: healing elsewhere")
                 busy = True
             if wisp_zone and fruitless >= FRUITLESS_VISITS and in_time and not busy:
                 respawn_waits += 1
