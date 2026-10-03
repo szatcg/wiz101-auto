@@ -25,6 +25,7 @@ Damage counts blades, traps, shields, weaknesses and school resistances.
 from __future__ import annotations
 
 import dataclasses
+import time
 from dataclasses import dataclass, replace
 
 from ..deck_plan import minion_rank
@@ -700,9 +701,13 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     if not want:
         return None
     # A hit that kills someone now is no junk (Cyclops with enemies at 114/150).
+    # (Not a 0-pip hit: cast instead of passing it chips an untrapped enemy and
+    # uses up a Weakness on us; the player saw Minor Fire Scorch binned for a
+    # draw and the turn passed.)
     singles = [
         c for c in battle.cards
-        if c.is_damage and not c.is_aoe and all(hit_damage(c, me, e) < e.health for e in enemies)
+        if c.is_damage and not c.is_aoe and c.pip_cost > 0
+        and all(hit_damage(c, me, e) < e.health for e in enemies)
     ]
     if group and ("blade" in want or "trap" in want):
         # Against a group everything but the plan's cards may go: minions, prisms.
@@ -1308,14 +1313,16 @@ def plan_fight(battle: Battle, strat: Strategy | None = None) -> FightPlan:
     return FightPlan(total, f"plan (~{total} rounds): " + " | ".join(parts) + note, skip)
 
 
-def plan_hand_use(battle: Battle, horizon: int = PLAN_ROUNDS) -> tuple[int, set[int]]:
+def plan_hand_use(battle: Battle, horizon: int = PLAN_ROUNDS,
+                  deadline: float | None = None) -> tuple[int, set[int]]:
     """(rounds of the fastest win, the Card.index of every hand card that
-    plan plays); 99 rounds when nothing kills within `horizon` rounds."""
+    plan plays); 99 rounds when nothing kills within `horizon` rounds.
+    Past `deadline` (time.monotonic()) it raises SearchTimeout."""
     enemies = sorted(battle.live_enemies, key=lambda e: e.health)
     total, state, used_cards = 0, battle, set()
     for e in enemies:
         draws = sorted(state.upcoming, key=lambda c: -c.base_damage())
-        found = _kill_search(state, e, horizon, draws)
+        found = _kill_search(state, e, horizon, draws, deadline)
         if found is None:
             return 99, used_cards
         n, spent, _action, _steps, used = found
@@ -1351,6 +1358,7 @@ def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
 
 DISCARD_PLAN_HORIZON = 12  # no kill within PLAN_ROUNDS: the discard plan looks this far
 DISCARD_RESERVE = 8  # fewer cards than this left to draw: nothing is discarded for a draw
+DISCARD_PLAN_SECONDS = 3.0  # the long discard plan's time budget (the turn timer is short)
 
 
 def keep_from_discard(card: Card) -> bool:
@@ -1373,7 +1381,13 @@ def _plan_discard(battle: Battle) -> Action | None:
         return None  # (the deck has to last the fight)
     base, used = plan_hand_use(battle)
     if base >= 99:  # (a long fight: the plan to the end, further ahead)
-        base, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON)
+        # Within a budget: against Malistaire Drake (8000 health, 23 cards)
+        # this search ran 29 s, the turn timer ran out and the round was lost.
+        try:
+            base, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON,
+                                       deadline=time.monotonic() + DISCARD_PLAN_SECONDS)
+        except SearchTimeout:
+            return None
     if base >= 99 or not used:
         return None
     if base <= 1:
@@ -1463,7 +1477,12 @@ def _pay(card: Card, school: str, normal: int, power: int) -> tuple[int, int] | 
     return (normal, power - cost) if power >= cost else None
 
 
-def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Card] = ()):
+class SearchTimeout(Exception):
+    """A kill search ran past its time budget."""
+
+
+def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Card] = (),
+                 deadline: float | None = None):
     """The quickest line that kills `target` from here: cards in hand, plus
     (with `draws`) one card from the rest of the deck arriving each later
     round. Each round: cast an attack, a 0-pip blade or trap, or pass; one pip
@@ -1482,6 +1501,8 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
         return i < in_hand or depth >= i - in_hand + 1
 
     def search(depth, normal, power, used, out_fx, in_fx, hp, spent, first, steps):
+        if deadline is not None and time.monotonic() > deadline:
+            raise SearchTimeout
         if depth >= rounds or (best and (depth + 1, spent) > best[0][:2] and depth + 1 >= best[0][0]):
             return
         seen = set()
