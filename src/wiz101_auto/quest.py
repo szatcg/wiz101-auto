@@ -153,6 +153,7 @@ SEEK_CLEAR = 1200.0  # no other kind of enemy this close to a spot we go to
 LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close to it
 ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far, times the misses
 ENGAGE_BACKOFF_MAX = 2400.0
+WALKED_CLOSE = 250.0  # a walked path ended this near its target: arrived
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
@@ -1275,6 +1276,21 @@ class Quester:
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
         """Teleport to a spot in front of `target` (on the side we came from), then walk in."""
         pos = await self._position()
+        # First a walked path around the walls from here (Edith Benchley in
+        # Celestia's Base Camp: every teleport near her refused, and the bot
+        # gave up on her four times).
+        from .walkmap import walk_path
+
+        path = await walk_path(zone or "", pos, target) if zone else None
+        if path and len(path) > 1:
+            logger.info(f"walking a {len(path)}-waypoint path to it")
+            for wp in path:
+                if await self._zone_changed(zone) or not await is_free(self.client):
+                    return True
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
+            if await self._zone_changed(zone) or distance(await self._position(), target) < WALKED_CLOSE:
+                return True
         dx, dy = pos.x - target.x, pos.y - target.y
         length = math.hypot(dx, dy)
         base = math.atan2(dy, dx) if length > 1 else 0.0
