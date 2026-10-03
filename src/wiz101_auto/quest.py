@@ -5804,8 +5804,11 @@ class Quester:
         if not team and self._grinding and await self._grind():
             self._ground_at = time.monotonic()  # (the status says grinding only while it really is)
             return
-        if self._grinding and (await self.objective()) in {
+        if self._grinding and self._ranked_for is not None and (await self.objective()) in {
                 d.get("objective") for d in self.setbacks.deferred.values()}:
+            # (Not when _grind asked for the book to be read again: this guard
+            # came first every step and no ranking happened for two hours, so
+            # Jotun's release went unnoticed.)
             # Grinding while the game still tracks a set-aside fight: not walked
             # into (Jotun's trio again, ten minutes into its 3-hour wait); fight
             # outdoors here, else where a fight was last won outdoors.
