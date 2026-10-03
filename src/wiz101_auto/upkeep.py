@@ -71,10 +71,24 @@ async def max_health(client) -> int:
     return min(max_hp, fought) if fought > 0 else max_hp
 
 
+HEALTH_READ_SECONDS = 20.0  # how long to wait out a loading screen for a real reading
+
+
 async def health_mana(client) -> tuple[float, float]:
-    hp, max_hp = await client.stats.current_hitpoints(), await max_health(client)
-    mana, max_mana = await client.stats.current_mana(), await client.stats.max_mana()
-    return (hp / max_hp if max_hp else 1.0), (mana / max_mana if max_mana else 1.0)
+    """Health and mana ratios. During a zone load the game reports a max of
+    0: that read as full (a heal trip said 'healed to 100%' 11 s after
+    leaving at 44%, and the wizard went at Ullik with 74%). Wait for a real
+    reading; none: 0 (heal, rather than fight hurt)."""
+    loop = asyncio.get_running_loop()
+    end = loop.time() + HEALTH_READ_SECONDS
+    while True:
+        hp, max_hp = await client.stats.current_hitpoints(), await max_health(client)
+        mana, max_mana = await client.stats.current_mana(), await client.stats.max_mana()
+        if max_hp > 0 and max_mana > 0 and 0 < hp <= max_hp and 0 <= mana <= max_mana:
+            return hp / max_hp, mana / max_mana
+        if loop.time() >= end:
+            return (hp / max_hp if max_hp > 0 else 0.0), (mana / max_mana if max_mana > 0 else 0.0)
+        await asyncio.sleep(0.5)
 
 
 async def potion_ok(client, tripped: bool = False) -> bool:

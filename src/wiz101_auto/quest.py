@@ -197,7 +197,8 @@ WARREN_SCOUT_SPACING = 1200.0  # scouting a brother's warren: hops this far apar
 WARREN_SCOUT_BATCH = 8  # ... this many per step
 # Bosses whose defeat opens the way to a brother (the player: in Helgrind
 # Warren the Runed Annihilator and another boss, then the gate to Ullik).
-WARREN_GATE_BOSSES = {"Ullik": ("Runed Annihilator",)}
+# Grendel Sapscar (with a Grendel Witch Doctor) after the Annihilator.
+WARREN_GATE_BOSSES = {"Ullik": ("Runed Annihilator", "Grendel Sapscar")}
 WARREN_BLOCKED_TRIES = 2  # walks to the brother that started nothing: he's behind a locked gate
 WARREN_SCOUT_ROUNDS = 2  # full scouts of a warren before fighting through it
 WARREN_USE_RANGE = 1500.0  # objects this near a scouting hop are used
