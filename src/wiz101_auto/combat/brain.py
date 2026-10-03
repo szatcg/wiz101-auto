@@ -737,7 +737,9 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     # room for the plan's cards (three Pixies held the hand against Silver
     # Sentinel while Mythblade and Myth Trap waited in the deck).
     heals = [c for c in battle.cards if c.is_heal and not c.is_damage and not c.treasure]
-    if me.health_ratio >= SPARE_HEALS_ABOVE and len(heals) > 1:
+    # (Never against a boss: the Pixie binned in Malistaire Drake's round 2
+    # was the heal missing in round 22, with him at 944 of 8000.)
+    if me.health_ratio >= SPARE_HEALS_ABOVE and len(heals) > 1 and not boss_fight:
         keep = max(heals, key=lambda c: c.heal_amount())
         spare = [c for c in heals if c is not keep]
         if spare and not singles:
@@ -1398,7 +1400,10 @@ def _plan_discard(battle: Battle) -> Action | None:
     plan_names = {c.name for c in battle.cards if c.index in used}
     heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
     keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
-    spare = [c for c in battle.cards if c.index not in used and c is not keep_heal and not c.treasure
+    # (A boss fight runs long: every heal stays.)
+    kept_heals = heals if any(e.is_boss for e in battle.live_enemies) else [keep_heal]
+    spare = [c for c in battle.cards if c.index not in used and not any(c is h for h in kept_heals)
+             and not c.treasure
              and not c.is_enchant and not is_reshuffle(c) and not c.item and c.name not in plan_names
              and not keep_from_discard(c)]
     if not spare:
