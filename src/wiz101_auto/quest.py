@@ -2115,7 +2115,9 @@ class Quester:
         quest = self._active_quest
         main = quest in self._mainline
         det = self._detour_names()
-        if main and quest and det is not None and norm(quest) in det[1]:
+        # (Main or not: once set aside by the detour fallback the quest reads
+        # as a side quest, and its losses went the side path, an hour each.)
+        if quest and det is not None and norm(quest) in det[1]:
             # A detour world's fight (Jotun, Ullik and Grettir together in
             # Nidavellir): lost twice, it waits an hour and the main story
             # goes on meanwhile (the player: Celestia rather than dying all
