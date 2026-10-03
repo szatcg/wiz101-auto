@@ -5738,7 +5738,10 @@ class Quester:
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).
         zone_now = await self.client.zone_name() or ""
-        if "interiors" not in zone_now.lower() and not is_combat_objective(await self.objective()):
+        # (Not while grinding: enemies are what it's there for; stepping clear of
+        # them every step left GH_Wolf's grind with no fights.)
+        if ("interiors" not in zone_now.lower() and not self._grinding
+                and not is_combat_objective(await self.objective())):
             await self._clear_of_enemies()
         # After healing from a win or a loss: back to the mark first, before any
         # pick-up or quest ranking (the player's rule; walking back in by the Labyrinth's
