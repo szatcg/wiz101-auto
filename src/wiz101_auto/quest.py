@@ -420,7 +420,11 @@ def choose_quest(
     order = order or {}
     available = [q for q in quests if q.name not in set_aside]
     # The main story: flagged in the book, spell/class quests, or on the quest list.
-    main = [q for q in available if q.mainline or q.activity or norm(q.name) in order]
+    # (A side world's quest on the list only as the book or a detour says:
+    # Wysteria's 'Exchange Student' and 'The Spiral Cup' were followed toward
+    # Pigswick Academy, which isn't on the detour, all night.)
+    main = [q for q in available
+            if q.mainline or q.activity or (norm(q.name) in order and not in_side_world(q))]
     if not main and available:
         # Filling in with side quests while the main story waits for a level:
         # stay in this world (no trips back to Wizard City), finish the tracked
