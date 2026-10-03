@@ -16,3 +16,12 @@ def test_investigable_objects_are_selectable_non_people():
     assert investigable("MB_KT-PreCel_Relic_02", sel)
     assert not investigable("MB_KT-PreCel_Relic_05", ["BasicObjectStateBehavior", "RenderBehavior"])
     assert not investigable("MB-Standin-BurglarB", ["NPCBehavior", "WizardSelectBehavior"])
+
+
+def test_jotuns_brothers_come_first():
+    from wiz101_auto.quest import pending_pre_bosses
+
+    assert [b for b, _z, _s in pending_pre_bosses("Jotun", set())] == ["Ullik", "Grettir"]
+    assert [b for b, _z, _s in pending_pre_bosses("Jotun", {"Ullik"})] == ["Grettir"]
+    assert pending_pre_bosses("Jotun", {"Ullik", "Grettir"}) == []
+    assert pending_pre_bosses("Malistaire Drake", set()) == []

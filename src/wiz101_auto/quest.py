@@ -156,6 +156,34 @@ ENGAGE_BACKOFF_MAX = 2400.0
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
+# Bosses whose fight is much easier with others beaten first in side dungeons
+# (the player: Jotun fights with his brothers Ullik and Grettir unless they're
+# beaten in Helgrind Warren and Winterdeep Warren, the sigils either side of
+# Nidavellir's Entrance Hall; then he's soloable). boss -> [(brother, zone of
+# the sigil, the sigil)].
+PRE_BOSSES = {
+    "jotun": [
+        ("Ullik", "Grizzleheim/GH_AbandCity/GH_EntranceHall", (-3010.0, 8610.0, -199.0)),
+        ("Grettir", "Grizzleheim/GH_AbandCity/GH_EntranceHall", (3032.0, 8660.0, -199.0)),
+    ],
+}
+PRE_BOSSES_FILE = Path("state") / "prereq_bosses.json"  # brothers beaten (names)
+
+
+def pending_pre_bosses(target: str, beaten: set[str]) -> list[tuple[str, str, tuple]]:
+    """The side bosses still to beat before `target` (PRE_BOSSES)."""
+    plan = PRE_BOSSES.get(norm(target), [])
+    done = {norm(b) for b in beaten}
+    return [p for p in plan if norm(p[0]) not in done]
+
+
+def load_pre_bosses_beaten() -> set[str]:
+    try:
+        return set(json.loads(PRE_BOSSES_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 # Outdoor zones with enemies, per world (until a fight there is won).
 GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
@@ -1008,6 +1036,13 @@ class Quester:
             here = await self.client.zone_name() or ""
             outdoors = here and "interiors" not in here.lower() and not await self._in_any_dungeon(here)
             if won:
+                names = self.fighter.last_enemy_names if self.fighter else []
+                pre = {b for plan in PRE_BOSSES.values() for b, _z, _s in plan}
+                beat = [b for b in pre if any(norm(b) == norm(n) for n in names)]
+                if beat:
+                    done = load_pre_bosses_beaten() | set(beat)
+                    PRE_BOSSES_FILE.write_text(json.dumps(sorted(done)), encoding="utf-8")
+                    logger.success(f"beat {', '.join(beat)}: one fewer at the boss's side later")
                 if outdoors:
                     # (Outdoor wins only: grinding goes back there, and a
                     # dungeon's fights can pull its boss: the Runed Devestator.)
@@ -5209,6 +5244,39 @@ class Quester:
             logger.info(f"no prompt at {obj}")
         return True
 
+    async def _pre_bosses(self, objective: str, zone: str) -> bool:
+        """'Defeat Jotun': his brothers first, each in its side dungeon (by
+        its sigil), so he fights alone (PRE_BOSSES). True if it acted."""
+        target = defeat_target(objective) or ""
+        todo = pending_pre_bosses(target, load_pre_bosses_beaten())
+        if not todo:
+            return False
+        boss, sigil_zone, sigil = todo[0]
+        inside = self.__dict__.setdefault("_pre_boss_rooms", {}).get(boss)
+        in_warren = inside and (zone == inside or (
+            zone != sigil_zone and "HallofKings" not in zone and await self._in_any_dungeon(zone)
+            and zone.split("/")[:2] == inside.split("/")[:2]))
+        if in_warren:
+            # In its warren (any of its rooms): the usual ways to a boss that
+            # isn't in view (its duel circle, clearing the rooms) with it as
+            # the target.
+            await self.pull_mob(f"Defeat {boss} in {zone}")
+            return True
+        if zone != sigil_zone:
+            logger.info(f"{target} fights alone once {boss} is beaten: to {boss}'s dungeon first")
+            if not await self.go_to_zone(sigil_zone):
+                from .dungeon_heal import go_to_hub
+
+                await go_to_hub(self.client)  # (out of a warren with no gate known back)
+            return True
+        logger.info(f"{target} fights alone once {boss} is beaten: into {boss}'s dungeon")
+        spot = XYZ(*sigil)
+        await self.travel(spot)
+        if await self._enter_by_sigil(spot, zone):
+            self._pre_boss_rooms[boss] = await self.client.zone_name() or ""
+            logger.info(f"in {boss}'s dungeon: {self._pre_boss_rooms[boss]}")
+        return True
+
     def _grind_world(self) -> str | None:
         """Where to fight for experience: the highest-level world we've been
         to (the player: Celestia's enemies give far more than Grizzleheim's,
@@ -6049,6 +6117,9 @@ class Quester:
                 and zone != self._last_main_zone and self._last_main_zone != "swept"):
             self._last_main, self._last_main_zone = self._active_quest, zone
             _save_last_main(self._last_main, zone)
+
+        if objective and is_combat_objective(objective) and await self._pre_bosses(objective, zone or ""):
+            return
 
         if await self.services.is_open():
             # A services menu left open (e.g. after an error) blocks the X prompt.
