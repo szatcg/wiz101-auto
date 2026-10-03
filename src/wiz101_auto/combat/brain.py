@@ -1041,6 +1041,59 @@ def junk_gear_hit(card: Card, battle: Battle) -> bool:
             and card.school.lower() != school and has_setup and not setup_fits(card, battle))
 
 
+BIG_AOE_REASON = "it clears the"
+
+
+def _build_for_big_aoe(battle: Battle, strat: Strategy, discards_left: int) -> Action | None:
+    """The player's: when a hit-all in hand or deck kills every add on its
+    own (no setup needed) and isn't castable now, the turn goes toward it:
+    still in the deck, discard what it makes useless (a smaller hit-all
+    that needs traps to kill, small hits, spare heals) to draw it; set up
+    only toward the boss (blades on us, traps on the boss: that Orthrus hits
+    it too); else wait with the pips."""
+    me = battle.me
+    enemies = battle.live_enemies
+    if len(enemies) < AOE_MIN_ENEMIES:
+        return None
+    bosses = [e for e in enemies if e.is_boss]
+    adds = [e for e in enemies if not e.is_boss] or enemies
+    if len(adds) < 2:
+        return None
+    next_pips = battle.pips + 2 * battle.power_pips + 1
+
+    def clears(c: Card) -> bool:
+        return c.is_damage and c.is_aoe and all(hit_damage(c, me, e) >= e.health for e in adds)
+
+    if any(c.castable and clears(c) for c in battle.cards):
+        return None  # castable now: the usual rules cast it
+    # (Only one we can pay for next round: a far-off 7-pip Orthrus at 3 pips
+    # doesn't stop the hit-all we can cast now.)
+    in_hand = [c for c in battle.cards if clears(c) and c.pip_cost <= next_pips]
+    in_deck = [c for c in battle.upcoming if clears(c) and c.pip_cost <= next_pips]
+    if not in_hand and not in_deck:
+        return None
+    big = (in_hand or in_deck)[0]
+    if not in_hand and discards_left > 0:
+        heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
+        keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
+        junk = [c for c in battle.cards
+                if not (c.treasure or c.item or c.is_enchant or is_reshuffle(c) or c is keep_heal)
+                and not ({EffectKind.BLADE, EffectKind.TRAP} & set(c.kinds))
+                and (c.is_damage and not clears(c) or (c.is_heal and not c.is_damage))
+                and not any(c.is_damage and hit_damage(c, me, e) >= e.health for e in enemies)]
+        if junk:
+            card = min(junk, key=lambda c: (c.is_heal, c.base_damage()))
+            return Action(ActionKind.DISCARD, card,
+                          reason=f"digging for {big.name}: {BIG_AOE_REASON} {len(adds)} adds by itself")
+    focus = max(bosses, key=lambda e: e.health) if bosses else max(enemies, key=lambda e: e.health)
+    setup = _setup_action(battle, strat, focus)
+    if setup is not None and (setup.target is None or setup.target is me or setup.target is focus):
+        setup.reason = f"set-up toward {focus.name} for {big.name} (it clears the adds by itself)"
+        return setup
+    where = "in hand" if in_hand else "still in the deck"
+    return Action(ActionKind.PASS, reason=f"waiting for {big.name} ({where}): it clears the adds by itself")
+
+
 def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> Action | None:
     """Blade self or trap an enemy, respecting stack limits. Never a copy of a
     blade/trap that is already up: before an attack it adds nothing, so a
@@ -2106,6 +2159,7 @@ def _decide_step(battle: Battle, strat: Strategy | None = None, *, discards_left
     )
     if wanted_prism or (
         action.kind is ActionKind.DISCARD and action.card is not None and not can_spare(battle, action.card)
+        and BIG_AOE_REASON not in (action.reason or "")  # (the card that clears them is in the deck)
     ):
         # Keep the cards the fight will need: decide again without discarding.
         action = _decide(battle, strat, discards_left=0)
@@ -2190,6 +2244,13 @@ def _decide(battle: Battle, strat: Strategy, *, discards_left: int = 2) -> Actio
         summon = _summon_action(battle, strat)
         if summon:
             return summon
+
+    # A hit-all that kills the adds by itself (Orthrus ~700 into 660-health
+    # Sand Spiders): build toward it, not the smaller one (no traps on the
+    # adds for Humongofrog), digging for it if it's still in the deck.
+    build = _build_for_big_aoe(battle, strat, discards_left)
+    if build:
+        return build
 
     # Several enemies: buff up and clear them all with one hit-all spell.
     aoe = _aoe_plan(battle, strat)

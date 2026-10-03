@@ -149,3 +149,37 @@ def test_never_heals_at_full_health():
     b = battle([pixie, blade_card(1)], foes, my=my)
     a = brain.decide(b)
     assert a.card is not pixie
+
+
+def _spider_fight(hand, upcoming, pips=5):
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    my = me(2000, 2424)
+    my.school = "myth"
+    foes = [enemy("Sand Behemoth", 3000, boss=True), enemy("Sand Spider", 660), enemy("Sand Spider 2", 660)]
+    trap = Card(20, "Myth Trap", pip_cost=0, school="myth",
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30, school="myth")])
+    b = battle([*hand, trap], foes, my=my)
+    b.pips = pips
+    b.upcoming, b.deck_known = upcoming, True
+    return b, trap
+
+
+def test_digs_for_the_orthrus_that_clears_the_adds_instead_of_trapping_them():
+    # The player: Orthrus (~700) kills the 660 Sand Spiders by itself; the
+    # bot trapped the spiders so Humongofrog would kill 2 of 3.
+    frog = _myth(0, "Humongofrog", 600, 4, aoe=True)
+    orthrus = _myth(30, "Orthrus", 700, 5, aoe=True)
+    b, trap = _spider_fight([frog], [orthrus, *[blade_card(31 + i) for i in range(5)]])
+    act = brain.decide(b)
+    assert act.kind is ActionKind.DISCARD and act.card is frog
+
+
+def test_with_orthrus_on_its_way_set_up_goes_on_the_boss():
+    frog = _myth(0, "Humongofrog", 600, 4, aoe=True)
+    orthrus = _myth(30, "Orthrus", 700, 5, aoe=True, castable=False)
+    b, trap = _spider_fight([frog, orthrus], [blade_card(31 + i) for i in range(5)], pips=3)
+    act = brain.decide(b)
+    assert act.card is not frog
+    if act.card is trap:
+        assert act.target.is_boss
