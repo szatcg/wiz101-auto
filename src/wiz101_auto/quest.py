@@ -169,6 +169,14 @@ PRE_BOSSES = {
     ],
 }
 PRE_BOSSES_FILE = Path("state") / "prereq_bosses.json"  # brothers beaten (names)
+PRE_BOSS_ROOMS_FILE = Path("state") / "prereq_rooms.json"  # brother -> his warren's zone
+
+
+def load_pre_boss_rooms() -> dict[str, str]:
+    try:
+        return dict(json.loads(PRE_BOSS_ROOMS_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        return {}
 
 
 def pending_pre_bosses(target: str, beaten: set[str]) -> list[tuple[str, str, tuple]]:
@@ -185,6 +193,8 @@ def load_pre_bosses_beaten() -> set[str]:
         return set()
 
 
+WARREN_SCOUT_SPACING = 1200.0  # scouting a brother's warren: hops this far apart
+WARREN_SCOUT_BATCH = 8  # ... this many per step
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 # Outdoor zones with enemies, per world (until a fight there is won).
 GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
@@ -1934,7 +1944,7 @@ class Quester:
         brothers_due = pending_pre_bosses(defeat_target(objective or "") or "", load_pre_bosses_beaten())
         if is_team_up_zone(zone):
             leave = False  # never leave a team dungeon
-        elif brothers_due and zone in self.__dict__.get("_pre_boss_rooms", {}).values():
+        elif brothers_due and zone in self.__dict__.get("_pre_boss_rooms", load_pre_boss_rooms()).values():
             # In a brother's warren (Ullik's Helgrind Warren) before he's
             # beaten: leaving reset it, and it was walked out of three times.
             leave = False
@@ -5075,7 +5085,7 @@ class Quester:
         entry = DungeonMemory.load().dungeons.get(zone)
         if entry is None or not entry.sigil or not self._may_try(objective, zone, "reenter"):
             return False
-        warrens = self.__dict__.get("_pre_boss_rooms", {}).values()
+        warrens = self.__dict__.get("_pre_boss_rooms", load_pre_boss_rooms()).values()
         if getattr(self, "_in_pre_boss_warren", False) or zone in warrens:
             return False  # (Ullik comes after the warren's rooms: leaving reset it)
         who = talk_target(objective) or defeat_target(objective)
@@ -5337,10 +5347,13 @@ class Quester:
         if not todo:
             return False
         boss, sigil_zone, sigil = todo[0]
-        inside = self.__dict__.setdefault("_pre_boss_rooms", {}).get(boss)
+        rooms = self.__dict__.setdefault("_pre_boss_rooms", load_pre_boss_rooms())
+        inside = rooms.get(boss)
         in_warren = inside and (zone == inside or (
             zone != sigil_zone and "HallofKings" not in zone and await self._in_any_dungeon(zone)
             and zone.split("/")[:2] == inside.split("/")[:2]))
+        if in_warren and await self._scout_for_brother(boss, zone, objective):
+            return True
         if in_warren:
             # In its warren (any of its rooms): the usual ways to a boss that
             # isn't in view (its duel circle, clearing the rooms) with it as
@@ -5368,7 +5381,53 @@ class Quester:
         await self.travel(spot)
         if await self._enter_by_sigil(spot, zone):
             self._pre_boss_rooms[boss] = await self.client.zone_name() or ""
+            with contextlib.suppress(OSError):
+                PRE_BOSS_ROOMS_FILE.write_text(json.dumps(self._pre_boss_rooms), encoding="utf-8")
             logger.info(f"in {boss}'s dungeon: {self._pre_boss_rooms[boss]}")
+        return True
+
+    async def _scout_for_brother(self, boss: str, zone: str, objective: str) -> bool:
+        """The player's: in the warren, no fights but his. In view, or seen
+        here before: go and walk into his fight. Else teleport over the
+        zone's walkable ground (landing clear of enemies) looking for him.
+        False once the whole warren was scouted without him (then the rooms
+        are cleared the usual way). True if it acted."""
+        from .bossfarm import find_entity_named
+        from .walkmap import nav_points
+
+        pos = await find_entity_named(self.client, boss)
+        me = await self._position()
+        if pos is None:
+            want = _norm_name(boss)
+            seen = self.entity_map.spots(zone, lambda n: _norm_name(n) == want, (me.x, me.y, me.z))
+            if seen and distance(XYZ(*seen[0]), me) > 600:
+                logger.info(f"{boss} was seen at ({seen[0][0]:.0f}, {seen[0][1]:.0f}): going straight there")
+                await self.client.teleport(XYZ(*seen[0]))
+                await asyncio.sleep(1.5)
+                pos = await find_entity_named(self.client, boss)
+        if pos is not None:
+            logger.info(f"{boss} found: straight into his fight, skipping the rest of the warren")
+            self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS
+            await self._mark_before_boss(boss, objective, zone)
+            await self._engage(boss, pos, objective, zone, walk=True)
+            return True
+        done = self.__dict__.setdefault("_warren_scouted", {}).setdefault(zone, [])
+        points = spread_points(await nav_points(zone), (me.x, me.y), WARREN_SCOUT_SPACING)
+        left = [p for p in points if all(math.dist(p[:2], d[:2]) > WARREN_SCOUT_SPACING / 2 for d in done)]
+        if not left:
+            return False
+        logger.info(f"scouting {zone.split('/')[-1]} for {boss}, clear of fights ({len(left)} spots left)")
+        for p in left[:WARREN_SCOUT_BATCH]:
+            if await self.client.in_battle() or not await is_free(self.client):
+                return True
+            done.append(p)
+            if not await self._clear_spot(XYZ(*p)):
+                continue
+            await self.client.teleport(XYZ(*p))
+            await asyncio.sleep(1.0)
+            await scan_entities(self.client, zone, self.entity_map)
+            if await find_entity_named(self.client, boss) is not None:
+                return True  # (the next step goes for him)
         return True
 
     def _grind_world(self) -> str | None:
