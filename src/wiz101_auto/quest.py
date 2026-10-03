@@ -5461,6 +5461,11 @@ class Quester:
                 # battlefield): the marker here is that room's door, so go
                 # through it rather than sweep this zone for it.
                 room = DungeonMemory.load().bosses.get(target)
+                # (Not for a brother fought in his own dungeon first: Ullik was
+                # remembered from Jotun's hall, and each step walked out of
+                # Helgrind Warren toward it and back in.)
+                if any(norm(target) == norm(b) for plan in PRE_BOSSES.values() for b, _z, _s in plan):
+                    room = None
                 if (room and room != zone_now and _real_marker(marker)
                         and self._may_try(objective, zone_now, "boss_room_door")):
                     logger.info(f"{target} is in {room.split('/')[-1]}: through the quest marker's door")
