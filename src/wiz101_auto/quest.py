@@ -5075,6 +5075,9 @@ class Quester:
         entry = DungeonMemory.load().dungeons.get(zone)
         if entry is None or not entry.sigil or not self._may_try(objective, zone, "reenter"):
             return False
+        warrens = self.__dict__.get("_pre_boss_rooms", {}).values()
+        if getattr(self, "_in_pre_boss_warren", False) or zone in warrens:
+            return False  # (Ullik comes after the warren's rooms: leaving reset it)
         who = talk_target(objective) or defeat_target(objective)
         logger.info(f"{who} isn't in this copy of {zone.split('/')[-1]}: leaving and going back in")
         out = False
