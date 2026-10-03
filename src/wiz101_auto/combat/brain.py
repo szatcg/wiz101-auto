@@ -590,6 +590,8 @@ def _best_attack(battle: Battle, strat: Strategy) -> tuple[Card, Combatant | Non
 
 
 AOE_MIN_ENEMIES = 2  # a hit-all spell (Humongofrog) is the plan from this many enemies
+AOE_MAX_WAIT_PIPS = 2  # the biggest hit-all this many pips off: a castable one instead
+AOE_WAIT_HEALTH = 0.6  # ... and below this health, never wait for a bigger one
 
 
 AOE_BLADE_WAIT_HEALTH = 0.4  # above this, the hit-all spell waits for a blade still in the deck
@@ -908,6 +910,15 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
                 return Action(ActionKind.CAST, card, target, reason=why)
         return Action(ActionKind.PASS, reason=f"saving pips for {coming.name} (still in the deck)")
     card = max(aoes, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
+    ready = [c for c in aoes if c.castable]
+    have = battle.pips + 2 * battle.power_pips
+    if not card.castable and ready and (card.pip_cost - have > AOE_MAX_WAIT_PIPS
+                                        or battle.me.health_ratio < AOE_WAIT_HEALTH):
+        # The biggest hit-all is far off (Orthrus at 7 pips on 1-2 a round)
+        # or we're hurting: the one we can cast now. Two Crustacean
+        # Waverunners took 2402 health to 48 over 12 rounds of blades
+        # 'saving pips for Orthrus' with Humongofrog castable in hand.
+        card = max(ready, key=lambda c: sum(min(hit_damage(c, battle.me, e), e.health) for e in enemies))
     if card.castable and all(hit_damage(card, battle.me, e) >= e.health for e in enemies):
         total = sum(e.health for e in enemies)
         why = f"{card.name} kills all {len(enemies)} (~{total:.0f})"

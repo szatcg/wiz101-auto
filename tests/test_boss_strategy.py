@@ -32,3 +32,16 @@ def test_a_hit_all_waits_for_the_blade_that_lets_it_kill_everyone():
     b2.pips = 4
     assert brain.decide(b2).card is frog  # a bigger boss: kill what it can now
     _ = trap_card
+
+
+def test_a_castable_hit_all_beats_waiting_for_a_far_off_bigger_one():
+    from test_brain import dmg_card
+
+    from wiz101_auto.combat.model import Target
+
+    orthrus = dmg_card(0, "Orthrus", 1300, pips=7, target=Target.ENEMY_ALL, castable=False)
+    frog = dmg_card(1, "Humongofrog", 600, pips=4, target=Target.ENEMY_ALL)
+    b = battle([orthrus, frog], [enemy("Waverunner", 1230), enemy("Waverunner 2", 1230)], my=me(1156, 2402))
+    b.pips, b.power_pips = 2, 1
+    act = brain.decide(b)
+    assert act.kind is not ActionKind.PASS and act.card is not orthrus
