@@ -195,6 +195,10 @@ def load_pre_bosses_beaten() -> set[str]:
 
 WARREN_SCOUT_SPACING = 1200.0  # scouting a brother's warren: hops this far apart
 WARREN_SCOUT_BATCH = 8  # ... this many per step
+# Bosses whose defeat opens the way to a brother (the player: in Helgrind
+# Warren the Runed Annihilator and another boss, then the gate to Ullik).
+WARREN_GATE_BOSSES = {"Ullik": ("Runed Annihilator",)}
+WARREN_BLOCKED_TRIES = 2  # walks to the brother that started nothing: he's behind a locked gate
 WARREN_SCOUT_ROUNDS = 2  # full scouts of a warren before fighting through it
 WARREN_USE_RANGE = 1500.0  # objects this near a scouting hop are used
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
@@ -1050,6 +1054,7 @@ class Quester:
             outdoors = here and "interiors" not in here.lower() and not await self._in_any_dungeon(here)
             if won:
                 names = self.fighter.last_enemy_names if self.fighter else []
+                self.__dict__.setdefault("_won_names", set()).update(norm(n) for n in names)
                 pre = {b for plan in PRE_BOSSES.values() for b, _z, _s in plan}
                 beat = [b for b in pre if any(norm(b) == norm(n) for n in names)]
                 if beat:
@@ -5397,6 +5402,17 @@ class Quester:
         from .bossfarm import find_entity_named
         from .walkmap import nav_points
 
+        if await self._warren_gate_boss(boss, zone, objective):
+            return True
+        blocked = self.__dict__.setdefault("_brother_blocked", {})
+        wins = len(self.__dict__.get("_won_names", ()))
+        if blocked.get(zone, (0, -1))[0] >= WARREN_BLOCKED_TRIES:
+            if blocked[zone][1] == wins:
+                # Behind a gate that a boss of the warren opens (the player:
+                # one whose name we don't know): fight through the rooms until
+                # a fight is won, then try his gate again.
+                return False
+            blocked[zone] = (0, wins)
         pos = await find_entity_named(self.client, boss)
         me = await self._position()
         if pos is None:
@@ -5411,7 +5427,12 @@ class Quester:
             logger.info(f"{boss} found: straight into his fight, skipping the rest of the warren")
             self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS
             await self._mark_before_boss(boss, objective, zone)
-            await self._engage(boss, pos, objective, zone, walk=True)
+            if not await self._engage(boss, pos, objective, zone, walk=True):
+                tries = blocked.get(zone, (0, wins))[0] + 1
+                blocked[zone] = (tries, wins)
+                if tries >= WARREN_BLOCKED_TRIES:
+                    logger.info(f"{boss} can't be reached ({tries} walks started nothing): "
+                                "fighting the warren's rooms for the boss that opens his gate")
             return True
         # Something to use in view (the Storm room's Yardbird, a lever, a
         # chest): use it, clear of enemies (the player: interact, don't fight).
@@ -5442,6 +5463,40 @@ class Quester:
             if await self._use_nearby_object(zone):
                 return True
         return True
+
+    async def _warren_gate_boss(self, boss: str, zone: str, objective: str) -> bool:
+        """A boss that opens the way to `boss` (WARREN_GATE_BOSSES), not beaten
+        yet: in view, or where it was seen in this zone, go and fight it.
+        Seen there before and not there now: beaten in this run. True if it acted."""
+        from .bossfarm import find_entity_named
+
+        won = self.__dict__.get("_won_names", set())
+        gone = self.__dict__.setdefault("_gate_gone", set())
+        for gate in WARREN_GATE_BOSSES.get(boss, ()):
+            if norm(gate) in won or (zone, gate) in gone:
+                continue
+            pos = await find_entity_named(self.client, gate)
+            if pos is None:
+                me = await self._position()
+                want = _norm_name(gate)
+                seen = self.entity_map.spots(zone, lambda n, w=want: _norm_name(n) == w, (me.x, me.y, me.z))
+                if not seen:
+                    continue  # (not found yet: scouting looks for it)
+                logger.info(f"{gate} opens the way to {boss}: to where it was seen")
+                await self.client.teleport(XYZ(*seen[0]))
+                await asyncio.sleep(1.5)
+                if await self.client.in_battle():
+                    return True
+                pos = await find_entity_named(self.client, gate)
+                if pos is None:
+                    logger.info(f"no {gate} where it was: beaten already")
+                    gone.add((zone, gate))
+                    continue
+            logger.info(f"{gate} opens the way to {boss}: fighting it")
+            self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS
+            await self._engage(gate, pos, objective, zone)
+            return True
+        return False
 
     async def _use_nearby_object(self, zone: str) -> bool:
         """A selectable object in view (not a person, not a door used

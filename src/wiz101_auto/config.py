@@ -43,7 +43,10 @@ class UpkeepConfig:
     rest_max_minutes: float = 8.0  # give up and stop the bot if still too low after this
     wisp_safe_distance: float = 1500.0  # skip wisps (and wisp spots) this close to a mob (patrols move)
     # Zones to go heal in when the current one has no wisps (first same-world match wins).
-    heal_zones: list[str] = field(default_factory=lambda: ["WizardCity/WC_Streets/WC_Unicorn"])
+    # (Savarstaad Pass: 7 health-wisp spots within 3000 of its gate; Mirkholm
+    # Keep, picked before for having the most, has none that close.)
+    heal_zones: list[str] = field(default_factory=lambda: [
+        "WizardCity/WC_Streets/WC_Unicorn", "Grizzleheim/GH_Hero"])
 
     def needs_recovery(self, health_ratio: float, mana_ratio: float = 1.0) -> bool:
         return health_ratio < self.min_health_to_fight or mana_ratio < self.min_mana_to_fight

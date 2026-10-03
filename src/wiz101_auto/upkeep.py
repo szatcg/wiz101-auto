@@ -568,6 +568,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     travelled = False
     fruitless = 0  # remembered spots visited in a row without gaining anything
     respawn_waits = 0  # waits for the wisps here to come back
+    emptied: set[str] = set()  # zones whose wisps didn't come back
     grabbed_in_view = False  # past the fight thresholds: wisps in view taken once
     swept: set[str] = set()
     while True:
@@ -649,6 +650,11 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # come back (the player: not carrying on half healed).
                 logger.info(f"no wisps came back after {respawn_waits} waits: healing elsewhere")
                 busy = True
+                # (It said so every 9 s in Mirkholm Keep and stayed: the trip
+                # was already used. Another zone, not this one, once more.)
+                if zone not in emptied:
+                    emptied.add(zone)
+                    travelled = False
             if wisp_zone and fruitless >= FRUITLESS_VISITS and in_time and not busy:
                 respawn_waits += 1
                 # A street with wisps whose spots are empty right now: they
@@ -680,12 +686,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
                 fruitless = 0
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones(),
-                                      hops=hops_from_hub)
+                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need,
+                                      avoid=barren_zones() | emptied, hops=hops_from_hub)
                 if dest:
                     what = " and ".join(sorted(need))
                     logger.info(f"no {what} wisps in {zone}; going to {dest} for them")
                     if await go_to_zone(dest):
+                        respawn_waits = 0
                         continue
                 if "interiors" in zone.lower():
                     # A dungeon/building with no wisps and no known way out: resting
