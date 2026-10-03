@@ -38,6 +38,7 @@ from .watchdog import Watchdog
 HOOK_TIMEOUT = 90
 CONNECT_TIMEOUT = 300.0  # the whole way into the world (reconnect, Play, hooks)
 DEATH_HEALTH_RATIO = 0.1
+GRIND_SHOWN_SECONDS = 90.0  # the status says "grinding" this long after the last grind step
 DEFEAT_MOVE_DISTANCE = 1500.0  # a defeat puts you back at the zone's start (or another zone)
 
 
@@ -367,7 +368,12 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
                 objective=quester._last_progress[0],
                 objective_age_s=int(time.monotonic() - quester._last_progress_time),
                 objectives_completed=quester.objectives_completed,
-                activity="grinding for experience" if quester._grinding else "questing",
+                # Grinding only when it did grind work lately: the flag stayed on
+                # while the pinned main quest's objective was being done, and the
+                # stream page said "grinding" over a quest (the player).
+                activity="grinding for experience" if quester._grinding and (
+                    time.monotonic() - getattr(quester, "_ground_at", -1e9) < GRIND_SHOWN_SECONDS
+                ) else "questing",
             )
         if watchdog:
             info["watchdog_nudges"] = watchdog.nudges

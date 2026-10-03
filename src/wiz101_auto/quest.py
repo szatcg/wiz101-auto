@@ -2511,9 +2511,12 @@ class Quester:
             # Shan sent us back to the village entrance every time.
             logger.info(f"not pressing X on '{prompt}': a Locate only needs us there")
             return False
-        if "talk" in prompt and operate_target(objective):
+        thing = operate_target(objective)
+        if "talk" in prompt and thing and not await self._nearest_is(thing):
             # "Use Forge": the prompt is the NPC beside it (Xihong Bi), not the
-            # Forge; talking to them again looped for minutes.
+            # Forge; talking to them again looped for minutes. (Unless the
+            # object itself talks: the Water Breathing Device's prompt is
+            # 'press x to talk', and refusing it stalled the quest.)
             logger.info(f"not pressing X on '{prompt}': the objective is to use something")
             return False
         logger.info(f"interacting: {prompt or '(no text)'}")
@@ -3827,13 +3830,40 @@ class Quester:
                 if not await ui.is_visible(self.client, ui.NPC_RANGE):
                     continue
                 prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()
-                if "talk" in prompt and "talk" not in objective.lower():
+                if "talk" in prompt and "talk" not in objective.lower() and not await self._nearest_is(name):
                     break  # someone else's prompt: another spot
                 await self.interact(objective)
                 await self._after_pull(objective)
                 return True
         logger.info(f"no prompt at the {name}")
         return False
+
+    async def _nearest_is(self, name: str) -> bool:
+        """Is the nearest named entity to the wizard the one called `name`
+        (its 'talk' prompt is the object's own: the Water Breathing Device)?"""
+        from .names import lang_name
+
+        want = "".join(c for c in name.lower() if c.isalnum())
+        me = await self._position()
+        best: tuple[float, str] | None = None
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else None
+                if not code:
+                    continue
+                display = await lang_name(self.client, code)
+                key = "".join(c for c in (display or "").lower() if c.isalnum())
+                # The object itself, or a person (NPCBehavior) who could own
+                # the prompt; not our pet hovering beside us.
+                if not key or (key != want and "NPCBehavior" not in await e.list_behavior_names()):
+                    continue
+                d = distance(await e.location(), me)
+                if best is None or d < best[0]:
+                    best = (d, display)
+            except Exception:
+                continue
+        return best is not None and "".join(c for c in best[1].lower() if c.isalnum()) == want
 
     async def _learn_dungeon_exit(self, old_zone: str, zone: str):
         """Out of a dungeon room into the dungeon's outside zone right after a
@@ -5650,6 +5680,7 @@ class Quester:
         # Grinding comes after healing: right after a defeat it went looking for
         # fights at 0 mana and a third of its health.
         if not team and self._grinding and await self._grind():
+            self._ground_at = time.monotonic()  # (the status says grinding only while it really is)
             return
         if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
