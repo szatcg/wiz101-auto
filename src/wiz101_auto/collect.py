@@ -82,7 +82,9 @@ def matches_item(item: str, *names: str) -> bool:
         n = _norm(name)
         if not n or any(s.replace(" ", "") in n for s in _SKIP):
             continue
-        if target in n:
+        # (The plural as written too: 'Berries' became 'berry', not in the
+        # game's own 'Berries': none ever matched in Vigrid Roughland.)
+        if target in n or (len(_norm(item)) >= 3 and _norm(item) in n):
             return True
         # Object names use short words: "Gemstones" lie around as "KT_Gem_Fire".
         # Only the object's kind (its first word after a zone prefix like

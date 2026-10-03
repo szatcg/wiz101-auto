@@ -69,3 +69,11 @@ def test_loose_names_for_an_item_not_found_by_its_quest_name():
     assert loose_names("Green and Purple Crystal Sample")[1:] == ["Crystal Sample", "Crystal"]
     assert loose_names("Cog") == ["Cog"]
     assert matches_item("Crystal Sample", "Crystal Sample")
+
+
+def test_plural_items_match_their_own_plural_name():
+    from wiz101_auto.collect import matches_item
+
+    assert matches_item("Berries", "GH_Berries")
+    assert matches_item("Berries", "Berries")
+    assert matches_item("Supplies", "Supply Crate")
