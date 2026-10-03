@@ -5785,7 +5785,13 @@ class Quester:
                 await self.pull_mob("")
             elif self._last_win_zone and self._last_win_zone != here:
                 logger.info(f"grinding: to {self._last_win_zone.split('/')[-1]} for its enemies")
-                await self.go_to_zone(self._last_win_zone)
+                world = self._last_win_zone.split("/", 1)[0]
+                if world != here.split("/", 1)[0]:
+                    # (Another world: go_to_zone has no gates there and the step
+                    # repeated this line every 2 s.)
+                    await self._to_world(world, f"grinding in {world}")
+                elif not await self.go_to_zone(self._last_win_zone):
+                    await asyncio.sleep(5.0)
             else:
                 await asyncio.sleep(2.0)
             self._ground_at = time.monotonic()
