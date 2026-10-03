@@ -2133,7 +2133,13 @@ class Quester:
             # night to it). A level-up brings it back sooner.
             n = self.setbacks.defeats.get(objective, 0) + 1
             self.setbacks.defeats[objective] = n
-            if n >= DETOUR_DEFEATS:
+            limit = DETOUR_DEFEATS
+            try:  # (state/detour.json 'defeats_before_wait': the player watching it try again and again)
+                limit = int(json.loads(Path("state", "detour.json").read_text(encoding="utf-8"))
+                            .get("defeats_before_wait", DETOUR_DEFEATS))
+            except (OSError, ValueError, TypeError):
+                pass
+            if n >= limit:
                 self.setbacks.defeats.pop(objective, None)
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
