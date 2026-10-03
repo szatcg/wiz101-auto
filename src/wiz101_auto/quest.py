@@ -157,6 +157,7 @@ WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
+GRIND_FALLBACK = {"Grizzleheim": "Grizzleheim/GH_Wolf"}  # outdoor zones with enemies, per world
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -1010,6 +1011,7 @@ class Quester:
                     if here != self._last_win_zone:
                         _save_last_main(win_zone=here)
                     self._last_win_zone = here
+                    self.__dict__.setdefault("_win_zones", {})[here.split("/", 1)[0]] = here
                 self._wins_since_progress += 1
                 # Up to a few won fights count as progress (a drop hunt needs
                 # several); more without the objective moving means these
@@ -5783,14 +5785,16 @@ class Quester:
             indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
             if not indoors and await self.sprinter.get_mobs():
                 await self.pull_mob("")
-            elif self._last_win_zone and self._last_win_zone != here:
-                logger.info(f"grinding: to {self._last_win_zone.split('/')[-1]} for its enemies")
-                world = self._last_win_zone.split("/", 1)[0]
-                if world != here.split("/", 1)[0]:
-                    # (Another world: go_to_zone has no gates there and the step
-                    # repeated this line every 2 s.)
-                    await self._to_world(world, f"grinding in {world}")
-                elif not await self.go_to_zone(self._last_win_zone):
+            elif self._main_world and here.split("/", 1)[0] != self._main_world:
+                # (The main world's, as _grind does: going to the last win in
+                # Celestia while _grind went back to Grizzleheim bounced
+                # between the two by the Spiral Map.)
+                await self._to_world(self._main_world, f"grinding in {self._main_world}")
+            elif (spot := self.__dict__.get("_win_zones", {}).get(self._main_world or "",
+                                                                   GRIND_FALLBACK.get(self._main_world or ""))
+                  ) and spot != here:
+                logger.info(f"grinding: to {spot.split('/')[-1]} for its enemies")
+                if not await self.go_to_zone(spot):
                     await asyncio.sleep(5.0)
             else:
                 await asyncio.sleep(2.0)
