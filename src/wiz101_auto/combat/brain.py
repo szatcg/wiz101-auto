@@ -1873,8 +1873,11 @@ def _dig_for_sure_kill(battle: Battle) -> Action | None:
         return c.is_damage and (c.is_aoe or len(live) == 1) and cost <= next_pips and all(
             hit_damage(c, me, e) >= e.health for e in live)
 
-    if any(c.castable and ends_it(c) for c in battle.cards):
-        return None  # it ends now: cast it
+    if any(ends_it(c) for c in battle.cards):
+        # One in hand ends it (now or next round): wait for it (it discarded
+        # 3 Pixies, Feint and Spirit Blade with Orthrus in hand a pip short,
+        # then a Reshuffle took the pips and the fight was lost).
+        return None
     killers = [c for c in battle.upcoming if ends_it(c)]
     if not killers or len(killers) == len(battle.upcoming):
         return None  # none to come, or every draw is one
@@ -1882,7 +1885,9 @@ def _dig_for_sure_kill(battle: Battle) -> Action | None:
     if room >= len(battle.upcoming):
         return None  # every card left will be drawn anyway
     spare = [c for c in battle.cards
-             if not (c.treasure or c.item or is_reshuffle(c) or c.is_enchant or ends_it(c))]
+             if not (c.treasure or c.item or is_reshuffle(c) or c.is_enchant or ends_it(c) or c.is_heal)]
+    if len(battle.upcoming) - room > len(spare):
+        return None  # (8 left with room for 0: no discarding makes room for them all)
     if not spare:
         return None
     card = min(spare, key=lambda c: (bool({EffectKind.BLADE, EffectKind.TRAP} & set(c.kinds)),
@@ -1926,6 +1931,10 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     # is short of a full one with nothing else to cast. Each round refills
     # the hand to 7 from the deck, so a short hand means an empty deck.
     nothing_else = not any(c.castable for c in rest.cards)
+    # (Nor a hit affordable next round: Orthrus a pip short in a hand made
+    # short by discards read as 'deck spent', and Reshuffle took the pips.)
+    next_pips = battle.pips + 2 * battle.power_pips + 1
+    nothing_else = nothing_else and not any(c.is_damage and c.pip_cost <= next_pips for c in rest.cards)
     deck_low = (battle.deck_known and len(battle.upcoming) <= RESHUFFLE_WHEN_LEFT) or (
         len(battle.cards) < HAND_SIZE and nothing_else)
     if deck_low and not shuffle.castable and action.kind is ActionKind.CAST and action.card is not None:

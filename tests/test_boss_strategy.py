@@ -121,3 +121,21 @@ def test_draw_chance():
     assert brain.draw_chance(3, 1, 3) == 1.0
     assert abs(brain.draw_chance(10, 2, 2) - (1 - 28 / 45)) < 1e-9
     assert brain.draw_chance(10, 0, 5) == 0.0
+
+
+def test_no_dig_or_reshuffle_with_the_killer_in_hand_a_pip_short():
+    from wiz101_auto.combat.model import Card
+
+    orthrus = _myth(0, "Orthrus", 1600, 7, aoe=True, castable=False)
+    pixies = [heal_card(i, "Pixie", 400) for i in (1, 2, 3)]
+    reshuffle = Card(4, "Reshuffle", pip_cost=4, school="balance")
+    my = me(1026, 2221)
+    my.school = "myth"
+    foes = [enemy("Sand Behemoth", 1500, boss=True), enemy("Sand Spider", 660), enemy("Sand Spider 2", 660)]
+    b = battle([orthrus, *pixies, reshuffle], foes, my=my)
+    b.pips, b.power_pips = 2, 2
+    b.upcoming = [_myth(10 + i, f"Card{i}", 50, 1) for i in range(8)]
+    b.deck_known = True
+    a = brain.decide(b, discards_left=2)
+    assert a.kind is not ActionKind.DISCARD or not a.card.is_heal
+    assert not (a.card is not None and a.card.name == "Reshuffle")
