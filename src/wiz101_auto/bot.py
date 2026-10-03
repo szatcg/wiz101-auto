@@ -463,11 +463,10 @@ async def run(cfg: Config):
         c = cfg.combat
         try:
             # The simulator's enemies and hit rates, from every fight logged so far (~0.1 s).
-            from pathlib import Path as _Path
 
-            from .combat.calibrate import write_stats
+            from .combat.calibrate import activity_logs, write_stats
 
-            write_stats([_Path("activity.log")])
+            write_stats(activity_logs())
         except Exception as exc:
             logger.debug(f"enemy stats not refreshed: {exc!r}")
         fighter = Fighter(client, c.strategy, max_discards=c.max_discards, flee_below=c.flee_below,

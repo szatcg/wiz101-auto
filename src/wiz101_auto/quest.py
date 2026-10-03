@@ -5705,9 +5705,11 @@ class Quester:
                 await play_from_character_select(self.client)
                 return
         if not await is_free(self.client):
+            logger.debug("step: not free")
             return
         await self._learn_door_walk()
         await clear_popups(self.client)
+        logger.debug("step: popups cleared")
         if self._grinding and not VISIT_FILE.exists() and self._main_world:
             # Nothing left to do here: a giver from the player's list with a
             # quest for us (MooShu: Ken Shui in the Village of Sorrow) beats
@@ -5724,7 +5726,9 @@ class Quester:
         if await self._leave_spiral_map():
             return
         if await self._dorm_to_wizard_city():
+            logger.debug("step: dorm to Wizard City")
             return
+        logger.debug("step: past the trips")
         # Noting what's around and where wisps spawn (~3 s each) runs beside
         # the step, not in its way.
         if time.monotonic() - self._last_entity_scan > ENTITY_SCAN_SECONDS:
@@ -5735,6 +5739,7 @@ class Quester:
             self._last_wisp_scan = time.monotonic()
             self._in_background("wisps", lambda: scan_wisps(self.client))  # learn wisp spawn points
         await self._note_defeats()
+        logger.debug("step: defeats noted")
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).
         zone_now = await self.client.zone_name() or ""
@@ -5747,14 +5752,17 @@ class Quester:
         # pick-up or quest ranking (the player's rule; walking back in by the Labyrinth's
         # sigil reset it). _recall_to_mark waits until we're healed.
         if self._recall_pending and await self._recall_to_mark():
+            logger.debug("step: recalled to the mark")
             return
         self._note_boss_win()
         # With a team, no other detours for pick-ups (it teleported all over
         # Mount Olympus): the team's shared objectives are left to the others.
         if not is_team_up_zone(zone_now):
             if await self._pick_up_wanted():
+                logger.debug("step: picked up a wanted item")
                 return
             if await self._pick_up_loot():
+                logger.debug("step: picked up loot")
                 return
         await self._answer_dungeon_exit()
         await self._learn_arrival_gate()
@@ -5821,18 +5829,22 @@ class Quester:
             self.client, self.upkeep, self.controller, self.go_to_zone,
             trip=self._heal_trip, mark=self._heal_mark,
         ):
+            logger.debug("step: recovering")
             return
         # With a team, nothing that could leave the dungeon or hold us back
         # (Recall, NPC visits, grinding, gear checks, training trips); the quest
         # step itself still runs (returning here stood still while the team left).
         team = is_team_up_zone(zone_now)
         if not team and await self._farm_trip(zone_now):
+            logger.debug("step: farm trip")
             return
         if not team and await self._recall_to_mark():
+            logger.debug("step: recall to mark")
             return
         # Quests beat grinding for experience: ask the NPCs around first (the
         # next main quest may be waiting with one of them).
         if not team and await self.givers.ask_nearby():
+            logger.debug("step: asked an NPC nearby")
             return
         # Grinding comes after healing: right after a defeat it went looking for
         # fights at 0 mana and a third of its health.

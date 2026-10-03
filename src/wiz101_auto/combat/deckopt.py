@@ -459,9 +459,9 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     try:  # the fights logged up to now
-        from .calibrate import write_stats
+        from .calibrate import activity_logs, write_stats
 
-        write_stats([Path("activity.log")])
+        write_stats(activity_logs())
     except Exception:
         pass
     stats = sim.load_stats()

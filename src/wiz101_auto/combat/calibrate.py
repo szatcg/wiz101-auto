@@ -213,6 +213,14 @@ def minion_share(fights: list[list[Round]]) -> dict:
     return {"share": round(to_minion / total, 3) if total else 0.0, "rounds": rounds}
 
 
+def activity_logs(folder: Path = Path(".")) -> list[Path]:
+    """activity.log with its rotated copies (activity.<date>.log), oldest
+    first: the stats from activity.log alone were wiped (0 enemies) when it
+    rotated at 5 MB."""
+    rotated = sorted(p for p in folder.glob("activity.*.log") if p.name != "activity.log")
+    return [*rotated, folder / "activity.log"]
+
+
 def write_stats(paths: list[Path], out: Path = STATS_FILE) -> dict:
     """Save what the simulator needs: per enemy its max health, boss flag,
     per-round damage alone and shared; per spell our hit rate."""

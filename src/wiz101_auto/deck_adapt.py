@@ -220,9 +220,9 @@ class DeckAdapter:
         self._equip_search = True
         ADVICE_FILE.unlink(missing_ok=True)
         try:  # the search simulates from the stats: with this fight in them (a new boss)
-            from .combat.calibrate import write_stats
+            from .combat.calibrate import activity_logs, write_stats
 
-            write_stats([Path("activity.log")])
+            write_stats(activity_logs())
         except Exception as exc:
             logger.debug(f"deck: stats rebuild failed: {exc}")
         logger.info(f"deck: both decks lost to {', '.join(group)}; searching a deck for them "

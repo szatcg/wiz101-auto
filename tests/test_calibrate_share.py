@@ -16,3 +16,12 @@ def test_the_round_that_killed_us_counts_at_least_our_health():
     assert theirs["Malistaire Drake"] == [0, 938]
     _o, _f, theirs, _s = measure([fight], [False])
     assert theirs["Malistaire Drake"] == [0]
+
+
+def test_activity_logs_read_rotated_copies_oldest_first(tmp_path):
+    from wiz101_auto.combat.calibrate import activity_logs
+
+    for name in ("activity.log", "activity.2026-09-30_18-18-26_1.log", "activity.2026-09-27_17-34-05_2.log"):
+        (tmp_path / name).write_text("", encoding="utf-8")
+    assert [p.name for p in activity_logs(tmp_path)] == [
+        "activity.2026-09-27_17-34-05_2.log", "activity.2026-09-30_18-18-26_1.log", "activity.log"]
