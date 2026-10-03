@@ -1808,6 +1808,50 @@ def is_reshuffle(card: Card) -> bool:
 
 
 SURE_KILL_REASON = "making room to draw the whole deck"
+ODDS_GAIN = 0.15  # a discard that raises the chance of a better draw this much (no 2-a-round limit)
+ODDS_ENOUGH = 0.95  # ... until the chance is this good
+
+
+def draw_chance(deck: int, wanted: int, draws: int) -> float:
+    """The chance that `draws` cards from a deck of `deck` include at least
+    one of `wanted` (drawn without replacement)."""
+    from math import comb
+
+    draws = min(draws, deck)
+    if wanted <= 0 or draws <= 0:
+        return 0.0
+    if deck - wanted < draws:
+        return 1.0
+    return 1.0 - comb(deck - wanted, draws) / comb(deck, draws)
+
+
+def _dig_for_odds(battle: Battle) -> Action | None:
+    """The player's: discard (past the 2-a-round habit) while it raises the
+    chance of drawing a card that ends the fight sooner by ODDS_GAIN: each
+    discard is one more draw next round. Only cards the current kill plan
+    doesn't play; never Reshuffle, treasure, items or the one kept heal."""
+    if not battle.live_enemies or not battle.deck_known or len(battle.upcoming) < 2:
+        return None
+    base, better = improving_draws(battle)
+    if not better:
+        return None
+    n = len(battle.upcoming)
+    m = sum(1 for c in battle.upcoming if c.name in better)
+    room = max(0, HAND_SIZE - len(battle.cards))
+    now, more = draw_chance(n, m, room), draw_chance(n, m, room + 1)
+    if now >= ODDS_ENOUGH or more - now < ODDS_GAIN:
+        return None
+    _rounds, used = plan_hand_use(battle)
+    heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
+    keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
+    spare = [c for c in battle.cards if c.index not in used and c is not keep_heal and not c.treasure
+             and not c.item and not c.is_enchant and not is_reshuffle(c) and not keep_from_discard(c)]
+    if not spare:
+        return None
+    card = min(spare, key=lambda c: (c.is_heal, c.base_damage()))
+    want = ", ".join(sorted(better))
+    return Action(ActionKind.DISCARD, card,
+                  reason=f"odds: {now:.0%} -> {more:.0%} to draw {want} (shortens the {base}-round plan)")
 
 
 def _dig_for_sure_kill(battle: Battle) -> Action | None:
@@ -1856,6 +1900,13 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     sure = _dig_for_sure_kill(battle)
     if sure is not None:
         return sure
+    if plan_discards:
+        try:
+            odds = _dig_for_odds(battle)
+        except Exception:
+            odds = None
+        if odds is not None:
+            return odds
     if plan_discards and discards_left > 0:
         # The live fight only (the simulator's fights would be too slow): cards
         # the fastest plan won't play make room for the draws that shorten it.

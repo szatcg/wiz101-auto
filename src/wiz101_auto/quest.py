@@ -1064,6 +1064,11 @@ class Quester:
             # stalling; this one comes back after a level-up or an hour.
             self._stall_switched_for = objective
             quest = self._active_quest
+            if quest and self._detour_stays(quest):
+                logger.info(f"no progress on {objective!r} for {waited / 60:.0f} min; staying on {quest!r} "
+                            "(the detour's 'stay')")
+                self._last_progress_time = time.monotonic()
+                quest = None
             if quest:
                 level = await self.client.stats.reference_level()
                 self.setbacks.set_quest_aside(
@@ -2195,7 +2200,7 @@ class Quester:
                             .get("defeats_before_wait", DETOUR_DEFEATS))
             except (OSError, ValueError, TypeError):
                 pass
-            if n >= limit:
+            if n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
@@ -2964,7 +2969,8 @@ class Quester:
             level = await self.client.stats.reference_level()
             set_aside = self.setbacks.set_aside(level)
             detour_mains = [q for _, q in all_quests if q.mainline] if det is not None else []
-            if detour_mains and all(q.name in set_aside for q in detour_mains):
+            if (detour_mains and all(q.name in set_aside for q in detour_mains)
+                    and not any(self._detour_stays(q.name) for q in detour_mains)):
                 # The detour's quest is stuck (set aside after trying every
                 # way): the main story (Celestia) meanwhile, not grinding (the
                 # player); the detour comes back when its quest is retried.
@@ -4230,6 +4236,18 @@ class Quester:
             if time.monotonic() > deadline:
                 return False
             await asyncio.sleep(0.2)
+
+    def _detour_stays(self, quest: str | None) -> bool:
+        """detour.json 'stay': true (the player: no Celestia until Jotun is
+        beaten) and `quest` is the detour world's: it's never set aside and
+        the main story doesn't take over."""
+        det = self._detour_names()
+        if det is None or not quest or norm(quest) not in det[2]:
+            return False
+        try:
+            return bool(json.loads(Path("state", "detour.json").read_text(encoding="utf-8")).get("stay"))
+        except (OSError, ValueError):
+            return False
 
     def _detour_names(self) -> tuple[dict, set[str], set[str]] | None:
         """The active detour world (detour.py): (its entry, its main-story

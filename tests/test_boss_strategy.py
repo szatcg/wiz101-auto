@@ -114,3 +114,10 @@ def test_discards_make_room_to_draw_the_whole_deck_when_a_card_left_ends_it():
     assert a.kind is ActionKind.DISCARD and "draw the whole deck" in a.reason
     b.cards = filler[:4]  # room for 3: every card left comes anyway
     assert brain._dig_for_sure_kill(b) is None
+
+
+def test_draw_chance():
+    assert abs(brain.draw_chance(3, 1, 1) - 1 / 3) < 1e-9
+    assert brain.draw_chance(3, 1, 3) == 1.0
+    assert abs(brain.draw_chance(10, 2, 2) - (1 - 28 / 45)) < 1e-9
+    assert brain.draw_chance(10, 0, 5) == 0.0
