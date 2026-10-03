@@ -20,6 +20,12 @@ from loguru import logger
 
 from .model import Action, ActionKind, Battle
 
+
+def hit_kills(card, battle, enemy) -> bool:
+    from .brain import hit_damage
+
+    return hit_damage(card, battle.me, enemy) >= enemy.health
+
 ROLLOUTS = 32  # playouts per move (the same random draws for every move)
 TIME_LIMIT = 12.0  # seconds for the whole decision
 MARGIN = 0.03  # a move must beat the brain's by this much (rollout noise)
@@ -128,8 +134,12 @@ class RolloutPlanner:
         kinds = (ActionKind.CAST, ActionKind.PASS, ActionKind.DISCARD)
         if brain.kind not in kinds or not worth_it(battle, brain):
             return brain
+        from .brain import wasted_setup
+
+        # (Never a copy of a blade/trap already up: a second Mythblade adds
+        # nothing in the game, though the simulator stacked it.)
         moves = [m for m in sim.candidates(battle, discards)
-                 if _same(m, brain) or not _early_heal(m, battle, self.stats)]
+                 if _same(m, brain) or not (_early_heal(m, battle, self.stats) or wasted_setup(m, battle))]
         try:  # the last battle planned, to replay offline (state/rollout_battle.pkl); not from tests
             if self.stats is not None:
                 raise RuntimeError("test stats")
@@ -183,6 +193,13 @@ class RolloutPlanner:
             # often beats 4 pips and 4 rounds for 500 health): whatever plays
             # out better, deaths counted, goes instead.
             margin = 0.0
+        if (best != mine and brain.kind is ActionKind.CAST and brain.card is not None and brain.card.is_aoe
+                and brain.card.is_damage and not (moves[best].card is not None and moves[best].card.is_damage)
+                and any(hit_kills(brain.card, battle, e) for e in battle.live_enemies)):
+            # The player: the brain's hit-all that kills enemies goes (Orthrus
+            # with 12 pips lost to a Myth Trap, then a second Mythblade).
+            logger.debug(f"rollouts ({took:.1f}s): the brain's killing {line(mine)} holds over {line(best)}")
+            return brain
         if best != mine and moves[best].kind is ActionKind.CAST and brain.kind is ActionKind.CAST:
             from .brain import Strategy, _hit_all_waits
 

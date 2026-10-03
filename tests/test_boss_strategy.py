@@ -45,3 +45,16 @@ def test_a_castable_hit_all_beats_waiting_for_a_far_off_bigger_one():
     b.pips, b.power_pips = 2, 1
     act = brain.decide(b)
     assert act.kind is not ActionKind.PASS and act.card is not orthrus
+
+
+def test_a_second_copy_of_a_blade_that_is_up_is_wasted():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    blade = Card(0, "Mythblade", pip_cost=0, school="Myth",
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school="myth")])
+    my = me(2000, 2424)
+    my.school = "myth"
+    b = battle([blade], [enemy("Water Servant", 840)], my=my)
+    assert not brain.wasted_setup(Action(ActionKind.CAST, blade, my), b)
+    my.outgoing_effects = [("mythblade", "myth", 0.35)]
+    assert brain.wasted_setup(Action(ActionKind.CAST, blade, my), b)

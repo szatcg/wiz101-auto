@@ -1003,6 +1003,23 @@ def _hit_schools(battle: Battle, besides: str = "") -> set[str]:
     return out
 
 
+def wasted_setup(action: Action, battle: Battle) -> bool:
+    """A blade or trap that's already up (the same one): a copy adds nothing
+    (the rollouts cast a second Mythblade with Orthrus castable)."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or card.is_damage:
+        return False
+    mine = battle.me.school.lower()
+    blades_up = battle.me.outgoing_effects
+    if EffectKind.BLADE in card.kinds and _is_duplicate(card, EffectKind.BLADE, blades_up, mine):
+        return True
+    target = action.target
+    if EffectKind.TRAP in card.kinds and target is not None and _is_duplicate(
+            card, EffectKind.TRAP, target.incoming_effects, mine):
+        return True
+    return False
+
+
 def setup_fits(card: Card, battle: Battle) -> bool:
     """A blade or trap that boosts a hit we hold: any school (Feint), or the
     school of a damage spell in hand or deck. The Frost Snake pet's ice trap
