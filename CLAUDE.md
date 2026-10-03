@@ -96,6 +96,7 @@ while the bot is stopped.
 | `docs/CompletedQuests.txt` | names of quests the bot completed, in order (a quest that leaves the quest book on two readings) |
 | `state/learned_gates.json` | zone gates learned while playing (missing from the data files, e.g. Haunted Cave) |
 | `state/setbacks.json` | defeats per objective and quests set aside after 2 losses (until a level-up or 1 hour) |
+| `state/detour.json` | side worlds to finish before the main story goes on (`detour.py`): each world's `finish` quest, and the NPC who `start`s it; while one is unfinished its story (docs/quests/<World>.txt, not SIDE) is the main story |
 | `state/mark.json` | where the game's Mark is: a dungeon sigil (Recall after a defeat) or a travel mark (Recall when nearer the next objective than walking) |
 | `state/dungeons.json` | learned dungeons (outside zone, sigil, arrival point/facing) and which boss is in which |
 | `state/status.json` | heartbeat every 5s |
