@@ -2805,9 +2805,17 @@ class Quester:
                 # them): twice a false "no main quest" alert, and the pin
                 # dropped. Such a read decides nothing is done.
                 complete = False
+            det = self._detour_names()
             for _, q in all_quests:
-                if q.mainline and in_side_world(q):
+                if det is not None:
+                    # A detour (state/detour.json: Grizzleheim, then Wintertusk,
+                    # before Celestia): its world's story is the main story now,
+                    # everything else waits.
+                    q.mainline = norm(q.name) in det[1]
+                elif q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
+            if det is not None and complete:
+                self._detour_start(det[0], any(norm(q.name) in det[2] for _, q in all_quests))
             activities = {q.name for _, q in all_quests if q.activity}
             self._wanted_items = {  # main-story/spell quests only: side quests are ignored
                 collect_item_name(q.goal): q.name
@@ -4044,6 +4052,33 @@ class Quester:
             if time.monotonic() > deadline:
                 return False
             await asyncio.sleep(0.2)
+
+    def _detour_names(self) -> tuple[dict, set[str], set[str]] | None:
+        """The active detour world (detour.py): (its entry, its main-story
+        quest names, all its quest names), normalized; None with no detour."""
+        from . import detour
+        from .questlist import load_completed, load_world_lists
+
+        entry = detour.active(detour.load(), set(load_completed()))
+        if entry is None:
+            return None
+        if getattr(self, "_world_lists", None) is None:
+            self._world_lists = load_world_lists()
+        listed = self._world_lists.get(entry["world"], [])
+        main = {norm(q.name) for q in listed if not any("SIDE" in t for t in q.tags)}
+        return entry, main, {norm(q.name) for q in listed}
+
+    def _detour_start(self, entry: dict, started: bool):
+        """No quest of the detour world in the book yet: visit the NPC who
+        starts it (Merle Ambrose for 'Cold News')."""
+        from . import detour
+        from .questlist import load_completed
+
+        want = detour.needs_start(entry, started, set(load_completed()))
+        if want is None or VISIT_FILE.exists():
+            return
+        logger.info(f"detour to {entry['world']}: visiting {want['npc']} for its first quest")
+        VISIT_FILE.write_text(json.dumps(want), encoding="utf-8")
 
     async def _visit_npc(self) -> bool:
         """state/visit_npc.json {"npc": ..., "zone": ...}: go and talk to that
