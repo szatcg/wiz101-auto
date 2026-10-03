@@ -983,7 +983,20 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                     await asyncio.sleep(0.1)
                     await client.send_key(Keycode.ESC)
                 else:
-                    await client.send_key(Keycode.SPACEBAR)
+                    # A storyline offer has no Decline, only Accept: Space closed
+                    # it unaccepted (Thornton Lewis's Explorer101, every talk for
+                    # 11 hours), so an Accept button is clicked.
+                    label = (await ui.text_at(client, ui.ADVANCE_DIALOG)).strip().lower()
+                    if "accept" in label:
+                        text = await ui.text_at(client, ui.DIALOG_TEXT)
+                        logger.info(f"accepting a storyline quest: {text[:80]}")
+                        if policy is not None:
+                            policy.accepted += 1
+                        if not await ui.click(client, ui.ADVANCE_DIALOG):
+                            await client.send_key(Keycode.SPACEBAR)
+                        await asyncio.sleep(0.6)
+                    else:
+                        await client.send_key(Keycode.SPACEBAR)
         except Exception as exc:
             logger.trace(f"dialogue loop: {exc}")
         await asyncio.sleep(0.3)
