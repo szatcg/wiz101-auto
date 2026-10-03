@@ -2806,6 +2806,7 @@ class Quester:
                 # dropped. Such a read decides nothing is done.
                 complete = False
             det = self._detour_names()
+            game_main = {id(q): q.mainline for _, q in all_quests}
             for _, q in all_quests:
                 if det is not None:
                     # A detour (state/detour.json: Grizzleheim, then Wintertusk,
@@ -2835,6 +2836,15 @@ class Quester:
             self._active_quest = active.name if active else self._active_quest
             level = await self.client.stats.reference_level()
             set_aside = self.setbacks.set_aside(level)
+            detour_mains = [q for _, q in all_quests if q.mainline] if det is not None else []
+            if detour_mains and all(q.name in set_aside for q in detour_mains):
+                # The detour's quest is stuck (set aside after trying every
+                # way): the main story (Celestia) meanwhile, not grinding (the
+                # player); the detour comes back when its quest is retried.
+                logger.info(f"detour quest {detour_mains[0].name!r} set aside as stuck: "
+                            "the main story meanwhile")
+                for _, q in all_quests:
+                    q.mainline = game_main[id(q)] and not in_side_world(q)
             logger.debug(
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
