@@ -3709,6 +3709,8 @@ class Quester:
             return False  # every fight in a dungeon is fought (fleeing loses it)
         if time.monotonic() < getattr(self, "_wanted_fight_until", 0.0):
             return False  # a fight started on purpose (a locked door's guard): fought
+        if self._grinding:
+            return False  # grinding: every fight is what we came for (one was fled)
         names = [e.name for e in battle.enemies]
         has_boss = any(e.is_boss for e in battle.enemies)
         if fight_needed(objective, names, zone, has_boss):
