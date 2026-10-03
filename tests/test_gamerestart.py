@@ -8,6 +8,7 @@ def test_restart_reasons(tmp_path, monkeypatch):
     monkeypatch.setattr(gamerestart, "game_windows", lambda: [123])
     assert gamerestart.needs_restart("") == ""
     assert "hook" in gamerestart.needs_restart("Could not hook into the game: ...")
+    assert "hook" in gamerestart.needs_restart("Hooks did not activate within 90s. Make sure ...")
     gamerestart.request("game frozen: a loading screen for 301s")
     assert gamerestart.needs_restart("") == "game frozen: a loading screen for 301s"
     (tmp_path / "req").unlink()

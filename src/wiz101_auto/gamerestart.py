@@ -211,7 +211,10 @@ def needs_restart(bot_output_tail: str = "") -> str:
             return "the bot asked"
     if not game_windows():
         return "no game window (closed or crashed)"
-    if "Could not hook into the game" in bot_output_tail or "No Wizard101 window found" in bot_output_tail:
+    # ('Hooks did not activate within 90s': the game frozen on a loading
+    # screen; the supervisor restarted the bot for 8 minutes instead.)
+    if any(m in bot_output_tail for m in ("Could not hook into the game", "No Wizard101 window found",
+                                          "Hooks did not activate")):
         return "the bot could not hook the game"
     return ""
 
