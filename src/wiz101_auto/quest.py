@@ -648,6 +648,20 @@ def safe_landing(target: XYZ, start: XYZ, mobs: list[XYZ], clearance: float) -> 
     return None
 
 
+def is_known_boss(name: str, stats_file: Path = Path("state") / "enemy_stats.json") -> bool:
+    """A boss by the fights logged (state/enemy_stats.json), or one with
+    brothers to beat first (PRE_BOSSES) or a brother himself."""
+    want = norm(name)
+    pre = {norm(k) for k in PRE_BOSSES} | {norm(b) for plan in PRE_BOSSES.values() for b, _z, _s in plan}
+    if want in pre:
+        return True
+    try:
+        enemies = json.loads(stats_file.read_text(encoding="utf-8")).get("enemies", {})
+    except (OSError, ValueError):
+        return False
+    return any(norm(n) == want and v.get("boss") for n, v in enemies.items())
+
+
 def defeat_target(objective: str) -> str | None:
     """The enemy a "Defeat X in Place (0 of 2)" objective names, else None."""
     m = re.match(r"^\s*defeat\s+(.+?)(?:\s+in\s+[^()]+)?(?:\s*\(\d+ of \d+\))?\s*$", objective, re.I)
@@ -1644,6 +1658,22 @@ class Quester:
             return  # Recall can't come back in here: the entrance mark stays
         logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
         await self._mark_here("fight", objective=objective, require_clear=False)
+
+    async def _boss_health_bar(self):
+        """The player's: into a boss fight at full health (it walked at Ullik
+        with 74%, then went toward Jotun at 88%, 'good enough' for regular
+        enemies). While the objective is a boss, healing goes on to
+        rest_until_health instead of stopping at min_health_to_fight."""
+        if not self.upkeep:
+            return
+        base = self.__dict__.setdefault("_base_min_health", self.upkeep.min_health_to_fight)
+        target = defeat_target(await self.objective() or "") or ""
+        boss = bool(target) and is_known_boss(target)
+        want = max(base, self.upkeep.rest_until_health) if boss else base
+        if want != self.upkeep.min_health_to_fight:
+            self.upkeep.min_health_to_fight = want
+            if boss:
+                logger.info(f"{target} is a boss: healing to {want:.0%} before the fight")
 
     async def _mark_before_boss(self, target: str, objective: str, zone: str):
         """In a dungeon, right before going after the objective's enemy: mark
@@ -6099,6 +6129,7 @@ class Quester:
             self._in_background("wisps", lambda: scan_wisps(self.client))  # learn wisp spawn points
         await self._note_defeats()
         logger.debug("step: defeats noted")
+        await self._boss_health_bar()
         # A patrol walked up while we stood still: step aside (outdoors, and not
         # when the objective is a fight, which means going onto enemies).
         zone_now = await self.client.zone_name() or ""
