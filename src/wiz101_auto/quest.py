@@ -2010,10 +2010,16 @@ class Quester:
         off_world = not self._mainline and place and place.split("/", 1)[0] != self._main_world
         # (No main quest and the tracked one is a side world's: its marker
         # leads to the world gate; fight here instead.)
-        if await self.sprinter.get_mobs() and "interiors" not in zone.lower():
+        # Outdoors only: in a dungeon a grinding fight pulled the Runed
+        # Devestator (a 5200-health boss) beside a Rubble Reaver in the Hall of
+        # Kings, and the wizard went down.
+        indoors = "interiors" in zone.lower() or await self._in_any_dungeon(zone)
+        if await self.sprinter.get_mobs() and not indoors:
             await self.pull_mob("")
             return True
-        if self._last_win_zone.split("/", 1)[0] == self._main_world and self._last_win_zone != zone:
+        if (self._last_win_zone.split("/", 1)[0] == self._main_world and self._last_win_zone != zone
+                and not await self._in_any_dungeon(self._last_win_zone)
+                and "interiors" not in self._last_win_zone.lower()):
             logger.info(f"no enemies here; going to {self._last_win_zone} to fight for experience")
             if await self.go_to_zone(self._last_win_zone):
                 return True
