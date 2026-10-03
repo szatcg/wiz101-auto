@@ -997,11 +997,15 @@ class Quester:
         if fights != self._fights_seen:
             won = self.controller.deaths == self._deaths_at_fight
             self._fights_seen, self._deaths_at_fight = fights, self.controller.deaths
+            here = await self.client.zone_name() or ""
+            outdoors = here and "interiors" not in here.lower() and not await self._in_any_dungeon(here)
             if won:
-                win_zone = await self.client.zone_name() or self._last_win_zone
-                if win_zone != self._last_win_zone:
-                    _save_last_main(win_zone=win_zone)
-                self._last_win_zone = win_zone
+                if outdoors:
+                    # (Outdoor wins only: grinding goes back there, and a
+                    # dungeon's fights can pull its boss: the Runed Devestator.)
+                    if here != self._last_win_zone:
+                        _save_last_main(win_zone=here)
+                    self._last_win_zone = here
                 self._wins_since_progress += 1
                 # Up to a few won fights count as progress (a drop hunt needs
                 # several); more without the objective moving means these
