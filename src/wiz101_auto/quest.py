@@ -195,6 +195,8 @@ def load_pre_bosses_beaten() -> set[str]:
 
 WARREN_SCOUT_SPACING = 1200.0  # scouting a brother's warren: hops this far apart
 WARREN_SCOUT_BATCH = 8  # ... this many per step
+WARREN_SCOUT_ROUNDS = 2  # full scouts of a warren before fighting through it
+WARREN_USE_RANGE = 1500.0  # objects this near a scouting hop are used
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 # Outdoor zones with enemies, per world (until a fight there is won).
 GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
@@ -5411,10 +5413,19 @@ class Quester:
             await self._mark_before_boss(boss, objective, zone)
             await self._engage(boss, pos, objective, zone, walk=True)
             return True
+        # Something to use in view (the Storm room's Yardbird, a lever, a
+        # chest): use it, clear of enemies (the player: interact, don't fight).
+        if await self._use_nearby_object(zone):
+            return True
         done = self.__dict__.setdefault("_warren_scouted", {}).setdefault(zone, [])
         points = spread_points(await nav_points(zone), (me.x, me.y), WARREN_SCOUT_SPACING)
         left = [p for p in points if all(math.dist(p[:2], d[:2]) > WARREN_SCOUT_SPACING / 2 for d in done)]
         if not left:
+            rounds = self.__dict__.setdefault("_warren_rounds", {})
+            rounds[zone] = rounds.get(zone, 0) + 1
+            if rounds[zone] < WARREN_SCOUT_ROUNDS:
+                done.clear()  # (once more: what was used may have opened a way)
+                return True
             return False
         logger.info(f"scouting {zone.split('/')[-1]} for {boss}, clear of fights ({len(left)} spots left)")
         for p in left[:WARREN_SCOUT_BATCH]:
@@ -5428,7 +5439,41 @@ class Quester:
             await scan_entities(self.client, zone, self.entity_map)
             if await find_entity_named(self.client, boss) is not None:
                 return True  # (the next step goes for him)
+            if await self._use_nearby_object(zone):
+                return True
         return True
+
+    async def _use_nearby_object(self, zone: str) -> bool:
+        """A selectable object in view (not a person, not a door used
+        already), clear of enemies: walk up to it and press X. Each once.
+        True if it tried one."""
+        used = self.__dict__.setdefault("_warren_used", set())
+        me = await self._position()
+        found = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                if not t:
+                    continue
+                obj = await t.object_name() or ""
+                if not investigable(obj, await e.list_behavior_names()):
+                    continue
+                pos = await e.location()
+                key = (zone, obj, round(pos.x / 100), round(pos.y / 100))
+                if key in used or distance(pos, me) > WARREN_USE_RANGE:
+                    continue
+                found.append((distance(pos, me), key, obj, pos))
+            except Exception:
+                continue
+        for _d, key, obj, pos in sorted(found):
+            used.add(key)
+            if not await self._clear_spot(pos):
+                continue  # (enemies by it: not walking into a fight)
+            logger.info(f"using {obj} on the way (no fights)")
+            if not await self.bring_out._use(pos):
+                logger.info(f"no prompt at {obj}")
+            return True
+        return False
 
     def _grind_world(self) -> str | None:
         """Where to fight for experience: the highest-level world we've been
