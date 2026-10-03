@@ -1858,9 +1858,11 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
 
 BOSS_SETUP_TRAPS = 3  # traps on a boss before a big hit that won't kill it (no kill plan in reach)
 BOSS_SETUP_BLADES = 2  # our blades likewise
+BIGGER_HIT = 1.8  # a hit this many times bigger in hand or deck: the small one doesn't go on a boss
+PAYOFF_PIPS = 4  # a payoff spell (the hit-all a setup is for) costs at least this
 
 
-def _boss_setup_first(battle: Battle, action: Action) -> Action | None:
+def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) -> Action | None:
     """The player's: against a boss too big to kill with what's in hand and
     to come, a hit that doesn't kill waits for the setup (Feint first: the
     highest boost, then Myth Trap, then blades). Hits that finish an add, or
@@ -1882,6 +1884,20 @@ def _boss_setup_first(battle: Battle, action: Action) -> Action | None:
     dmg = hit_damage(card, battle.me, boss)
     if dmg >= boss.health:
         return None
+    # A much bigger hit to come (Orthrus): not this one now (the player:
+    # Humongofrog for ~986 into the Runed Annihilator's 2008 instead of
+    # digging for Orthrus to end it in one blow). In hand: keep the pips for
+    # it; still in the deck: discard this one to draw toward it.
+    bigger = [c for c in [*battle.cards, *battle.upcoming]
+              if c.is_damage and c.name != card.name and hit_damage(c, battle.me, boss) >= BIGGER_HIT * dmg]
+    if bigger and card.pip_cost > 0:  # (a 0-pip hit costs nothing: Super Strike breaking a shield)
+        big = max(bigger, key=lambda c: hit_damage(c, battle.me, boss))
+        if any(c is big for c in battle.cards):
+            return Action(ActionKind.PASS, reason=f"keeping pips for {big.name} over {card.name} "
+                                                  f"(~{dmg:.0f} of {boss.name}'s {boss.health})")
+        if discards_left > 0 and not card.treasure and not card.item:
+            return Action(ActionKind.DISCARD, card, reason=f"digging for {big.name}: {card.name} "
+                                                           f"(~{dmg:.0f}) won't end {boss.name}")
     try:
         if plan_hand_use(battle)[0] < 99:
             return None  # a kill is in reach and the plan says how
@@ -1905,9 +1921,44 @@ def _boss_setup_first(battle: Battle, action: Action) -> Action | None:
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     action = _decide_seen_raw(battle, strat, **kw)
     try:
-        return _boss_setup_first(battle, action) or action
+        action = _boss_setup_first(battle, action, kw.get("discards_left", 0)) or action
+    except Exception:
+        pass
+    try:
+        return _pip_wise_setup(battle, action, strat or Strategy()) or action
     except Exception:
         return action
+
+
+def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action | None:
+    """The player's: a 1-pip setup card off our school (Feint, Spirit Blade)
+    paid with a power pip wastes half of it (worth 2 for our own spells). With
+    no regular pip, it's cast only if the payoff spell (the hit-all in hand)
+    is still affordable next round; else a free blade/trap, or the pips are
+    kept and it waits for a turn with a regular pip."""
+    card = action.card
+    school = battle.me.school.lower()
+    if (action.kind is not ActionKind.CAST or card is None or card.is_damage or card.pip_cost < 1
+            or not ({EffectKind.BLADE, EffectKind.TRAP} & set(card.kinds))
+            or card.school.lower() == school or battle.pips > 0 or battle.power_pips <= 0):
+        return None
+    payoffs = [c for c in battle.cards
+               if c.is_damage and c.pip_cost >= PAYOFF_PIPS and c.school.lower() == school]
+    if not payoffs:
+        return None
+    payoff = max(payoffs, key=lambda c: c.pip_cost)
+    after = _pay(card, school, battle.pips, battle.power_pips)
+    if after is None:
+        return None
+    next_round = after[0] + 2 * after[1] + 1  # (a pip comes each round)
+    if next_round >= payoff.pip_cost:
+        return None  # the payoff is castable next round anyway: setting up beats passing
+    free = _free_setup(battle, strat)
+    if free is not None and free.card is not card:
+        free.reason = f"{free.reason}; {card.name} waits for a regular pip"
+        return free
+    why = f"keeping the power pips for {payoff.name}: {card.name} waits for a turn with a regular pip"
+    return Action(ActionKind.PASS, reason=why)
 
 
 def _decide_seen_raw(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:

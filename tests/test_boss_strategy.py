@@ -58,3 +58,44 @@ def test_a_second_copy_of_a_blade_that_is_up_is_wasted():
     assert not brain.wasted_setup(Action(ActionKind.CAST, blade, my), b)
     my.outgoing_effects = [("mythblade", "myth", 0.35)]
     assert brain.wasted_setup(Action(ActionKind.CAST, blade, my), b)
+
+
+def _myth(i, name, dmg, pips, aoe=False, castable=True):
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    t = Target.ENEMY_ALL if aoe else Target.ENEMY_SINGLE
+    return Card(i, name, pip_cost=pips, school="myth", castable=castable,
+                effects=[Effect(EffectKind.DAMAGE, t, dmg, school="myth")])
+
+
+def test_a_small_hit_on_a_boss_waits_for_the_big_one():
+    frog = _myth(0, "Humongofrog", 600, 4, aoe=True)
+    orthrus = _myth(1, "Orthrus", 1300, 7, aoe=True, castable=False)
+    my = me(1300, 2221)
+    my.school = "myth"
+    b = battle([frog, orthrus], [enemy("Runed Annihilator", 2008, boss=True)], my=my)
+    b.pips, b.power_pips = 0, 3
+    assert brain.decide(b, discards_left=2).card is not frog  # Orthrus in hand: keep the pips
+    b2 = battle([frog], [enemy("Runed Annihilator", 2008, boss=True)], my=my)
+    b2.pips, b2.power_pips = 0, 3
+    b2.upcoming = [_myth(5, "Orthrus", 1300, 7, aoe=True)]
+    b2.deck_known = True
+    a = brain.decide(b2, discards_left=2)
+    assert a.kind is ActionKind.DISCARD and a.card is frog  # Orthrus in the deck: dig for it
+
+
+def test_a_one_pip_off_school_setup_waits_for_a_regular_pip_when_the_payoff_would_slip():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    feint = Card(0, "Feint", pip_cost=1, school="death",
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    orthrus = _myth(1, "Orthrus", 1300, 7, aoe=True, castable=False)
+    my = me(2000, 2221)
+    my.school = "myth"
+    foe = enemy("Water Servant", 840)
+    b = battle([feint, orthrus], [foe, enemy("Water Servant 2", 840)], my=my)
+    b.pips, b.power_pips = 0, 3  # 6 now; Feint by a power pip leaves 4, +1 next round = 5 < 7
+    act = brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy())
+    assert act is not None and act.card is not feint
+    b.pips, b.power_pips = 1, 3  # a regular pip pays for it
+    assert brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy()) is None
