@@ -701,12 +701,15 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
     if not want:
         return None
     # A hit that kills someone now is no junk (Cyclops with enemies at 114/150).
-    # (Not a 0-pip hit: cast instead of passing it chips an untrapped enemy and
-    # uses up a Weakness on us; the player saw Minor Fire Scorch binned for a
-    # draw and the turn passed.)
+    # A 0-pip hit the free-hit rule would cast stays: cast instead of the pass
+    # it chips an untrapped enemy and uses up a Weakness on us (a -25% gone is
+    # +25% on the next hit; the player saw Minor Fire Scorch binned for a draw
+    # and the turn passed). One that would break a trap or spend our blade may go.
+    free = _free_hit(battle)
+    worth_casting = free.card if free is not None else None
     singles = [
         c for c in battle.cards
-        if c.is_damage and not c.is_aoe and c.pip_cost > 0
+        if c.is_damage and not c.is_aoe and c is not worth_casting
         and all(hit_damage(c, me, e) < e.health for e in enemies)
     ]
     if group and ("blade" in want or "trap" in want):
@@ -1689,7 +1692,10 @@ def _free_hit(battle: Battle, shields_only: bool = False) -> Action | None:
     clean = [e for e in enemies if not trapped(e)]
     if clean:
         t = min(clean, key=lambda e: e.health)
-        return Action(ActionKind.CAST, card, t, reason="0 pips instead of passing (no trap on it to waste)")
+        why = "0 pips instead of passing (no trap on it to waste"
+        if _matching(me.outgoing_effects, school, shields=True):
+            why += "; uses up the Weakness on us"
+        return Action(ActionKind.CAST, card, t, reason=why + ")")
     stacked = [e for e in enemies if spares(e)]
     if stacked:
         t = max(stacked, key=lambda e: e.trap_count)
