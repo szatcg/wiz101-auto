@@ -134,7 +134,8 @@ RAVENWOOD = "WizardCity/WC_Ravenwood"
 WORLD_TREE = "WizardCity/WC_Ravenwood_Teleporter"  # inside Bartleby: the Spiral Map's world gate
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
-                      "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia"}
+                      "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia",
+                      "Grizzleheim": "grizzleheim"}
 CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
 AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
