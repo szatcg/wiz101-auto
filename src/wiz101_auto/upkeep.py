@@ -866,9 +866,41 @@ async def close_friends_list(client) -> bool:
     return False
 
 
+# "Really Skip the Tutorial?" (its title); the caption modal_text reads:
+SKIP_TUTORIAL_CAPTION = "only click yes if you've been here before"
+
+
+async def skip_tutorial(client) -> bool:
+    """A game tutorial (the Archmastery one in the Dueling Arena after
+    Malistaire, 'Complete Archmastery Tutorial in Arena'): the bot can't play
+    it and the wizard stood there unable to move for 20 minutes. Press SKIP
+    TUTORIAL, then Yes on "Really Skip the Tutorial?". True if it did."""
+    try:
+        box = await ui.modal_box(client)
+        if box is not None and SKIP_TUTORIAL_CAPTION in (await ui.modal_text(box)).lower():
+            logger.info("skipping the tutorial: Yes")
+            return await ui.modal_click(client, box, "leftButton")
+        for w in await client.root_window.get_windows_with_name("TutorialWindow"):
+            if not await w.is_visible():
+                continue
+            for btn in await w.get_windows_with_name("SkipButton"):
+                if await btn.is_visible():
+                    logger.info("a tutorial: pressing SKIP TUTORIAL")
+                    await ui.click_center(client, btn)
+                    await asyncio.sleep(1.5)
+                    box = await ui.modal_box(client)
+                    if box is not None and SKIP_TUTORIAL_CAPTION in (await ui.modal_text(box)).lower():
+                        await ui.modal_click(client, box, "leftButton")
+                    return True
+    except Exception as exc:
+        logger.debug(f"skip_tutorial: {exc!r}")
+    return False
+
+
 async def clear_popups(client):
     if await reconnect_if_asked(client):
         return
+    await skip_tutorial(client)
     await close_crowns_shop(client)
     await close_friends_list(client)
     if await ui.click_named(client, "btnPetLevelClose"):
