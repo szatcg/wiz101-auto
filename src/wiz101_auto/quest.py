@@ -5194,7 +5194,11 @@ class Quester:
         not walked into (Jotun's trio); fight outdoors here, else where a
         fight was last won outdoors in the main world. True if it acted."""
         waiting = {d.get("objective") for d in self.setbacks.deferred.values()}
-        if not self._grinding or objective not in waiting:
+        place = objective_zone(objective or "")
+        elsewhere = bool(place and self._main_world and place.split("/", 1)[0] != self._main_world)
+        # (Or another world's: Wysteria's 'Go To Spiral Cup' tracked by the game
+        # led the grinding wizard to the Spiral Map again and again.)
+        if not self._grinding or (objective not in waiting and not elsewhere):
             return False
         here = await self.client.zone_name() or ""
         indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
