@@ -115,7 +115,7 @@ class PetConfig:
     lower case), any other pet at `default_goal` (the top: Mega)."""
 
     auto: bool = True
-    goals: dict = field(default_factory=lambda: {"bloodbat": "adult"})
+    goals: dict = field(default_factory=lambda: {"bloodbat": "adult", "fellhound": "adult"})
     default_goal: str = "mega"
     feed: bool = True  # feed the first snack offered after each win
 
