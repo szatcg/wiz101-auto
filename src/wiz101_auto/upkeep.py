@@ -516,7 +516,11 @@ async def heal_in_room(client, cfg: UpkeepConfig, rounds: int = 4) -> bool:
 
 
 def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
-    """Which wisp kinds recovery still needs."""
+    """Which wisp kinds recovery still needs: health alone while health is
+    too low to fight (a mana wisp's spot kept the bot at 41% health for
+    minutes, every visit a little mana), else whatever is short."""
+    if hp < cfg.min_health_to_fight:
+        return frozenset({HEALTH})
     need = set()
     if hp < cfg.rest_until_health:
         need.add(HEALTH)
@@ -618,7 +622,9 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 now_hp, now_mana = await health_mana(client)
                 # Passive regeneration ticks up a little on every visit; only a real
                 # wisp (a few % at once) counts as finding something.
-                gained = now_hp - hp >= WISP_GAIN or now_mana - mana >= WISP_GAIN
+                # (Only what's needed counts: mana from a mana wisp's spot while
+                # health is what's low isn't progress.)
+                gained = now_hp - hp >= WISP_GAIN or (MANA in need and now_mana - mana >= WISP_GAIN)
                 fruitless = 0 if gained else fruitless + 1
                 if fruitless < FRUITLESS_VISITS:
                     continue

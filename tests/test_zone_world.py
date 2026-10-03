@@ -35,3 +35,13 @@ def test_the_boss_deck_is_used_when_asked_and_present():
     assert target_deck(general, known) == {"Orthrus": 3, "Pixie": 1}
     assert target_deck(general, known, boss=True) == {"Orthrus": 3, "Pixie": 4, "Feint": 3}
     assert target_deck({"deck": {"Pixie": 1}}, known, boss=True) == {"Pixie": 1}
+
+
+def test_health_wisps_only_while_too_hurt_to_fight():
+    from wiz101_auto.config import UpkeepConfig
+    from wiz101_auto.upkeep import needed_wisps
+    from wiz101_auto.wisps import HEALTH, MANA
+
+    cfg = UpkeepConfig()
+    assert needed_wisps(cfg, 0.41, 0.2) == frozenset({HEALTH})
+    assert MANA in needed_wisps(cfg, 0.9, 0.2)
