@@ -5029,9 +5029,10 @@ class Quester:
         objects that can be used until the right one): walk up to each
         selectable object here (MB_KT-PreCel_Relic_01..03), nearest first,
         and press X at its prompt, one per step, until the objective moves
-        on. True if it tried one."""
-        if not objective.strip().lower().startswith("investigate"):
-            return False
+        on. Any other objective with no marker: only a Questlight (the
+        player: 'Complete Magic Wheel Training in Selenopolis' is through the
+        door in the Blended Grove, KT_Questlight). True if it tried one."""
+        investigate = objective.strip().lower().startswith("investigate")
         done = self.__dict__.setdefault("_investigated", {}).setdefault((objective, zone), set())
         me = await self._position()
         found = []
@@ -5042,7 +5043,8 @@ class Quester:
                     continue
                 obj = await t.object_name() or ""
                 pos = await e.location()
-                if investigable(obj, await e.list_behavior_names()):
+                if investigable(obj, await e.list_behavior_names()) and (
+                        investigate or "questlight" in obj.lower()):
                     found.append((distance(pos, me), (obj, round(pos.x), round(pos.y)), obj, pos))
             except Exception:
                 continue
