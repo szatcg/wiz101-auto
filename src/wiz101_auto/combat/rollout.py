@@ -183,6 +183,16 @@ class RolloutPlanner:
             # often beats 4 pips and 4 rounds for 500 health): whatever plays
             # out better, deaths counted, goes instead.
             margin = 0.0
+        if best != mine and moves[best].kind is ActionKind.CAST and brain.kind is ActionKind.CAST:
+            from .brain import Strategy, _hit_all_waits
+
+            if _hit_all_waits(battle, moves[best], strat or Strategy()):
+                # The player's rule: a hit-all that won't kill them all waits
+                # for the setup that lets it (an unbuffed Humongofrog left two
+                # Moonstriders at 156 and 193 and the fight ran on).
+                logger.debug(f"rollouts ({took:.1f}s): {line(best)} would leave enemies up; "
+                             f"the brain's setup {line(mine)} holds")
+                return brain
         if best != mine and values[best][0] > values[mine][0] + margin:
             logger.info(f"rollouts ({took:.1f}s): {line(best)} beats the brain's {line(mine)}")
             chosen = moves[best]
