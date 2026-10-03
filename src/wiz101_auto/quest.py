@@ -4908,6 +4908,15 @@ class Quester:
         names = defeat_names(objective)
         if not names or any([await find_entity_named(self.client, n) for n in names]):
             return False  # in view: pull_mob goes after it
+        # The boss standing as itself before its fight ("Malistaire"): pull_mob
+        # walks up to it. Teleporting between the spots Malistaire Drake was
+        # seen looped for minutes and never let it.
+        first = names[0].split()[0]
+        stand_in = len(first) >= 5 and first.lower() != names[0].lower()
+        if stand_in and await find_entity_named(self.client, first):
+            return False
+        if not self._may_try(objective, zone, "seek_target"):
+            return False
         me = await self._position()
         seen = self.entity_map.spots(zone, lambda n: is_target(n, names), (me.x, me.y, me.z))
         if not seen:
