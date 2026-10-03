@@ -5830,7 +5830,8 @@ class Quester:
         if not team and self._grinding and await self._grind():
             self._ground_at = time.monotonic()  # (the status says grinding only while it really is)
             return
-        if self._ranked_for is not None and await self._grind_beside_set_aside(await self.objective()):
+        if getattr(self, "_ranked_for", None) is not None and await self._grind_beside_set_aside(
+                await self.objective()):
             return
         if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
