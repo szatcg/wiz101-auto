@@ -5777,8 +5777,18 @@ class Quester:
         if self._grinding and (await self.objective()) in {
                 d.get("objective") for d in self.setbacks.deferred.values()}:
             # Grinding while the game still tracks a set-aside fight: not walked
-            # into (Jotun's trio again, ten minutes into its 3-hour wait).
-            await asyncio.sleep(2.0)
+            # into (Jotun's trio again, ten minutes into its 3-hour wait); fight
+            # outdoors here, else where a fight was last won outdoors.
+            here = await self.client.zone_name() or ""
+            indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
+            if not indoors and await self.sprinter.get_mobs():
+                await self.pull_mob("")
+            elif self._last_win_zone and self._last_win_zone != here:
+                logger.info(f"grinding: to {self._last_win_zone.split('/')[-1]} for its enemies")
+                await self.go_to_zone(self._last_win_zone)
+            else:
+                await asyncio.sleep(2.0)
+            self._ground_at = time.monotonic()
             return
         if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
