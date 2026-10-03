@@ -1,0 +1,121 @@
+Celestia main quests and their objectives (from the player, 2026-10-03).
+Use it when the bot is stuck on what to do next or where a quest comes from.
+Note: docs/quests/Celestia.txt tags some of these "SIDE xN" (Explorer101):
+that tag doesn't mean a side quest.
+
+Survey Camp
+1. Door to the Stars - Go to Celestia Base Camp + Talk to Edith Benchley in Celestia Base Camp
+2. Deeper and Deeper - Talk to Dalton Prescott in the Survey Camp
+3. Survivors - Talk to Edgar Ableton, Mackenzie Trowel, Peter Cheswick, and Dalton Prescott in the Survey Camp
+4. Taking Notes - Collect 4 Research Notes + Talk to Dalton Prescott
+5. Fixing a Hole - Defeat Crustacean Pincers (Fire) and Collect 4 Bottles of Sealant + Talk to Dalton Prescott + Fix 4 Water Leaks + Talk to Dalton Prescott
+6. Off the Map - Find 3 Clues at the Pinnacles + Talk to Dalton Prescott + Defeat Crustacean Clawcutters (Storm) and Collect Tower Key + Talk to Barclay O'Brian + Defeat Optio Agenor (Balance Boss) in his camp + Collect the Portal Piece + Talk to Rutherford West
+7. Rub-A-Dub - Take a Rubbing near The Grotto + Talk to Rutherford West near the Promenade
+8. Breathing Room - Use Water Breathing Device + Talk to Dalton Prescott
+
+The Grotto
+9. Whole Lotta Grotto - Talk to Rupert Fleming in The Grotto
+10. Crustacean Nation - Defeat Crustacean Clawcutters (Storm) and Collect 3 Clues + Talk to Rupert Fleming
+11. Coral of the Story - Collect 4 Pieces of Coral + Talk to Rupert Fleming
+12. Shocking News - Collect Portal Piece in the Eel Cave + Talk to Rupert Fleming
+13. Pack Crabs - Defeat Crustacean Pincers (Fire) and Collect Information + Go to Coral Castle + Talk to Rupert Fleming
+14. The Starfish Chamber - Defeat Optio Misemos (Ice Boss) in his retreat + Talk to Rupert Fleming
+15. My Dinner with Algae - Defeat Crustacean Waverunners (Ice) and Collect 3 Foul Tasting Algae + Open Starfish Door + Defeat Governor Nereus (Ice Boss) + Collect Third Portal Piece + Talk to Dalton Prescott in the Survey Camp
+16. Johnny-on-the-Spot - Talk to Edith Benchley + Use Portal in the Celestia Base Camp + Talk to Edith Benchley
+
+District of the Stars
+17. Just Popping In - Talk to Thornton Lewis in District of the Stars
+18. Explorer101 - Go to Damaged Monolith + Talk to Thornton Lewis + Defeat Piscean Guards (Balance) and Collect 3 Monolith Pieces + Talk to Thornton Lewis
+19. Star Cores - Use 3 Inactive Protectors + Talk to Thornton Lewis
+20. Forging Ahead - Use Star Forge + Talk to Thornton Lewis
+21. Reference Materials - Talk to The Archivist + Use Preceptor of Configuration, Preceptor of Conflict, and Preceptor of Contrivance + Talk to Thornton Lewis
+22. Putting Pieces Together - Explore The Chantry (look at the Celestian mosaic) + Explore The Chantry (look closer) + Talk to Thornton Lewis
+23. Tide and Tile - Defeat Piscean Troopers (Balance) and Collect 3 Mosaic Tiles + Search the Grand Orrery + Search Shark Hut for Mosaic Tiles + Talk to Thornton Lewis
+24. Turning Tiles - Use Celestian Mosaic + Talk to Thornton Lewis
+25. Archivist, Revisited - Talk to The Archivist
+26. Con Job - Use Configuration Station, Conflict Station, Contrivance Station, and Security Plinth + Talk to The Archivist
+27. Teeth of the Shark - Use Stellarium Pedestal + Talk to Thornton Lewis + Defeat Brutus Starkwave (Balance Boss) in Starkwave's Lair and Collect Pedestal Key + Talk to Thornton Lewis
+28. Into the Stellarium - Use Key on the Stellarium Pedestal + Enter the Stellarium + Recover the Star of Celestia
+29. A Star is Born - Go to Unimatus + Defeat Unimatus (Myth Boss) + Use the Energy Shroud Control + Go to Selwyn's Chamber + Defeat Selwyn Skywatcher (Moon Boss)
+28. Into the Stellarium - Install Star of Celestia in the Grand Astrolabe at the Celestia Base Camp + Talk to Edith Benchley
+
+The Floating Land
+30. On the Waterfront - Talk to Pierce Stanson in The Floating Land
+31. Spirit of the Sea - Defeat 3 Sea Spirits (Ice) + Talk to Pierce Stanson
+32. A Stormy Offering - Collect 4 Sea Foam Crystals + Use Storm Lord Altar + Talk to Pierce Stanson
+33. Claw of the Jungle - Defeat Wildcrag (Storm Boss) in his hideout + Defeat Bristleclaw (Death Boss) in his cave + Talk to Pierce Stanson
+34. Distress Call - Talk to Tupa Taua
+35. Gahlwok This Way - Go to Gahlwok's Lair + Defeat Gahlwok (Fire Boss) and Collect Magic Stick + Talk to Tupa Taua
+36. Celestian Idol - Collect 4 Water Mole Idols + Talk to Tupa Taua
+37. Almost Friends - Defeat 3 Jungletooth (Life) + Talk to Tupa Taua + Go to Tangleroot's Grove + Defeat Tangleroot (Life Boss) + Talk to Tupa Taua
+38. Crash of the Sky-Fish - Talk to Kono Kala + Talk to Coruscade
+39. As the Water Falls - Defeat Junglethorns (Death) and Collect 3 Sacred Bark + Talk to Coruscade
+40. Barking up the Tree - Talk to Tupa Taua + Talk to Coruscade
+41. Let's Go Bowling - Go to Lake in The Floating Land + Talk to Coruscade
+42. Cutting Crew - Find 4 Crew Members + Talk to Captain Fogg + Find 4 Submarine Parts + Talk to Edith Benchley
+
+Stormriven
+43. To Stormriven! - Talk to Leland Hawkins in Stormriven
+44. It's the Plumber - Collect 4 Spare Parts + Fix Water Pump + Talk to Leland Hawkins
+45. Ghosts of Celestia - Defeat Celestian Remnants (Star) and Collect 3 Power Crystals + Fix the Celestian Generator + Defeat Piscean Lancer (Death) in Outside Dome + Use Lever in the Outside Dome area + Talk to Leland Hawkins
+46. The Moon Below - Find 3 Portal Pieces + Talk to Leland Hawkins
+47. Celestian Leftovers - Talk to Alaric Moonsunder in The Ossuary + Talk to Karolak Nightspinner in the Sorcerer's Sanctum
+48. Stars and Shadow - Find Medallion Piece + Talk to Alaric Moonsunder + Defeat Shadow-Web Mercenaries (Death) and Collect 3 Medallion Segments + Talk to Karolak Nightspinner in Sorcerer's Sanctum
+49. Inevitable Betrayal - Use Pedestal + Defeat Karolak Nightspinner (Fire Boss) and Collect Celestian Portal piece + Talk to Leland Hawkins
+50. A Sunny Disposition - Talk to Vassek Shadowspite in Stormriven Hall
+51. Storm Shards - Defeat Water Lurkers (Myth) and Collect First Artifact + Collect Second Artifact + Defeat Shadow-Web Conscripts (Ice) and Collect Third Artifact + Use the Pedestal + Talk to Vassek Shadowspite
+52. Kraken Up - Use Moon Dial + Use Storm Altar in Storm Lord's Temple + Defeat Tempus Stormfist (Storm Boss) + Talk to Leland Hawkins
+
+The Portico
+53. A Old Sea Chantry - Talk to The Archivist in District of the Stars
+54. In For Repairs - Use the Preceptor of Contemplation + Use the Preceptor of Contrivance + Use the Preceptor of Conformation + Talk to The Archivist
+55. Lunarium Tunes - Use Moon Portal in Celestia Base Camp + Talk to Edith Benchley
+56. Dark Side of the Moon - Go to Inactive Protector + Defeat Stellar Protector (Star) and Collect Power Core + Use Inactive Protector + Talk to Koltan Grimfane + Defeat Thrale Bonestriker (Fire Boss), Vorgen Soulbreaker (Storm Boss), and Servus Bloodsword (Myth Boss) + Talk to Koltan Grimfane + Use Inactive Protector
+57. Pylon Raiders - Examine Stellar Protector in The Lunarium + Release 3 Crystal Pylons + Defeat 2 Stellar Protectors (Star) + Defeat Selenor (Moon Boss) + Collect the Moon Relic
+58. Destination: Moon - Install Moon Relic in the Grand Astrolabe in Celestia Base Camp + Talk to Edith Benchley
+
+Science Center
+59. Scientific Method - Talk to Piper Melville in the Science Center
+60. Steamed Up - Defeat 4 Steam Trowellers (Balance) + Talk to Piper Melville
+61. Spare Parts - Collect Cogitator (from Deactivated Golem) + Defeat Steam Winchers (Myth) and Collect 3 more Cogitators + Talk to Piper Melville
+62. Lightning in a Bottle - Gather 3 Leyden Jars + Energize 5 Galvanic Towers + Talk to Piper Melville
+63. Follow the Leader - Talk to Engineer Montgomery
+64. Steam-Bot Attack - Defeat 3 Hydro-Mechs (Ice) + Defeat 3 Steam Valets (Life) + Talk to Engineer Montgomery
+65. Galvanic Company - Gather 3 Engineering Tools + Fix Power Generator + Talk to Engineer Montgomery
+66. Tower of Power - Use 4 Galvanic Towers + Talk to Engineer Montgomery
+67. Cogitator Investigator - Defeat Water-Maton (Life) and Collect Cogitator Circuit + Go to the Conservatory + Talk to Engineer Montgomery
+68. Powering Up - Defeat Water-Matons and Collect 3 Power Cores + Use Fish Fountain + Talk to Engineer Montgomery
+69. Parts Is Parts - Use Gearworks + Talk to Engineer Montgomery
+70. Cracking the Books - Go to the Conservatory + Collect Celestian Books in the Conservatory (balance and life enemies) + Talk to Engineer Montgomery
+71. Crystal Fight - Use Hydraulic Channeler + Defeat Water-Matons and Collect 2 Fuses + Use Hydraulic Channeler + Use Other Hydraulic Channeler + Defeat Aqua-Bots (Fire) and Collect 2 Fuses + Use Hydraulic Channeler + Use Gate Control in Gate Control Room + Go to the Crystal Reactor + Defeat Maglump (Fire Boss) + Talk to Engineer Montgomery
+72. Pieces of the Sun - Use Sun Portal in Celestia Base Camp + Talk to Edith Benchley
+
+Crustacean Empire
+73. To the Solarium? - Explore the Crustacean Empire + Talk to Nestor in the Crustacean Empire
+74. Something's Fishy - Defeat 3 Pisceans and 3 Anglers in the area + Talk to Nestor
+75. Forewarned Is... - Collect 4 Piles of Weapons + Talk to Nestor
+76. Ring of Authority - Defeat Anglers and Collect Neptune's Seal + Talk to Nestor
+77. Fire in the Sea - Go to Nuncio's Crag + Defeat Nuncio (Fire Boss) + Talk to Nestor
+78. Plunkett, I Presume? - Talk to Thurston Plunkett + Talk to Emperor Pontus + Talk to Senator Xanthus
+79. Breaking the Mold - Collect 4 Sea Mold + Talk to Senator Xanthus
+80. Stir of Echoes - Defeat Pisceans and Collect Shell Horns + Talk to Senator Xanthus
+81. Armed to the Gills - Go to the Senate Chamber + Defeat Glauco (Myth Boss) and Angler Warlord (Balance Boss) + Talk to Thurston Plunkett
+82. The Back Door - Talk to Nestor + Defeat 4 Pisceans + Defeat Sea-Booter (Ice) + Talk to Lieutenant Dafoe
+83. Shot in the Dark - Use 4 Downed Stellar Protectors + Talk to Lieutenant Dafoe
+84. X Marks the Spot - Talk to Senator Xanthus + Defeat Anglers and Collect 4 Map Quarters + Talk to Lieutenant Dafoe
+85. Finding the Way - Go to Acastus Hexfin x4 + Defeat Acastus Hexfin (Ice Boss) + Talk to Lieutenant Dafoe
+86. Calypso Queen - Go to Calypso's Ship in Calypso's Cavern + Defeat Queen Calypso (Death Boss) + Talk to Queen Calypso
+87. Treasure This - Go to the Treasury + Use Treasure + Talk to Queen Calypso
+88. Let's Mako Deal - Go to The Barbican + Defeat Praetor Mako (Life Boss) + Talk to Thurston Plunkett
+89. The Final Frontier - Use the Sun Portal in Celestia Base Camp + Talk to Edith Benchley
+
+The Chancel
+90. The Sun of All Fears - Go to the Chancel
+91. Tears of the Sun - Go to the High Altar in The Chancel + Defeat Sharks and Collect Information
+92. The Sun Also Rises - Go to the Back Door to the Solarium + Use 6 Sun Stands + Defeat Stellar Protector (Star)
+93. The Big Guy - Defeat Optio Marinos (Myth Boss) + Defeat Optio Neelus (Life Boss) + Defeat Optio Vitale (Balance Boss) + Use 3 Sun Stones + Head to Big Salgio's Platform + Defeat Big Salgio (Fire Boss)
+90. The Sun of All Fears - Install the Sun Relic on the Grand Astrolabe in Celestia Base Camp + Talk to Edith Benchley
+
+Sanctum of the Sun
+94. Trial of the Spheres - Solve Test of Vision + Solve Test of Constellation + Solve Test of the Shining Stars + Defeat Astraeus (Star Boss) + Go to the Lunar Sanctum + Defeat Ptolemos (Moon Boss) + Go to the Solar Sanctum + Defeat Mithraya (Sun Boss)
+95. Through This Door... - Talk to Edith Benchley in Celestia Base Camp + Talk to Halston Balestrom in Ravenwood

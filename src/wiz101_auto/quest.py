@@ -2126,7 +2126,7 @@ class Quester:
         det = self._detour_names()
         # (Main or not: once set aside by the detour fallback the quest reads
         # as a side quest, and its losses went the side path, an hour each.)
-        if quest and det is not None and norm(quest) in det[1]:
+        if quest and det is not None and norm(quest) in det[2]:
             # A detour world's fight (Jotun, Ullik and Grettir together in
             # Nidavellir): lost twice, it waits an hour and the main story
             # goes on meanwhile (the player: Celestia rather than dying all
@@ -2880,7 +2880,10 @@ class Quester:
                     # A detour (state/detour.json: Grizzleheim, then Wintertusk,
                     # before Celestia): its world's story is the main story now,
                     # everything else waits.
-                    q.mainline = norm(q.name) in det[1]
+                    # The game's main-story flag, for quests on that world's list
+                    # (a 'SIDE ×N' tag on the list isn't 'side quest': the
+                    # player's Celestia guide has Explorer101 as main story).
+                    q.mainline = game_main[id(q)] and norm(q.name) in det[2]
                 elif q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
             if det is not None and complete:
