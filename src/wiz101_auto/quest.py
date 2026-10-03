@@ -3958,9 +3958,15 @@ class Quester:
         # one at the quest marker is this step's.
         marker = await self.client.quest_position.position()
         near = marker if distance(marker, XYZ(0, 0, 0)) > 1 else await self._position()
-        pos = await self._npc_named(name, near=near)  # exact name, not an enemy
+        zone = await self.client.zone_name() or ""
+        # 'Use Inactive Protector (0 of 3)': the ones used already are skipped
+        # (each used one stays, same name), the nearest other one next.
+        used = self.__dict__.setdefault("_used_objects", {}).setdefault((name, zone), [])
+        pos = await self._npc_named(name, near=near, skip=used)  # exact name, not an enemy
         if pos is None:
-            return False
+            # Not loaded here (no marker; the fallback spot was across the
+            # zone): sweep the zone for it, where it was seen first.
+            return await self._seek_object(name, zone, used)
         me = await self._position()
         if distance(me, pos) > USE_OBJECT_RANGE:
             logger.info(f"going right up to the {name}")
@@ -3981,9 +3987,42 @@ class Quester:
                     break  # someone else's prompt: another spot
                 await self.interact(objective)
                 await self._after_pull(objective)
+                used.append(pos)
                 return True
         logger.info(f"no prompt at the {name}")
+        used.append(pos)  # (nothing to use there: the next one)
         return False
+
+    async def _seek_object(self, name: str, zone: str, used: list) -> bool:
+        """Teleport across the zone (spots it was seen first) until an
+        object named `name` not used yet is in view. True if it moved."""
+        me = await self._position()
+        here = (me.x, me.y, me.z)
+        want = _norm_name(name)
+        known = self.entity_map.spots(zone, lambda n: _norm_name(n) == want, here)
+        known = [k for k in known if all(math.dist(k[:2], (u.x, u.y)) > 150 for u in used)]
+        sweep = spread_points(await self._landmarks() + floor_points(await path_points(self.client), me.z),
+                              here, ENEMY_SWEEP_SPACING)
+        visited = self._swept_spots.setdefault((f"use:{name}", zone), [])
+        spots = [k for k in known if k not in visited] + [
+            p for p in sweep if all(math.dist(p[:2], v[:2]) > ENEMY_SWEEP_SPACING / 2 for v in visited)]
+        if not spots:
+            visited.clear()
+            return False
+        logger.info(f"no {name} in view: looking around the zone ({len(known)} spot(s) it was seen at first)")
+        for p in spots[:FAR_SWEEP_MAX]:
+            if not await is_free(self.client):
+                return True
+            visited.append(p)
+            if not await self._clear_spot(XYZ(*p)):
+                continue
+            await self.client.teleport(XYZ(*p))
+            await asyncio.sleep(1.5)  # let nearby entities stream in
+            await scan_entities(self.client, zone, self.entity_map)
+            if await self._npc_named(name, near=await self._position(), skip=used) is not None:
+                logger.info(f"found a {name} near ({p[0]:.0f}, {p[1]:.0f})")
+                return True
+        return True
 
     async def _nearest_is(self, name: str) -> bool:
         """Is the nearest named entity to the wizard the one called `name`
@@ -5062,7 +5101,7 @@ class Quester:
                 return pos
         return None
 
-    async def _npc_named(self, name: str, near: XYZ | None = None):
+    async def _npc_named(self, name: str, near: XYZ | None = None, skip: list | None = None):
         """Position of an entity named exactly `name` that isn't an enemy
         ('Clockwork', not the 'Clockwork Warrior' mobs), or None; with `near`,
         the one closest to it."""
@@ -5083,6 +5122,8 @@ class Quester:
                 if await e.global_id_full() in mobs:
                     continue
                 pos = await e.location()
+                if skip and any(distance(pos, u) < 150 for u in skip):
+                    continue  # (used already)
                 if near is None:
                     return pos
                 found.append(pos)
