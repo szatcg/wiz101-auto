@@ -154,6 +154,8 @@ LONE_TARGET_CLEARANCE = 800.0  # going after an enemy: no other kind this close 
 ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far, times the misses
 ENGAGE_BACKOFF_MAX = 2400.0
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
+DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
+DETOUR_RETRY_SECONDS = 3600.0
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
@@ -2094,6 +2096,29 @@ class Quester:
         level = await self.client.stats.reference_level()
         quest = self._active_quest
         main = quest in self._mainline
+        det = self._detour_names()
+        if main and quest and det is not None and norm(quest) in det[1]:
+            # A detour world's fight (Jotun, Ullik and Grettir together in
+            # Nidavellir): lost twice, it waits an hour and the main story
+            # goes on meanwhile (the player: Celestia rather than dying all
+            # night to it). A level-up brings it back sooner.
+            n = self.setbacks.defeats.get(objective, 0) + 1
+            self.setbacks.defeats[objective] = n
+            if n >= DETOUR_DEFEATS:
+                self.setbacks.defeats.pop(objective, None)
+                self.setbacks.set_quest_aside(quest, objective, level, main=True,
+                                              retry_after=DETOUR_RETRY_SECONDS)
+                logger.warning(f"lost {objective!r} {n} times: {quest!r} waits an hour; "
+                               "the main story meanwhile")
+                self._alert_main_stuck(quest, f"lost {objective!r} {n} times", hard=True)
+                self._recall_pending = False
+                self._retire_dungeon_mark()
+                self._ranked_for = None
+                self._last_rank = -1e9
+            else:
+                logger.info(f"defeat {n} on {objective!r}; trying again")
+            self.setbacks.save()
+            return
         if main:
             # The player's rule: a main-story fight is never set aside for
             # losses; the deck ladder (the other deck, then a simulator search)
