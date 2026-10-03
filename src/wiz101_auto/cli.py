@@ -145,6 +145,9 @@ def main(argv: list[str] | None = None):
     decks_p.add_argument("--single", default="", help="the deck item for the single-target deck")
     pet_p = sub.add_parser("pet", help="have the bot play the pet dance game until the pet's energy runs out")
     pet_p.add_argument("--games", type=int, default=0, help="at most this many games (0: no limit)")
+    alt_p = sub.add_parser("pet-alt", help="pet-only bot on the other game window")
+    alt_p.add_argument("action", choices=["start", "stop", "status", "run"])
+    alt_p.add_argument("--pid", type=int, default=0, help="that game's process id (when it isn't clear)")
     pin_p = sub.add_parser("pin", help="follow this quest until it's done or set aside (no name: unpin)")
     pin_p.add_argument("quest", nargs="?", default="")
     dash_p = sub.add_parser("dashboard", help="serve the progress dashboard at http://127.0.0.1:8101/")
@@ -289,6 +292,17 @@ def main(argv: list[str] | None = None):
         PET_REQUEST.write_text(str(max(0, args.games)), encoding="utf-8")
         n = f"{args.games} game(s)" if args.games else "games until the pet is out of energy"
         print(f"requested: at its next free moment the bot goes to the Pet Pavilion for {n}, then comes back")
+        return 0
+    if args.command == "pet-alt":
+        from . import petclient
+
+        if args.action == "run":
+            return petclient.main_run(args.pid)
+        if args.action == "start":
+            return petclient.start(args.pid)
+        if args.action == "stop":
+            return petclient.stop()
+        print(petclient.status_text())
         return 0
     if args.command == "pin":
         from .quest import save_pin
