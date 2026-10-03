@@ -374,6 +374,13 @@ def zone_world(name: str | None) -> str | None:
     return name
 
 
+def investigable(object_name: str, behaviors: list[str]) -> bool:
+    """An object an 'Investigate X' objective may want used: selectable in
+    the world (WizardSelectBehavior), not a person or the wizard."""
+    return ("WizardSelectBehavior" in behaviors and "NPCBehavior" not in behaviors
+            and "WizardCharacterBehavior" not in behaviors and object_name != "Player Object")
+
+
 def quest_world(q: QuestEntry) -> str | None:
     """The world ("Krokotopia") a quest's area is in, from the book's area name."""
     zone = objective_zone(q.world) if q.world else None
@@ -5017,6 +5024,41 @@ class Quester:
         spots = [XYZ(*s) for s in self.entity_map.spots(zone, enemy_like, (pos.x, pos.y, pos.z))]
         return next((s for s in spots if distance(s, pos) >= WALK_IN_MIN), None)
 
+    async def _investigate(self, objective: str, zone: str) -> bool:
+        """'Investigate Plunkett House' with no marker (the player: try the
+        objects that can be used until the right one): walk up to each
+        selectable object here (MB_KT-PreCel_Relic_01..03), nearest first,
+        and press X at its prompt, one per step, until the objective moves
+        on. True if it tried one."""
+        if not objective.strip().lower().startswith("investigate"):
+            return False
+        done = self.__dict__.setdefault("_investigated", {}).setdefault((objective, zone), set())
+        me = await self._position()
+        found = []
+        for e in await self.client.get_base_entity_list():
+            try:
+                t = await e.object_template()
+                if not t:
+                    continue
+                obj = await t.object_name() or ""
+                pos = await e.location()
+                if investigable(obj, await e.list_behavior_names()):
+                    found.append((distance(pos, me), (obj, round(pos.x), round(pos.y)), obj, pos))
+            except Exception:
+                continue
+        left = sorted(f for f in found if f[1] not in done)
+        if not left:
+            if found and done:
+                logger.info(f"tried every object here for {objective!r}; going round again")
+                done.clear()
+            return False
+        _d, key, obj, pos = left[0]
+        done.add(key)
+        logger.info(f"investigating: {obj} ({len(left) - 1} more to try)")
+        if not await self.bring_out._use(pos):
+            logger.info(f"no prompt at {obj}")
+        return True
+
     async def _lone_target(self, name: str) -> XYZ | None:
         """The nearest enemy called `name` with no other kind of enemy within
         LONE_TARGET_CLEARANCE (those would join, or start the fight instead)."""
@@ -5893,6 +5935,8 @@ class Quester:
             await self.client.send_key(Keycode.Z, 0.1)
 
         if distance(target, XYZ(0, 0, 0)) < 1:
+            if await self._investigate(objective, zone or ""):
+                return
             if getattr(self, "_fallback_tried_for", None) != (objective, zone):
                 self._fallback_tried_for = (objective, zone)
                 if await self._no_marker_fallback(objective, zone):
