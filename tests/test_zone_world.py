@@ -25,3 +25,13 @@ def test_jotuns_brothers_come_first():
     assert [b for b, _z, _s in pending_pre_bosses("Jotun", {"Ullik"})] == ["Grettir"]
     assert pending_pre_bosses("Jotun", {"Ullik", "Grettir"}) == []
     assert pending_pre_bosses("Malistaire Drake", set()) == []
+
+
+def test_the_boss_deck_is_used_when_asked_and_present():
+    from wiz101_auto.deck_keeper import target_deck
+
+    general = {"deck": {"Orthrus": 3, "Pixie": 1}, "boss_deck": {"Orthrus": 3, "Pixie": 4, "Feint": 3}}
+    known = {"Orthrus", "Pixie", "Feint"}
+    assert target_deck(general, known) == {"Orthrus": 3, "Pixie": 1}
+    assert target_deck(general, known, boss=True) == {"Orthrus": 3, "Pixie": 4, "Feint": 3}
+    assert target_deck({"deck": {"Pixie": 1}}, known, boss=True) == {"Pixie": 1}

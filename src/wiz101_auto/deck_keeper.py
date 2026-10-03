@@ -28,10 +28,11 @@ TRIES_PER_TARGET = 2  # set_deck runs for one target before leaving it (a card s
 ALWAYS_KEPT = {"reshuffle"}  # the player's own cards, never taken out
 
 
-def target_deck(general: dict, known: set[str]) -> dict[str, int]:
-    """The deck to keep: the file's deck with its "when_learned" changes for
+def target_deck(general: dict, known: set[str], boss: bool = False) -> dict[str, int]:
+    """The deck to keep: the file's deck (its "boss_deck" in dungeons and
+    before boss fights, when it has one) with its "when_learned" changes for
     spells already known, limited to known spells."""
-    deck = dict(general.get("deck") or {})
+    deck = dict((general.get("boss_deck") if boss else None) or general.get("deck") or {})
     for key, change in (general.get("when_learned") or {}).items():
         learned = next((k for k in sorted(known) if key.lower() in k.lower()), None)
         if learned is None:
@@ -69,20 +70,22 @@ class DeckKeeper:
     def __init__(self):
         self._checked = 0.0
         self._tries: dict[str, int] = {}
+        self._boss = False  # the boss deck was the one asked for last
 
-    def due(self) -> tuple[dict[str, int], dict] | None:
+    def due(self, boss: bool = False) -> tuple[dict[str, int], dict] | None:
         """(target deck, its changes) when the game's deck differs from it."""
         from .deck import load_deck_counts
 
-        if time.monotonic() - self._checked < CHECK_SECONDS:
+        if time.monotonic() - self._checked < CHECK_SECONDS and boss == self._boss:
             return None
+        self._boss = boss
         self._checked = time.monotonic()
         general = _load(GENERAL_FILE)
         known = set(_load(PROGRESS_FILE).get("known_spells") or [])
         current = load_deck_counts()
         if not general.get("deck") or not known or not current:
             return None
-        target = target_deck(general, known)
+        target = target_deck(general, known, boss)
         changes = deck_changes(current, target)
         key = json.dumps(target, sort_keys=True)
         if not changes or self._tries.get(key, 0) >= TRIES_PER_TARGET:
@@ -124,11 +127,11 @@ class DeckKeeper:
         logger.info(f"deck: re-read the spellbook ({len(names)} cards, {len(known)} spells known)")
         return True
 
-    async def tick(self, client) -> bool:
+    async def tick(self, client, boss: bool = False) -> bool:
         """Between steps: put the deck back if it differs. True if it did."""
         if STALE_FILE.exists():
             return await self.refresh(client)
-        due = self.due()
+        due = self.due(boss)
         if due is None:
             return False
         target, changes = due
@@ -136,7 +139,7 @@ class DeckKeeper:
         from .upkeep import move_to_safety
 
         text = ", ".join(f"{n} {a}->{b}" for n, (a, b) in sorted(changes.items()))
-        logger.info(f"deck: back to the one deck ({text})")
+        logger.info(f"deck: to the {'boss' if boss else 'everyday'} deck ({text})")
         await move_to_safety(client, 1500.0, "before changing the deck")
         try:
             got = await set_deck(client, target)

@@ -1910,8 +1910,13 @@ class Quester:
         zone = await self.client.zone_name() or ""
         objective = await self.objective()
         target = objective_zone(objective)
+        brothers_due = pending_pre_bosses(defeat_target(objective or "") or "", load_pre_bosses_beaten())
         if is_team_up_zone(zone):
             leave = False  # never leave a team dungeon
+        elif brothers_due and zone in self.__dict__.get("_pre_boss_rooms", {}).values():
+            # In a brother's warren (Ullik's Helgrind Warren) before he's
+            # beaten: leaving reset it, and it was walked out of three times.
+            leave = False
         elif target is not None:
             leave = target != zone
         else:
@@ -5260,7 +5265,11 @@ class Quester:
             # In its warren (any of its rooms): the usual ways to a boss that
             # isn't in view (its duel circle, clearing the rooms) with it as
             # the target.
-            await self.pull_mob(f"Defeat {boss} in {zone}")
+            self._in_pre_boss_warren = True
+            try:
+                await self.pull_mob(f"Defeat {boss} in {zone}")
+            finally:
+                self._in_pre_boss_warren = False
             return True
         if zone != sigil_zone:
             logger.info(f"{target} fights alone once {boss} is beaten: to {boss}'s dungeon first")
@@ -5499,7 +5508,9 @@ class Quester:
                 # be a door or sigil into its room (Tomugawa the Evil: the hops
                 # toward it were refused and the main quest was set aside in a
                 # minute). Travel there first: it goes through doors.
-                if (not at_marker and _real_marker(marker)
+                # (Not in a brother's warren: the marker is Jotun's, and led to
+                # the warren's exit.)
+                if (not at_marker and _real_marker(marker) and not getattr(self, "_in_pre_boss_warren", False)
                         and self._may_try(objective, zone_now, "marker_travel")):
                     logger.info(f"no {target} in view: to the quest marker first (it may be a way in)")
                     await self.travel(marker)
@@ -6021,7 +6032,13 @@ class Quester:
         if keeper is not None and not team and await is_free(self.client):
             self.controller.allow_idle(120)  # deck clicks look like "nothing happening"
             try:
-                if await keeper.tick(self.client):
+                here = await self.client.zone_name() or ""
+                # The boss deck (deck_general.json 'boss_deck', the player's
+                # heavier deck) in a dungeon or room, or with a boss fight next.
+                bosses = DungeonMemory.load().bosses
+                boss = ("/interiors/" in here.lower() or await self._in_any_dungeon(here)
+                        or any(bosses.get(n) for n in defeat_names(await self.objective())))
+                if await keeper.tick(self.client, boss=boss):
                     return
             except Exception as exc:
                 logger.opt(exception=exc).warning("deck keeping failed")
