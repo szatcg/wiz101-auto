@@ -5264,6 +5264,11 @@ class Quester:
             return True
         if zone != sigil_zone:
             logger.info(f"{target} fights alone once {boss} is beaten: to {boss}'s dungeon first")
+            world = sigil_zone.split("/", 1)[0]
+            if zone.split("/", 1)[0] != world:
+                # (From Celestia: go_to_zone has no gates to another world.)
+                await self._to_world(world, f"to {boss}'s dungeon")
+                return True
             if not await self.go_to_zone(sigil_zone):
                 from .dungeon_heal import go_to_hub
 
