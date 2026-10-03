@@ -99,3 +99,18 @@ def test_a_one_pip_off_school_setup_waits_for_a_regular_pip_when_the_payoff_woul
     assert act is not None and act.card is not feint
     b.pips, b.power_pips = 1, 3  # a regular pip pays for it
     assert brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy()) is None
+
+
+def test_discards_make_room_to_draw_the_whole_deck_when_a_card_left_ends_it():
+    filler = [_myth(i, f"Hit{i}", 50, 2) for i in range(7)]
+    my = me(2000, 2221)
+    my.school = "myth"
+    b = battle(filler, [enemy("Last One", 900)], my=my)
+    b.pips, b.power_pips = 1, 3  # 7 next round
+    b.upcoming = [_myth(10, "Pixie-ish", 10, 2), _myth(11, "Orthrus", 1300, 7, aoe=True),
+                  _myth(12, "Junk", 10, 1)]
+    b.deck_known = True
+    a = brain.decide(b, discards_left=0)
+    assert a.kind is ActionKind.DISCARD and "draw the whole deck" in a.reason
+    b.cards = filler[:4]  # room for 3: every card left comes anyway
+    assert brain._dig_for_sure_kill(b) is None

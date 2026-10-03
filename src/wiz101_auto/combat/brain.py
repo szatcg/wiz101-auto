@@ -1807,11 +1807,55 @@ def is_reshuffle(card: Card) -> bool:
     return card.name.strip().lower() == "reshuffle"
 
 
+SURE_KILL_REASON = "making room to draw the whole deck"
+
+
+def _dig_for_sure_kill(battle: Battle) -> Action | None:
+    """The player's: a card still in the deck ends the fight next round (an
+    Orthrus killing every enemy left, affordable then), but the hand has room
+    for fewer draws than cards are left: discard until it can draw them all,
+    so the killer is sure to come instead of a 1-in-3 chance. Blades and
+    traps (they boost that hit) go last; Reshuffle, treasure and item cards
+    never."""
+    live = battle.live_enemies
+    if not live or not battle.deck_known or not battle.upcoming:
+        return None
+    me = battle.me
+    school = me.school.lower()
+    next_pips = battle.pips + 2 * battle.power_pips + 1
+
+    def ends_it(c: Card) -> bool:
+        cost = c.pip_cost if c.school.lower() == school else c.pip_cost + battle.power_pips
+        return c.is_damage and (c.is_aoe or len(live) == 1) and cost <= next_pips and all(
+            hit_damage(c, me, e) >= e.health for e in live)
+
+    if any(c.castable and ends_it(c) for c in battle.cards):
+        return None  # it ends now: cast it
+    killers = [c for c in battle.upcoming if ends_it(c)]
+    if not killers or len(killers) == len(battle.upcoming):
+        return None  # none to come, or every draw is one
+    room = HAND_SIZE - len(battle.cards)
+    if room >= len(battle.upcoming):
+        return None  # every card left will be drawn anyway
+    spare = [c for c in battle.cards
+             if not (c.treasure or c.item or is_reshuffle(c) or c.is_enchant or ends_it(c))]
+    if not spare:
+        return None
+    card = min(spare, key=lambda c: (bool({EffectKind.BLADE, EffectKind.TRAP} & set(c.kinds)),
+                                     c.is_heal, c.base_damage()))
+    return Action(ActionKind.DISCARD, card,
+                  reason=f"{SURE_KILL_REASON}: {killers[0].name} ends it next round "
+                         f"({len(battle.upcoming)} left, room for {room})")
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
            plan_discards: bool = False) -> Action:
     """The action for this step. Reshuffle (the player's: never discarded)
     is kept out of every other rule; it's cast instead of passing when the
     deck is all but drawn (the cards played come back to draw from)."""
+    sure = _dig_for_sure_kill(battle)
+    if sure is not None:
+        return sure
     if plan_discards and discards_left > 0:
         # The live fight only (the simulator's fights would be too slow): cards
         # the fastest plan won't play make room for the draws that shorten it.

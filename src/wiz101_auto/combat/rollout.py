@@ -134,6 +134,10 @@ class RolloutPlanner:
         kinds = (ActionKind.CAST, ActionKind.PASS, ActionKind.DISCARD)
         if brain.kind not in kinds or not worth_it(battle, brain):
             return brain
+        from .brain import SURE_KILL_REASON
+
+        if SURE_KILL_REASON in (brain.reason or ""):
+            return brain  # (a sure kill next round: the player's rule, not a gamble to weigh)
         from .brain import wasted_setup
 
         # (Never a copy of a blade/trap already up: a second Mythblade adds
