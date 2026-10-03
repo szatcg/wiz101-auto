@@ -26,3 +26,13 @@ def test_round_threat_is_the_worst_hitter_plus_the_others_typical_rounds():
     servant = [0, 40, 43, 50, 132]
     assert round_threat([[0, 534, 938], servant, servant, servant]) == 938 + 3 * 43
     assert round_threat([]) == 0.0
+
+
+def test_book_world_names_match_zone_prefixes():
+    from wiz101_auto.quest import zone_world
+
+    assert zone_world("Dragonspyre") == "DragonSpire"
+    assert zone_world("Wizard City") == "WizardCity"
+    assert zone_world("DragonSpire") == "DragonSpire"
+    assert zone_world("Grizzleheim") == "Grizzleheim"
+    assert zone_world(None) is None

@@ -361,12 +361,25 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
     return (q.activity, q.mainline, -area, easy, position, -hops, q.active, q.reward)
 
 
+def zone_world(name: str | None) -> str | None:
+    """A world as zone names spell it: the book's "Dragonspyre" is
+    "DragonSpire" (compared as-is, a wizard in Malistaire's Lair was 'out of
+    the main world' and went by the dorm, which resets a dungeon)."""
+    if not name:
+        return name
+    key = name.replace(" ", "").lower()
+    for prefix, label in SPIRAL_WORLD_NAMES.items():
+        if key in (prefix.lower(), label.replace(" ", "")):
+            return prefix
+    return name
+
+
 def quest_world(q: QuestEntry) -> str | None:
     """The world ("Krokotopia") a quest's area is in, from the book's area name."""
     zone = objective_zone(q.world) if q.world else None
     if zone:
         return zone.split("/", 1)[0]
-    return q.zone.replace(" ", "") or None
+    return zone_world(q.zone.replace(" ", "")) or None
 
 
 def in_side_world(q: QuestEntry) -> bool:
@@ -856,7 +869,7 @@ class Quester:
         # The world the main quest is in (side quests stay there); after a
         # restart, the last ranking's (a restart in Grizzleheim, where an
         # auto-tracked side quest led, mustn't make that the world).
-        self._main_world: str | None = _last_book_world()
+        self._main_world: str | None = zone_world(_last_book_world())
         self._fled: dict[tuple, int] = {}  # (objective, enemy names) -> times fled
         self._mainline: set[str] = set()  # main-story quests in the book (from the last ranking)
         self._wanted_items: dict[str, str] = {}  # item -> quest, from "Collect X" goals in the book
@@ -2866,7 +2879,7 @@ class Quester:
                 zones = [objective_zone(q.goal) for q in main_quests if q.goal]
                 main_world = next((z.split("/", 1)[0] for z in zones if z), None)
             world = main_world or self._main_world or (here.split("/", 1)[0] if here else None)
-            self._main_world = world
+            self._main_world = zone_world(world)
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world)
             grinding = chosen is None and bool(all_quests)
             if grinding and not self._grinding:
