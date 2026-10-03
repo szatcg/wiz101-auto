@@ -5252,6 +5252,8 @@ class Quester:
     async def _pre_bosses(self, objective: str, zone: str) -> bool:
         """'Defeat Jotun': his brothers first, each in its side dungeon (by
         its sigil), so he fights alone (PRE_BOSSES). True if it acted."""
+        if self._grinding:
+            return False  # (only for the quest being followed, not the game's tracked one while grinding)
         target = defeat_target(objective) or ""
         todo = pending_pre_bosses(target, load_pre_bosses_beaten())
         if not todo:
