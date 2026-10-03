@@ -2022,8 +2022,17 @@ def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) ->
     return None
 
 
+FULL_HEALTH = 0.9  # a heal is never cast at or above this much health
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     action = _decide_seen_raw(battle, strat, **kw)
+    card = action.card
+    if (action.kind is ActionKind.CAST and card is not None and card.is_heal and not card.is_damage
+            and battle.me.health_ratio >= FULL_HEALTH):
+        # (A Pixie at 2221/2221 health instead of the Mythblade before Orthrus.)
+        rest = replace(battle, cards=[c for c in battle.cards if not (c.is_heal and not c.is_damage)])
+        action = _decide_seen_raw(rest, strat, **kw)
     try:
         action = _boss_setup_first(battle, action, kw.get("discards_left", 0)) or action
     except Exception:

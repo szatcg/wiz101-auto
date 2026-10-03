@@ -139,3 +139,13 @@ def test_no_dig_or_reshuffle_with_the_killer_in_hand_a_pip_short():
     a = brain.decide(b, discards_left=2)
     assert a.kind is not ActionKind.DISCARD or not a.card.is_heal
     assert not (a.card is not None and a.card.name == "Reshuffle")
+
+
+def test_never_heals_at_full_health():
+    pixie = heal_card(0, "Pixie", 400)
+    my = me(2221, 2221)
+    my.school = "myth"
+    foes = [enemy("Woodland Watcher", 660), enemy("Brownwood Tormentor", 3320, boss=True)]
+    b = battle([pixie, blade_card(1)], foes, my=my)
+    a = brain.decide(b)
+    assert a.card is not pixie
