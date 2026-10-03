@@ -5774,6 +5774,12 @@ class Quester:
         if not team and self._grinding and await self._grind():
             self._ground_at = time.monotonic()  # (the status says grinding only while it really is)
             return
+        if self._grinding and (await self.objective()) in {
+                d.get("objective") for d in self.setbacks.deferred.values()}:
+            # Grinding while the game still tracks a set-aside fight: not walked
+            # into (Jotun's trio again, ten minutes into its 3-hour wait).
+            await asyncio.sleep(2.0)
+            return
         if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
             try:
