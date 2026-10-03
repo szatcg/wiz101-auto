@@ -5187,6 +5187,32 @@ class Quester:
             logger.info(f"no prompt at {obj}")
         return True
 
+    async def _grind_beside_set_aside(self, objective: str | None) -> bool:
+        """Grinding while the game still tracks a set-aside quest's objective:
+        not walked into (Jotun's trio); fight outdoors here, else where a
+        fight was last won outdoors in the main world. True if it acted."""
+        waiting = {d.get("objective") for d in self.setbacks.deferred.values()}
+        if not self._grinding or objective not in waiting:
+            return False
+        here = await self.client.zone_name() or ""
+        indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
+        if not indoors and await self.sprinter.get_mobs():
+            await self.pull_mob("")
+        elif not indoors and await self._to_enemy_spot(here):
+            pass  # (enemies load only nearby: went where some were seen)
+        elif self._main_world and here.split("/", 1)[0] != self._main_world:
+            await self._to_world(self._main_world, f"grinding in {self._main_world}")
+        elif (spot := self.__dict__.get("_win_zones", {}).get(self._main_world or "",
+                                                               GRIND_FALLBACK.get(self._main_world or ""))
+              ) and spot != here:
+            logger.info(f"grinding: to {spot.split('/')[-1]} for its enemies")
+            if not await self.go_to_zone(spot):
+                await asyncio.sleep(5.0)
+        else:
+            await asyncio.sleep(2.0)
+        self._ground_at = time.monotonic()
+        return True
+
     async def _to_enemy_spot(self, zone: str) -> bool:
         """Grinding with no enemy in view (they load only nearby): teleport to
         the next spot here where an enemy we've fought was seen. True if it
@@ -5804,34 +5830,7 @@ class Quester:
         if not team and self._grinding and await self._grind():
             self._ground_at = time.monotonic()  # (the status says grinding only while it really is)
             return
-        if self._grinding and self._ranked_for is not None and (await self.objective()) in {
-                d.get("objective") for d in self.setbacks.deferred.values()}:
-            # (Not when _grind asked for the book to be read again: this guard
-            # came first every step and no ranking happened for two hours, so
-            # Jotun's release went unnoticed.)
-            # Grinding while the game still tracks a set-aside fight: not walked
-            # into (Jotun's trio again, ten minutes into its 3-hour wait); fight
-            # outdoors here, else where a fight was last won outdoors.
-            here = await self.client.zone_name() or ""
-            indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
-            if not indoors and await self.sprinter.get_mobs():
-                await self.pull_mob("")
-            elif not indoors and await self._to_enemy_spot(here):
-                pass  # (enemies load only nearby: went where some were seen)
-            elif self._main_world and here.split("/", 1)[0] != self._main_world:
-                # (The main world's, as _grind does: going to the last win in
-                # Celestia while _grind went back to Grizzleheim bounced
-                # between the two by the Spiral Map.)
-                await self._to_world(self._main_world, f"grinding in {self._main_world}")
-            elif (spot := self.__dict__.get("_win_zones", {}).get(self._main_world or "",
-                                                                   GRIND_FALLBACK.get(self._main_world or ""))
-                  ) and spot != here:
-                logger.info(f"grinding: to {spot.split('/')[-1]} for its enemies")
-                if not await self.go_to_zone(spot):
-                    await asyncio.sleep(5.0)
-            else:
-                await asyncio.sleep(2.0)
-            self._ground_at = time.monotonic()
+        if self._ranked_for is not None and await self._grind_beside_set_aside(await self.objective()):
             return
         if self.gear and not team:
             self.controller.allow_idle(600)  # a full check tries ~40 items (~5 min): not a stall
@@ -5950,6 +5949,10 @@ class Quester:
                 self._ranked_quest = await self.client.quest_id()
             except Exception:
                 pass
+            # (After the ranking too: Jotun's quest set aside after two losses,
+            # the same step walked into his fight a third time.)
+            if await self._grind_beside_set_aside(objective):
+                return
         zone = await self.client.zone_name()
         # A new objective: Recall first if the mark gets us there sooner (the
         # game keeps one mark: marking here first would lose it); else mark
