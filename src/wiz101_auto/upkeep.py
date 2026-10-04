@@ -91,8 +91,11 @@ async def health_mana(client) -> tuple[float, float]:
     while True:
         hp, max_hp = await client.stats.current_hitpoints(), await max_health(client)
         mana, max_mana = await client.stats.current_mana(), await client.stats.max_mana()
-        if max_hp > 0 and max_mana > 0 and 0 < hp <= max_hp and 0 <= mana <= max_mana:
-            return hp / max_hp, mana / max_mana
+        # (Health over its max is real: 2545/2523 with a buff. Requiring
+        # hp <= max waited out the whole read every time, and at 0% mana the
+        # heal never got going before the watchdog restarted the step.)
+        if max_hp > 0 and max_mana > 0 and 0 < hp and 0 <= mana:
+            return min(hp / max_hp, 1.0), min(mana / max_mana, 1.0)
         if loop.time() >= end:
             return (hp / max_hp if max_hp > 0 else 0.0), (mana / max_mana if max_mana > 0 else 0.0)
         await asyncio.sleep(0.5)

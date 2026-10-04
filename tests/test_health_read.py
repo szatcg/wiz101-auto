@@ -43,3 +43,10 @@ def test_no_real_read_counts_as_hurt(monkeypatch):
     monkeypatch.setattr(upkeep, "HEALTH_READ_SECONDS", 0.0)
     hp, _ = asyncio.run(upkeep.health_mana(_Client([(0, 0, 0, 0)])))
     assert hp == 0.0
+
+
+def test_health_over_max_reads_at_once(monkeypatch):
+    # (2545/2523 with a buff: it waited out the whole 20 s read every time.)
+    monkeypatch.setattr(upkeep, "HEALTH_READ_SECONDS", 60.0)
+    hp, mana = asyncio.run(upkeep.health_mana(_Client([(2545, 2523, 0, 407)])))
+    assert hp == 1.0 and mana == 0.0
