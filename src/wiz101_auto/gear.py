@@ -256,6 +256,7 @@ class GearManager:
         self._last_backpack_check = 0.0
         self.level_up_only = False  # (gear_checks_new_items: false) no checks for new loot
         self.restore_only = False  # (gear_checks: false) only put on the items in memory.restore
+        self.loot_only = False  # (gear_checks: false) only note new loot (looted_gear.json), never swap
 
     async def _score(self) -> float:
         await asyncio.sleep(0.8)  # let the stats update after equipping
@@ -531,7 +532,18 @@ class GearManager:
         in its slot only. After a level-up, items that couldn't be worn before
         (and any never tried) are tried; ones already beaten are not. Startups
         don't check."""
-        if await self.restore_pending() or self.restore_only:
+        if await self.restore_pending():
+            return
+        if self.restore_only or self.loot_only:
+            # (gear_checks: false) Loot is still noted: the farm's targets are
+            # found by name in looted_gear.json (the Tricksy Hood dropped and
+            # nothing recorded it).
+            if time.monotonic() - self._last_backpack_check >= BACKPACK_CHECK_SECONDS:
+                self._last_backpack_check = time.monotonic()
+                try:
+                    await self._new_items_tabs()
+                except Exception as exc:
+                    logger.debug(f"backpack read failed: {exc!r}")
             return
         level = await self.client.stats.reference_level()
         if self._level is not None and level > self._level:
