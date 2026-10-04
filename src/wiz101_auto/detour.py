@@ -39,9 +39,16 @@ def _norm(name: str) -> str:
 def active(worlds: list[dict], completed: set[str]) -> dict | None:
     """The detour world now: the first whose finish quest isn't done."""
     done = {_norm(n) for n in completed}
-    for w in worlds:
-        if w.get("world") and _norm(w.get("finish", "")) not in done:
-            return w
+    for i, w in enumerate(worlds):
+        if not w.get("world") or _norm(w.get("finish", "")) in done:
+            continue
+        # A later world already started (its start quest done): this one is
+        # over even if its finish quest was never logged ('Blood Brother'
+        # wasn't, and Wintertusk's quests were set aside as side quests).
+        later = worlds[i + 1:]
+        if any(_norm((x.get("start") or {}).get("quest", "")) in done for x in later):
+            continue
+        return w
     return None
 
 

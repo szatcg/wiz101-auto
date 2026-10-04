@@ -16,3 +16,13 @@ def test_each_deck_has_its_own_deck_item():
     from wiz101_auto.deck_keeper import item_role
 
     assert item_role(boss=True) == "single" and item_role(boss=False) == "aoe"
+
+
+def test_a_detour_world_is_over_once_the_next_one_started():
+    from wiz101_auto import detour
+
+    worlds = [{"world": "Grizzleheim", "finish": "Blood Brother"},
+              {"world": "Wintertusk", "finish": "Winter News", "start": {"quest": "Cold News"}}]
+    assert detour.active(worlds, set())["world"] == "Grizzleheim"
+    assert detour.active(worlds, {"Cold News"})["world"] == "Wintertusk"
+    assert detour.active(worlds, {"Cold News", "Winter News"}) is None
