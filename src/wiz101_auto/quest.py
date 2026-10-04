@@ -1604,6 +1604,10 @@ class Quester:
         hub = world_hub(zone)
         if not zone or not hub or zone == hub or dest.split("/")[0] != zone.split("/")[0]:
             return False
+        if zone.startswith("WizardCity/"):
+            # (No working hub button in Wizard City: from Ravenwood toward
+            # Triton Avenue it fell back to the dorm, and the trip ended there.)
+            return False
         walk, via = zone_hops(zone, dest), zone_hops(hub, dest)
         if walk is None or not hub_is_closer(walk, via):
             return False
