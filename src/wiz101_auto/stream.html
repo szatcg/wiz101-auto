@@ -691,7 +691,7 @@ function renderSide() {
   $("state").textContent = fight ? "IN BATTLE" : live ? (farming ? "FARMING" : "QUESTING") : "PAUSED";
   $("farm").style.display = farming ? "" : "none";
   if (farming) {
-    $("farmName").textContent = `Farming ${farm.dungeon} · runs`;
+    $("farmName").textContent = `Farming ${farm.dungeon}`;  // (the player: "· runs" ran off the scroll)
     $("farmRuns").textContent = farm.runs;
     const targets = farm.targets || [];
     const groups = [...new Set(targets.map((t) => t.group))];
