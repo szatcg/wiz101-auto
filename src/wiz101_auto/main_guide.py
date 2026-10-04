@@ -80,9 +80,29 @@ def giver(guide: list[GuideQuest], quest: GuideQuest) -> str:
     return quest.talks()[0] if quest.talks() else ""
 
 
+def _key(name: str) -> str:
+    """A quest name compared loosely: no articles ("A Old Sea Chantry" in the
+    guide is the game's "An Old Sea Chantry"), no punctuation."""
+    words = re.findall(r"[a-z0-9]+", name.lower().replace("’", "'").replace("'", ""))
+    return "".join(w for w in words if w not in ("a", "an", "the"))
+
+
+def same_name(a: str, b: str) -> bool:
+    """The same quest, allowing the guide's small typos."""
+    from difflib import SequenceMatcher
+
+    ka, kb = _key(a), _key(b)
+    if not ka or not kb:
+        return False
+    return ka == kb or (min(len(ka), len(kb)) >= 8 and SequenceMatcher(None, ka, kb).ratio() >= 0.9)
+
+
+def _among(name: str, names) -> bool:
+    return any(same_name(name, n) for n in names)
+
+
 def _find(guide: list[GuideQuest], name: str) -> GuideQuest | None:
-    n = _norm(name)
-    return next((q for q in guide if _norm(q.name) == n), None)
+    return next((q for q in guide if same_name(q.name, name)), None)
 
 
 def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
@@ -91,21 +111,19 @@ def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
     isn't in the book yet and an earlier story quest is (that one waits on
     it), or (`alone`: the main story's world) when no quest of the guide is
     in the book at all. None otherwise."""
-    done_n = {_norm(n) for n in done}
-    book_n = {_norm(n) for n in book}
-    finished = [q.index for q in guide if _norm(q.name) in done_n]
+    finished = [q.index for q in guide if _among(q.name, done)]
     if not finished:
         return None
     after = [q for q in guide if q.index > max(finished)]
     if not after:
         return None
     nxt = after[0]
-    if _norm(nxt.name) in book_n or _norm(nxt.name) in done_n:
+    if _among(nxt.name, book) or _among(nxt.name, done):
         return None
-    waiting = [q for q in guide
-               if q.index < nxt.index and _norm(q.name) in book_n and _norm(q.name) not in done_n]
-    if alone and not any(_norm(q.name) in book_n for q in guide):
+    in_book = [q for q in guide if _among(q.name, book)]
+    if alone and not in_book:
         return nxt
+    waiting = [q for q in in_book if q.index < nxt.index and not _among(q.name, done)]
     return nxt if waiting else None
 
 

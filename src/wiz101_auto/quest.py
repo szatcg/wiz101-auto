@@ -3488,7 +3488,10 @@ class Quester:
             return
         done = set(load_completed())
         for world, guide in all_guides():
-            alone = world not in SIDE_WORLDS and self._detour_names() is None
+            # (Alone only with no story quest in the book at all: 'An Old Sea
+            # Chantry' was in it, spelled 'A Old...' in the guide, and the bot
+            # set off to fetch the quest it had just handed in.)
+            alone = world not in SIDE_WORLDS and self._detour_names() is None and not self._mainline
             nxt = next_to_pick_up(guide, done, self._book_names, alone=alone)
             if nxt is None:
                 continue

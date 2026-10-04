@@ -64,3 +64,17 @@ def test_story_world_after_a_detour():
              "Wintertusk": parse_quest_list("Northguard (1 quests)\n1.\nCold News\nTALK\n")}
     assert story_world(["Door to the Stars", "Cold News"], lists) == "Celestia"
     assert story_world([], lists) == ""
+
+
+def test_guide_names_match_despite_articles_and_typos():
+    from wiz101_auto.main_guide import same_name
+
+    assert same_name("A Old Sea Chantry", "An Old Sea Chantry")
+    assert same_name("King's Fourth", "Kings Forth")
+    assert not same_name("Storm Shards", "Kraken Up")
+    g = parse("""51. Storm Shards - Collect Artifacts
+52. Kraken Up - Defeat Tempus Stormfist + Talk to Leland Hawkins
+53. A Old Sea Chantry - Talk to The Archivist
+""")
+    # Kraken Up handed in, not logged yet; the next one is in the book already.
+    assert next_to_pick_up(g, {"Storm Shards"}, {"An Old Sea Chantry"}, alone=True) is None
