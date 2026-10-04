@@ -1534,8 +1534,9 @@ class Quester:
                 continue  # this spot was rejected too; try further back
             if await self.walk_through(target, zone):
                 return True
-        # The teleports didn't get there: walk it (when not walked first).
-        return not walking and await walk_there()
+        # (No walked route outside walking zones: the player wants walking
+        # only in the Waterworks; it walked Olde Town into stuck spots.)
+        return False
 
     async def _ground_for_teleport(self, near: XYZ) -> list[tuple[float, float, float]]:
         from .tpspots import spots
