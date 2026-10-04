@@ -5692,6 +5692,8 @@ class Quester:
         """Grinding while the game still tracks a set-aside quest's objective:
         not walked into (Jotun's trio); fight outdoors here, else where a
         fight was last won outdoors in the main world. True if it acted."""
+        if self._grinding and await self._detour_ask():
+            return True  # (the detour's or the main story's next quest first: never grinding for it)
         waiting = {d.get("objective") for d in self.setbacks.deferred.values()}
         place = objective_zone(objective or "")
         world = self._grind_world()
