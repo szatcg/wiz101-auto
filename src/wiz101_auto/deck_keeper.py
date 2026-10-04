@@ -33,7 +33,7 @@ STALE_FILE = Path("state") / "deck_stale.flag"  # a fight drew a card the stored
 TRIES_PER_TARGET = 2  # set_deck runs for one target before leaving it (a card short of max copies)
 WEAR_RETRY_SECONDS = 600.0  # a deck item that wouldn't go on: tried again after this
 ALWAYS_KEPT = {"reshuffle"}  # the player's own cards, never taken out
-PRISM_COPIES = 2  # our school's prism in the deck for a boss of our school
+PRISM_COPIES = 3  # our school's prism for a boss of our school (the player: 3, so one comes in time)
 STATS_FILE = Path("state") / "enemy_stats.json"
 
 

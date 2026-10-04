@@ -1658,6 +1658,66 @@ def _plan_discard(battle: Battle) -> Action | None:
 FREE_TRAP_LIMIT = 4  # traps worth stacking for free while waiting (one is used per hit)
 
 
+SETUP_ENOUGH = 2  # blades on us and traps on the target: past this, a castable hit goes
+
+
+def _dig_for_a_hit(battle: Battle) -> Action | None:
+    """No hit in hand and hits still in the deck: a spare blade or trap (one
+    stacked SETUP_ENOUGH deep already, or a second copy in hand) goes, to draw
+    toward a hit (the player: against Ildrede the bot stacked blades and traps
+    for seven rounds with nothing to hit with, then passed on 12 pips)."""
+    if any(c.is_damage for c in battle.cards) or not any(c.is_damage for c in battle.upcoming):
+        return None
+    if not battle.live_enemies:
+        return None
+    me = battle.me
+    focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
+    spare: list[tuple[int, Card]] = []
+    for c in battle.cards:
+        if c.is_damage or c.is_heal or c.is_enchant or _is_prism(c) or c.treasure or c.item:
+            continue
+        kinds = c.kinds
+        if EffectKind.BLADE in kinds and me.blade_count >= SETUP_ENOUGH:
+            spare.append((0, c))
+        elif EffectKind.TRAP in kinds and focus.trap_count >= SETUP_ENOUGH:
+            spare.append((0, c))
+        elif (EffectKind.BLADE in kinds or EffectKind.TRAP in kinds) and sum(
+                1 for x in battle.cards if x.name == c.name) > 1:
+            spare.append((1, c))
+    if not spare:
+        return None
+    card = min(spare, key=lambda t: t[0])[1]
+    return Action(ActionKind.DISCARD, card, reason=f"no hit in hand: {card.name} out, drawing for a hit")
+
+
+def _hit_when_set_up(battle: Battle, action: Action) -> Action | None:
+    """Set up enough (SETUP_ENOUGH blades on us and traps on the boss/target)
+    and a hit castable now: hit instead of another blade, trap or pass (the
+    player: it kept saving pips with enough for its biggest spell)."""
+    if not battle.live_enemies:
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and (
+            action.card.is_damage or action.card.is_heal or _is_prism(action.card)):
+        return None
+    if action.kind not in (ActionKind.CAST, ActionKind.PASS):
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and not (
+            {EffectKind.BLADE, EffectKind.TRAP} & set(action.card.kinds)):
+        return None  # a shield, a heal-over-time...: as chosen
+    focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
+    if battle.me.blade_count < SETUP_ENOUGH or focus.trap_count < SETUP_ENOUGH:
+        return None
+    hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
+    if not hits:
+        return None
+    def worth(c: Card) -> float:
+        return hit_damage(c, battle.me, focus) * (len(battle.live_enemies) if c.is_aoe else 1)
+
+    best = max(hits, key=worth)
+    return Action(ActionKind.CAST, best, None if best.is_aoe else focus,
+                  reason=f"set up ({battle.me.blade_count} blades, {focus.trap_count} traps): hitting now")
+
+
 def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
     """A 0-pip blade or trap: casting it spends no pips, so it never gets in the
     way of what we're saving for, and the next hits land harder. A new effect
@@ -2310,6 +2370,10 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     if early is not None:
         return early
     action = _decide_seen_raw(battle, strat, **kw)
+    try:
+        action = _hit_when_set_up(battle, action) or action
+    except Exception:
+        pass
     card = action.card
     if (action.kind is ActionKind.CAST and card is not None and card.is_heal and not card.is_damage
             and battle.me.health_ratio >= FULL_HEALTH):
@@ -2441,6 +2505,7 @@ def _decide_step(battle: Battle, strat: Strategy | None = None, *, discards_left
             _free_hit(battle, shields_only=True)
             or _relevant_shield(battle)
             or _prism_action(battle)
+            or (_dig_for_a_hit(battle) if discards_left > 0 else None)
             or _free_setup(battle, strat)
             or _free_hit(battle)
         )

@@ -320,3 +320,44 @@ def test_sylster_cycles_and_what_each_allows():
 
     assert ok(2) == {"Myth Trap", "Orthrus"}   # light: traps, hit-alls; no blade, no bare single hit
     assert ok(5) == {"Mythblade", "Orthrus"}   # dark: blades, hit-alls; no trap, no unbladed single hit
+
+
+def _setup(i, name, kind, n=1):
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    k = EffectKind.BLADE if kind == "blade" else EffectKind.TRAP
+    t = Target.ALLY_SINGLE if kind == "blade" else Target.ENEMY_SINGLE
+    return Card(i, name, pip_cost=0, school="myth", effects=[Effect(k, t, 35, school="myth")])
+
+
+def test_no_hit_in_hand_digs_with_a_spare_blade():
+    from wiz101_auto.combat.model import EffectKind
+
+    blades = [_setup(0, "Mythblade", "blade"), _setup(1, "Mythblade", "blade")]
+    my = me(600, 2600)
+    my.school = "myth"
+    my.outgoing_effects = []
+    boss = enemy("Ildrede", 2300, boss=True)
+    b = battle(blades, [boss], my=my)
+    b.pips, b.power_pips = 2, 5
+    b.upcoming = [_myth(5, "Orthrus", 1300, 7, aoe=True)]
+    a = brain._dig_for_a_hit(b)
+    assert a is not None and a.kind is ActionKind.DISCARD and EffectKind.BLADE in a.card.kinds
+
+
+def test_set_up_enough_hits_instead_of_another_blade():
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Mythblade", "blade")
+    my = me(2000, 2600)
+    my.school = "myth"
+    my.blade_count = 2
+    boss = enemy("Ildrede", 4000, boss=True)
+    boss.trap_count = 2
+    b = battle([orthrus, blade], [boss], my=my)
+    b.pips, b.power_pips = 0, 4
+    got = brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is orthrus
+    my.blade_count = 1  # not set up yet: the blade as chosen
+    assert brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my)) is None
