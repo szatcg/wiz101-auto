@@ -322,3 +322,14 @@ def test_no_alias_when_the_target_itself_was_in_the_fight(tmp_path):
 
     f = tmp_path / "aliases.json"
     assert note_defeat_alias("Fangtooth Lavaspinner", ["Fangtooth Lavaspinner", "Burning Flamewing"], f) == []
+
+
+def test_the_dungeon_quest_before_a_late_boss():
+    from wiz101_auto.quest import QuestEntry, dungeon_quest
+
+    zone = "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01"
+    go = QuestEntry(0, "You Go First...", world="Waterworks", active=True,
+                    goal="Defeat Sylster Glowstorm in Waterworks", target="Sylster Glowstorm")
+    wheel = QuestEntry(1, "Turn of the Wheel", world="Waterworks", goal="Use Control Panel in Waterworks")
+    got = dungeon_quest([go, wheel], zone, lambda a: zone if a == "Waterworks" else None)
+    assert got is wheel

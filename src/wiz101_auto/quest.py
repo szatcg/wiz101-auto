@@ -666,6 +666,14 @@ def dungeon_quest(
     local.sort(key=lambda q: q.name in set_aside)  # ones not set aside first
     if not local:
         return None
+
+    def late(q: QuestEntry) -> bool:
+        # Waiting on a boss who comes only after the dungeon's own quest
+        # (You Go First's Sylster Glowstorm: after Turn of the Wheel's levers).
+        return norm(defeat_target(q.goal or "") or q.target or "") in LATE_BOSSES
+
+    if len(local) > 1 and any(not late(q) for q in local):
+        local = [q for q in local if not late(q)]
     return next((q for q in local if q.active), local[0])
 
 
