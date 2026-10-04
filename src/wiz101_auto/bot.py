@@ -244,6 +244,27 @@ def dpi_click_offset(hwnd: int) -> tuple[int, int]:
     return sx - rx, sy - ry
 
 
+SHUTDOWN_WAIT = 10.0  # seconds the tasks get to end before the game is unhooked anyway
+
+
+def obey_controller(client, controller):
+    """Every teleport, key press and click waits while paused and stops the
+    step once stopped (Controller.checkpoint). The player paused the bot and
+    it kept walking a door; then stopped it and it still went on: long loops
+    inside a step never reached a checkpoint."""
+    def gate(fn):
+        async def wrapped(*args, **kwargs):
+            await controller.checkpoint()
+            return await fn(*args, **kwargs)
+        wrapped.__wrapped__ = fn
+        return wrapped
+
+    client.teleport = gate(client.teleport)
+    client.send_key = gate(client.send_key)
+    mouse = client.mouse_handler
+    mouse.click = gate(mouse.click)
+
+
 def _click_left_of_center(client):
     """Aim clicks where the game will see them: shift every cursor position by
     the DPI offset (see dpi_click_offset), and click windows at their center."""
@@ -455,6 +476,7 @@ async def run(cfg: Config):
             gamerestart.request(f"could not get into the world within {CONNECT_TIMEOUT / 60:.0f} min")
             raise SystemExit(f"could not get into the world within {CONNECT_TIMEOUT / 60:.0f} min; "
                              "asked for a game restart") from None
+        obey_controller(client, controller)
         if s.mouseless:
             # Managed mode: helpers like DeckBuilder nest `async with mouse_handler`
             # and must not switch mouseless off underneath us.
@@ -561,7 +583,13 @@ async def run(cfg: Config):
     finally:
         for t in tasks:
             t.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # (Bounded: a step that swallowed its cancel kept playing after "session
+        # over" at 13:39, so the hooks never came out and stop had to kill the
+        # process. Whatever is still running after this, we unhook anyway.)
+        _, pending = await asyncio.wait(tasks, timeout=SHUTDOWN_WAIT) if tasks else (set(), set())
+        if pending:
+            logger.warning(f"{len(pending)} task(s) still running at shutdown "
+                           f"({', '.join(t.get_name() for t in pending)}); unhooking anyway")
         try:
             await stack.aclose()
         except Exception:
