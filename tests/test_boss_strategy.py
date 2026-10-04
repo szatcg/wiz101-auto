@@ -215,3 +215,35 @@ def test_medusa_stuns_the_last_enemy():
     stunned = Combatant("Boss", 6000, 6000, is_enemy=True, is_boss=True, resist={}, is_stunned=True)
     assert _stun_the_last_one(Battle(me=me, allies=[], enemies=[stunned], cards=[medusa, blade],
                                      pips=1, power_pips=3), Action(ActionKind.CAST, blade, me)) is None
+
+
+def test_a_sun_enchant_goes_on_the_chosen_hit_first():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import (
+        ActionKind,
+        Battle,
+        Card,
+        Combatant,
+        Effect,
+        EffectKind,
+        Target,
+    )
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    giant = Card(1, "Giant", school="sun", pip_cost=0, treasure=True,
+                 effects=[Effect(EffectKind.ENCHANT_DAMAGE, Target.SPELL, 125)])
+    me = Combatant("me", 2600, 2600, is_client=True, school="myth")
+    foes = [Combatant(f"Add{i}", 600, 600, is_enemy=True, resist={}) for i in range(2)]
+    a = decide(Battle(me=me, allies=[], enemies=foes, cards=[orthrus, giant], pips=3, power_pips=2))
+    assert a.kind is ActionKind.ENCHANT and a.card is giant and a.target_card is orthrus
+
+
+def test_the_keeper_never_touches_treasure_cards():
+    from wiz101_auto.deck_keeper import deck_changes
+
+    current = {"Orthrus": 3, "Giant": 4}
+    known = {"Orthrus"}
+    target = {"Orthrus": 3}
+    changes = {n: c for n, c in deck_changes(current, target).items() if n in known}
+    assert changes == {}

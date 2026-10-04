@@ -2104,6 +2104,15 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
         action = _stun_the_last_one(battle, action) or action
     except Exception:
         pass
+    if (action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
+            and not action.card.enchanted):
+        # The player's: a sun enchant (Giant: +125 base damage) goes on the
+        # hit before it's cast, whichever rule chose the hit (blades and traps
+        # then multiply the bigger base).
+        enchant = _pick_enchant(battle, action.card)
+        if enchant:
+            return Action(ActionKind.ENCHANT, enchant, target_card=action.card,
+                          reason=f"{enchant.name} on {action.card.name} first")
     try:
         return _pip_wise_setup(battle, action, strat or Strategy()) or action
     except Exception:

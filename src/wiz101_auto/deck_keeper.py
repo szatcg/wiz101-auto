@@ -133,7 +133,9 @@ class DeckKeeper:
         if not general.get("deck") or not known or not current:
             return None
         target = target_deck(general, known, boss, extra)
-        changes = deck_changes(current, target)
+        # Cards that aren't learned spells (treasure cards: the player's Giant
+        # sun enchants) are the player's own: never taken out or counted.
+        changes = {n: c for n, c in deck_changes(current, target).items() if n in known}
         key = json.dumps(target, sort_keys=True)
         if not changes or self._tries.get(key, 0) >= TRIES_PER_TARGET:
             return None
