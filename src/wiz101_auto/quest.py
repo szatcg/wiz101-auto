@@ -164,6 +164,8 @@ ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far,
 ENGAGE_BACKOFF_MAX = 2400.0
 WALKED_CLOSE = 250.0  # a walked path ended this near its target: arrived
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
+MAIN_LOSSES_NO_LADDER = 5  # a story fight lost this often with one fixed deck: side quests, then again
+MAIN_LOSSES_RETRY_SECONDS = 3600.0  # (or at the next level-up)
 DETOUR_DEFEATS = 15  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
 # Bosses whose fight is much easier with others beaten first in side dungeons
@@ -2454,9 +2456,29 @@ class Quester:
             # takes over, and a lost fight isn't a stall either.
             n = self.setbacks.defeats.get(objective, 0) + 1
             self.setbacks.defeats[objective] = n
-            self.setbacks.save()
             self._last_progress_time = time.monotonic()
-            logger.info(f"defeat {n} on {objective!r}; trying again (the deck ladder decides the deck)")
+            ladder = getattr(self, "deck_adapter", None) is not None
+            if not ladder and n >= MAIN_LOSSES_NO_LADDER and quest:
+                # One deck for every fight (combat.adapt_deck: false): nothing
+                # changes between tries, so trying again only loses again
+                # (Glauco and the Angler Warlord, 5 in a row). The player: really
+                # stuck, side quests meanwhile; back at a level-up or in an hour.
+                self.setbacks.defeats.pop(objective, None)
+                self.setbacks.set_quest_aside(quest, objective, level, main=True,
+                                              retry_after=MAIN_LOSSES_RETRY_SECONDS)
+                self.setbacks.save()
+                logger.warning(f"lost {objective!r} {n} times with the one deck: {quest!r} waits for a "
+                               "level-up (or an hour); side quests meanwhile")
+                self._alert_main_stuck(quest, f"lost {objective!r} {n} times", hard=True)
+                self._recall_pending = False
+                self._retire_dungeon_mark()
+                self._ranked_for = None
+                self._last_rank = -1e9
+                return
+            self.setbacks.save()
+            why = ("the deck ladder decides the deck" if ladder
+                   else f"{MAIN_LOSSES_NO_LADDER - n} more before it waits")
+            logger.info(f"defeat {n} on {objective!r}; trying again ({why})")
             return
         if self.setbacks.record_defeat(objective, quest, level, main=main):
             tries = MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER
