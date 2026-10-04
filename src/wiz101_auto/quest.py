@@ -3640,6 +3640,16 @@ class Quester:
         pinned = next((q for q in quests if q.name == self._pin), None)
         if pinned is None and not complete:
             return chosen  # a read cut short: it may just be further in the book
+        if pinned is None:
+            # Missing from one "complete" reading isn't enough ('Through This
+            # Door...' was dropped by a read that also lost two other quests):
+            # done only when the next reading misses it too.
+            self._pin_missing = getattr(self, "_pin_missing", 0) + 1
+            if self._pin_missing < 2:
+                logger.info(f"your pick {self._pin!r} isn't in this reading of the book; checking again")
+                return chosen
+        else:
+            self._pin_missing = 0
         if pinned is None and before:
             # Done: follow the quest line to the quest it handed us ('Quest For
             # Glory' finished at Romulus and the next one began).
