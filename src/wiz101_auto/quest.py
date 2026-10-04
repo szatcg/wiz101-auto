@@ -134,6 +134,7 @@ CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the circle, walk in
 TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the lead teammate
+TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
@@ -5314,6 +5315,24 @@ class Quester:
             length = math.hypot(dx, dy) or 1.0
             step = TEAM_TRACK_AHEAD / length
             ahead = XYZ(last.x + dx * step, last.y + dy * step, last.z)
+            if walking:
+                # On foot: a straight walk on from where they vanished missed
+                # room 01's gate to 08 (it's off that line). A known gate of
+                # this room near their tracks is where they went: walk to it.
+                gates = await self._doors_here(zone)
+                gates += [XYZ(e[0][0], e[0][1], last.z) for e in self.doors.doors.get(zone, [])
+                          if len(e) <= 2 or not e[2] or is_team_up_zone(e[2])]
+                near = [g for g in gates if distance(g, last) < TEAM_GATE_NEAR]
+                if near:
+                    gate = min(near, key=lambda g: distance(g, ahead))
+                    logger.info(f"the team went on; to the gate by their tracks at "
+                                f"({gate.x:.0f}, {gate.y:.0f})")
+                    await self.approach_and_walk(gate, zone)
+                    await wait_for_loading(self.client)
+                    now = await self.client.zone_name() or ""
+                    if now != zone:
+                        logger.success(f"followed the team into {now}")
+                    return True
             logger.info(f"the team went on; following their tracks from ({last.x:.0f}, {last.y:.0f}) "
                         f"toward ({ahead.x:.0f}, {ahead.y:.0f})")
             await self.client.teleport(last)
