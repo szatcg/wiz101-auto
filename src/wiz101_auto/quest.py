@@ -133,6 +133,8 @@ CIRCLE_KEEP_AWAY = 1200.0  # searches and hops never land this close to a duel c
 CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the circle, walk in
 TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
+TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the lead teammate
+TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
@@ -5177,11 +5179,23 @@ class Quester:
                 return await self._team_travel(marker)  # a door or passage on the way
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
         elif mates:
-            mate = min(mates, key=lambda m: distance(m, me))
             here_zone = await self.client.zone_name() or ""
+            walking = any(here_zone.startswith(p) for p in getattr(self.client, "_walk_only", ()))
+            # The teammate furthest along (the player: follow whoever leads
+            # through the dungeon): furthest from where we came into this
+            # room; on foot (walk-only zones) closer behind, to be pulled
+            # into their fight.
+            entry = self.__dict__.setdefault("_room_entry", {})
+            if here_zone not in entry:
+                entry.clear()
+                entry[here_zone] = me
+            start = entry[here_zone]
+            mate = max(mates, key=lambda m: distance(m, start)) if walking else min(
+                mates, key=lambda m: distance(m, me))
+            follow = TEAM_FOLLOW_WALKING if walking else TEAM_FOLLOW
             self._mate_seen = (here_zone, mate, time.monotonic(), True)
             self._mate_trail = [*self._mate_trail[-4:], (here_zone, mate)]
-            if distance(mate, me) > TEAM_FOLLOW:
+            if distance(mate, me) > follow:
                 logger.info(f"following the team (teammate at ({mate.x:.0f}, {mate.y:.0f})); "
                             "not starting fights")
                 dx, dy = me.x - mate.x, me.y - mate.y
@@ -5263,7 +5277,9 @@ class Quester:
         if it went somewhere."""
         zone = await self.client.zone_name() or ""
         seen = self._mate_seen
-        if not seen or seen[0] != zone or time.monotonic() - seen[2] < TEAM_LOST_AFTER:
+        walking = any(zone.startswith(p) for p in getattr(self.client, "_walk_only", ()))
+        lost_after = TEAM_LOST_WALKING if walking else TEAM_LOST_AFTER
+        if not seen or seen[0] != zone or time.monotonic() - seen[2] < lost_after:
             return False
         # seen[3] False: nobody seen in this room, seen[1] is where we arrived:
         # search its doors from there (it waited in one room while the team
