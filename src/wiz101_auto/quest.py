@@ -5279,6 +5279,11 @@ class Quester:
         seen = self._mate_seen
         walking = any(zone.startswith(p) for p in getattr(self.client, "_walk_only", ()))
         lost_after = TEAM_LOST_WALKING if walking else TEAM_LOST_AFTER
+        if walking and (not seen or seen[0] != zone):
+            # Just came into this room and nobody's here (they'd moved on
+            # before it loaded): the clock starts now, from where we arrived.
+            self._mate_seen = (zone, await self._position(), time.monotonic(), False)
+            return False
         if not seen or seen[0] != zone or time.monotonic() - seen[2] < lost_after:
             return False
         # seen[3] False: nobody seen in this room, seen[1] is where we arrived:
@@ -5287,6 +5292,20 @@ class Quester:
         last = seen[1]
         key = (zone, round(last.x / 300), round(last.y / 300))
         tries = self._track_tries.get(key, 0)
+        if walking and not (seen[3] and tries < TEAM_TRACK_TRIES) and not self.__dict__.get("_to_marker"):
+            # On foot and nobody to follow here (the team left this room before
+            # we loaded in, or their tracks led nowhere): on toward the dungeon
+            # quest's objective, which is where they're headed (the player).
+            marker = await self.client.quest_position.position()
+            me = await self._position()
+            if distance(marker, XYZ(0, 0, 0)) > 1 and distance(me, marker) > TEAM_FOLLOW_WALKING:
+                logger.info(f"no teammate in sight: on toward the dungeon's objective at "
+                            f"({marker.x:.0f}, {marker.y:.0f})")
+                self._to_marker = True
+                try:
+                    return await self._team_travel(marker)
+                finally:
+                    self._to_marker = False
         if seen[3] and tries < TEAM_TRACK_TRIES:
             self._track_tries[key] = tries + 1
             trail = [p for z, p in self._mate_trail if z == zone]
