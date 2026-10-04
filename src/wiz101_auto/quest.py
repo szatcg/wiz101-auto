@@ -163,7 +163,7 @@ ENGAGE_BACKOFF = 400.0  # landing on it started no fight: walk in from this far,
 ENGAGE_BACKOFF_MAX = 2400.0
 WALKED_CLOSE = 250.0  # a walked path ended this near its target: arrived
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
-DETOUR_DEFEATS = 2  # a detour world's fight lost this often waits (the main story meanwhile)
+DETOUR_DEFEATS = 15  # a detour world's fight lost this often waits (the main story meanwhile)
 DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deaths an hour to Jotun's trio)
 # Bosses whose fight is much easier with others beaten first in side dungeons
 # (the player: Jotun fights with his brothers Ullik and Grettir unless they're
@@ -2280,7 +2280,8 @@ class Quester:
         # as a side quest, and its losses went the side path, an hour each.)
         if quest and det is not None and norm(quest) in det[2]:
             # A detour world's fight (Jotun, Ullik and Grettir together in
-            # Nidavellir): lost twice, it waits an hour and the main story
+            # Nidavellir): lost 15 times (the player: two tries is not enough),
+            # it waits an hour and the main story
             # goes on meanwhile (the player: Celestia rather than dying all
             # night to it). A level-up brings it back sooner.
             n = self.setbacks.defeats.get(objective, 0) + 1
@@ -2303,7 +2304,9 @@ class Quester:
                 self._ranked_for = None
                 self._last_rank = -1e9
             else:
-                logger.info(f"defeat {n} on {objective!r}; trying again")
+                # (A lost fight isn't a stall: only the loss count sets it aside.)
+                self._last_progress_time = time.monotonic()
+                logger.info(f"defeat {n}/{limit} on {objective!r}; trying again")
             self.setbacks.save()
             return
         if main:
