@@ -2201,7 +2201,12 @@ class Quester:
             # longer comes first: the Labyrinth was redone for Ranulf Moonclaw).
             from .dungeons import mark_done
 
-            if mark_done(self._dungeon[1]):
+            # (Not while quests of this dungeon are still in the book: the bot
+            # walked out of the Waterworks after a wrong ranking with 'Stick to
+            # the Plan!' open, and its quests stopped coming first in there.)
+            open_here = dungeon_quest(self.__dict__.get("_last_quests", []), zone, objective_zone,
+                                      skipped=self.setbacks.skipped, entered_with="")
+            if open_here is None and mark_done(self._dungeon[1]):
                 logger.info(f"dungeon {self._dungeon[1].split('/')[-1]} noted as done")
         await ui.press_modal_button(self.client, box, "centerButton" if leave else "rightButton")
         if leave:
@@ -3440,6 +3445,7 @@ class Quester:
                         logger.info(f"quick errand first: {errand.name!r} ({errand.goal or errand.target}), "
                                     f"then back to {chosen.name!r}")
                     chosen = errand
+            self._last_quests = [q for _, q in all_quests]
             _write_quest_book([q for _, q in all_quests], chosen, world)
             self._chosen_entry = chosen
             best = next(((p, q) for p, q in all_quests if q is chosen), None)
