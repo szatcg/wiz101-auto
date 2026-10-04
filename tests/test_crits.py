@@ -78,3 +78,14 @@ def test_one_turn_is_one_line(tmp_path):
     events = [e for e in read_thoughts(log)["events"] if "round" in e]
     assert [e["round"] for e in events] == [3, 4]
     assert "→" in events[0]["say"] and "→" in events[1]["say"]
+
+
+def test_the_stream_counts_our_prism():
+    from wiz101_auto.combat.brain import predicted_damage
+
+    boss = Combatant("Ildrede", 5000, 5000, is_enemy=True, is_boss=True, school="myth",
+                     resist={"myth": 0.8, "storm": -0.35})
+    b = Battle(me=me(), allies=[], enemies=[boss], cards=[ORTHRUS], pips=7, power_pips=0)
+    plain = predicted_damage(b, Action(ActionKind.CAST, ORTHRUS))[0]
+    b.prismed = {"Ildrede"}
+    assert predicted_damage(b, Action(ActionKind.CAST, ORTHRUS))[0] > 3 * plain

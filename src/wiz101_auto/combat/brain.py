@@ -332,7 +332,7 @@ def predicted_crits(battle: Battle, action: Action) -> dict[int, tuple[int, int,
     for i, e in enumerate(battle.enemies):
         if e.is_dead or e.health <= 0 or not (card.is_aoe or e is action.target):
             continue
-        pc, pb, normal, crit = crit_odds(card, battle.me, e)
+        pc, pb, normal, crit = crit_odds(card, battle.me, _as_hit(battle, e))
         out[i] = (round(100 * pc), round(100 * pb), round(normal), round(crit))
     return out
 
@@ -348,8 +348,14 @@ def predicted_damage(battle: Battle, action: Action) -> dict[int, int]:
         if e.is_dead or e.health <= 0:
             continue
         if card.is_aoe or e is action.target:
-            out[i] = round(hit_damage(card, battle.me, e))
+            out[i] = round(hit_damage(card, battle.me, _as_hit(battle, e)))
     return out
+
+
+def _as_hit(battle: Battle, e: Combatant) -> Combatant:
+    """The enemy as our hit finds it: through our prism on it, if any (the
+    stream showed a prismed hit at its tiny un-prismed damage)."""
+    return prism_view(e) if e.name in battle.prismed and not e.is_dead else e
 
 
 def _castable(cards: list[Card]) -> list[Card]:
