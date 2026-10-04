@@ -33,6 +33,9 @@ TEAM_UP_WORDS = ("team up!", "team up")
 # Queue with Team Up too (besides watching the sigil for a party gathering;
 # a party on the sigil wins: the Team Up screen is closed to go in with them).
 USE_QUEUE = False  # the player's choice: Team Up teams left mid-run; go in with players at the sigil
+# Dungeons queued with Team Up after all (the player, 2026-10-04: the
+# Waterworks; a team came in through Team Up at once).
+QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01"}
 REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
@@ -338,7 +341,8 @@ async def team_up(quester, dungeon: str) -> str:
     client = quester.client
     zone = await client.zone_name()
     await _dump(client, "sigil")
-    if not USE_QUEUE:
+    use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS
+    if not use_queue:
         # No queue: wait on the sigil for players to gather (and go in with them).
         await close_stray_forms(client)
         # (No cancel_queue here: the Waiting badge's spot is the events button
@@ -348,7 +352,7 @@ async def team_up(quester, dungeon: str) -> str:
     if await _resume_after_defeat(quester, zone):
         return "in"
     # The form may still be open from before (a restart): fill that one in.
-    form_done = not USE_QUEUE or await _fill_form(client)
+    form_done = not use_queue or await _fill_form(client)
     if not form_done and await queued(client):
         logger.info("team up: already in the queue (Waiting); waiting on")
         form_done = True
@@ -383,7 +387,7 @@ async def team_up(quester, dungeon: str) -> str:
             if time.monotonic() - last_sigil_check > SIGIL_CHECK_EVERY:
                 last_sigil_check = time.monotonic()
                 await step_onto_sigil(client, center, quester._far_spot)
-            if USE_QUEUE and time.monotonic() - last_requeue > REQUEUE_EVERY:
+            if use_queue and time.monotonic() - last_requeue > REQUEUE_EVERY:
                 # Not queued (a cooldown showed "TEAM UP! IN 05:51"): once the
                 # sigil offers TEAM UP! again, queue.
                 last_requeue = time.monotonic()
