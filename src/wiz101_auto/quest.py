@@ -4994,7 +4994,10 @@ class Quester:
             # The Mark stays at the sigil (made before each Team Up): Recall is
             # the way back from another world (no gate route crosses worlds).
             other_world = zone.split("/")[0] != entry.outside.split("/")[0]
-            if self._mark and self._mark.zone == entry.outside and other_world:
+            # (From anywhere, not only another world: walking Triton Avenue to
+            # Crab Alley's door ran into Haunted Minions, fled, lost the mana,
+            # healed and ran into them again.)
+            if self._mark and self._mark.zone == entry.outside:
                 logger.info(f"farming {farm.name}: recalling to the mark at its sigil")
                 if await self._recall(entry.outside, "the sigil mark"):
                     return True
