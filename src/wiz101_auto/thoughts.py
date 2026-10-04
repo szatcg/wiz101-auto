@@ -255,6 +255,17 @@ def read_thoughts(path: Path = ACTIVITY, limit: int = 40, tail_bytes: int = 60_0
         if events and events[-1]["text"] == e["text"]:
             continue  # the same step repeated: show it once
         e["tag"], e["say"] = humanize(e)
+        prev = events[-1] if events else None
+        if "round" in e and prev is not None and prev.get("round") == e["round"]:
+            # One turn, one line (the player): Giant onto Orthrus, then
+            # Orthrus, or a discard and then the cast, are steps of one turn.
+            steps = prev.setdefault("steps", [prev["say"]])
+            if e["say"] != steps[-1]:
+                steps.append(e["say"])
+            prev.update(tag=e["tag"], text=e["text"], say=" → ".join(steps))
+            if battle is not None:
+                battle.update(tag=prev["tag"], say=prev["say"])
+            continue
         if battle is not None and "round" in e:
             battle.update(tag=e["tag"], say=e["say"])
         events.append(e)

@@ -137,6 +137,8 @@ TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the 
 # Team dungeons only ever entered for the farm (Mount Olympus is the story's
 # too): with farming off, the bot leaves them.
 FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
+DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
+DOOR_SPOT_NEAR = 300.0  # ...this far short of it
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -1672,10 +1674,18 @@ class Quester:
             _z, door, spot, nxt = hops[0]
             logger.info(f"heading to {dest}: through the door at ({door[0]:.0f}, {door[1]:.0f}) into "
                         f"{nxt.split('/')[-1]}")
-            await self.client.teleport(XYZ(*spot))
+            start = XYZ(*spot)
+            gap = math.dist((spot[0], spot[1]), (door[0], door[1]))
+            if gap > DOOR_SPOT_FAR:
+                # A walk learned from far off (Merle Ambrose's door: from 2,800
+                # away, and the long walk never got in): land just short of
+                # the door instead, on the side the walk came from.
+                k = DOOR_SPOT_NEAR / gap
+                start = XYZ(door[0] + (spot[0] - door[0]) * k, door[1] + (spot[1] - door[1]) * k, spot[2])
+            await self.client.teleport(start)
             await asyncio.sleep(TELEPORT_SETTLE)
             if not await self._zone_changed(zone):
-                await self.walk_through(XYZ(door[0], door[1], spot[2]), zone)
+                await self.walk_through(XYZ(door[0], door[1], start.z), zone)
             await wait_for_loading(self.client)
             return await self.client.zone_name() != zone
         return False

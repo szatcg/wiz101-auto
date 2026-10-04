@@ -64,3 +64,17 @@ def test_the_overlay_reads_the_crit_line(tmp_path):
                    "12:00:00 | INFO    | crit: 0=35/10/1200/1650\n", encoding="utf-8")
     b = read_thoughts(log)["battle"]
     assert b["crit"] == {0: {"c": 35, "b": 10, "n": 1200, "x": 1650}}
+
+
+def test_one_turn_is_one_line(tmp_path):
+    from wiz101_auto.thoughts import read_thoughts
+
+    log = tmp_path / "activity.log"
+    head = "| INFO    | [round {}] pips=0+4P hp=2000/2400 vs Boss* 3000/3000 -> {}\n"
+    moves = [(3, "enchant Orthrus with Giant"), (3, "cast Orthrus (~1600 dmg)"),
+             (4, "discard Feint (spare)"), (4, "cast Mythblade on Me (blade up)")]
+    log.write_text("x\n" + "".join(f"12:00:0{i} " + head.format(r, m) for i, (r, m) in enumerate(moves)),
+                   encoding="utf-8")
+    events = [e for e in read_thoughts(log)["events"] if "round" in e]
+    assert [e["round"] for e in events] == [3, 4]
+    assert "→" in events[0]["say"] and "→" in events[1]["say"]
