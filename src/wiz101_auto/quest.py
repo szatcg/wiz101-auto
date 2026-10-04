@@ -2290,7 +2290,7 @@ class Quester:
         if is_house(zone):
             # Home already (Go Home does nothing here: it looped pressing it):
             # the house's world gate to Wizard City.
-            return await self._to_world_stage("WizardCity", f"the quest is in Wizard City ({target})")
+            return await self._to_world("WizardCity", f"the quest is in Wizard City ({target})")
         logger.info(f"the quest is in Wizard City ({target}); Go Home, then the world gate")
         return await go_home(self.client)
 
@@ -2309,7 +2309,7 @@ class Quester:
         if not target or is_house(target):
             return False
         world = target.split("/", 1)[0]
-        return await self._to_world_stage(world, f"the quest is in {world}")
+        return await self._to_world(world, f"the quest is in {world}")
 
     async def _leave_spiral_map(self) -> bool:
         """Walking into a world gate (not pressing X at it) opens the Spiral
@@ -2317,6 +2317,17 @@ class Quester:
         the map was open."""
         if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             return False
+        if not self._mainline and self._detour_gap_pending():
+            # On the way to ask for the story's next quest: its world, not the
+            # tracked side quest's (the map ticked Wysteria for The Spiral Cup
+            # and the bot bounced between the house and Wysteria).
+            try:
+                gap = json.loads(DETOUR_GAP_FILE.read_text(encoding="utf-8"))
+                world = (gap.get("zone") or "").split("/", 1)[0]
+            except (OSError, ValueError):
+                world = ""
+            if world:
+                return await self._to_world(world, f"to {world} for the story's next quest")
         if self._grinding and not self._mainline and self._main_world:
             # No main quest: back to its world, not on to the tracked side
             # quest's (the map took the bot from Wizard City to Grizzleheim
@@ -4712,7 +4723,7 @@ class Quester:
                 # "World Gate: Press X to Interact" opens the Spiral Map.
                 logger.info(f"{why}: opening the Spiral Map at the world gate")
                 await self.client.send_key(Keycode.X, 0.1)
-                await self._wait_visible(ui.SPIRAL_DOOR_TELEPORT, 3.0)
+                await self._wait_visible(ui.SPIRAL_DOOR_TELEPORT, 6.0)  # (3 s: the map came up after)
                 return True
             logger.info(f"{why}: walking to Ravenwood")
             return await self.go_to_zone(RAVENWOOD)
@@ -4941,7 +4952,7 @@ class Quester:
             from .trainer import go_home, is_house
 
             if is_house(zone):  # (the house's world gate to Wizard City)
-                return await self._to_world_stage("WizardCity", "to Aquila")
+                return await self._to_world("WizardCity", "to Aquila")
             logger.info("to Aquila: Go Home, then the house's world gate to Wizard City")
             return await go_home(self.client)
         if zone == CYCLOPS_LANE:
