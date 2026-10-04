@@ -1,0 +1,66 @@
+Wintertusk main quests and their objectives (from the player, 2026-10-03).
+Use it when the bot is stuck on what to do next or where a quest comes from.
+Wintertusk's zones are named Grizzleheim/GH_HFjord/... in the game.
+
+Hrundle Fjord
+1. Cold News (given by Headmaster Ambrose) - Talk to Bjorn Ironclaws in Northguard
+2. Times are Tough - Talk to Valgard Goldenblade
+3. News of the North - Talk to Hrafn Lorespeaker in Ravenscar + Talk to Valgard Goldenblade
+4. A Bigger Boat - Talk to Baldur Goldpaws
+5. Cold Day in Hrundle - Examine Longboat + Examine Crew + Talk to Baldur Goldpaws
+6. The Cold Gates - Find the Town Gate + Talk to Baldur Goldpaws
+7. And on Drums... - Defeat Frost Bones (Ice) and Collect Information + Talk to Baldur Goldpaws
+8. Hready to Hrundle - Return to Town Gate + Go to Vanir in Vanir's Hall + Talk to Baldur Goldpaws
+9. Springtime for Hrundle - Go to Morn's Tower + Defeat Morn Shadowbrew (Myth Boss) + Use Geyser + Use Hot Water on Vanir + Talk to Vanir Stormroarer
+10. Big Grandma's House - Talk to Grandmother Raven
+11. That's So Raven - Talk to Urd
+12. Norn Time - Go to Skogul's House + Use Large Pot + Use Cauldron + Melt Ice + Talk to Skogul The Pale + Defeat 3 Ravens + Talk to Skogul The Pale + Talk to Urd
+13. Turn a New Leif - Talk to Vanir Stormroarer + Read the Census List + Talk to Leif + Talk to Urd
+14. Tooth and Leaf - Talk to Regin Wildleaf in his house + Collect 2 Valerian and 2 Amaranth + Defeat Coven Runeclaws (Myth) and Collect 2 Moonwort + Talk to Regin Wildleaf + Talk to Urd
+15. Root of the Loom - Use the Loom of Fate + Talk to Urd + Open the Cage around Grandmother Raven + Talk to Grandmother Raven
+
+Austrilund
+16. Austrilund Weekend - Talk to Austri in Austrilund
+17. Four Challenges - Talk to Skeggis Forkbeak
+18. Board to Death - Find Mimir Winterbane in Hrundle Fjord + Go to Well of Urd + Defeat Mimir Winterbane (Ice Boss) + Talk to Mimir Winterbane + Talk to Regin Wildleaf + Collect Harvest Bread + Use Baker's Oven + Use Beehive in Austrilund + Talk to Mimir Winterbane in Hrundle Fjord + Talk to Skeggis Forkbeak in Austrilund
+19. Pieces of You - Defeat Frost Bones (Ice) and Collect Playing Pieces + Talk to Skeggis Forkbeak + Play Thane's Table + Talk to Skeggis Forkbeak + Talk to Austri
+20. Riddle Me This - Talk to Grond + Talk to Austri
+21. Spear Carrier - Talk to Garm Moonstalker + Defeat 3 Boars + Talk to Garm Moonstalker + Talk to Austri
+22. Out Clubbing - Go to Mysterious Cave + Defeat Sulkir (Ice Boss) + Talk to Austri
+23. Enemy at the Gate - Go to Grimaldi Keymaker's Cave + Use Runestone + Talk to Grimaldi Keymaker + Defeat Nali (Ice Boss) in Nali's Cave + Defeat Gnar (Ice Boss) in Gnar's Cave + Talk to Grimaldi Keymaker + Defeat Aurekk the Mighty (Ice Boss) + Talk to Grandmother Raven
+
+Vestrilund
+24. Into the Vestrilund - Talk to Henrek Graincutter in Vestrilund
+25. Fishes & Loaves - Collect 3 Fish Racks + Collect 3 Grain Sacks + Talk to Henrek Graincutter
+26. Monster Mash - Defeat 2 Winterclaw Stalkers (Life) + Defeat 2 Svini Berserkers (Life) + Talk to Henrek Graincutter
+27. Golden Axe - Go to Thurnir's Cave + Defeat Thurnir (Ice Boss) and Collect Golden Axe + Talk to Henrek Graincutter
+28. Trees for the Forest - Chop Down Trees x 3 + Talk to Henrek Graincutter
+29. The Walls Have Ice - Repair Palisade Wall x 3 + Talk to Henrek Graincutter
+30. Key to the Kingdom - Go to Vestri's Hall + Talk to Vestri
+31. That Was Easy... - Talk to Strykar Scofflaw + Defeat Strykar Scofflaw (Life Boss) and Collect the Golden Seal + Talk to Vestri
+32. Sing a Warsong - Talk to Freyda Warsong in Freyda's Cave
+33. Warriors Three - Defeat Halfang Bristlecrown (Storm Boss) in his cave + Defeat Osvud Fleetpaw (Death Boss) in his cave + Defeat Asrik Widebelt (Myth Boss) in his cave + Talk to Freyda Warsong + Talk to Grandmother Raven
+
+Sudrilund
+34. Su Su Sudrilund - Talk to Ketil Blackheart in his cave + Defeat Ketil Blackheart (Storm Boss) + Talk to Ketil Blackheart outside
+35. Calling Ketil Black - Defeat Harek the Lean (Myth Boss) in Hrundle Fjord + Defeat Ormund the Surly (Life Boss) in Vestrilund + Talk to Ketil Blackheart in Sudrilund + Break Ice Wall + Talk to Thyra Brightspell
+36. Use Your Illusion - Defeat Ravens and Collect 2 Feathers + Collect 3 Wild Hemlock + Talk to Thyra Brightspell
+37. The Dragon Gate - Use Thyra's Cauldron + Use Dragon Gate + Talk to Sudri
+38. Golden Delicious - Defeat Jorda Swordbearer (Life Boss) in her cave in Vestrilund + Use Golden Apple Tree + Talk to Sudri
+39. Weight of the Word - Use Urn + Talk to Sudri + Use Merchant Scale in Hrundle Fjord + Talk to Sudri + Talk to Grandmother Raven
+
+Nordrilund
+40. A Bridge Too Far - Talk to Hyglak Silverpelt + Collect 3 Wooden Planks in Nordrilund + Repair Bridge + Talk to Ivaldi Silverpelt
+41. Nordilund Exposure - Talk to Stengar Wordwise
+42. The Riddle of the Road - Go to Wagon Wheel + Talk to Stengar Wordwise + Go to Frozen Ship + Talk to Stengar Wordwise + Talk to Nordri
+43. ...A Serpent's Tooth - Collect Tooth from Ice Drake in Hrundle Fjord + Talk to Urd + Collect Wild Hemlock in Austrilund + Defeat Winterbranches (Ice) and Collect 2 Ice Bark in Vestrilund + Talk to Regin Wildleaf + Apply Salve to Root in the Drake's Cavern + Talk to Nordri + Talk to Grandmother Raven
+
+Nastrond
+44. Bones of the Earth - Talk to Grandmother Raven; Enter the Nastrond Dungeon
+45. Take the Low Road - Talk to Dulin Helmsplitter + Defeat Winter Skulls (Ice) and Collect Rune-Carving Tools + Talk to Dulin Helmsplitter
+46. Hammer Don't Hurt 'Em - Talk to Dulin Helmsplitter + Use Dulin's Hammer + Break Icy Wall + Defeat Kulgrim Soulsunder (Ice Boss) + Talk to Truda Stoutheart
+47. Bridge to Nowhere - Talk to Truda Stoutheart + Find Hauk's Horn in Kulgrim's Lair + Cross Ice Bridge + Defeat Thellik Coldclaws (Ice Boss) + Talk to Hauk Horncaller
+48. A Hello to Arms - Talk to Hauk Horncaller + Defeat Frost Trolls (Ice) and Collect Sword and Shield + Talk to Hauk Horncaller
+49. The Magic Flute - Talk to Hauk Horncaller + Find Flute + Go to Root Wall + Go to Rune Chamber + Quadruple Boss Fight with Agnetta Broadblade (Life Boss), Thorfin Treetamer (Fire Boss), Njal Silversong (Balance Boss), and Ulfang Greathorn (Storm Boss) + Talk to Agnetta Broadblade
+50. Rune With a View - Talk to Agnetta Broadblade + Carve YMIR Runes + Go to Jotengard + Quadruple Cheating Boss Fight with Nordri (Death Boss), Sudri (Moon Boss), Austri (Ice Boss), and Vestri (Life Boss) + Use Four Seals + Go to Runestone + Talk to Dulin Helmsplitter
+51. Winter News - Talk to Baldur Goldpaws in Hrundle Fjord + Talk to Merle Ambrose in Wizard City

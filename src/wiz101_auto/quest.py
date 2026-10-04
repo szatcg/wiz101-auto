@@ -6655,6 +6655,12 @@ class Quester:
                 if not await self.client.in_battle():
                     await self.pull_mob()
                 return
+            # "Use Inactive Protector in District of the Stars (0 of 3)" has no
+            # marker: the object by its name (seen spots first, else a sweep
+            # of the zone), the used ones skipped. It waited here for minutes.
+            if (operate_target(objective) and objective_zone(objective) in (None, zone)
+                    and await self._use_named_object(objective)):
+                return
             logger.debug(f"no quest marker for {objective!r}; waiting")
             await asyncio.sleep(2.0)
             return
