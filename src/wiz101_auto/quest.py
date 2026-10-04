@@ -33,6 +33,7 @@ from .collect import (
     collect_item_name,
     floor_points,
     landmarks,
+    loose_names,
     matches_item,
     path_points,
     spread_points,
@@ -253,6 +254,7 @@ STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can stil
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
 FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one objective, fight
+NAME_RECHECK_SECONDS = 30.0  # a collect/use name with nothing like it in the zone: look again
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
 STUCK_RETRY_SECONDS = 1800.0  # a quest set aside for being stuck (not beaten) is tried again after this
@@ -763,6 +765,32 @@ def is_combat_objective(objective: str) -> bool:
 
 def _norm_name(s: str) -> str:
     return "".join(ch for ch in s.lower() if ch.isalpha())
+
+
+def same_object_name(name: str, want: str) -> bool:
+    """`name` is the object `want` names, one or many: 'Use Grain Sacks (0 of
+    3)' is three entities each called 'Grain Sack' (the bot swept Vestrilund
+    for 'Grain Sacks' for 10 min with three Grain Sacks on its map)."""
+    a, b = _norm_name(name), _norm_name(want)
+    return a == b or a + "s" == b or b + "s" == a
+
+
+def closest_name(want: str, names) -> str | None:
+    """The name in `names` (things in the zone: seen on the map or in view)
+    that the quest's `want` most likely means, or None: the same name one or
+    many ('Grain Sacks' -> 'Grain Sack'), then one containing it, then looser
+    ('Red Crystal Sample' -> 'Crystal Sample'). The player: when collect/use
+    struggles, look up the name to go to at once instead of sweeping again."""
+    names = [n for n in dict.fromkeys(names) if n]
+    for match in (lambda n: same_object_name(n, want), lambda n: matches_item(want, n)):
+        hits = [n for n in names if match(n)]
+        if hits:
+            return min(hits, key=len)
+    for loose in loose_names(want)[1:]:
+        hits = [n for n in names if matches_item(loose, n)]
+        if hits:
+            return min(hits, key=len)
+    return None
 
 
 def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bool) -> bool:
@@ -3508,10 +3536,10 @@ class Quester:
 
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
-        from .collect import loose_names
-
         names = loose_names(item)
         item = names[min(self._loose_level.get(objective, 0), len(names) - 1)]
+        if not self._loose_level.get(objective):
+            item = await self._resolve_name(item, await self.client.zone_name() or "", "collect")
         if await self.collector.collect_once(item, self._press_collect):
             await asyncio.sleep(0.5)
             if await self.objective() != objective:
@@ -4071,6 +4099,7 @@ class Quester:
         name = operate_target(objective)
         if not name:
             return False
+        name = await self._resolve_name(name, await self.client.zone_name() or "", "use")
         # Several with that name (a Counterweight Lever on every floor): the
         # one at the quest marker is this step's.
         marker = await self.client.quest_position.position()
@@ -4120,8 +4149,7 @@ class Quester:
         object named `name` not used yet is in view. True if it moved."""
         me = await self._position()
         here = (me.x, me.y, me.z)
-        want = _norm_name(name)
-        known = self.entity_map.spots(zone, lambda n: _norm_name(n) == want, here)
+        known = self.entity_map.spots(zone, lambda n: same_object_name(n, name), here)
         known = [k for k in known if all(math.dist(k[:2], (u.x, u.y)) > 150 for u in used)]
         sweep = spread_points(await self._landmarks() + floor_points(await path_points(self.client), me.z),
                               here, ENEMY_SWEEP_SPACING)
@@ -5293,13 +5321,59 @@ class Quester:
                 return pos
         return None
 
+    async def _names_here(self, zone: str) -> list[str]:
+        """Names of the things in this zone that aren't enemies: on the map
+        and in view now (for closest_name)."""
+        from .combat.sim import load_stats
+        from .names import lang_name
+
+        enemies = set(load_stats().get("enemies", {}))
+        names = list(self.entity_map.zones.get(zone, {}))
+        try:
+            mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
+            for e in await self.client.get_base_entity_list():
+                try:
+                    if await e.global_id_full() in mobs:
+                        continue
+                    t = await e.object_template()
+                    code = await t.display_name() if t else ""
+                    if code:
+                        names.append(await lang_name(self.client, code))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return [n for n in dict.fromkeys(names) if n and n not in enemies]
+
+    async def _resolve_name(self, want: str, zone: str, kind: str) -> str:
+        """`want` as the zone actually names it (closest_name), looked up
+        once per name and zone, at once rather than after sweeps."""
+        aliases = self.__dict__.setdefault("_name_aliases", {})
+        key = (want, zone)
+        if key in aliases:
+            return aliases[key]
+        # (Nothing like it yet: looked up again after a while, as it may load.)
+        checked = self.__dict__.setdefault("_name_checked", {})
+        if time.monotonic() - checked.get(key, -1e9) < NAME_RECHECK_SECONDS:
+            return want
+        checked[key] = time.monotonic()
+        names = await self._names_here(zone)
+        if any(same_object_name(n, want) for n in names):
+            aliases[key] = want
+            return want
+        found = closest_name(want, names)
+        if found:
+            aliases[key] = found
+            logger.info(f"{kind} {want!r}: nothing here by that name; going by {found!r}, "
+                        "the closest name in the zone")
+        return found or want
+
     async def _npc_named(self, name: str, near: XYZ | None = None, skip: list | None = None):
         """Position of an entity named exactly `name` that isn't an enemy
         ('Clockwork', not the 'Clockwork Warrior' mobs), or None; with `near`,
         the one closest to it."""
         from .names import lang_name
 
-        want = _norm_name(name)
         try:
             mobs = {await m.global_id_full() for m in await self.client.get_mobs()}
         except Exception:
@@ -5309,7 +5383,7 @@ class Quester:
             try:
                 t = await e.object_template()
                 code = await t.display_name() if t else ""
-                if not code or _norm_name(await lang_name(self.client, code)) != want:
+                if not code or not same_object_name(await lang_name(self.client, code), name):
                     continue
                 if await e.global_id_full() in mobs:
                     continue
