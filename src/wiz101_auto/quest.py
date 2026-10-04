@@ -1728,6 +1728,40 @@ class Quester:
         logger.info("marking inside the dungeon before its fight (Recall back here after a defeat)")
         await self._mark_here("fight", objective=objective, require_clear=False)
 
+    async def _boss_prisms(self, target: str) -> dict[str, int]:
+        """Our school's prisms for a boss of our school (the player: Myth
+        Prisms in before a Myth boss, out after): its school from earlier
+        fights, else read from the game before engaging."""
+        from .deck_keeper import PROGRESS_FILE, _load, boss_prism, school_on_file
+
+        mine = (getattr(self.progression, "school", "") or "") if self.progression else ""
+        if not mine:
+            return {}
+        school = school_on_file(target) or await self._school_in_view(target)
+        known = set(_load(PROGRESS_FILE).get("known_spells") or [])
+        prisms = boss_prism(school, mine, known)
+        said = self.__dict__.setdefault("_prism_said", set())
+        if prisms and target not in said:
+            said.add(target)
+            logger.info(f"{target} is a {school} boss: {', '.join(prisms)} into the deck for the fight")
+        return prisms
+
+    async def _school_in_view(self, name: str) -> str:
+        """The school of an enemy named `name` in view, read before engaging
+        ("" if none is loaded)."""
+        from .names import lang_name
+
+        want = _norm_name(name)
+        try:
+            for m in await self.client.get_mobs():
+                t = await m.object_template()
+                code = await t.display_name() if t else ""
+                if code and _norm_name(await lang_name(self.client, code)) == want:
+                    return (await t.primary_school_name() or "").lower()
+        except Exception:
+            pass
+        return ""
+
     async def _boss_health_bar(self):
         """The player's: into a boss fight at full health (it walked at Ullik
         with 74%, then went toward Jotun at 88%, 'good enough' for regular
@@ -6507,14 +6541,18 @@ class Quester:
                 # otherwise the deck worn stays.
                 bosses = DungeonMemory.load().bosses
                 obj = await self.objective() or ""
+                extra: dict[str, int] = {}
                 if is_combat_objective(obj):
                     target = defeat_target(obj) or ""
                     boss = (await self._in_any_dungeon(here) or "/interiors/" in here.lower()
                             or any(bosses.get(n) for n in defeat_names(obj))
                             or bool(target and is_known_boss(target)))
+                    if target and boss:
+                        extra = await self._boss_prisms(target)
                 else:
                     boss = getattr(keeper, "last_boss", False)
-                if await keeper.tick(self.client, boss=boss):
+                # (No prisms asked for once the boss fight is over: they come out.)
+                if await keeper.tick(self.client, boss=boss, extra=extra):
                     return
             except Exception as exc:
                 logger.opt(exception=exc).warning("deck keeping failed")

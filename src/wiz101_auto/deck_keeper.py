@@ -33,12 +33,37 @@ STALE_FILE = Path("state") / "deck_stale.flag"  # a fight drew a card the stored
 TRIES_PER_TARGET = 2  # set_deck runs for one target before leaving it (a card short of max copies)
 WEAR_RETRY_SECONDS = 600.0  # a deck item that wouldn't go on: tried again after this
 ALWAYS_KEPT = {"reshuffle"}  # the player's own cards, never taken out
+PRISM_COPIES = 2  # our school's prism in the deck for a boss of our school
+STATS_FILE = Path("state") / "enemy_stats.json"
 
 
-def target_deck(general: dict, known: set[str], boss: bool = False) -> dict[str, int]:
+def school_on_file(name: str, stats_file: Path = STATS_FILE) -> str:
+    """An enemy's school as read in an earlier fight ("" if never fought)."""
+    want = "".join(c for c in name.lower() if c.isalnum())
+    for n, v in (_load(stats_file).get("enemies") or {}).items():
+        if "".join(c for c in n.lower() if c.isalnum()) == want and v.get("school"):
+            return str(v["school"]).lower()
+    return ""
+
+
+def boss_prism(enemy_school: str, my_school: str, known: set[str]) -> dict[str, int]:
+    """The player's: a Myth boss for a Myth wizard: Myth Prisms go in the deck
+    before the fight (our hits on it then land as the opposite school), and
+    come out after. {} when the boss isn't of our school or the prism isn't
+    known."""
+    if not enemy_school or not my_school or enemy_school.lower() != my_school.lower():
+        return {}
+    want = f"{my_school.strip().lower()} prism"
+    name = next((k for k in sorted(known) if k.lower() == want), None)
+    return {name: PRISM_COPIES} if name else {}
+
+
+def target_deck(general: dict, known: set[str], boss: bool = False,
+                extra: dict[str, int] | None = None) -> dict[str, int]:
     """The deck to keep: the file's deck (its "boss_deck" in dungeons and
     before boss fights, when it has one) with its "when_learned" changes for
-    spells already known, limited to known spells."""
+    spells already known, plus `extra` (a boss's prisms), limited to known
+    spells."""
     deck = dict((general.get("boss_deck") if boss else None) or general.get("deck") or {})
     for key, change in (general.get("when_learned") or {}).items():
         learned = next((k for k in sorted(known) if key.lower() in k.lower()), None)
@@ -50,6 +75,8 @@ def target_deck(general: dict, known: set[str], boss: bool = False) -> dict[str,
                 deck.pop(name, None)
             else:
                 deck[name] = copies
+    for name, copies in (extra or {}).items():
+        deck[name] = deck.get(name, 0) + copies
     return {n: c for n, c in deck.items() if n in known}
 
 
@@ -84,24 +111,28 @@ class DeckKeeper:
         self._checked = 0.0
         self._tries: dict[str, int] = {}
         self._boss = False  # the boss deck was the one asked for last
+        self._extra: dict[str, int] = {}  # cards asked for on top (a boss's prisms)
         self.last_boss = False
         self._worn: str | None = None  # deck item role worn ("aoe" everyday, "single" boss)
         self._wear_failed_at = -1e9
 
-    def due(self, boss: bool = False) -> tuple[dict[str, int], dict] | None:
+    def due(self, boss: bool = False,
+            extra: dict[str, int] | None = None) -> tuple[dict[str, int], dict] | None:
         """(target deck, its changes) when the game's deck differs from it."""
         from .deck import load_deck_counts
 
-        if time.monotonic() - self._checked < CHECK_SECONDS and boss == self._boss:
+        extra = extra or {}
+        if time.monotonic() - self._checked < CHECK_SECONDS and boss == self._boss and extra == self._extra:
             return None
         self._boss = boss
+        self._extra = extra
         self._checked = time.monotonic()
         general = _load(GENERAL_FILE)
         known = set(_load(PROGRESS_FILE).get("known_spells") or [])
         current = load_deck_counts()
         if not general.get("deck") or not known or not current:
             return None
-        target = target_deck(general, known, boss)
+        target = target_deck(general, known, boss, extra)
         changes = deck_changes(current, target)
         key = json.dumps(target, sort_keys=True)
         if not changes or self._tries.get(key, 0) >= TRIES_PER_TARGET:
@@ -171,14 +202,16 @@ class DeckKeeper:
         await self.refresh(client)  # (its own cards: filled once, then just worn)
         return True
 
-    async def tick(self, client, boss: bool = False) -> bool:
-        """Between steps: put the deck back if it differs. True if it did."""
+    async def tick(self, client, boss: bool = False, extra: dict[str, int] | None = None) -> bool:
+        """Between steps: put the deck back if it differs (with `extra` on
+        top: a boss's prisms, out again once they're not asked for). True if
+        it did."""
         self.last_boss = boss  # (the deck asked for: kept while no fight decides)
         if STALE_FILE.exists():
             return await self.refresh(client)
         if await self._wear(client, boss):
             return True
-        due = self.due(boss)
+        due = self.due(boss, extra)
         if due is None:
             return False
         target, changes = due
