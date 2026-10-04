@@ -4709,16 +4709,19 @@ class Quester:
                 await self.approach_and_walk(door, zone)
                 return True
             if zone == WORLD_TREE or is_house(zone):
-                if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                # Not loaded from here: where it was seen before (the (0, 0)
+                # guess stood by the house's own teleporter).
+                seen = [p for n, ps in (self.entity_map.zones.get(zone) or {}).items()
+                        if n.lower() == "universeteleport" for p in ps]
+                gate = await self._entity_named_like(("universeteleport",)) or (
+                    XYZ(*seen[0]) if seen else XYZ(0, 0, 89))
+                # A prompt counts only beside the gate: Go Home lands by the
+                # house's teleporter, whose prompt was taken for the gate's and
+                # its X went to Wysteria again and again.
+                near_gate = distance(await self._position(), gate) < GATE_STAND + 250
+                if not (near_gate and await ui.is_visible(self.client, ui.NPC_RANGE)):
                     # Land beside the gate (walking into it doesn't open the
                     # map: its "Press X" prompt does) and wait for the prompt.
-                    # Not loaded from here: where it was seen before. The (0, 0)
-                    # guess put the house's own teleporter's prompt up instead,
-                    # and its X took the bot to Wysteria again and again.
-                    seen = [p for n, ps in (self.entity_map.zones.get(zone) or {}).items()
-                            if n.lower() == "universeteleport" for p in ps]
-                    gate = await self._entity_named_like(("universeteleport",)) or (
-                        XYZ(*seen[0]) if seen else XYZ(0, 0, 89))
                     here = await self._position()
                     dx, dy = here.x - gate.x, here.y - gate.y
                     back = GATE_STAND / (math.hypot(dx, dy) or 1.0)
