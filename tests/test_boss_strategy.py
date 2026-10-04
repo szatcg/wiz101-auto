@@ -276,3 +276,21 @@ def test_no_single_target_spells_at_luska():
     luska = Combatant("Luska Charmbeak", 16920, 16920, is_enemy=True, is_boss=True, resist={})
     a = decide(Battle(me=me, allies=[], enemies=[luska], cards=[bolt, trap], pips=3, power_pips=0))
     assert not (a.kind is ActionKind.CAST and a.target is luska)
+
+
+def test_giant_goes_on_orthrus_before_it_is_castable():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7, castable=False,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    frog = Card(1, "Humongofrog", school="myth", pip_cost=4, castable=False,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 400)])
+    giant = Card(2, "Giant", school="sun", pip_cost=0,
+                 effects=[Effect(EffectKind.ENCHANT_DAMAGE, Target.SPELL, 125)])
+    me = Combatant("me", 2500, 2500, is_client=True, school="myth")
+    foe = Combatant("Foe", 3000, 3000, is_enemy=True, resist={})
+    a = decide(Battle(me=me, allies=[], enemies=[foe], cards=[frog, orthrus, giant], pips=1, power_pips=0))
+    assert a.kind is ActionKind.ENCHANT and a.card is giant and a.target_card is orthrus
+    a2 = decide(Battle(me=me, allies=[], enemies=[foe], cards=[frog, giant], pips=1, power_pips=0))
+    assert a2.kind is ActionKind.ENCHANT and a2.target_card is frog

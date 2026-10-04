@@ -2241,8 +2241,33 @@ def _no_single_target(battle: Battle) -> Battle:
         for c in battle.cards])
 
 
+# The player: enchants go on these as soon as both are in hand (Orthrus first,
+# else Humongofrog), castable or not: the enchant is used up, and the hand
+# draws again next round instead of holding it.
+ENCHANT_FIRST = ("orthrus", "humongofrog")
+
+
+def _enchant_early(battle: Battle) -> Action | None:
+    """A damage enchant in hand onto the first un-enchanted card of
+    ENCHANT_FIRST in hand (an enchant doesn't end the turn)."""
+    enchants = [c for c in battle.cards
+                if c.castable and c.is_enchant and EffectKind.ENCHANT_DAMAGE in c.kinds]
+    if not enchants:
+        return None
+    for name in ENCHANT_FIRST:
+        hits = [c for c in battle.cards if c.name.lower() == name and c.is_damage and not c.enchanted]
+        if hits:
+            best = max(enchants, key=lambda c: sum(e.value for e in c.effects))
+            return Action(ActionKind.ENCHANT, best, target_card=hits[0],
+                          reason=f"{best.name} on {hits[0].name} now (the hand draws again for it)")
+    return None
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     battle = _no_single_target(battle)
+    early = _enchant_early(battle)
+    if early is not None:
+        return early
     action = _decide_seen_raw(battle, strat, **kw)
     card = action.card
     if (action.kind is ActionKind.CAST and card is not None and card.is_heal and not card.is_damage
