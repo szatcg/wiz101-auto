@@ -1485,18 +1485,27 @@ class Quester:
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:
         """Teleport to a spot in front of `target` (on the side we came from), then walk in."""
         pos = await self._position()
-        # First a walked path around the walls from here (Edith Benchley in
-        # Celestia's Base Camp: every teleport near her refused, and the bot
-        # gave up on her four times).
+        # A walked path around the walls (Edith Benchley in Celestia's Base
+        # Camp: every teleport near her refused, and the bot gave up on her
+        # four times). First when walking is the mode (movement.walk, or a
+        # walk-only zone); else the teleports first and the walk if they fail
+        # (the player: it walked the streets into a Haunted Minion's fight).
         from .walkmap import walk_path
 
-        path = await walk_path(zone or "", pos, target) if zone else None
-        if path and len(path) > 1:
+        walking = getattr(self.client, "_walk", False) or any(
+            (zone or "").startswith(p) for p in getattr(self.client, "_walk_only", ()))
+
+        async def walk_there() -> bool:
+            path = await walk_path(zone or "", await self._position(), target) if zone else None
+            if not path or len(path) < 2:
+                return False
             logger.info(f"walking a {len(path)}-waypoint path to it")
             if await self._follow_path(path, zone) is None:
                 return True
-            if await self._zone_changed(zone) or distance(await self._position(), target) < WALKED_CLOSE:
-                return True
+            return await self._zone_changed(zone) or distance(await self._position(), target) < WALKED_CLOSE
+
+        if walking and await walk_there():
+            return True
         dx, dy = pos.x - target.x, pos.y - target.y
         length = math.hypot(dx, dy)
         base = math.atan2(dy, dx) if length > 1 else 0.0
@@ -1525,7 +1534,8 @@ class Quester:
                 continue  # this spot was rejected too; try further back
             if await self.walk_through(target, zone):
                 return True
-        return False
+        # The teleports didn't get there: walk it (when not walked first).
+        return not walking and await walk_there()
 
     async def _ground_for_teleport(self, near: XYZ) -> list[tuple[float, float, float]]:
         from .tpspots import spots
