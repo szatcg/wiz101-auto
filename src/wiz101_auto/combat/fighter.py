@@ -248,6 +248,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._gone: Counter[str] = Counter()
+        self._enchant_tried: dict[int, set[str]] = {}  # round -> cards an enchant was tried on
         self._discarded: Counter[str] = Counter()  # (of _gone: the discarded ones; the rest were played)
         self._plan_toss_round = -1  # the round a plan discard was made in (one a round)
         self._deck: dict[str, int] = {}
@@ -590,6 +591,13 @@ class Fighter(CombatHandler):
             battle.prismed = set(self._prismed) | {e.name for e in battle.enemies if e.myth_prism}
             battle.summoned = self._summons
             _save_my_stats(battle.me)
+            # An enchant tried on a card this round that didn't take (Giant on
+            # an Orthrus short of pips: tried 8 times, the turn wasted): that
+            # card counts as enchanted for the rest of the round.
+            tried = self._enchant_tried.get(battle.round, set())
+            if tried:
+                battle.cards = [dataclasses.replace(c, enchanted=True) if c.name in tried else c
+                                for c in battle.cards]
             # One plan discard a round at most (four in a round ran the deck dry).
             action = decide(battle, self.strategy, discards_left=discards_left,
                             plan_discards=self._plan_toss_round != battle.round)
@@ -649,6 +657,8 @@ class Fighter(CombatHandler):
             live_card = snap.cards[action.card.index]
 
             if action.kind is ActionKind.ENCHANT:
+                self._enchant_tried = {battle.round: self._enchant_tried.get(battle.round, set())
+                                       | {action.target_card.name}}
                 self._gone[_deck_name(action.card)] += 1
                 await live_card.cast(snap.cards[action.target_card.index])
                 await asyncio.sleep(0.3)

@@ -68,25 +68,37 @@ async def mouse_on_pause(client, controller, mouseless: bool):
     on resume (the player couldn't use the mouse while paused)."""
     if not mouseless:
         return
+    from wizwalker.memory.hooks import MouselessCursorMoveHook
+
+    hooks = client.hook_handler
+
+    def hook_on() -> bool:
+        return hooks._check_if_hook_active(MouselessCursorMoveHook)
+
     released = False
     try:
         while not controller.stopped.is_set():
             if controller.paused and not released:
                 release_mouse_buttons(client)
-                await client.mouse_handler.__aexit__(None, None, None)
+                # The hook itself, not one reference to it: with a deck
+                # change (DeckBuilder) also holding it, leaving one reference
+                # kept it on and the player never got the mouse back.
+                if hook_on():
+                    await hooks.deactivate_mouseless_cursor_hook()
                 released = True
                 logger.info("paused: the mouse is yours")
             elif not controller.paused and released:
-                await client.mouse_handler.__aenter__()
+                if client.mouse_handler._ref_count > 0 and not hook_on():
+                    await hooks.activate_mouseless_cursor_hook()
                 released = False
                 logger.info("resumed: the bot has the mouse again")
             await asyncio.sleep(0.3)
     finally:
-        if released:
-            # (The shutdown closes the managed mouseless once: take it back so
-            # that close is balanced.)
+        if released and client.mouse_handler._ref_count > 0 and not hook_on():
+            # (The shutdown closes the managed mouseless once: put the hook
+            # back so that close is balanced.)
             try:
-                await client.mouse_handler.__aenter__()
+                await hooks.activate_mouseless_cursor_hook()
             except Exception:
                 pass
 
