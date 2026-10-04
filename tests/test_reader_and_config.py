@@ -163,3 +163,16 @@ def test_heal_where_it_last_worked_first():
     got = upkeep.heal_preferences(prefs)
     assert got[0] == "Grizzleheim/GH_HFjord/GH_HFjord" and "Grizzleheim/GH_Hero" in got
     upkeep._healed_in.clear()
+
+
+def test_a_hub_with_known_wisps_counts():
+    from wiz101_auto import upkeep
+
+    spots = {"Celestia/CL_Hub": [(i * 500.0, 0.0, 0.0) for i in range(5)],
+             "Celestia/CL_Z05_The_Floating_Land": [(i * 500.0, 0.0, 0.0) for i in range(5)]}
+    kinds = {"Celestia/CL_Hub": {s: "mana" for s in map(tuple, spots["Celestia/CL_Hub"])},
+             "Celestia/CL_Z05_The_Floating_Land":
+                 {s: "health" for s in map(tuple, spots["Celestia/CL_Z05_The_Floating_Land"])}}
+    got = upkeep.best_wisp_zone("Celestia/CL_Z02_Crab_Realm", spots, need={upkeep.MANA}, kinds=kinds,
+                                hops=lambda a, b: 1)
+    assert got == "Celestia/CL_Hub"

@@ -16,6 +16,13 @@ from .travel_data import hops_from_hub
 from .wisps import ANY, BOTH, HEALTH, MANA, WispMemory, usable, wisp_kind
 
 
+def wisp_hub(zone: str, need=None) -> bool:
+    """A hub with no wisps of the kind needed: most hubs have none, but
+    Celestia's has mana wisps (130 spots seen) and none of its other zones
+    do; taking every hub as empty, the wizard sat at 0% mana in it."""
+    return is_hub_zone(zone) and wisp_memory().count(zone, BOTH if need is None else need) < 3
+
+
 def is_hub_zone(zone: str) -> bool:
     """A world's hub (the Oasis, the Commons, the Basilica): never any wisps."""
     from .travel_data import is_world_hub
@@ -507,7 +514,9 @@ def best_wisp_zone(
         # check and took the wizard into Mount Olympus alone.
         if z in dungeons or "/interiors/" in z.lower():
             continue
-        if z != current_zone and z not in avoid and not is_hub_zone(z):
+        # (Only zones with 3+ spots of the needed kind are here, hubs too:
+        # Celestia's has the world's mana wisps.)
+        if z != current_zone and z not in avoid:
             return z
     if in_world:
         return in_world[0]
@@ -648,7 +657,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         if cfg.collect_wisps:
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
-            hub = is_hub_zone(zone)  # the Oasis, the Commons, the Basilica: never any wisps
+            hub = wisp_hub(zone, need)  # the Oasis, the Commons: no wisps (Celestia's: mana)
             known_elsewhere = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=need,
                                              avoid=barren_zones(), hops=hops_from_hub) is not None
             if hub:
@@ -755,7 +764,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             return True
         zone = await client.zone_name() or "?"
         in_time = loop.time() - started < cfg.rest_max_minutes * 60
-        if in_time and not is_hub_zone(zone) and wisp_memory().count(zone, needed_wisps(cfg, hp, mana)) >= 3:
+        if in_time and not wisp_hub(zone) and wisp_memory().count(zone, needed_wisps(cfg, hp, mana)) >= 3:
             # Wisps beat resting: wait for the next ones to come off cooldown.
             if await watchful_wait(client, WISP_RESPAWN_WAIT / 2) >= BUSY_MOVES:
                 note_barren(zone)
