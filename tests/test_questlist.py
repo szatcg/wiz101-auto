@@ -98,3 +98,15 @@ def test_wintertusk_zones_are_wintertusk():
     assert world_of_zone("Grizzleheim/GH_HFjord/Interiors/GH_Aust_Cave05") == "Wintertusk"
     assert world_of_zone("Grizzleheim/GH_MainHub") == "Grizzleheim"
     assert world_of_zone("Krokotopia/KT_Hub") == "Krokotopia"
+
+
+def test_side_quests_in_wintertusk_after_celestias():
+    from wiz101_auto.quest import QuestEntry, choose_quest
+
+    cel = QuestEntry(0, "Land Sharks", world="District of the Stars", reward=100)
+    wt = QuestEntry(1, "Breakfast Club", world="Hrundle Fjord", reward=900)
+    wiz = QuestEntry(2, "Hard To Resist", world="Unicorn Way", reward=999)
+    places = ("Grizzleheim/GH_HFjord",)
+    assert choose_quest([cel, wt, wiz], world="Celestia", fallback=places) is cel
+    assert choose_quest([wt, wiz], world="Celestia", fallback=places) is wt
+    assert choose_quest([wiz], world="Celestia", fallback=places) is None

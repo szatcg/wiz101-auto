@@ -254,6 +254,7 @@ STUCK_CHECK_AFTER = 20.0  # seconds on one objective before checking we can stil
 STUCK_CHECK_EVERY = 30.0
 UNREACHED_BEFORE_FIGHT = 2  # failed approaches to an in-dungeon marker before fighting to open a gate
 FLEES_BEFORE_FIGHTING = 2  # after fleeing the same enemies this often on one objective, fight
+TURN_IN_TALK_SECONDS = 180.0  # a quest gone this soon after a talk: that talk handed it in
 NAME_RECHECK_SECONDS = 30.0  # a collect/use name with nothing like it in the zone: look again
 WANTED_SCAN_SECONDS = 8.0  # how often to look for wanted collect items in view
 WINS_COUNT_AS_PROGRESS = 5  # won fights without the objective moving that still count
@@ -475,11 +476,24 @@ def same_world(a: str | None, b: str | None) -> bool:
     return bool(a and b) and a.replace(" ", "").lower() == b.replace(" ", "").lower()
 
 
+# The player's order when the main story is stuck (2026-10-04): the story,
+# then this world's side quests (in the book, then asked for), then side
+# quests in these places (zone prefixes), and grinding only after all that.
+FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",)}  # Wintertusk
+
+
+def quest_zone(q: QuestEntry) -> str:
+    """The zone of a quest's area from the book ("Hrundle Fjord" ->
+    "Grizzleheim/GH_HFjord/GH_HFjord"), "" if unknown."""
+    return (objective_zone(q.world) if q.world else None) or ""
+
+
 def choose_quest(
     quests: list[QuestEntry],
     set_aside: set[str] = frozenset(),
     order: dict | None = None,
     world: str | None = None,
+    fallback: tuple[str, ...] = (),
 ) -> QuestEntry | None:
     """Which quest to track. Only the main story (and spell/class quests, which
     teach spells) while one of those can be worked on; side quests only when
@@ -499,6 +513,12 @@ def choose_quest(
         # stay in this world (no trips back to Wizard City), finish the tracked
         # one before picking another, and prefer the biggest reward (experience).
         here = [q for q in available if quest_world(q) == world] if world else available
+        for place in fallback:
+            if here:
+                break
+            # (Nothing left in this world: the player's next places, e.g.
+            # Wintertusk's side quests after Celestia's.)
+            here = [q for q in available if quest_zone(q).startswith(place + "/")]
         if not here:
             return None  # nothing worth doing in this world: the caller grinds there
         active = next((q for q in here if q.active), None)
@@ -2834,6 +2854,8 @@ class Quester:
         if self.dialogue and "talk" in objective.lower():
             # This is the NPC the quest helper sent us to: accept what they offer.
             self.dialogue.accept_offers_for(30)
+        if objective.lower().startswith("talk") and talk_target(objective):
+            self._last_talk = (talk_target(objective), await self.client.zone_name() or "", time.monotonic())
         await self.client.send_key(Keycode.X, 0.1)
         # Move on as soon as something opens (dialogue, a menu, a loading
         # screen), not after a set second.
@@ -3218,6 +3240,7 @@ class Quester:
             prev_names = self._book_names
             if complete:
                 self._book_names = names  # only a full read says what's in the book
+                self._talk_again_after_turn_in(prev_names - names)
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
             # picked up again at the next level), never a trip to another world.
@@ -3241,7 +3264,8 @@ class Quester:
                         logger.info(f"the detour is over: the main story's world is {story} again")
                     world = story
             self._main_world = zone_world(world)
-            chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world)
+            chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
+                                  FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()))
             grinding = chosen is None and bool(all_quests)
             if grinding and not self._grinding:
                 logger.warning(f"nothing to do in {world}: fighting there for experience until a level-up")
@@ -3369,6 +3393,22 @@ class Quester:
             return True
         finally:
             await self._close_quest_book()
+
+    def _talk_again_after_turn_in(self, gone: set[str]):
+        """A quest just left the book right after talking to someone: that was
+        the turn-in. Talk to them again at once and accept what they offer
+        (the player: after Turning Tiles, Thornton Lewis gave 'Archivist,
+        Revisited' only when talked to a second time; the bot had walked off
+        and the story stopped)."""
+        last = self.__dict__.get("_last_talk")
+        if not gone or not last or time.monotonic() - last[2] > TURN_IN_TALK_SECONDS:
+            return
+        npc, zone, _t = last
+        self._last_talk = None
+        if VISIT_FILE.exists() or not zone:
+            return
+        logger.info(f"handed in {', '.join(sorted(gone))} to {npc}: talking to them again for the next quest")
+        VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": zone}), encoding="utf-8")
 
     def _later_story_first(self, chosen, quests: list, set_aside: set[str]):
         """A story quest that stays open over later ones (Wintertusk's 'Bones
@@ -6432,8 +6472,11 @@ class Quester:
                 # player: side quests give far more experience).
                 from .combat.sim import load_stats
 
-                target = self.givers.hunt_target(self._main_world, self.entity_map.zones,
-                                                 set(load_stats().get("enemies", {})))
+                enemies = set(load_stats().get("enemies", {}))
+                for place in (self._main_world, *FALLBACK_SIDE_PLACES.get(self._main_world, ())):
+                    target = self.givers.hunt_target(place, self.entity_map.zones, enemies)
+                    if target:
+                        break
                 source = "for side quests instead of grinding"
             if target:
                 npc, where = target

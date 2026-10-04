@@ -274,14 +274,15 @@ class QuestGivers:
                 return q.giver, zone
         return None
 
-    def hunt_target(self, world: str, zones: dict[str, dict], enemies: set[str]) -> tuple[str, str] | None:
-        """Nothing left to do in `world` and no side-quest list for it: a named
-        person seen there (the entity map, `zones`) not asked in the last
-        hour, in a zone not swept for quests in the last hour, the zone with
-        the most of them first. (npc, zone) or None: then grinding."""
+    def hunt_target(self, place: str, zones: dict[str, dict], enemies: set[str]) -> tuple[str, str] | None:
+        """Nothing left to do in `place` (a world, or a zone prefix like
+        Wintertusk's "Grizzleheim/GH_HFjord") and no side-quest list for it: a
+        named person seen there (the entity map, `zones`) not asked in the
+        last hour, in a zone not swept for quests in the last hour, the zone
+        with the most of them first. (npc, zone) or None: then grinding."""
         best: tuple[int, str, str] | None = None
         for zone, names in zones.items():
-            if zone.split("/", 1)[0] != world or "/interiors/" in zone.lower():
+            if not zone.startswith(place + "/") or "/interiors/" in zone.lower():
                 continue
             if time.time() - self._zone_checks.get(zone, 0.0) < ZONE_RECHECK_SECONDS:
                 continue
@@ -337,7 +338,12 @@ class QuestGivers:
         self._last_check = time.monotonic()
         zone = await self.client.zone_name() or ""
         world = self.q._main_world
-        if not zone or not world or zone.split("/", 1)[0] != world or await self.q._in_dungeon(zone):
+        from .quest import FALLBACK_SIDE_PLACES
+
+        places = FALLBACK_SIDE_PLACES.get(world, ())
+        fallback = self.q._grinding and any(zone.startswith(p + "/") for p in places)
+        if not zone or not world or (zone.split("/", 1)[0] != world and not fallback) \
+                or await self.q._in_dungeon(zone):
             return False
         if (load_guide(zone.split("/", 1)[0]) is None and zone != self.main_sweep_zone
                 and not self.q._grinding):
