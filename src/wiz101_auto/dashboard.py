@@ -15,6 +15,7 @@ from the files the bot keeps up to date):
 from __future__ import annotations
 
 import json
+import re
 import socket
 import threading
 import time
@@ -80,6 +81,55 @@ def _quest_steps(quest: str, objective: str, world: str | None) -> dict:
         return view(quest, objective, world or "")
     except Exception:
         return {"quest": quest, "done": [], "now": objective, "next": []}
+
+
+_OBJ_DONE = re.compile(r"^(\d\d):(\d\d):(\d\d) \| \w+\s*\| objective done -> now: (['\"])(.*)\4\s*$")
+
+
+def objective_times(lines: list[str], now: float) -> dict:
+    """From activity.log's 'objective done -> now: X' lines: when each
+    objective began (epoch, the latest time it did) and how long the ones
+    after which another began took. {"started": {text: t}, "took": {text: s}}.
+    The log has times only: today's date, a time later than `now` is
+    yesterday's."""
+    import datetime as dt
+
+    day = dt.datetime.fromtimestamp(now).replace(hour=0, minute=0, second=0, microsecond=0)
+    seen: list[tuple[str, float]] = []
+    for line in lines:
+        m = _OBJ_DONE.match(line)
+        if not m:
+            continue
+        t = (day + dt.timedelta(hours=int(m[1]), minutes=int(m[2]), seconds=int(m[3]))).timestamp()
+        if t > now + 60:
+            t -= 86400
+        seen.append((m[5], t))
+    started, took = {}, {}
+    for i, (text, t) in enumerate(seen):
+        started[text] = t
+        if i + 1 < len(seen):
+            took[text] = max(0, seen[i + 1][1] - t)
+        else:
+            took.pop(text, None)
+    return {"started": started, "took": took}
+
+
+def _objective_times(steps: dict) -> dict:
+    """Seconds each done step took, and when the current one began."""
+    from .thoughts import ACTIVITY
+
+    try:
+        with ACTIVITY.open("rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 400_000))
+            lines = f.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return {}
+    times = objective_times(lines, time.time())
+    return {
+        "took": {t: times["took"][t] for t in steps.get("done", []) if t in times["took"]},
+        "since": times["started"].get(steps.get("now") or ""),
+    }
 
 
 def _is_main(book: dict, listed) -> bool | None:
@@ -220,7 +270,8 @@ def build_data(docs: Path = Path("docs")) -> dict:
             "main": _is_main(book, lists.get(here or "", [])),
         },
         "sides": _zone_sides(book, status.get("zone", ""), here, lists, completed),
-        "steps": _quest_steps(book.get("tracking", ""), status.get("objective") or "", here),
+        "steps": (steps := _quest_steps(book.get("tracking", ""), status.get("objective") or "", here)),
+        "step_times": _objective_times(steps),
         "route": _route(running),
         "thoughts": _recent_thoughts(),
         "book": book.get("quests", []),

@@ -198,6 +198,10 @@
     box-shadow: 0 0 14px rgba(242, 193, 78, 0.22); animation: slide 0.45s ease-out; }
   .qstep.now .ic { color: var(--gold); }
   .qstep.next { color: var(--muted); font-style: italic; }
+  /* how long a step took (done) or has been going (now) */
+  .qstep .dur { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
+                text-decoration: none; display: inline-block; margin-left: 6px; white-space: nowrap; }
+  .qstep.now .dur { color: var(--gold); }
 
   /* ---- deck tracker (the strip during a fight) ---- */
   .dtrack { position: absolute; left: 176px; right: 0; top: 0; bottom: 0; display: grid;
@@ -858,17 +862,37 @@ function renderRoute() {
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 
+function fmtDur(s) {
+  s = Math.max(0, Math.round(s));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}:${String(sec).padStart(2, "0")}`;
+}
+
+// The current step's timer ticks between data refreshes.
+setInterval(() => {
+  const el = document.getElementById("nowdur");
+  if (el) el.textContent = fmtDur(Date.now() / 1000 - Number(el.dataset.since));
+}, 1000);
+
 function renderSteps() {
   const st = (data && data.steps) || {};
   const nowText = data.current.grinding ? "No quest to do right now: fighting for experience"
                                         : (st.now || data.current.objective || "");
+  const times = data.step_times || {};
+  const took = times.took || {};
   const done = (st.done || []).slice(-8).map((t) =>
-    `<div class="qstep done"><span class="ic">✓</span><span class="tx">${esc(t)}</span></div>`).join("");
-  const now = nowText ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(nowText)}</span></div>` : "";
+    `<div class="qstep done"><span class="ic">✓</span><span class="tx">${esc(t)}` +
+    (took[t] != null ? `</span><span class="dur">${fmtDur(took[t])}</span>` : "</span>") + `</div>`).join("");
+  const since = data.current.grinding ? null : times.since;
+  const now = nowText ? `<div class="qstep now"><span class="ic">▶</span><span class="tx">${esc(nowText)}</span>` +
+    (since ? `<span class="dur" id="nowdur" data-since="${since}"></span>` : "") +
+    `</div>` : "";
   const next = (st.next || []).slice(0, 5).map((t) =>
     `<div class="qstep next"><span class="ic">○</span><span class="tx">${esc(t)}</span></div>`).join("");
   const qhtml = done + now + next;  // (only on change: a redraw replays the slide-in)
   if ($("qsteps").dataset.html !== qhtml) { $("qsteps").dataset.html = qhtml; $("qsteps").innerHTML = qhtml; }
+  const nd = document.getElementById("nowdur");  // (its text outside the html compared above)
+  if (nd) nd.textContent = fmtDur(Date.now() / 1000 - Number(nd.dataset.since));
 }
 
 function describe(e) {
