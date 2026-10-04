@@ -4805,7 +4805,7 @@ class Quester:
             return True
         before = set(self._book_names)
         talked = await self._talk_to_named(objective)
-        if talked and want.get("pin"):
+        if talked and want.get("pin") and before:  # (an empty "before": every quest looked new)
             # The quest they gave is followed, wherever it is (the Waterworks
             # unlock chain in Wizard City while the story is in Celestia).
             self.pin_new_quest_after(before)
