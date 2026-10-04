@@ -259,6 +259,7 @@ def obey_controller(client, controller):
         wrapped.__wrapped__ = fn
         return wrapped
 
+    client._controller = controller  # (smoothwalk releases W while paused)
     client.teleport = gate(client.teleport)
     client.send_key = gate(client.send_key)
     mouse = client.mouse_handler
@@ -477,6 +478,8 @@ async def run(cfg: Config):
             raise SystemExit(f"could not get into the world within {CONNECT_TIMEOUT / 60:.0f} min; "
                              "asked for a game restart") from None
         obey_controller(client, controller)
+        client._walk = cfg.movement.walk  # (safe_teleport: walk instead of teleporting)
+        client._walk_only = tuple(cfg.movement.walk_only)
         if s.mouseless:
             # Managed mode: helpers like DeckBuilder nest `async with mouse_handler`
             # and must not switch mouseless off underneath us.

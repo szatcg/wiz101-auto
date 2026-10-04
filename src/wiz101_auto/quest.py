@@ -1466,22 +1466,20 @@ class Quester:
         and walked on at z 0 for minutes (twice). A drop of FALL_DROP: back
         to the last spot on the ground, path dropped. True when walked, False
         after a fall, None when the zone changed or something else came up."""
-        last = await self._position()
-        for wp in path:
-            if await self.client.in_battle() or not await is_free(self.client):
-                return None
-            if zone and await self._zone_changed(zone):
-                return None
-            with contextlib.suppress(Exception):
-                await asyncio.wait_for(self.client.goto(wp.x, wp.y), 15)
-            now = await self._position()
-            if now.z < last.z - FALL_DROP:
-                logger.warning(f"fell {last.z - now.z:.0f} off the walk path: "
-                               "back to the last spot on the ground")
-                await self.client.teleport(last)
-                await asyncio.sleep(1.0)
-                return False
-            last = now
+        # One smooth walk (smoothwalk: W held, steered toward a point ahead),
+        # not a stop and a sharp turn at every waypoint (the player: jerky).
+        from .smoothwalk import walk_route
+
+        async def busy() -> bool:
+            return await self.client.in_battle() or not await is_free(self.client)
+
+        how = await walk_route(self.client, path, zone, abort=busy)
+        if how == "fell":
+            logger.warning("fell off the walk path: back to the last spot on the ground")
+            await asyncio.sleep(1.0)
+            return False
+        if how in ("zone", "aborted"):
+            return None
         return True
 
     async def approach_and_walk(self, target: XYZ, zone: str | None) -> bool:

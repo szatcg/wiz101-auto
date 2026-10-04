@@ -121,6 +121,14 @@ class PetConfig:
 
 
 @dataclass
+class MovementConfig:
+    # The player: look like someone playing, walking instead of teleporting.
+    walk: bool = False  # teleports within a zone become walks (teleport only when walking fails)
+    # Zone id prefixes where the bot never teleports, only walks (the Waterworks with a team).
+    walk_only: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Config:
     mode: str = "quest"  # quest | fight | farm | boss
     farm_seconds_between_fights: float = 2.0
@@ -135,6 +143,7 @@ class Config:
     boss_farm: BossFarmConfig = field(default_factory=BossFarmConfig)
     deck_search: DeckSearchConfig = field(default_factory=DeckSearchConfig)
     pet: PetConfig = field(default_factory=PetConfig)
+    movement: MovementConfig = field(default_factory=MovementConfig)
 
 
 def _merge(obj: Any, data: dict[str, Any], path: str = "") -> Any:

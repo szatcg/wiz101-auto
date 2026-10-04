@@ -100,6 +100,36 @@ def allow_engage(client, seconds: float = 6.0):
 LANDED = 200.0  # a teleport that ends this near its target worked
 
 
+WALK_MIN = 200.0  # shorter hops than this are still teleports (a nudge beside a prompt)
+
+
+async def _walk_instead(client, xyz) -> bool | None:
+    """With walking on: walk to `xyz` instead of teleporting. True/False when
+    walked (or, walk-only, tried); None to teleport as usual."""
+    walk = getattr(client, "_walk", False)
+    only = getattr(client, "_walk_only", ())
+    if not walk and not only:
+        return None
+    try:
+        zone = await client.zone_name() or ""
+        here = await client.body.position()
+        if await client.in_battle():
+            return None
+    except Exception:
+        return None
+    walk_only = any(zone.startswith(p) for p in only)
+    if math.dist((here.x, here.y), (xyz.x, xyz.y)) < WALK_MIN and not walk_only:
+        return None
+    from .smoothwalk import walk_to
+
+    ok = await walk_to(client, xyz, zone)
+    if ok or walk_only:
+        if not ok:
+            logger.debug(f"walk-only zone: no way on foot to ({xyz.x:.0f}, {xyz.y:.0f}); not teleporting")
+        return ok
+    return None  # (walking didn't get there: teleport after all)
+
+
 def install(client):
     """Wrap `client.teleport` with the landing check (once)."""
     if getattr(client, "_safe_teleport", False):
@@ -207,6 +237,12 @@ def install(client):
         return None
 
     async def teleport(xyz, *args, **kwargs):
+        # Walking like a player (movement.walk / movement.walk_only): a walk
+        # along the zone's walkable map first; in walk-only zones (the
+        # Waterworks with a team) never a teleport, even when the walk fails.
+        walked = await _walk_instead(client, xyz)
+        if walked is not None:
+            return None
         # Past the known ground isn't always off the map (a zone exit at the
         # edge of what we've seen: snapping it 1500 away looped in the Village
         # of Sorrow). Go there; only if we then can't walk, land on known ground.
