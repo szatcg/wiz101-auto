@@ -6215,7 +6215,10 @@ class Quester:
                     return
                 # A boss that hasn't come out yet (Malistaire: his Soul Servants
                 # first): in a dungeon or a room, beat the enemies around it.
-                if ((inside or "/interiors/" in here_zone.lower())
+                # (Not for a boss who needs the dungeon's own tasks instead:
+                # Sylster after the Waterworks' levers. The player: skip as
+                # many fights as possible there.)
+                if ((inside or "/interiors/" in here_zone.lower()) and norm(target or "") not in LATE_BOSSES
                         and await self._clear_dungeon(objective, here_zone)):
                     return
                 # The boss standing as itself before its cutscene ("Malistaire"
