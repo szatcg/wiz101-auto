@@ -6801,6 +6801,12 @@ class Quester:
         if await self._house_to_world():
             logger.debug("step: house's world gate")
             return
+        if not self._mainline and self._detour_gap_pending() and await self._detour_ask():
+            # The story's quest ended with none after it: its NPCs before any
+            # side quest (the player's order; it went off to 'The Spiral Cup'
+            # after 'Meddling Wizards' with Zafaria's next quest at the hub).
+            logger.debug("step: asked for the story's next quest")
+            return
         logger.debug("step: past the trips")
         # Noting what's around and where wisps spawn (~3 s each) runs beside
         # the step, not in its way.
