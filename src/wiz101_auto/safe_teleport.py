@@ -118,6 +118,8 @@ async def _walk_instead(client, xyz) -> bool | None:
     except Exception:
         return None
     walk_only = any(zone.startswith(p) for p in only)
+    if not walk and not walk_only:
+        return None  # (walk_only set elsewhere doesn't mean walking here: it walked Olde Town)
     if math.dist((here.x, here.y), (xyz.x, xyz.y)) < WALK_MIN and not walk_only:
         return None
     from .smoothwalk import walk_to
