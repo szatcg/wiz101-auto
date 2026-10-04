@@ -256,10 +256,22 @@ def _data() -> tuple[Gates, DisplayZones, Spots]:
 _kinds: dict[tuple[str, str], str] | None = None
 
 
+GATE_KINDS_FILE = Path("state") / "gate_kinds.json"  # {"from|to": kind}: learned gates' kinds
+
+
 def gate_kind(from_zone: str, to_zone: str) -> str:
+    """A gate's kind: WizSprinter's list, else state/gate_kinds.json (the rope
+    from Triton Avenue down into Crab Alley is "press X to jump", not a door
+    walked into: walking at it ran into Haunted Minions again and again)."""
     global _kinds
     if _kinds is None:
         _kinds = parse_gate_kinds((_TRAVERSAL_DIR / "gates_list.txt").read_text())
+        try:
+            for key, kind in json.loads(GATE_KINDS_FILE.read_text(encoding="utf-8")).items():
+                a, b = key.split("|", 1)
+                _kinds[(a, b)] = kind
+        except (OSError, ValueError):
+            pass
     return _kinds.get((from_zone, to_zone), "standard")
 
 
