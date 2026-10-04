@@ -183,3 +183,35 @@ def test_with_orthrus_on_its_way_set_up_goes_on_the_boss():
     assert act.card is not frog
     if act.card is trap:
         assert act.target.is_boss
+
+
+def test_medusa_stuns_the_last_enemy():
+    from wiz101_auto.combat.brain import _stun_the_last_one
+    from wiz101_auto.combat.model import (
+        Action,
+        ActionKind,
+        Battle,
+        Card,
+        Combatant,
+        Effect,
+        EffectKind,
+        Target,
+    )
+
+    medusa = Card(0, "Medusa", school="myth", pip_cost=5,
+                  effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 500),
+                           Effect(EffectKind.STUN, Target.ENEMY_SINGLE, 2)])
+    blade = Card(1, "Mythblade", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])
+    me = Combatant("me", 2600, 2600, is_client=True, school="myth")
+    boss = Combatant("Boss", 6000, 6000, is_enemy=True, is_boss=True, resist={})
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[medusa, blade], pips=1, power_pips=3)
+    got = _stun_the_last_one(b, Action(ActionKind.CAST, blade, me))
+    assert got is not None and got.card is medusa and got.target is boss
+    # Two enemies left, or one already stunned: as chosen.
+    add = Combatant("Add", 800, 800, is_enemy=True, resist={})
+    assert _stun_the_last_one(Battle(me=me, allies=[], enemies=[boss, add], cards=[medusa, blade],
+                                     pips=1, power_pips=3), Action(ActionKind.CAST, blade, me)) is None
+    stunned = Combatant("Boss", 6000, 6000, is_enemy=True, is_boss=True, resist={}, is_stunned=True)
+    assert _stun_the_last_one(Battle(me=me, allies=[], enemies=[stunned], cards=[medusa, blade],
+                                     pips=1, power_pips=3), Action(ActionKind.CAST, blade, me)) is None

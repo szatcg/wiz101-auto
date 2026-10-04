@@ -519,8 +519,12 @@ def _junk_discard(battle: Battle, strat: Strategy) -> Action | None:
              and (EffectKind.BLADE in c.kinds or EffectKind.TRAP in c.kinds) and not setup_fits(c, battle)]
     if unfit:
         return Action(ActionKind.DISCARD, unfit[0], reason="a trap/blade for a school none of our hits use")
+    # (Not the necklace's Tower Shield: the player wants it kept for when
+    # we're hurt, and the shield rule plays it; the amulet's Spirit Armor
+    # still goes.)
     gear = [c for c in battle.cards if c.item and not c.treasure and not c.is_damage and not c.is_heal
-            and EffectKind.BLADE not in c.kinds and EffectKind.TRAP not in c.kinds]
+            and EffectKind.BLADE not in c.kinds and EffectKind.TRAP not in c.kinds
+            and not c.name.lower().startswith(KEPT_GEAR)]
     if gear:
         return Action(ActionKind.DISCARD, gear[0], reason="a gear card the plan never plays")
     useless = [
@@ -2097,9 +2101,39 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     except Exception:
         pass
     try:
+        action = _stun_the_last_one(battle, action) or action
+    except Exception:
+        pass
+    try:
         return _pip_wise_setup(battle, action, strat or Strategy()) or action
     except Exception:
         return action
+
+
+KEPT_GEAR = ("tower shield",)  # gear cards kept in hand (the player, 2026-10-04: the necklace's)
+
+
+def _stun_the_last_one(battle: Battle, action: Action) -> Action | None:
+    """The player's: with one enemy left, Medusa (a big hit that also stuns it
+    for 2 rounds: it skips its turns) goes on it, unless what was chosen
+    kills it now. Any castable hit with a stun works the same way."""
+    alive = battle.live_enemies
+    if len(alive) != 1 or alive[0].is_stunned:
+        return None
+    enemy = alive[0]
+    if (action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
+            and hit_damage(action.card, battle.me, enemy) >= enemy.health):
+        return None  # it ends the fight: better than a stun
+    stuns = [c for c in _castable(battle.cards)
+             if c.is_damage and EffectKind.STUN in c.kinds and not c.treasure]
+    if not stuns:
+        return None
+    best = max(stuns, key=lambda c: hit_damage(c, battle.me, enemy))
+    if action.kind is ActionKind.CAST and action.card is best:
+        return None
+    return Action(ActionKind.CAST, best, enemy,
+                  reason=f"{best.name} on the last enemy: ~{hit_damage(best, battle.me, enemy):.0f} dmg "
+                         "and it skips its turns (stun)")
 
 
 def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action | None:

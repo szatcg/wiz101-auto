@@ -1394,3 +1394,14 @@ def test_low_boss_bins_setup_to_dig_for_a_hit():
     healthy = Combatant("Boss", 4000, 5000, is_enemy=True, is_boss=True, resist={})
     b2 = Battle(me=me, allies=[], enemies=[healthy], cards=[feint], pips=1, deck_known=True, upcoming=[frog])
     assert _junk_discard(b2, Strategy()) is None  # far from dead: Feint has its use
+
+
+def test_the_necklace_tower_shield_is_kept():
+    tower = Card(6, "Tower Shield", school="ice", pip_cost=0, item=True,
+                 effects=[Effect(EffectKind.SHIELD, Target.ALLY_SINGLE, 50, "")])
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 300, "")])
+    b = battle([frog, tower], [enemy("Boss", 2000, boss=True)])
+    b.pips = 1
+    a = decide(b)
+    assert not (a.kind is ActionKind.DISCARD and a.card.name == "Tower Shield")
