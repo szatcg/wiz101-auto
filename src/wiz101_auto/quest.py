@@ -4418,6 +4418,7 @@ class Quester:
         # a door for 2 minutes, and the story quest was set aside as stuck.
         if await self._npc_named(name, near=near, skip=used) is not None:
             logger.info(f"another {name} not tried yet: that one next")
+            self._last_progress_time = time.monotonic()  # (ruling one out is progress)
             return True
         return False
 
