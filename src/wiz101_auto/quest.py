@@ -822,6 +822,8 @@ def closest_name(want: str, names) -> str | None:
     if hits:
         return min(hits, key=len)
     for loose in loose_names(want)[1:]:
+        if len(loose.split()) < 2:
+            continue  # (one word is too generic: 'Contrivance Station' -> any 'Station')
         hits = [n for n in names if contains(n, loose)]
         if hits:
             return min(hits, key=len)

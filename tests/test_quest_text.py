@@ -31,3 +31,9 @@ def test_closest_name_not_an_npc_sharing_the_first_word():
     from wiz101_auto.quest import closest_name
 
     assert closest_name("Dulin's Hammer", ["Dulin Helmsplitter", "Icy Wall"]) is None
+
+
+def test_closest_name_not_by_one_generic_word():
+    from wiz101_auto.quest import closest_name
+
+    assert closest_name("Contrivance Station", ["Conflict Station", "Configuration Station"]) is None
