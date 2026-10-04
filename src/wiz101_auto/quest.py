@@ -3279,8 +3279,13 @@ class Quester:
                 complete = False
             det = self._detour_names()
             game_main = {id(q): q.mainline for _, q in all_quests}
+            # None of the world's own quests in the book yet: its lead-in (the
+            # quests before its list starts) is whatever the game calls main.
+            lead_in = det is not None and not any(norm(q.name) in det[2] for _, q in all_quests)
             for _, q in all_quests:
-                if det is not None:
+                if det is not None and lead_in:
+                    pass  # (the game's main-story flag stands)
+                elif det is not None:
                     # A detour (state/detour.json: Grizzleheim, then Wintertusk,
                     # before Celestia): its world's story is the main story now,
                     # everything else waits.
@@ -3291,7 +3296,7 @@ class Quester:
                 elif q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
             if det is not None and complete:
-                has = any(norm(q.name) in det[2] for _, q in all_quests)
+                has = any(norm(q.name) in det[2] or (lead_in and game_main[id(q)]) for _, q in all_quests)
                 self._detour_start(det[0], has)
                 await self._note_detour_gap(has)
             activities = {q.name for _, q in all_quests if q.activity}
@@ -4764,7 +4769,12 @@ class Quester:
             self._world_lists = load_world_lists()
         listed = self._world_lists.get(entry["world"], [])
         main = {norm(q.name) for q in listed if not any("SIDE" in t for t in q.tags)}
-        return entry, main, {norm(q.name) for q in listed}
+        # The quest that starts the world counts as its story, listed or not
+        # (Merle Ambrose's 'Dire News From Abroad' leads into Zafaria from
+        # Ravenwood, and was taken for a side quest).
+        start = norm((entry.get("start") or {}).get("quest", ""))
+        lead = {start} if start else set()
+        return entry, main | lead, {norm(q.name) for q in listed} | lead
 
     async def _note_detour_gap(self, has: bool):
         """The detour world's quest just left the book with none after it
