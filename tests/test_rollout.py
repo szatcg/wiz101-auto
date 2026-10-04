@@ -140,3 +140,30 @@ def test_a_boss_too_big_to_kill_gets_feint_before_orthrus():
     weak = Combatant("Gurtok", 500, 5600, is_enemy=True, is_boss=True, resist={})
     b2 = Battle(me=me, allies=[], enemies=[weak], cards=[orthrus, feint], pips=1, power_pips=3)
     assert _boss_setup_first(b2, Action(ActionKind.CAST, orthrus, None)) is None  # it kills: go
+
+
+def test_setup_stops_when_losing_the_race():
+    from wiz101_auto.combat.brain import _boss_setup_first
+    from wiz101_auto.combat.model import (
+        Action,
+        ActionKind,
+        Battle,
+        Card,
+        Combatant,
+        Effect,
+        EffectKind,
+        Target,
+    )
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    glauco = Combatant("Glauco", 3570, 3570, is_enemy=True, is_boss=True, resist={})
+    warlord = Combatant("Angler Warlord", 4125, 4125, is_enemy=True, is_boss=True, resist={})
+    hurt = Combatant("me", 1418, 2589, is_client=True, school="myth")  # 55%: the round it should have hit
+    b = Battle(me=hurt, allies=[], enemies=[glauco, warlord], cards=[orthrus, feint], pips=0, power_pips=5)
+    assert _boss_setup_first(b, Action(ActionKind.CAST, orthrus, None)) is None
+    fresh = Combatant("me", 2589, 2589, is_client=True, school="myth")
+    b2 = Battle(me=fresh, allies=[], enemies=[glauco, warlord], cards=[orthrus, feint], pips=0, power_pips=5)
+    assert _boss_setup_first(b2, Action(ActionKind.CAST, orthrus, None)) is not None  # healthy: set up

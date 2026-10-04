@@ -2017,6 +2017,7 @@ BOSS_SETUP_TRAPS = 3  # traps on a boss before a big hit that won't kill it (no 
 BOSS_SETUP_BLADES = 2  # our blades likewise
 BIGGER_HIT = 1.8  # a hit this many times bigger in hand or deck: the small one doesn't go on a boss
 PAYOFF_PIPS = 4  # a payoff spell (the hit-all a setup is for) costs at least this
+SETUP_MIN_HEALTH = 0.6  # below this much health, hits go now: no more rounds of setup
 
 
 def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) -> Action | None:
@@ -2059,6 +2060,11 @@ def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) ->
         if plan_hand_use(battle)[0] < 99:
             return None  # a kill is in reach and the plan says how
     except Exception:
+        return None
+    if battle.me.max_health and battle.me.health < SETUP_MIN_HEALTH * battle.me.max_health:
+        # Losing the race: Glauco and the Angler Warlord took the wizard from
+        # 1903 to 375 while it set up Feints and blades for an Orthrus that
+        # was never cast (5 power pips in hand from round 4). Hit now.
         return None
     setups = [c for c in _castable(battle.cards) if not c.is_enchant and setup_fits(c, battle)
               and (EffectKind.TRAP in c.kinds or EffectKind.BLADE in c.kinds) and c is not card]
