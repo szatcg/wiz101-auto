@@ -25,3 +25,9 @@ def test_closest_name_finds_what_the_zone_calls_it():
     assert closest_name("Fish Rack", zone) == "Fish Racks"
     assert closest_name("Red Crystal Sample", ["Crystal Sample", "Bat"]) == "Crystal Sample"
     assert closest_name("Golden Axe", zone) is None
+
+
+def test_closest_name_not_an_npc_sharing_the_first_word():
+    from wiz101_auto.quest import closest_name
+
+    assert closest_name("Dulin's Hammer", ["Dulin Helmsplitter", "Icy Wall"]) is None

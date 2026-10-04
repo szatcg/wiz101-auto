@@ -782,12 +782,18 @@ def closest_name(want: str, names) -> str | None:
     ('Red Crystal Sample' -> 'Crystal Sample'). The player: when collect/use
     struggles, look up the name to go to at once instead of sweeping again."""
     names = [n for n in dict.fromkeys(names) if n]
-    for match in (lambda n: same_object_name(n, want), lambda n: matches_item(want, n)):
-        hits = [n for n in names if match(n)]
-        if hits:
-            return min(hits, key=len)
+
+    def contains(n: str, w: str) -> bool:
+        # (Containing the whole name, one or many: matches_item's first-word
+        # rule took "Dulin's Hammer" for the NPC Dulin Helmsplitter.)
+        a, b = _norm_name(n), _norm_name(w)
+        return bool(b) and (b in a or b.rstrip("s") in a)
+
+    hits = [n for n in names if same_object_name(n, want)] or [n for n in names if contains(n, want)]
+    if hits:
+        return min(hits, key=len)
     for loose in loose_names(want)[1:]:
-        hits = [n for n in names if matches_item(loose, n)]
+        hits = [n for n in names if contains(n, loose)]
         if hits:
             return min(hits, key=len)
     return None
@@ -3226,6 +3232,7 @@ class Quester:
                 # _grind fights outdoors there instead of taking on the boss.
                 chosen = main_quests[0]
             chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside, prev_names, complete)
+            chosen = self._later_story_first(chosen, [q for _, q in all_quests], set_aside)
             # Mid-way through a quest (its objective moved on minutes ago): keep
             # it. 'Left Behind' was at Nomoonaga's Tower when a ranking outside
             # the dungeon switched to the pinned 'Oni No Death'.
@@ -3341,6 +3348,54 @@ class Quester:
             return True
         finally:
             await self._close_quest_book()
+
+    def _later_story_first(self, chosen, quests: list, set_aside: set[str]):
+        """A story quest that stays open over later ones (Wintertusk's 'Bones
+        of the Earth' until #50 is done; docs/guides): while a later quest of
+        its guide is in the book, that one first (the pin stays)."""
+        from .main_guide import all_guides, later_in_book
+
+        if chosen is None:
+            return chosen
+        names = [q.name for q in quests if q.name not in set_aside]
+        for guide in all_guides():
+            later = later_in_book(guide, chosen.name, names)
+            if later:
+                if self.__dict__.get("_later_logged") != (chosen.name, later):
+                    self._later_logged = (chosen.name, later)
+                    logger.info(f"{later!r} first: {chosen.name!r} is handed in after it (the guide)")
+                return next(q for q in quests if q.name == later)
+        return chosen
+
+    def _fetch_next_story_quest(self):
+        """The guide's next story quest isn't in the book while an earlier one
+        waits on it: visit its giver (Dulin Helmsplitter for 'Hammer Don't
+        Hurt 'Em'), where the entity map last saw them. Once per 10 min."""
+        from .main_guide import all_guides, giver, next_to_pick_up
+        from .questlist import load_completed
+
+        if VISIT_FILE.exists() or not self._book_names:
+            return
+        done = set(load_completed())
+        for guide in all_guides():
+            nxt = next_to_pick_up(guide, done, self._book_names)
+            if nxt is None:
+                continue
+            npc = giver(guide, nxt)
+            asked = self.__dict__.setdefault("_story_asked", {})
+            if not npc or time.monotonic() - asked.get(npc, -1e9) < 600:
+                continue
+            asked[npc] = time.monotonic()
+            zones = [z for z, names in self.entity_map.zones.items()
+                     if any(_norm_name(n) == _norm_name(npc) for n in names)]
+            if not zones:
+                logger.warning(f"next story quest {nxt.name!r} (#{nxt.index}) is from {npc}, "
+                               "who hasn't been seen anywhere yet")
+                continue
+            logger.info(f"next story quest {nxt.name!r} (#{nxt.index}) isn't in the book: "
+                        f"visiting {npc} ({zones[0].split('/')[-1]}) for it")
+            VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": zones[0]}), encoding="utf-8")
+            return
 
     def pin_new_quest_after(self, before: set[str]):
         """After fetching quests from an NPC: at the next full read of the book,
@@ -6340,6 +6395,7 @@ class Quester:
                 logger.info(f"nothing left to do: visiting {npc} ({where.split('/')[-1]}) "
                             "from the quest list")
                 VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
+        self._fetch_next_story_quest()
         if VISIT_FILE.exists() and await self._visit_npc():
             return
         if await self._leave_spiral_map():
