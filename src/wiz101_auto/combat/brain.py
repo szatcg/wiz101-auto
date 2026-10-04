@@ -2224,7 +2224,25 @@ def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) ->
 FULL_HEALTH = 0.9  # a heal is never cast at or above this much health
 
 
+# Bosses that punish single-target spells (the player's Waterworks notes):
+# Luska Charmbeak answers any single-target spell from a wizard he hasn't
+# inked (all but the first spot) with Skeletal Dragon (1,200) or Power Link
+# (2,100), and cleanses traps; hits on all enemies are safe.
+NO_SINGLE_TARGET = {"luska charmbeak"}
+
+
+def _no_single_target(battle: Battle) -> Battle:
+    """With such a boss alive, single-target spells at enemies (traps, hits,
+    charms) aren't castable: blades on us and hit-alls are."""
+    if not any(e.name.lower() in NO_SINGLE_TARGET for e in battle.live_enemies):
+        return battle
+    return replace(battle, cards=[
+        replace(c, castable=False) if c.castable and c.target is Target.ENEMY_SINGLE else c
+        for c in battle.cards])
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
+    battle = _no_single_target(battle)
     action = _decide_seen_raw(battle, strat, **kw)
     card = action.card
     if (action.kind is ActionKind.CAST and card is not None and card.is_heal and not card.is_damage

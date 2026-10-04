@@ -262,3 +262,17 @@ def test_no_setup_when_the_next_round_could_kill_us():
     b = Battle(me=hurt, allies=[], enemies=foes, cards=[orthrus, trap], pips=1, power_pips=3)
     got = _hit_all_setup(b, orthrus)
     assert got is not None and got.kind is ActionKind.CAST and got.card is orthrus
+
+
+def test_no_single_target_spells_at_luska():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    bolt = Card(0, "Myth Bolt", school="myth", pip_cost=1,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 900)])
+    trap = Card(1, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30, "myth")])
+    me = Combatant("me", 2500, 2500, is_client=True, school="myth")
+    luska = Combatant("Luska Charmbeak", 16920, 16920, is_enemy=True, is_boss=True, resist={})
+    a = decide(Battle(me=me, allies=[], enemies=[luska], cards=[bolt, trap], pips=3, power_pips=0))
+    assert not (a.kind is ActionKind.CAST and a.target is luska)
