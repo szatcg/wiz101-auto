@@ -2495,6 +2495,9 @@ class Quester:
             self._last_rank = -1e9  # re-rank quests on this step
         else:
             n = self.setbacks.defeats.get(objective, 0)
+            # (A lost fight isn't a stall: 'Call of Cablooey' was set aside by
+            # the 4-min clock after one loss, the fight itself taking 4 min.)
+            self._last_progress_time = time.monotonic()
             logger.info(f"defeat {n} on {objective!r}; trying again")
         self.setbacks.save()
 
