@@ -138,6 +138,8 @@ RAVENWOOD = "WizardCity/WC_Ravenwood"
 WORLD_TREE = "WizardCity/WC_Ravenwood_Teleporter"  # inside Bartleby: the Spiral Map's world gate
 DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where the detour's quest ended
 DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
+# {"zone", "asked"}: where the main story was last worked on (its NPCs asked for its next quest)
+MAIN_STORY_ZONE_FILE = Path("state") / "main_story_zone.json"
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
                       "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia",
@@ -3072,6 +3074,18 @@ class Quester:
                             "the main story meanwhile")
                 for _, q in all_quests:
                     q.mainline = game_main[id(q)] and not in_side_world(q)
+            elif det is not None and complete and not detour_mains and not self._detour_gap_pending():
+                # No detour quest at all, its NPCs asked already: the main story
+                # (Celestia) meanwhile, never grinding (the player).
+                logger.info("no detour quest to follow: the main story meanwhile")
+                self._detour_fallback = True
+                for _, q in all_quests:
+                    q.mainline = game_main[id(q)] and not in_side_world(q)
+            if any(q.active and q.mainline and not in_side_world(q) for _, q in all_quests):
+                here_now = await self.client.zone_name() or ""
+                if here_now and not here_now.startswith(("Grizzleheim", "WizardCity/Interiors")):
+                    MAIN_STORY_ZONE_FILE.write_text(json.dumps({"zone": here_now, "asked": 0}),
+                                                    encoding="utf-8")
             logger.debug(
                 f"quest book: {[q.name for _, q in all_quests]}; set aside: {sorted(set_aside)}"
             )
@@ -4376,14 +4390,25 @@ class Quester:
             DETOUR_GAP_FILE.write_text(json.dumps({"zone": zone, "asked": 0}), encoding="utf-8")
             logger.info(f"the detour's quest ended in {zone.split('/')[-1]}: its NPCs have the next one")
 
+    def _detour_gap_pending(self) -> bool:
+        """The detour's NPCs not asked yet for its next quest (state/detour_gap.json)."""
+        try:
+            gap = json.loads(DETOUR_GAP_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        return bool(gap.get("zone")) and time.time() - gap.get("asked", 0) >= DETOUR_ASK_SECONDS
+
     async def _detour_ask(self) -> bool:
         """No detour quest in the book: to the zone where the last one ended
         and ask its NPCs, before any grinding (it went to grind in Celestia).
-        Once an hour. True if it acted."""
+        Once an hour. Then, with no main quest either (the fallback to the
+        main story, its next quest not in the book): the NPCs where the main
+        story was last worked on. True if it acted."""
         if self._mainline or self._detour_names() is None:
             return False
+        gap_file = DETOUR_GAP_FILE if self._detour_gap_pending() else MAIN_STORY_ZONE_FILE
         try:
-            gap = json.loads(DETOUR_GAP_FILE.read_text(encoding="utf-8"))
+            gap = json.loads(gap_file.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return False
         dest = gap.get("zone") or ""
@@ -4398,9 +4423,10 @@ class Quester:
             if await self.go_to_zone(dest) or await self.client.zone_name() != zone:
                 return True
         gap["asked"] = time.time()
-        DETOUR_GAP_FILE.write_text(json.dumps(gap), encoding="utf-8")
+        gap_file.write_text(json.dumps(gap), encoding="utf-8")
         if zone == dest:
-            logger.info(f"asking the NPCs of {dest.split('/')[-1]} for the detour's next quest")
+            what = "the detour's" if gap_file == DETOUR_GAP_FILE else "the main story's"
+            logger.info(f"asking the NPCs of {dest.split('/')[-1]} for {what} next quest")
             self.givers.sweep_now(dest)
             self._ranked_for = None
             return True
