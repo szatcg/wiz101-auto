@@ -263,13 +263,35 @@ async def collect_wisps(client, cfg: UpkeepConfig, *, limit: int = 6) -> int:
         return 0
 
 
+FROZEN_FAILS_BEFORE_RELOG = 3  # heal moves in a row failing on should_update: the game took no moves
+_frozen = [0]
+
+
+async def _note_frozen(client, exc: Exception | None):
+    """Heal moves failing on WizWalker's `should_update`: the game stopped
+    taking moves (06:24 in Celestia's hub: every wisp visit timed out at 0%
+    mana for minutes, and the quest loop's relog never saw it, the errors
+    being caught here). Three in a row: relog."""
+    if exc is None or "should_update" not in str(exc):
+        _frozen[0] = 0
+        return
+    _frozen[0] += 1
+    if _frozen[0] >= FROZEN_FAILS_BEFORE_RELOG:
+        _frozen[0] = 0
+        logger.warning("the game takes no moves while healing: relogging")
+        await _relog_out(client)
+
+
 async def visit_known_spot(client, cfg: UpkeepConfig, zone: str, need=BOTH) -> bool:
     """Teleport to a remembered spawn point of a wisp kind we need (away from
     mobs) and grab what's there."""
     try:
-        return await _visit_known_spot(client, cfg, zone, need)
+        got = await _visit_known_spot(client, cfg, zone, need)
+        await _note_frozen(client, None)
+        return got
     except Exception as exc:  # e.g. WizWalker's ExceptionalTimeout while a popup blocks the game
         logger.debug(f"wisp spot visit failed: {exc!r}")
+        await _note_frozen(client, exc)
         return False
 
 
