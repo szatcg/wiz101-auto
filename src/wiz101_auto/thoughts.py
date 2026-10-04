@@ -20,6 +20,7 @@ _ROUND = re.compile(
 _ENEMY = re.compile(r"^(.*?)(\*?) (\d+)/(\d+)( dead)?$")
 _ACTION = re.compile(r"^(.*?)(?: on (.*?))? \((.*)\)$")
 _PREDICT = re.compile(r"\| predict: (.*)$")
+_CRIT = re.compile(r"\| crit: (.*)$")
 _NOISE = ("resists", " effects:", "correcting clicks", "Pass went through", "saved state/",
           "message box button", "card windows:", "working on:")
 
@@ -230,6 +231,13 @@ def read_thoughts(path: Path = ACTIVITY, limit: int = 40, tail_bytes: int = 60_0
     events = []
     battle, plan = None, ""
     for line in lines:
+        m = _CRIT.search(line)
+        if m:
+            if battle is not None:
+                found = re.findall(r"(\d+)=(\d+)/(\d+)/(\d+)/(\d+)", m.group(1))
+                battle["crit"] = {int(i): {"c": int(c), "b": int(b), "n": int(n), "x": int(x)}
+                                  for i, c, b, n, x in found}
+            continue
         m = _PREDICT.search(line)
         if m:
             if battle is not None:

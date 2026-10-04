@@ -635,6 +635,12 @@ class Fighter(CombatHandler):
             predicted = predicted_damage(battle, action)
             if predicted:  # for the stream page's health bars
                 logger.info("predict: " + ", ".join(f"{i}={d}" for i, d in predicted.items()))
+                from .brain import predicted_crits
+
+                crits = predicted_crits(battle, action)
+                if any(c[0] for c in crits.values()):  # (crit 0%: nothing to show)
+                    text = ", ".join(f"{i}={c}/{b}/{n}/{x}" for i, (c, b, n, x) in crits.items())
+                    logger.info(f"crit: {text}")
 
             if action.kind is ActionKind.PASS or action.card is None:
                 await self.pass_button()

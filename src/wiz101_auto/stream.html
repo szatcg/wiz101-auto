@@ -202,6 +202,7 @@
   .qstep .dur { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
                 text-decoration: none; display: inline-block; margin-left: 6px; white-space: nowrap; }
   .qstep.now .dur { color: var(--gold); }
+  .critline { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
 
   /* ---- deck tracker (the strip during a fight) ---- */
   .dtrack { position: absolute; left: 176px; right: 0; top: 0; bottom: 0; display: grid;
@@ -824,14 +825,16 @@ function renderLower() {
   const b = thoughts && thoughts.battle;
   if (b && s.in_battle) {
     const predict = b.predict || {};
-    const foes = b.enemies.map((e, i) => [e, predict[i] || 0]).filter(([e]) => !e.dead).map(([e, dmg]) => {
+    const crits = b.crit || {};
+    const foes = b.enemies.map((e, i) => [e, predict[i] || 0, crits[i]]).filter(([e]) => !e.dead).map(([e, dmg, cr]) => {
       const hpPct = e.max ? (100 * e.hp) / e.max : 0;
       const hitPct = e.max ? (100 * Math.min(dmg, e.hp)) / e.max : 0;
       const after = hpPct - hitPct;
       const mark = !dmg ? "" : dmg >= e.hp ? '<span class="ko">KO</span>' : `<span class="dmg">−${dmg}</span>`;
       return `<div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
         <span>${e.hp} / ${e.max}${mark}</span></div>
-        <div class="bar"><div style="width:${after}%"></div>${dmg ? `<div class="hit" style="left:${after}%; width:${hitPct}%"></div>` : ""}</div></div>`;
+        <div class="bar"><div style="width:${after}%"></div>${dmg ? `<div class="hit" style="left:${after}%; width:${hitPct}%"></div>` : ""}</div>
+        ${cr && cr.c ? `<div class="critline">💥 crit ${cr.c}% · blocks ${cr.b}% · ${cr.n} → ${cr.x} on a crit${cr.x >= e.hp && cr.n < e.hp ? ' <span class="ko">KO on a crit</span>' : ""}</div>` : ""}</div>`;
     }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     $("lower").className = "card grow battle";

@@ -169,7 +169,32 @@ def crit_chance(attacker: Combatant, target: Combatant, school: str) -> float:
     return 0.03 * min(attacker.level, 100) * crit / (3 * crit + target.block.get(school, 0.0))
 
 
-def _one_hit(base: float, school: str, attacker: Combatant, target: Combatant, wards: bool) -> float:
+def block_chance(attacker: Combatant, target: Combatant, school: str) -> float:
+    """The chance the target blocks a crit (the 2021 system: the attacker's
+    level, the target's block against our crit; 25% at equal ratings at level
+    100, 5% at level 20): 0.01 x level x block / (block + 3 x crit)."""
+    crit, block = attacker.crit.get(school, 0.0), target.block.get(school, 0.0)
+    if block <= 0 or not attacker.level:
+        return 0.0
+    return min(1.0, 0.01 * min(attacker.level, 100) * block / (block + 3 * max(crit, 0.0)))
+
+
+def crit_multiplier(attacker: Combatant, target: Combatant, school: str) -> float:
+    """A crit's damage factor: x2 against no block, about x1.25 at equal
+    ratings (Deimos: 2 - block / (crit / 3 + block))."""
+    crit, block = attacker.crit.get(school, 0.0), target.block.get(school, 0.0)
+    if crit <= 0:
+        return 1.0
+    return 2.0 - (block / (crit / 3 + block) if block > 0 else 0.0)
+
+
+def crit_lands(attacker: Combatant, target: Combatant, school: str) -> float:
+    """The chance our hit crits and the target doesn't block it."""
+    return crit_chance(attacker, target, school) * (1 - block_chance(attacker, target, school))
+
+
+def _one_hit(base: float, school: str, attacker: Combatant, target: Combatant, wards: bool,
+             crit: bool | None = None) -> float:
     """One hit's damage, in the game's order (Deimos's combat_math): damage
     stat and flat damage, blades and auras, the target's traps and shields
     (pierce breaking shields), a near-sure crit, flat resist, then resist
@@ -182,9 +207,8 @@ def _one_hit(base: float, school: str, attacker: Combatant, target: Combatant, w
     if wards:
         mult, pierce = _wards(target, school, pierce)
         dmg = dmg * mult + _flat(target.incoming_flat, school)
-    if crit_chance(attacker, target, school) >= CRIT_SURE:
-        crit, block = attacker.crit.get(school, 0.0), target.block.get(school, 0.0)
-        dmg *= 2 - block / (crit / 3 + block)
+    if crit if crit is not None else crit_chance(attacker, target, school) >= CRIT_SURE:
+        dmg *= crit_multiplier(attacker, target, school)
     dmg = max(0.0, dmg - target.resist_flat.get(school, 0.0))
     resist = _resist(school, target)
     if resist > 0:
@@ -193,16 +217,80 @@ def _one_hit(base: float, school: str, attacker: Combatant, target: Combatant, w
     return dmg * (1 - resist)
 
 
-def hit_damage(card: Card, attacker: Combatant, target: Combatant) -> float:
+def hit_damage(card: Card, attacker: Combatant, target: Combatant, crit: bool | None = None) -> float:
     """Damage if the spell lands (`_one_hit` per hit). A spell that hits twice
     (Minotaur: 50, then 445): our blades boost both hits, but the target's
     traps and shields break on the first (a Feint under a Minotaur boosts
-    only the 50)."""
+    only the 50). `crit`: True/False forces a crit or none; None counts one
+    only when it's near sure."""
     school = card.school.lower()
     hits = [e.value for e in card.effects if e.kind in DAMAGE_KINDS]
     if len(hits) <= 1:
-        return _one_hit(card.base_damage(), school, attacker, target, wards=True)
-    return sum(_one_hit(h, school, attacker, target, wards=i == 0) for i, h in enumerate(hits))
+        return _one_hit(card.base_damage(), school, attacker, target, wards=True, crit=crit)
+    return sum(_one_hit(h, school, attacker, target, wards=i == 0, crit=crit) for i, h in enumerate(hits))
+
+
+def crit_odds(card: Card, attacker: Combatant, target: Combatant) -> tuple[float, float, float, float]:
+    """(crit chance, block chance, damage without a crit, damage on a crit)."""
+    school = card.school.lower()
+    return (crit_chance(attacker, target, school), block_chance(attacker, target, school),
+            hit_damage(card, attacker, target, crit=False), hit_damage(card, attacker, target, crit=True))
+
+
+def kill_chance(card: Card, attacker: Combatant, target: Combatant) -> float:
+    """The chance this hit kills `target` (if it lands): sure when the plain
+    hit does it, the chance of an unblocked crit when only a crit does."""
+    pc, pb, normal, crit = crit_odds(card, attacker, target)
+    if normal >= target.health:
+        return 1.0
+    return pc * (1 - pb) if crit >= target.health else 0.0
+
+
+def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> float:
+    """The chance one cast kills every target: an all-enemy spell crits all at
+    once (one roll), each target blocking on its own."""
+    if not targets:
+        return 0.0
+    if not card.is_aoe:
+        return kill_chance(card, attacker, targets[0]) if len(targets) == 1 else 0.0
+    odds = [crit_odds(card, attacker, t) for t in targets]
+    pc = sum(o[0] for o in odds) / len(odds)  # (one roll for all: the chance against them on average)
+    no_crit = all(normal >= t.health for (_c, _b, normal, _x), t in zip(odds, targets, strict=True))
+    on_crit = 1.0
+    for (_c, pb, normal, crit), t in zip(odds, targets, strict=True):
+        on_crit *= 1.0 if normal >= t.health else ((1 - pb) if crit >= t.health else 0.0)
+    return (1 - pc) * (1.0 if no_crit else 0.0) + pc * on_crit
+
+
+CRIT_GAMBLE = 0.5  # a spell that ends the fight only on a crit is cast at this chance or better
+
+
+def _crit_gamble(battle: Battle, action: Action) -> Action | None:
+    """The player's: with a decent crit chance, a spell that ends the fight
+    only if it crits beats a slower sure plan. None if the chosen move ends
+    the fight already, or nothing ends it with CRIT_GAMBLE odds."""
+    alive = battle.live_enemies
+    if not alive:
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage:
+        if clear_chance(action.card, battle.me, alive if action.card.is_aoe else
+                        [t for t in alive if t is action.target]) >= 1.0 and (
+                action.card.is_aoe or len(alive) == 1):
+            return None  # it ends the fight for sure
+    best: tuple[float, Card] | None = None
+    for card in _castable(battle.cards):
+        if not card.is_damage or card.treasure and card.item:
+            continue
+        p = clear_chance(card, battle.me, alive) * (card.accuracy / 100.0)
+        if p >= CRIT_GAMBLE and p < 1.0 and (best is None or p > best[0]):
+            best = (p, card)
+    if best is None:
+        return None
+    p, card = best
+    pc, pb, normal, crit = crit_odds(card, battle.me, alive[0])
+    return Action(ActionKind.CAST, card, None if card.is_aoe else alive[0],
+                  reason=f"{card.name} ends the fight on a crit: {p:.0%} (crit {pc:.0%}, "
+                         f"block {pb:.0%}; ~{normal:.0f} / ~{crit:.0f} on a crit)")
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:
@@ -232,6 +320,21 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
         value += strat.focus_bonus * min(1.0, dmg / max(1, t.health))
     # Prefer cheaper spells for the same result so we keep pips for later.
     return value - card.pip_cost * 5
+
+
+def predicted_crits(battle: Battle, action: Action) -> dict[int, tuple[int, int, int, int]]:
+    """Per enemy hit by the move: (crit %, block %, damage, damage on a crit),
+    for the stream page. Empty when it isn't an attack."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or not card.is_damage:
+        return {}
+    out = {}
+    for i, e in enumerate(battle.enemies):
+        if e.is_dead or e.health <= 0 or not (card.is_aoe or e is action.target):
+            continue
+        pc, pb, normal, crit = crit_odds(card, battle.me, e)
+        out[i] = (round(100 * pc), round(100 * pb), round(normal), round(crit))
+    return out
 
 
 def predicted_damage(battle: Battle, action: Action) -> dict[int, int]:
@@ -2102,6 +2205,10 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
         pass
     try:
         action = _stun_the_last_one(battle, action) or action
+    except Exception:
+        pass
+    try:
+        action = _crit_gamble(battle, action) or action
     except Exception:
         pass
     if (action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
