@@ -147,11 +147,18 @@ SIDE_WORLDS = {"Grizzleheim": "Arc 1", "Wintertusk": "Arc 1", "Wysteria": "Arc 1
 WORLD_LISTS = Path("docs") / "quests"  # <World>.txt, same format as QuestList.txt
 # Zone ids start with the world's internal name ("WizardCity/WC_Hub").
 _ZONE_WORLDS = {"wizardcity": "Wizard City", "dragonspire": "Dragonspyre"}
+# Side worlds the game keeps inside another world's zones: Wintertusk's
+# Hrundle Fjord, Austrilund, Vestrilund, Sudrilund and Nordrilund are all
+# "Grizzleheim/GH_HFjord/..." (the stream showed Grizzleheim there).
+_SUBZONE_WORLDS = {"grizzleheim/ghhfjord": "Wintertusk"}
 
 
 def world_of_zone(zone: str) -> str:
     """"Krokotopia/KT_Hub" -> "Krokotopia" ("" if unknown)."""
-    head = norm((zone or "").split("/", 1)[0])
+    parts = (zone or "").split("/")
+    if len(parts) >= 2 and f"{norm(parts[0])}/{norm(parts[1])}" in _SUBZONE_WORLDS:
+        return _SUBZONE_WORLDS[f"{norm(parts[0])}/{norm(parts[1])}"]
+    head = norm(parts[0])
     if head in _ZONE_WORLDS:
         return _ZONE_WORLDS[head]
     return next((w for w in (*WORLDS, *SIDE_WORLDS) if norm(w) == head), "")

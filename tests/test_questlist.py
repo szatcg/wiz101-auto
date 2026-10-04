@@ -89,3 +89,12 @@ def test_a_completed_quest_back_in_the_book_is_taken_off(tmp_path):
     assert log.read_text(encoding="utf-8") == "Old Quest\nScouring for Scouts\n"
     t.update({"Other", "Scouring for Scouts"})  # and back again
     assert log.read_text(encoding="utf-8") == "Old Quest\n"
+
+
+def test_wintertusk_zones_are_wintertusk():
+    from wiz101_auto.questlist import world_of_zone
+
+    assert world_of_zone("Grizzleheim/GH_HFjord/GH_Vestrilund") == "Wintertusk"
+    assert world_of_zone("Grizzleheim/GH_HFjord/Interiors/GH_Aust_Cave05") == "Wintertusk"
+    assert world_of_zone("Grizzleheim/GH_MainHub") == "Grizzleheim"
+    assert world_of_zone("Krokotopia/KT_Hub") == "Krokotopia"
