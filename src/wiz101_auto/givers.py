@@ -61,8 +61,9 @@ def looks_like_person(name: str) -> bool:
     """A display name that reads like a person ("Thornton Lewis", "The
     Archivist"), not an object id ("CL-Chest-Common-001", "DS_WispHealth")
     or a one-word pick-up ("Ore")."""
+    # (Not a door's label: "To Teleporter Hub" sent the bot to Triton Avenue.)
     return (" " in name.strip() and not re.search(r"[_\d]", name) and "-" not in name
-            and name[:1].isupper())
+            and name[:1].isupper() and not name.startswith("To "))
 
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose

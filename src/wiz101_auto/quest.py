@@ -2908,7 +2908,7 @@ class Quester:
                 logger.info("the object gave no prompt; fought the room's enemies first")
                 return True
         # Rejected: usually a door/zone exit, or a spot inside collision.
-        logger.info("teleport was rejected (door or blocked spot); approaching on foot")
+        logger.info("teleport was rejected (door or blocked spot); teleporting beside it")
         if await self.approach_and_walk(target, zone):
             return True
 
@@ -2930,8 +2930,8 @@ class Quester:
                 if distance(await self._position(), start) > BOUNCE_DISTANCE:
                     await self._clear_of_enemies()
                     return True
-        logger.debug("walking toward objective")
-        await self.client.goto(target.x, target.y)
+        # No walk after all that (the player: keep teleporting; walks after a
+        # refused teleport ran into fights and fled in a loop).
         return distance(await self._position(), target) < INTERACT_RANGE
 
     async def _inch_toward(self, target: XYZ, steps: int = 4, step: float = 150.0) -> bool:
