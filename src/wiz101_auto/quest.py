@@ -4413,6 +4413,12 @@ class Quester:
                 return True
         logger.info(f"no prompt at the {name}")
         used.append(pos)  # (nothing to use there: the next one)
+        # Another one not tried yet (Sun Stands, 6 in the Chancel): straight to
+        # it next step. Returning False fell through to walking the marker as
+        # a door for 2 minutes, and the story quest was set aside as stuck.
+        if await self._npc_named(name, near=near, skip=used) is not None:
+            logger.info(f"another {name} not tried yet: that one next")
+            return True
         return False
 
     async def _seek_object(self, name: str, zone: str, used: list) -> bool:
