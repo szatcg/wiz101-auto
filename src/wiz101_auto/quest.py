@@ -4884,7 +4884,20 @@ class Quester:
         if zone != dest:
             world = dest.split("/", 1)[0]
             if zone.split("/", 1)[0] != world:
+                # A quest of that world tracked first (the ranking does it while
+                # this trip is pending): the Spiral Map opens on the tracked
+                # quest's world, and The Spiral Cup's took it to Wysteria.
+                target = objective_zone(await self.objective() or "") or ""
+                if target.split("/", 1)[0] != world and not getattr(self, "_gap_reranked", False):
+                    self._gap_reranked = True
+                    self._ranked_for = None
+                    self.controller.allow_idle(30)
+                    try:
+                        await self.prioritize_quests()
+                    finally:
+                        self.controller.end_idle()
                 return await self._to_world(world, f"to {dest.split('/')[-1]} for the detour's next quest")
+            self._gap_reranked = False
             logger.info(f"no detour quest: to {dest.split('/')[-1]} to ask its NPCs for the next one")
             if await self.go_to_zone(dest) or await self.client.zone_name() != zone:
                 return True
