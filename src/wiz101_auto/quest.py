@@ -2303,6 +2303,8 @@ class Quester:
         zone = await self.client.zone_name() or ""
         if not is_house(zone):
             return False
+        if not self._mainline and self._detour_gap_pending():
+            return False  # (the story's next quest first: _detour_ask goes to its world)
         target = objective_zone(await self.objective())
         if target is None and self._chosen_entry is not None and self._chosen_entry.zone:
             target = self._chosen_entry.zone.replace(" ", "")  # the book's world ("Wizard City")
@@ -4723,7 +4725,10 @@ class Quester:
                 # "World Gate: Press X to Interact" opens the Spiral Map.
                 logger.info(f"{why}: opening the Spiral Map at the world gate")
                 await self.client.send_key(Keycode.X, 0.1)
-                await self._wait_visible(ui.SPIRAL_DOOR_TELEPORT, 6.0)  # (3 s: the map came up after)
+                if await self._wait_visible(ui.SPIRAL_DOOR_TELEPORT, 6.0):  # (3 s: the map came up after)
+                    # Choose the world now: left open, the step's map handler
+                    # went to the tracked quest's world instead.
+                    return await self._to_world_stage(world, why)
                 return True
             logger.info(f"{why}: walking to Ravenwood")
             return await self.go_to_zone(RAVENWOOD)
