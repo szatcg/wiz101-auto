@@ -886,10 +886,19 @@ def closest_name(want: str, names, used=()) -> str | None:
     return best[2] if best else None
 
 
+def in_known_dungeon_folder(zone: str, known) -> bool:
+    """A room of a learned dungeon whose rooms share its first room's folder
+    ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/..."): the Waterworks' second
+    room wasn't recognised after a restart in it, and a fight there was fled
+    (out of the dungeon, its progress lost)."""
+    folder = zone.rsplit("/", 1)[0]
+    return folder.count("/") >= 2 and any(k.rsplit("/", 1)[0] == folder for k in known)
+
+
 def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bool) -> bool:
     """Is this fight part of the quest? Conservative: bosses, fights inside
     buildings/dungeons and unclear cases count as needed."""
-    if has_boss or "interiors" in zone.lower() or not objective.strip():
+    if has_boss or "interiors" in zone.lower() or "/gauntlets/" in zone.lower() or not objective.strip():
         return True
     if not is_combat_objective(objective):
         return False
@@ -4203,9 +4212,11 @@ class Quester:
 
         if is_open_zone(zone):
             return False
+        known = DungeonMemory.load().dungeons
         return (
-            is_team_up_zone(zone) or "/interiors/" in zone.lower()
-            or zone in DungeonMemory.load().dungeons or await self._in_dungeon(zone)
+            is_team_up_zone(zone) or "/interiors/" in zone.lower() or "/gauntlets/" in zone.lower()
+            or zone in known or in_known_dungeon_folder(zone, known)
+            or await self._in_dungeon(zone)
         )
 
     async def may_flee(self) -> bool:

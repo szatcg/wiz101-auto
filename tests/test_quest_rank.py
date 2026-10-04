@@ -333,3 +333,13 @@ def test_the_dungeon_quest_before_a_late_boss():
     wheel = QuestEntry(1, "Turn of the Wheel", world="Waterworks", goal="Use Control Panel in Waterworks")
     got = dungeon_quest([go, wheel], zone, lambda a: zone if a == "Waterworks" else None)
     assert got is wheel
+
+
+def test_waterworks_rooms_are_dungeon_rooms():
+    from wiz101_auto.quest import fight_needed, in_known_dungeon_folder
+
+    known = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01": None}
+    assert in_known_dungeon_folder("WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_03", known)
+    assert not in_known_dungeon_folder("WizardCity/WC_Streets/WC_Triton", known)
+    assert fight_needed("Use Lever in Waterworks", ["Rivershell Guard"],
+                        "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_03", False)
