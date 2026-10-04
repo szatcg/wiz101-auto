@@ -2294,6 +2294,23 @@ class Quester:
         logger.info(f"the quest is in Wizard City ({target}); Go Home, then the world gate")
         return await go_home(self.client)
 
+    async def _house_to_world(self) -> bool:
+        """At the player's house with the objective in a world: its world gate
+        (the quest marker points at the gate, and walking into it as a door
+        looped for minutes). True if it went."""
+        from .trainer import is_house
+
+        zone = await self.client.zone_name() or ""
+        if not is_house(zone):
+            return False
+        target = objective_zone(await self.objective())
+        if target is None and self._chosen_entry is not None and self._chosen_entry.zone:
+            target = self._chosen_entry.zone.replace(" ", "")  # the book's world ("Wizard City")
+        if not target or is_house(target):
+            return False
+        world = target.split("/", 1)[0]
+        return await self._to_world_stage(world, f"the quest is in {world}")
+
     async def _leave_spiral_map(self) -> bool:
         """Walking into a world gate (not pressing X at it) opens the Spiral
         Map with the quest's world already ticked: press Go To World. True if
@@ -3281,7 +3298,16 @@ class Quester:
             game_main = {id(q): q.mainline for _, q in all_quests}
             # None of the world's own quests in the book yet: its lead-in (the
             # quests before its list starts) is whatever the game calls main.
+            # Only before the world has begun: once one of its listed quests is
+            # done, a gap in its story isn't a lead-in ('The Spiral Cup', main
+            # to the game, was taken for Zafaria's story after 'Meddling Wizards').
             lead_in = det is not None and not any(norm(q.name) in det[2] for _, q in all_quests)
+            if lead_in:
+                from .questlist import load_completed
+
+                start = norm((det[0].get("start") or {}).get("quest", ""))
+                begun = {norm(n) for n in load_completed()} & (det[2] - {start})
+                lead_in = not begun
             for _, q in all_quests:
                 if det is not None and lead_in:
                     pass  # (the game's main-story flag stands)
@@ -6771,6 +6797,9 @@ class Quester:
             return
         if await self._dorm_to_wizard_city():
             logger.debug("step: dorm to Wizard City")
+            return
+        if await self._house_to_world():
+            logger.debug("step: house's world gate")
             return
         logger.debug("step: past the trips")
         # Noting what's around and where wisps spawn (~3 s each) runs beside
