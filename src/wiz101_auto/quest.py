@@ -4430,6 +4430,8 @@ class Quester:
         # it (the player's order). A 'talk' prompt there is the NPC beside it
         # (Xihong Bi at the Forge): pressing X talked to them again, in a loop.
         for dx, dy in use_spots():
+            if not await is_free(self.client):
+                return True  # (a fight started at the lever: the step takes it from there)
             await self.client.teleport(XYZ(pos.x + dx, pos.y + dy, pos.z))
             await asyncio.sleep(0.6)
             for nudge in (None, (Keycode.W, 0.15), (Keycode.S, 0.15)):
