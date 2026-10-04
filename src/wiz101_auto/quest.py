@@ -804,12 +804,33 @@ def same_object_name(name: str, want: str) -> bool:
     return a == b or a + "s" == b or b + "s" == a
 
 
-def closest_name(want: str, names) -> str | None:
+def _name_words(name: str) -> list[str]:
+    """'Contrivance Station' -> ['contrivance', 'station']; one or many alike."""
+    words = [w for w in re.split(r"[^a-z]+", name.lower()) if len(w) >= 3]
+    return [w[:-1] if len(w) > 4 and w.endswith("s") and not w.endswith("ss") else w for w in words]
+
+
+def _words_alike(a: str, b: str) -> bool:
+    """Same word, or the same stem ('contrivance'/'contrivances', 'tile'/'tiles')."""
+    if a == b:
+        return True
+    n = min(len(a), len(b))
+    return n >= 5 and a[:max(5, n - 2)] == b[:max(5, n - 2)]
+
+
+def closest_name(want: str, names, used=()) -> str | None:
     """The name in `names` (things in the zone: seen on the map or in view)
-    that the quest's `want` most likely means, or None: the same name one or
-    many ('Grain Sacks' -> 'Grain Sack'), then one containing it, then looser
-    ('Red Crystal Sample' -> 'Crystal Sample'). The player: when collect/use
-    struggles, look up the name to go to at once instead of sweeping again."""
+    that the quest's `want` most likely means, or None. The player: when
+    collect/use struggles, look up the name to go to at once instead of
+    sweeping again; the full name first, then any word, reasoned out:
+
+    1. the same name, one or many ('Grain Sacks' -> 'Grain Sack');
+    2. a name containing the whole of it;
+    3. shared words, each worth more the fewer names in the zone have it
+       ('Contrivance' says more than 'Station', which all three stations
+       share), similar spelling breaking ties; names in `used` (objects
+       already used for earlier steps here) are ruled out first.
+    """
     names = [n for n in dict.fromkeys(names) if n]
 
     def contains(n: str, w: str) -> bool:
@@ -821,13 +842,32 @@ def closest_name(want: str, names) -> str | None:
     hits = [n for n in names if same_object_name(n, want)] or [n for n in names if contains(n, want)]
     if hits:
         return min(hits, key=len)
-    for loose in loose_names(want)[1:]:
-        if len(loose.split()) < 2:
-            continue  # (one word is too generic: 'Contrivance Station' -> any 'Station')
-        hits = [n for n in names if contains(n, loose)]
-        if hits:
-            return min(hits, key=len)
-    return None
+    used_n = {_norm_name(u) for u in used}
+    pool = [n for n in names if _norm_name(n) not in used_n]
+    # "Dulin's Hammer" is a hammer: the owner's name isn't the thing (it
+    # matched the NPC Dulin Helmsplitter).
+    owners = {w.lower() for w in re.findall(r"([A-Za-z]+)['’]s(?![a-z])", want)}
+    wanted = [w for w in _name_words(want) if w not in owners]
+    if not pool or not wanted:
+        return None
+    words_of = {n: _name_words(n) for n in pool}
+
+    def rarity(w: str) -> float:
+        # How telling a word is here: shared by every name, it says little.
+        df = sum(any(_words_alike(w, x) for x in ws) for ws in words_of.values())
+        return math.log(1 + len(pool) / max(1, df))
+
+    from difflib import SequenceMatcher
+
+    best: tuple[float, float, str] | None = None
+    for n, ws in words_of.items():
+        score = sum(rarity(w) for w in wanted if any(_words_alike(w, x) for x in ws))
+        if score <= 0:
+            continue
+        spelling = SequenceMatcher(None, _norm_name(want), _norm_name(n)).ratio()
+        if best is None or (score, spelling) > best[:2]:
+            best = (score, spelling, n)
+    return best[2] if best else None
 
 
 def fight_needed(objective: str, enemy_names: list[str], zone: str, has_boss: bool) -> bool:
@@ -4306,6 +4346,8 @@ class Quester:
                 await self.interact(objective)
                 await self._after_pull(objective)
                 used.append(pos)
+                # (Used: not the answer for a later step's other name here.)
+                self.__dict__.setdefault("_used_names", {}).setdefault(zone, set()).add(name)
                 return True
         logger.info(f"no prompt at the {name}")
         used.append(pos)  # (nothing to use there: the next one)
@@ -5528,7 +5570,8 @@ class Quester:
         if any(same_object_name(n, want) for n in names):
             aliases[key] = want
             return want
-        found = closest_name(want, names)
+        used = self.__dict__.setdefault("_used_names", {}).get(zone, set()) if kind == "use" else ()
+        found = closest_name(want, names, used)
         if found:
             aliases[key] = found
             logger.info(f"{kind} {want!r}: nothing here by that name; going by {found!r}, "

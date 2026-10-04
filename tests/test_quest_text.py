@@ -33,7 +33,16 @@ def test_closest_name_not_an_npc_sharing_the_first_word():
     assert closest_name("Dulin's Hammer", ["Dulin Helmsplitter", "Icy Wall"]) is None
 
 
-def test_closest_name_not_by_one_generic_word():
+def test_closest_name_reasons_out_one_word_matches():
     from wiz101_auto.quest import closest_name
 
-    assert closest_name("Contrivance Station", ["Conflict Station", "Configuration Station"]) is None
+    stations = ["Conflict Station", "Configuration Station", "Contrivance Device"]
+    # The telling word wins over the one every station shares.
+    assert closest_name("Contrivance Station", stations) == "Contrivance Device"
+    # Only shared words: the stations used already are ruled out.
+    two = ["Conflict Station", "Configuration Station", "Security Plinth"]
+    assert closest_name("Contrivance Station", two, used=["Conflict Station"]) == "Configuration Station"
+    assert closest_name("Contrivance Station", two, used=two[:2]) is None
+    # A word is still a match when nothing better exists.
+    assert closest_name("Golden Seals", ["Seal of Ymir", "Ore"]) == "Seal of Ymir"
+    assert closest_name("Golden Axe", ["Ore", "Icy Wall"]) is None
