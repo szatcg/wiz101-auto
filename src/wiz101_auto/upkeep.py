@@ -426,6 +426,26 @@ BARREN_SECONDS = 1800.0  # how long a zone that gave nothing is skipped as a pla
 _barren: dict[str, float] = {}  # zone -> when resting there gave nothing
 
 
+_healed_in: dict[str, str] = {}  # world -> the zone where the last heal there worked
+
+
+def note_healed(zone: str):
+    """A heal worked here: this world's heals go here first next time (after
+    every defeat in Nastrond it tried Gloomgrove and Wolfsthal first, empty,
+    a minute each, and healed at once in Hrundle Fjord)."""
+    if zone and not is_hub_zone(zone) and "/interiors/" not in zone.lower():
+        _healed_in[zone.split("/", 1)[0]] = zone
+
+
+def heal_preferences(preferred) -> list[str]:
+    """The zones to heal in first: where the last heal worked, then config's."""
+    return list(dict.fromkeys([*_healed_in.values(), *preferred]))
+
+
+def _heal_prefs(cfg) -> list[str]:
+    return heal_preferences(cfg.heal_zones)
+
+
 def note_barren(zone: str, now: float | None = None):
     import time as _time
 
@@ -592,6 +612,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         hp, mana = await health_mana(client)
         if cfg.recovered(hp, mana):
             logger.success(f"recovered to {hp:.0%} health, {mana:.0%} mana")
+            note_healed(await client.zone_name() or "")
             await back_to_start()
             return True
         if not cfg.needs_recovery(hp, mana):
@@ -603,6 +624,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 await asyncio.sleep(0.3)
                 continue
             logger.success(f"healed to {hp:.0%} health, {mana:.0%} mana: good enough, going on")
+            note_healed(await client.zone_name() or "")
             await back_to_start()
             return True
 
@@ -627,8 +649,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             zone = await client.zone_name() or "?"
             need = needed_wisps(cfg, hp, mana)
             hub = is_hub_zone(zone)  # the Oasis, the Commons, the Basilica: never any wisps
-            known_elsewhere = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need, avoid=barren_zones(),
-                                             hops=hops_from_hub) is not None
+            known_elsewhere = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=need,
+                                             avoid=barren_zones(), hops=hops_from_hub) is not None
             if hub:
                 fruitless = FRUITLESS_VISITS
             if not hub and await visit_known_spot(client, cfg, zone, need):
@@ -653,6 +675,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             hp, mana = await health_mana(client)
             if not cfg.needs_recovery(hp, mana):
                 logger.info(f"healed here to {hp:.0%} health, {mana:.0%} mana; no trip needed")
+                note_healed(await client.zone_name() or "")
                 return True
             wisp_zone = not hub and wisp_memory().count(zone, need) >= 3
             in_time = loop.time() - started < cfg.rest_max_minutes * 60
@@ -664,6 +687,9 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # come back (the player: not carrying on half healed).
                 logger.info(f"no wisps came back after {respawn_waits} waits: healing elsewhere")
                 busy = True
+                # (Not back here for a while: the next heal tried the same empty
+                # zones again, a minute each, after every defeat.)
+                note_barren(zone)
                 # (It said so every 9 s in Mirkholm Keep and stayed: the trip
                 # was already used. Another zone, not this one, once more.)
                 if zone not in emptied:
@@ -700,7 +726,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
                 fruitless = 0
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=need,
+                dest = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=need,
                                       avoid=barren_zones() | emptied, hops=hops_from_hub)
                 if dest:
                     what = " and ".join(sorted(need))
@@ -745,7 +771,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         if not rested:
             # No resting for slow regeneration (the player's rule): wisps only.
             # Go where they are; nowhere known: carry on and heal at the next.
-            dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
+            dest = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana),
                                   avoid=barren_zones(), hops=hops_from_hub)
             if dest and dest != zone and go_to_zone and await go_to_zone(dest):
                 logger.info(f"went to {dest} for wisps")
@@ -772,7 +798,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 logger.info(f"nothing recovered in {waited} in {zone}; going somewhere to heal")
                 if trip and await trip(force=True, marked=marked):
                     return True
-                dest = best_wisp_zone(zone, preferred=cfg.heal_zones, need=needed_wisps(cfg, hp, mana),
+                dest = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana),
                                       avoid=barren_zones(), hops=hops_from_hub)
                 if dest and go_to_zone and await go_to_zone(dest):
                     logger.info(f"went to {dest} to heal")

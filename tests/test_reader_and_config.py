@@ -150,3 +150,16 @@ def test_recovery_covers_mana():
     assert not cfg.needs_recovery(0.9, 0.7)
     assert cfg.needs_recovery(0.9, 0.6)  # mana is refilled at 65% or less
     assert not cfg.recovered(1.0, 0.5) and cfg.recovered(1.0, 0.9)
+
+
+def test_heal_where_it_last_worked_first():
+    from wiz101_auto import upkeep
+
+    upkeep._healed_in.clear()
+    prefs = ["WizardCity/WC_Streets/WC_Unicorn", "Grizzleheim/GH_Hero"]
+    assert upkeep.heal_preferences(prefs) == prefs
+    upkeep.note_healed("Grizzleheim/GH_HFjord/GH_HFjord")
+    upkeep.note_healed("Grizzleheim/GH_MainHub")  # (a hub: never)
+    got = upkeep.heal_preferences(prefs)
+    assert got[0] == "Grizzleheim/GH_HFjord/GH_HFjord" and "Grizzleheim/GH_Hero" in got
+    upkeep._healed_in.clear()
