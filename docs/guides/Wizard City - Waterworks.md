@@ -3,6 +3,9 @@ The Waterworks (Wizard City: Triton Avenue -> Crab Alley; level 60+), from the p
 Goal: farm Tricksy Hood (Luska Charmbeak, the first boss), Tricksy Cape and Tricksy Boots (Sylster Glowstorm, the final boss); stop once all three are looted, then back to side quests. Try solo first (teleporting past the room fights to the two bosses where possible: look for gates/doors to teleport to); else the Mount Olympus team-up logic.
 
 Unlock quests (none done yet on 2026-10-04): Under Pressure (Blad Raveneye, Triton Avenue), Strange Currents (Herman, Crab Alley), You Go First (Herman, Crab Alley).
+- Level 60 needed. Blad RavenEye stands by the mill on Triton Avenue: "Under Pressure" (fluctuating water pressure in Crab Alley).
+- Into Crab Alley: the anchor rope at the river's edge on Triton Avenue; use the water breathing potion the quest gives, climb down.
+- Herman is near Crab Alley's entrance; he sends you to a damaged access tower with a ladder down into the old tunnels under Triton Avenue, which unlocks the Waterworks.
 
 Rooms
 1  Entrance chamber: the Drain Valve and Glurrup (warns that the bosses cheat).

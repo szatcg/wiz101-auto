@@ -4771,6 +4771,14 @@ class Quester:
         if await self._to_world(world, f"visit {npc}"):
             return True
         if zone != dest:
+            from .trainer import DORM, home_to_ravenwood
+
+            if zone == DORM:
+                # (No gate route leads out of the dorm: the visit to Blad
+                # Raveneye in Triton Avenue was dropped as "no route".)
+                logger.info(f"visit {npc}: out of the dorm to Ravenwood first")
+                await home_to_ravenwood(self)
+                return True
             logger.info(f"visit {npc}: going to {dest}")
             if not await self.go_to_zone(dest):
                 # Not reachable yet (Village of Sorrow before the story opens
@@ -4791,7 +4799,12 @@ class Quester:
             self._visit_tries = 0
             logger.warning(f"visit: {npc} isn't anywhere in {dest.split('/')[-1]}; giving up")
             return True
+        before = set(self._book_names)
         talked = await self._talk_to_named(objective)
+        if talked and want.get("pin"):
+            # The quest they gave is followed, wherever it is (the Waterworks
+            # unlock chain in Wizard City while the story is in Celestia).
+            self.pin_new_quest_after(before)
         if talked or self._visit_tries >= 3:
             VISIT_FILE.unlink(missing_ok=True)
             self._visit_tries = 0
