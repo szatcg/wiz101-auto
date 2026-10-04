@@ -3177,7 +3177,19 @@ class Quester:
             # the end, and quests pushed off the read counted as completed.
             for page in range(MAX_BOOK_PAGES):
                 known = {q.name for _, q in all_quests}
-                entries = [e for e in await self._read_quest_page() if e.name not in known]
+                raw = await self._read_quest_page()
+                entries = [e for e in raw if e.name not in known]
+                if not entries and raw and all_quests:
+                    # The same page again: it didn't turn yet (a slow turn read
+                    # page 1 twice, took it for the end, and 'Armed to the
+                    # Gills' on page 2 "left" the book: a false "no main
+                    # quest" alert and a trip for the next story quest).
+                    await asyncio.sleep(1.0)
+                    raw = await self._read_quest_page()
+                    entries = [e for e in raw if e.name not in known]
+                    if not entries:
+                        complete = False
+                        break
                 if not entries:
                     # An empty book while there's an objective is a failed read
                     # (after a public fight in the Plaza of Conquests it read []
