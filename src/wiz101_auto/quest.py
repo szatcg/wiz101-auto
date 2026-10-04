@@ -3760,6 +3760,17 @@ class Quester:
             if await self.objective() != objective:
                 logger.success(f"collected {item}")
             return True
+        # The guide says where it comes from ("Collect Cogitator (from
+        # Deactivated Golem)"): there's nothing by the item's name to pick up.
+        from .main_guide import collect_source
+
+        source = collect_source(collect_item_name(objective) or item)
+        if source:
+            if self.__dict__.get("_source_said") != (objective, source):
+                self._source_said = (objective, source)
+                logger.info(f"the guide: {item!r} comes from the {source}; going to it")
+            if await self._use_named_object(f"Use {source}"):
+                return True
         if await self._search_hint(item, objective):
             return True
         # The quest marker points at the next one: far from it, go there first.

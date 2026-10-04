@@ -78,3 +78,14 @@ def test_guide_names_match_despite_articles_and_typos():
 """)
     # Kraken Up handed in, not logged yet; the next one is in the book already.
     assert next_to_pick_up(g, {"Storm Shards"}, {"An Old Sea Chantry"}, alone=True) is None
+
+
+def test_where_an_item_comes_from():
+    from wiz101_auto.main_guide import collect_source
+
+    g = [("Celestia", parse("61. Spare Parts - Collect Cogitator (from Deactivated Golem) + "
+                            "Defeat Steam Winchers (Myth) and Collect 3 more Cogitators + "
+                            "Talk to Piper Melville\n"))]
+    assert collect_source("Cogitator", g) == "Deactivated Golem"
+    assert collect_source("Cogitators", g) == "Deactivated Golem"
+    assert collect_source("Spare Parts", g) == ""

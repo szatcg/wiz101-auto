@@ -154,3 +154,18 @@ def all_guides(guide_dir: Path = GUIDE_DIR) -> list[tuple[str, list[GuideQuest]]
     if _ALL is None:
         _ALL = [(p.stem, g) for p in sorted(guide_dir.glob("*.txt")) if (g := load(p.stem, guide_dir))]
     return _ALL
+
+
+_FROM = re.compile(r"collect\s+(?:\d+\s+)?(?:more\s+)?(.+?)\s*\(from\s+(?:an?\s+|the\s+)?([^)]+)\)", re.I)
+
+
+def collect_source(item: str, guides=None) -> str:
+    """Where the guide says an item comes from: "Collect Cogitator (from
+    Deactivated Golem)" -> "Deactivated Golem" ("" if it doesn't say). The
+    Science Center has no 'Cogitator' to pick up: the golem gives it."""
+    for _world, guide in (all_guides() if guides is None else guides):
+        for q in guide:
+            for m in _FROM.finditer(q.steps):
+                if same_name(m.group(1), item) or _key(m.group(1)).rstrip("s") == _key(item).rstrip("s"):
+                    return m.group(2).strip()
+    return ""
