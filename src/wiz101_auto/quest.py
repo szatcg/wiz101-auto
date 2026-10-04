@@ -3282,7 +3282,7 @@ class Quester:
             prev_names = self._book_names
             if complete:
                 self._book_names = names  # only a full read says what's in the book
-                self._talk_again_after_turn_in(prev_names - names)
+                self._talk_again_after_turn_in(prev_names - names, names - prev_names)
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
             # picked up again at the next level), never a trip to another world.
@@ -3436,7 +3436,7 @@ class Quester:
         finally:
             await self._close_quest_book()
 
-    def _talk_again_after_turn_in(self, gone: set[str]):
+    def _talk_again_after_turn_in(self, gone: set[str], new: set[str] = frozenset()):
         """A quest just left the book right after talking to someone: that was
         the turn-in. Talk to them again at once and accept what they offer
         (the player: after Turning Tiles, Thornton Lewis gave 'Archivist,
@@ -3448,6 +3448,11 @@ class Quester:
         npc, zone, _t = last
         self._last_talk = None
         if VISIT_FILE.exists() or not zone:
+            return
+        if new:
+            # (They gave the next one with the turn-in: Pierce Stanson handed
+            # out 'Spirit of the Sea' with 'On the Waterfront'.)
+            logger.debug(f"turn-in to {npc} came with {', '.join(sorted(new))}: no second talk")
             return
         logger.info(f"handed in {', '.join(sorted(gone))} to {npc}: talking to them again for the next quest")
         VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": zone}), encoding="utf-8")
