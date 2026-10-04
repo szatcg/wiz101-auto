@@ -174,6 +174,11 @@ DETOUR_RETRY_SECONDS = 3 * 3600.0  # (or a level-up; an hour meant two more deat
 # beaten in Helgrind Warren and Winterdeep Warren, the sigils either side of
 # Nidavellir's Entrance Hall; then he's soloable). boss -> [(brother, zone of
 # the sigil, the sigil)].
+# Bosses that appear only once their dungeon's tasks are done (Sylster
+# Glowstorm: after the Waterworks' four levers and the Drain Valve). Not
+# being in view isn't "the wrong copy": the bot left the Waterworks for it.
+LATE_BOSSES = {norm("Sylster Glowstorm")}
+
 PRE_BOSSES = {
     "jotun": [
         ("Ullik", "Grizzleheim/GH_AbandCity/GH_EntranceHall", (-3010.0, 8610.0, -199.0)),
@@ -5575,6 +5580,8 @@ class Quester:
         if getattr(self, "_in_pre_boss_warren", False) or zone in warrens:
             return False  # (Ullik comes after the warren's rooms: leaving reset it)
         who = talk_target(objective) or defeat_target(objective)
+        if norm(who or "") in LATE_BOSSES:
+            return False  # (appears only later in this copy: leaving reset the levers)
         logger.info(f"{who} isn't in this copy of {zone.split('/')[-1]}: leaving and going back in")
         out = False
         if self._mark and self._mark.zone == entry.outside:
