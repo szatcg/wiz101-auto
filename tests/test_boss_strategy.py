@@ -294,3 +294,29 @@ def test_giant_goes_on_orthrus_before_it_is_castable():
     assert a.kind is ActionKind.ENCHANT and a.card is giant and a.target_card is orthrus
     a2 = decide(Battle(me=me, allies=[], enemies=[foe], cards=[frog, giant], pips=1, power_pips=0))
     assert a2.kind is ActionKind.ENCHANT and a2.target_card is frog
+
+
+def test_sylster_cycles_and_what_each_allows():
+    from wiz101_auto.combat.brain import _sylster_rules, sylster_cycle
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    assert [sylster_cycle(r) for r in (1, 3, 4, 7, 8, 11, 12)] == [
+        "light", "light", "dark", "dark", "light", "light", "dark"]
+    blade = Card(0, "Mythblade", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, "myth")])
+    trap = Card(1, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 30, "myth")])
+    bolt = Card(2, "Myth Bolt", school="myth", pip_cost=1,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 900)])
+    orthrus = Card(3, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    me = Combatant("me", 2500, 2500, is_client=True, school="myth")
+    boss = Combatant("Sylster Glowstorm", 9000, 9000, is_enemy=True, is_boss=True, resist={})
+
+    def ok(round_):
+        b = _sylster_rules(Battle(me=me, allies=[], enemies=[boss], cards=[blade, trap, bolt, orthrus],
+                                  pips=7, power_pips=0, round=round_))
+        return {c.name for c in b.cards if c.castable}
+
+    assert ok(2) == {"Myth Trap", "Orthrus"}   # light: traps, hit-alls; no blade, no bare single hit
+    assert ok(5) == {"Mythblade", "Orthrus"}   # dark: blades, hit-alls; no trap, no unbladed single hit

@@ -2233,12 +2233,53 @@ NO_SINGLE_TARGET = {"luska charmbeak"}
 
 def _no_single_target(battle: Battle) -> Battle:
     """With such a boss alive, single-target spells at enemies (traps, hits,
-    charms) aren't castable: blades on us and hit-alls are."""
-    if not any(e.name.lower() in NO_SINGLE_TARGET for e in battle.live_enemies):
+    charms) aren't castable: blades on us and hit-alls are. Then Sylster's."""
+    if any(e.name.lower() in NO_SINGLE_TARGET for e in battle.live_enemies):
+        battle = replace(battle, cards=[
+            replace(c, castable=False) if c.castable and c.target is Target.ENEMY_SINGLE else c
+            for c in battle.cards])
+    return _sylster_rules(battle)
+
+
+# Sylster Glowstorm's fight (the player's Waterworks notes): Doom and Gloom
+# cycles from round 1, light for 3 rounds, then 4-round cycles alternating
+# dark and light. Light: traps and prisms go up, positive charms (blades) are
+# stripped; dark: blades go up, traps and prisms are cleansed. A single-target
+# hit that doesn't use a trap (light) or a blade (dark) is answered by its
+# target (Ra ~1,500, Scarecrow 600, Water-Wing's heal). Hit-alls are always
+# safe. With Sylster dead the Spellhammer Sorcerer runs the cycles, then the
+# Water-Wing.
+SYLSTER_FIGHT = {"sylster glowstorm", "spellhammer sorcerer", "water-wing"}
+
+
+def sylster_cycle(round_: int) -> str:
+    """"light" or "dark" in round `round_` (1-based) of Sylster's fight."""
+    if round_ <= 3:
+        return "light"
+    return "dark" if ((round_ - 4) // 4) % 2 == 0 else "light"
+
+
+def _sylster_rules(battle: Battle) -> Battle:
+    if not any(e.name.lower() in SYLSTER_FIGHT for e in battle.live_enemies):
         return battle
-    return replace(battle, cards=[
-        replace(c, castable=False) if c.castable and c.target is Target.ENEMY_SINGLE else c
-        for c in battle.cards])
+    cycle = sylster_cycle(max(1, battle.round or 1))
+    me = battle.me
+
+    def allowed(c: Card) -> bool:
+        if not c.castable or c.is_enchant:
+            return c.castable
+        kinds = c.kinds
+        if EffectKind.BLADE in kinds and not c.is_damage:
+            return cycle == "dark"
+        if (EffectKind.TRAP in kinds or "prism" in c.name.lower()) and not c.is_damage:
+            return cycle == "light"
+        if c.is_damage and c.target is Target.ENEMY_SINGLE:
+            if cycle == "dark":
+                return me.blade_count > 0
+            return any(e.trap_count > 0 for e in battle.live_enemies)
+        return True
+
+    return replace(battle, cards=[c if allowed(c) else replace(c, castable=False) for c in battle.cards])
 
 
 # The player: enchants go on these as soon as both are in hand (Orthrus first,
