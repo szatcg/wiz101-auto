@@ -12,6 +12,7 @@ to Ravenwood; each school's door is in Ravenwood; the professor stands inside.
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,12 +74,26 @@ def trainable(options: list[tuple[str, int]], level: int, known: set[str]) -> li
 DORM_BUTTON = "GotoDormButton"
 
 
+HOUSE_FILE = Path("state") / "house.json"  # {"zone": the player's house, as the home button found it}
+
+
+def is_house(zone: str | None) -> bool:
+    """The player's house ("Housing_ZF_HouseBoat/Exterior"): the home button
+    goes there since the player bought one; its world gate (UniverseTeleport,
+    as in the World Tree) reaches every unlocked world."""
+    return bool(zone) and zone.startswith("Housing_")
+
+
 async def go_home(client) -> bool:
-    """Press the dorm button (usable any time, from any world): lands in the
-    dorm. A few tries: a click right after logging back in didn't take."""
+    """Press the home button (usable any time, from any world): lands in the
+    player's house (with a house) or the dorm. Not pressed when already home
+    (from the house it goes on to the dorm). A few tries: a click right after
+    logging back in didn't take."""
     from .travel_data import note_zone_jump
 
     zone = await client.zone_name()
+    if is_house(zone):
+        return True
     for _ in range(3):
         note_zone_jump()
         if not await ui.click_named(client, DORM_BUTTON):
@@ -88,20 +103,38 @@ async def go_home(client) -> bool:
         await ui.confirm_modal(client)
         await wait_for_loading(client, appear_timeout=6.0)
         zone = await client.zone_name()
+        if is_house(zone):
+            try:
+                HOUSE_FILE.parent.mkdir(exist_ok=True)
+                HOUSE_FILE.write_text(json.dumps({"zone": zone}), encoding="utf-8")
+            except OSError:
+                pass
+            return True
         if zone == DORM:
             return True
         await asyncio.sleep(2.0)
-    logger.warning(f"the dorm button took us to {zone}, not the dorm")
+    logger.warning(f"the home button took us to {zone}, not home")
     return False
 
 
 async def home_to_ravenwood(q) -> bool:
-    """Go Home lands in the dorm, whose door opens onto Ravenwood."""
+    """To Ravenwood by the home button: from the dorm, out of its door; from
+    the player's house, its world gate to Wizard City, then on foot."""
     logger.info("using Go Home to get to Ravenwood")
     if await q.client.zone_name() != DORM and not await go_home(q.client):
         return False
-    await q.approach_and_walk(DORM_DOOR, DORM)
-    await wait_for_loading(q.client)
+    if await q.client.zone_name() == DORM:
+        await q.approach_and_walk(DORM_DOOR, DORM)
+        await wait_for_loading(q.client)
+        return await q.client.zone_name() == RAVENWOOD
+    for _ in range(4):  # the house's world gate, the Spiral Map, Wizard City
+        zone = await q.client.zone_name() or ""
+        if zone.startswith("WizardCity/"):
+            break
+        if not await q._to_world("WizardCity", "to Ravenwood"):
+            break
+    if (await q.client.zone_name() or "").startswith("WizardCity/"):
+        await q.go_to_zone(RAVENWOOD)
     return await q.client.zone_name() == RAVENWOOD
 
 

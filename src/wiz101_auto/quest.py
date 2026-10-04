@@ -2262,7 +2262,7 @@ class Quester:
             return False
         from .trainer import go_home
 
-        logger.info(f"the quest is in Wizard City ({target}); going by the dorm button")
+        logger.info(f"the quest is in Wizard City ({target}); Go Home, then the world gate")
         return await go_home(self.client)
 
     async def _leave_spiral_map(self) -> bool:
@@ -4605,12 +4605,15 @@ class Quester:
                 note_arrival(world, landed)  # (the stream page's route lands there)
             return True
         if zone.split("/", 1)[0] != world:
-            # The Spiral Map is in the World Tree (Ravenwood, Bartleby's mouth).
-            if not zone.startswith("WizardCity/"):
-                from .trainer import go_home
+            # A Spiral Map at the player's house (its world gate) and in the
+            # World Tree (Ravenwood, Bartleby's mouth). The home button reaches
+            # the house from anywhere: no walk to the World Tree (the player).
+            from .trainer import go_home, is_house
 
-                logger.info(f"{why}: by the dorm to Wizard City, then the World Tree to {world}")
-                return await go_home(self.client)
+            if not is_house(zone) and zone not in (WORLD_TREE, RAVENWOOD):
+                logger.info(f"{why}: Go Home to the house's world gate, then {world}")
+                if await go_home(self.client):
+                    return True
             from .trainer import DORM, DORM_DOOR
 
             if zone == DORM:
@@ -4620,7 +4623,7 @@ class Quester:
                 logger.info(f"{why}: into the World Tree for the Spiral Map")
                 await self.approach_and_walk(door, zone)
                 return True
-            if zone == WORLD_TREE:
+            if zone == WORLD_TREE or is_house(zone):
                 if not await ui.is_visible(self.client, ui.NPC_RANGE):
                     # Land beside the gate (walking into it doesn't open the
                     # map: its "Press X" prompt does) and wait for the prompt.
@@ -4858,9 +4861,11 @@ class Quester:
         if zone.startswith("Aquila/"):
             return False
         if not zone.startswith("WizardCity/"):
-            from .trainer import go_home
+            from .trainer import go_home, is_house
 
-            logger.info("to Aquila: by the dorm button to Wizard City, then the World Tree")
+            if is_house(zone):  # (the house's world gate to Wizard City)
+                return await self._to_world_stage("WizardCity", "to Aquila")
+            logger.info("to Aquila: Go Home, then the house's world gate to Wizard City")
             return await go_home(self.client)
         if zone == CYCLOPS_LANE:
             # The way to Aquila: a "press X" prompt at the far end of Cyclops
