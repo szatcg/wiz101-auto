@@ -3186,15 +3186,17 @@ class Quester:
                 raw = await self._read_quest_page()
                 entries = [e for e in raw if e.name not in known]
                 if not entries and raw and all_quests:
-                    # The same page again: it didn't turn yet (a slow turn read
-                    # page 1 twice, took it for the end, and 'Armed to the
-                    # Gills' on page 2 "left" the book: a false "no main
-                    # quest" alert and a trip for the next story quest).
+                    # The same page again: the last page, or a slow turn (one
+                    # read page 1 twice, took it for the end, and 'Armed to the
+                    # Gills' on page 2 "left" the book: a false "no main quest"
+                    # alert). Another look a second later catches a slow turn;
+                    # still the same, it's the end. (Calling it incomplete made
+                    # every read incomplete: the last page never turns.)
                     await asyncio.sleep(1.0)
                     raw = await self._read_quest_page()
                     entries = [e for e in raw if e.name not in known]
                     if not entries:
-                        complete = False
+                        complete = True
                         break
                 if not entries:
                     # An empty book while there's an objective is a failed read
