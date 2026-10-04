@@ -424,6 +424,15 @@ def quest_rank(q: QuestEntry, current_area: int = 0, order: dict | None = None) 
     return (q.activity, q.mainline, -area, easy, position, -hops, q.active, q.reward)
 
 
+def _side_world(world: str | None) -> bool:
+    """A side world (Grizzleheim, Wintertusk...), by name or zone prefix."""
+    from .questlist import SIDE_WORLDS, world_of_zone
+
+    if not world:
+        return False
+    return world in SIDE_WORLDS or world_of_zone(world) in SIDE_WORLDS
+
+
 def zone_world(name: str | None) -> str | None:
     """A world as zone names spell it: the book's "Dragonspyre" is
     "DragonSpire" (compared as-is, a wizard in Malistaire's Lair was 'out of
@@ -3219,6 +3228,18 @@ class Quester:
                 zones = [objective_zone(q.goal) for q in main_quests if q.goal]
                 main_world = next((z.split("/", 1)[0] for z in zones if z), None)
             world = main_world or self._main_world or (here.split("/", 1)[0] if here else None)
+            if main_world is None and self._detour_names() is None and _side_world(world):
+                # A side-world detour over (Wintertusk): the story goes on in
+                # its own world (Celestia), side quests there rather than
+                # grinding in Grizzleheim for want of a quest.
+                from .questlist import story_world
+
+                story = story_world()
+                if story:
+                    if self.__dict__.get("_story_logged") != story:
+                        self._story_logged = story
+                        logger.info(f"the detour is over: the main story's world is {story} again")
+                    world = story
             self._main_world = zone_world(world)
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world)
             grinding = chosen is None and bool(all_quests)
@@ -3358,7 +3379,7 @@ class Quester:
         if chosen is None:
             return chosen
         names = [q.name for q in quests if q.name not in set_aside]
-        for guide in all_guides():
+        for _world, guide in all_guides():
             later = later_in_book(guide, chosen.name, names)
             if later:
                 if self.__dict__.get("_later_logged") != (chosen.name, later):
@@ -3369,33 +3390,48 @@ class Quester:
 
     def _fetch_next_story_quest(self):
         """The guide's next story quest isn't in the book while an earlier one
-        waits on it: visit its giver (Dulin Helmsplitter for 'Hammer Don't
-        Hurt 'Em'), where the entity map last saw them. Once per 10 min."""
-        from .main_guide import all_guides, giver, next_to_pick_up
-        from .questlist import load_completed
+        waits on it, or (a main-story world: Celestia) none of its quests is in
+        the book: visit who gives it (Dulin Helmsplitter for 'Hammer Don't
+        Hurt 'Em'), then the people it names, where the entity map last saw
+        them. Each one once per 10 min."""
+        from .main_guide import all_guides, next_to_pick_up, who_to_ask
+        from .questlist import SIDE_WORLDS, load_completed
 
         if VISIT_FILE.exists() or not self._book_names:
             return
         done = set(load_completed())
-        for guide in all_guides():
-            nxt = next_to_pick_up(guide, done, self._book_names)
+        for world, guide in all_guides():
+            alone = world not in SIDE_WORLDS and self._detour_names() is None
+            nxt = next_to_pick_up(guide, done, self._book_names, alone=alone)
             if nxt is None:
                 continue
-            npc = giver(guide, nxt)
             asked = self.__dict__.setdefault("_story_asked", {})
-            if not npc or time.monotonic() - asked.get(npc, -1e9) < 600:
-                continue
-            asked[npc] = time.monotonic()
-            zones = [z for z, names in self.entity_map.zones.items()
-                     if any(_norm_name(n) == _norm_name(npc) for n in names)]
-            if not zones:
-                logger.warning(f"next story quest {nxt.name!r} (#{nxt.index}) is from {npc}, "
-                               "who hasn't been seen anywhere yet")
-                continue
-            logger.info(f"next story quest {nxt.name!r} (#{nxt.index}) isn't in the book: "
-                        f"visiting {npc} ({zones[0].split('/')[-1]}) for it")
-            VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": zones[0]}), encoding="utf-8")
-            return
+
+            def seen_in(npc: str) -> list[str]:
+                want = _norm_name(npc)
+
+                def same(n: str) -> bool:
+                    m = _norm_name(n)
+                    return bool(want) and len(m) > 3 and (want in m or m in want)
+
+                return [z for z, names in self.entity_map.zones.items() if any(same(n) for n in names)]
+
+            people = who_to_ask(guide, nxt)
+            near = next((zs[0] for p in people if (zs := seen_in(p))), None)
+            for npc in people:
+                if time.monotonic() - asked.get(npc, -1e9) < 600:
+                    continue
+                # (Not on the map, e.g. The Archivist: where the giver stands.)
+                zones = seen_in(npc) or ([near] if near else [])
+                asked[npc] = time.monotonic()
+                if not zones:
+                    logger.warning(f"next story quest {nxt.name!r} (#{nxt.index}): {npc} hasn't been "
+                                   "seen anywhere yet")
+                    continue
+                logger.info(f"next story quest {nxt.name!r} (#{nxt.index}) isn't in the book: "
+                            f"visiting {npc} ({zones[0].split('/')[-1]}) for it")
+                VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": zones[0]}), encoding="utf-8")
+                return
 
     def pin_new_quest_after(self, before: set[str]):
         """After fetching quests from an NPC: at the next full read of the book,
@@ -6389,11 +6425,20 @@ class Quester:
             # quest for us (MooShu: Ken Shui in the Village of Sorrow) beats
             # grinding, or walking back into the stuck main quest.
             target = self.givers.visit_target(self._main_world)
+            source = "from the quest list"
+            if not target:
+                # No list for this world (Celestia): look for side quests among
+                # the people seen there, zone by zone, rather than grind (the
+                # player: side quests give far more experience).
+                from .combat.sim import load_stats
+
+                target = self.givers.hunt_target(self._main_world, self.entity_map.zones,
+                                                 set(load_stats().get("enemies", {})))
+                source = "for side quests instead of grinding"
             if target:
                 npc, where = target
                 self.givers._remember(where, npc)  # one try an hour, whatever happens
-                logger.info(f"nothing left to do: visiting {npc} ({where.split('/')[-1]}) "
-                            "from the quest list")
+                logger.info(f"nothing left to do: visiting {npc} ({where.split('/')[-1]}) {source}")
                 VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
         self._fetch_next_story_quest()
         if VISIT_FILE.exists() and await self._visit_npc():

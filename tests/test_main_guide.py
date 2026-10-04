@@ -41,3 +41,26 @@ def test_the_real_wintertusk_guide():
     g = load("Wintertusk")
     nxt = next_to_pick_up(g, {"Take the Low Road"}, {"Bones of the Earth"})
     assert nxt is not None and nxt.index == 46 and giver(g, nxt) == "Dulin Helmsplitter"
+
+
+def test_main_story_world_fetches_its_next_quest_alone():
+    from wiz101_auto.main_guide import who_to_ask
+
+    g = parse("""23. Tide and Tile - Search Shark Hut + Talk to Thornton Lewis
+24. Turning Tiles - Use Celestian Mosaic + Talk to Thornton Lewis
+25. Archivist, Revisited - Talk to The Archivist
+""")
+    done = {"Tide and Tile", "Turning Tiles"}
+    assert next_to_pick_up(g, done, {"Land Sharks"}) is None  # (nothing waiting)
+    nxt = next_to_pick_up(g, done, {"Land Sharks"}, alone=True)
+    assert nxt is not None and nxt.index == 25
+    assert who_to_ask(g, nxt) == ["Thornton Lewis", "The Archivist"]
+
+
+def test_story_world_after_a_detour():
+    from wiz101_auto.questlist import parse_quest_list, story_world
+
+    lists = {"Celestia": parse_quest_list("Survey Camp (1 quests)\n1.\nDoor to the Stars\nTALK\n"),
+             "Wintertusk": parse_quest_list("Northguard (1 quests)\n1.\nCold News\nTALK\n")}
+    assert story_world(["Door to the Stars", "Cold News"], lists) == "Celestia"
+    assert story_world([], lists) == ""

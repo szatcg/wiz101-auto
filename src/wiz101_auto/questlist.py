@@ -153,6 +153,18 @@ _ZONE_WORLDS = {"wizardcity": "Wizard City", "dragonspire": "Dragonspyre"}
 _SUBZONE_WORLDS = {"grizzleheim/ghhfjord": "Wintertusk"}
 
 
+def story_world(completed: list[str] | None = None, lists: dict | None = None) -> str:
+    """The furthest main-story world with a quest completed ("" if none):
+    where the story goes on once a side-world detour (Wintertusk) is over."""
+    done = {norm(n) for n in (load_completed() if completed is None else completed)}
+    lists = load_world_lists() if lists is None else lists
+    found = ""
+    for name in WORLDS:
+        if any(norm(q.name) in done for q in lists.get(name, [])):
+            found = name
+    return found
+
+
 def world_of_zone(zone: str) -> str:
     """"Krokotopia/KT_Hub" -> "Krokotopia" ("" if unknown)."""
     parts = (zone or "").split("/")

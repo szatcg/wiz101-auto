@@ -57,6 +57,14 @@ def is_named_npc(object_name: str, display: str, behaviors: list[str]) -> bool:
     )
 
 
+def looks_like_person(name: str) -> bool:
+    """A display name that reads like a person ("Thornton Lewis", "The
+    Archivist"), not an object id ("CL-Chest-Common-001", "DS_WispHealth")
+    or a one-word pick-up ("Ore")."""
+    return (" " in name.strip() and not re.search(r"[_\d]", name) and "-" not in name
+            and name[:1].isupper())
+
+
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
 
 GUIDE_DIR = Path("docs") / "sidequests"
@@ -266,6 +274,23 @@ class QuestGivers:
                 return q.giver, zone
         return None
 
+    def hunt_target(self, world: str, zones: dict[str, dict], enemies: set[str]) -> tuple[str, str] | None:
+        """Nothing left to do in `world` and no side-quest list for it: a named
+        person seen there (the entity map, `zones`) not asked in the last
+        hour, in a zone not swept for quests in the last hour, the zone with
+        the most of them first. (npc, zone) or None: then grinding."""
+        best: tuple[int, str, str] | None = None
+        for zone, names in zones.items():
+            if zone.split("/", 1)[0] != world or "/interiors/" in zone.lower():
+                continue
+            if time.time() - self._zone_checks.get(zone, 0.0) < ZONE_RECHECK_SECONDS:
+                continue
+            people = [n for n in names if looks_like_person(n) and n not in enemies
+                      and norm(n) not in SKIP_GIVERS and not self._asked_recently(zone, n)]
+            if people and (best is None or len(people) > best[0]):
+                best = (len(people), people[0], zone)
+        return (best[1], best[2]) if best else None
+
     async def _candidates(self, zone: str, reach: float = GIVER_RANGE) -> list[tuple[float, str, XYZ]]:
         from .names import lang_name
 
@@ -314,9 +339,12 @@ class QuestGivers:
         world = self.q._main_world
         if not zone or not world or zone.split("/", 1)[0] != world or await self.q._in_dungeon(zone):
             return False
-        if load_guide(zone.split("/", 1)[0]) is None and zone != self.main_sweep_zone:
+        if (load_guide(zone.split("/", 1)[0]) is None and zone != self.main_sweep_zone
+                and not self.q._grinding):
             # Only where the player gave a side-quest list (docs/sidequests/<World>.txt):
-            # elsewhere NPCs aren't asked at all (Wizard City's, on the way through).
+            # elsewhere NPCs aren't asked at all (Wizard City's, on the way through),
+            # unless there's nothing else to do (the player: side quests give far
+            # more experience than grinding).
             return False
         if zone != self._zone:
             # A new zone: not swept for an hour, ask everyone in it (quests

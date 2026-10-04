@@ -40,7 +40,7 @@ class GuideQuest:
 def _who(text: str) -> str:
     """'Dulin Helmsplitter in Nastrond' -> 'Dulin Helmsplitter'."""
     text = _PLACE.sub("", text.strip())
-    return re.sub(r"^(the|headmaster|headmistress)\s+", "", text, flags=re.I).strip()
+    return re.sub(r"^(headmaster|headmistress)\s+", "", text, flags=re.I).strip()
 
 
 def _norm(s: str) -> str:
@@ -85,10 +85,12 @@ def _find(guide: list[GuideQuest], name: str) -> GuideQuest | None:
     return next((q for q in guide if _norm(q.name) == n), None)
 
 
-def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str]) -> GuideQuest | None:
+def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
+                    alone: bool = False) -> GuideQuest | None:
     """The guide quest to fetch now: the one after the last one done, when it
     isn't in the book yet and an earlier story quest is (that one waits on
-    it). None otherwise."""
+    it), or (`alone`: the main story's world) when no quest of the guide is
+    in the book at all. None otherwise."""
     done_n = {_norm(n) for n in done}
     book_n = {_norm(n) for n in book}
     finished = [q.index for q in guide if _norm(q.name) in done_n]
@@ -102,7 +104,16 @@ def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str]) -> 
         return None
     waiting = [q for q in guide
                if q.index < nxt.index and _norm(q.name) in book_n and _norm(q.name) not in done_n]
+    if alone and not any(_norm(q.name) in book_n for q in guide):
+        return nxt
     return nxt if waiting else None
+
+
+def who_to_ask(guide: list[GuideQuest], quest: GuideQuest) -> list[str]:
+    """The NPCs to ask for `quest`, most likely first: its giver, then the
+    people the quest itself names (Thornton Lewis had nothing after Turning
+    Tiles; 'Archivist, Revisited' is only 'Talk to The Archivist')."""
+    return [n for n in dict.fromkeys([giver(guide, quest), *quest.talks()]) if n]
 
 
 def later_in_book(guide: list[GuideQuest], quest: str, book: list[str]) -> str | None:
@@ -116,12 +127,12 @@ def later_in_book(guide: list[GuideQuest], quest: str, book: list[str]) -> str |
     return max(later)[1] if later else None
 
 
-_ALL: list[list[GuideQuest]] | None = None
+_ALL: list[tuple[str, list[GuideQuest]]] | None = None
 
 
-def all_guides(guide_dir: Path = GUIDE_DIR) -> list[list[GuideQuest]]:
-    """Every world's guide (read once)."""
+def all_guides(guide_dir: Path = GUIDE_DIR) -> list[tuple[str, list[GuideQuest]]]:
+    """Every world's guide (read once), with its world's name."""
     global _ALL
     if _ALL is None:
-        _ALL = [g for p in sorted(guide_dir.glob("*.txt")) if (g := load(p.stem, guide_dir))]
+        _ALL = [(p.stem, g) for p in sorted(guide_dir.glob("*.txt")) if (g := load(p.stem, guide_dir))]
     return _ALL
