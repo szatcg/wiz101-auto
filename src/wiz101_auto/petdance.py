@@ -156,6 +156,10 @@ async def _click(client, *names) -> bool:
         return False
 
 
+async def _hidden(root, *names) -> bool:
+    return await _visible(root, *names) is None
+
+
 async def _wait_for(check, timeout: float, every: float = 0.15) -> bool:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
@@ -387,9 +391,17 @@ class PetDancer:
         logger.info(f"pet: energy {have} (a game costs {cost})")
         if cost is not None and have is not None and have < cost:
             return "no energy"
-        await _click(self.client, "PetGameTracks", "btnTrack0")  # the Wizard City dance track
-        await asyncio.sleep(0.3)
-        await _click(self.client, "PetGameTracks", "btnNext")  # Play
+        # (Clicks while the scroll still unrolls are lost: the game never
+        # started on the other window. Settle first, and press again while
+        # the window is still up.)
+        await asyncio.sleep(1.5)
+        for _ in range(3):
+            await _click(self.client, "PetGameTracks", "btnTrack0")  # the Wizard City dance track
+            await asyncio.sleep(0.5)
+            await _click(self.client, "PetGameTracks", "btnNext")  # Play
+            if await _wait_for(lambda: _hidden(root, "PetGameTracks"), 4):
+                break
+            logger.info("pet: Play didn't take; pressing it again")
         if not await self.dance():
             return "no game"
         return await self.collect()

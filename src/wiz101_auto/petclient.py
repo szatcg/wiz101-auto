@@ -153,7 +153,7 @@ async def run(want_pid: int = 0) -> int:
     from wizwalker.errors import PatternFailed
 
     from . import petdance
-    from .bot import close_handler, new_handler
+    from .bot import _click_left_of_center, close_handler, new_handler
     from .gamerestart import bot_game_pid
 
     petdance.PET_STATE = PET_FILE  # (this wizard's pet, not the main one's)
@@ -175,6 +175,9 @@ async def run(want_pid: int = 0) -> int:
         logger.error("pet-alt: hooks did not activate: is that wizard logged in and in the world?")
         return 1
     logger.success("pet-alt: connected")
+    # (Clicks aimed past display scaling, as in the main bot: this window sat
+    # on another monitor and Play! never registered.)
+    _click_left_of_center(client)
     try:
         async with client.mouse_handler:
             await _dance_forever(client)
