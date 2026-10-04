@@ -134,6 +134,9 @@ CIRCLE_WALK_FROM = 1100.0  # land this far from it, then walk in
 TEAM_JOIN_FROM = 500.0  # joining a teammate's fight: land this far from the circle, walk in
 TEAM_FOLLOW = 600.0  # farther than this from the nearest teammate: catch up
 TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the lead teammate
+# Team dungeons only ever entered for the farm (Mount Olympus is the story's
+# too): with farming off, the bot leaves them.
+FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -6783,6 +6786,18 @@ class Quester:
             self._team_alone_since = None
             await go_to_hub(self.client)
             return
+        if is_team_up_zone(zone_now) and zone_now.startswith(FARM_ONLY_DUNGEONS):
+            farm = Farm.load()
+            if not (farm.active and zone_now.startswith(FARM_ONLY_DUNGEONS)
+                    and farm.dungeon.startswith(FARM_ONLY_DUNGEONS)):
+                # Farming stopped (the player: back to the main story): the
+                # Waterworks is only ever for the farm; out to the hub.
+                from .dungeon_heal import go_to_hub
+
+                logger.info("not farming any more: leaving the dungeon for the story")
+                self._team_alone_since = None
+                await go_to_hub(self.client)
+                return
         if is_team_up_zone(zone_now):
             if time.monotonic() - self._team_ranked > TEAM_RERANK_SECONDS:
                 # The dungeon hands out its quest on entering: track it (its
