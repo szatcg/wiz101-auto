@@ -22,6 +22,14 @@ FARM_FILE = Path("state") / "farm.json"
 # What each farm is after (shown on the stream page, filled in as looted):
 # (group, slot, item name).
 TARGETS = {
+    # The player (2026-10-04): the Waterworks' myth set, with a team, on foot
+    # (movement.walk_only); the hood from Luska Charmbeak, the rest from
+    # Sylster Glowstorm (docs/guides/Wizard City - Waterworks.md).
+    "Waterworks": [
+        ("Tricksy", "Hat", "Tricksy Hood"),
+        ("Tricksy", "Robe", "Tricksy Cape"),
+        ("Tricksy", "Shoes", "Tricksy Boots"),
+    ],
     "Mount Olympus": [  # the player's Zeus set: farming stops once all are looted
         ("Zeus", "Hat", "Helmet of Zeus' Will"),
         ("Zeus", "Robe", "Zeus' Armor of Supremacy"),

@@ -4969,12 +4969,15 @@ class Quester:
             # Last Meow: Meowiarty) stays skipped until the player says.
             farm.active, farm.complete = False, True
             farm.save()
-            skip = self._last_main or "The Last Meow"
-            self.setbacks.skipped.add(skip)
-            self.setbacks.save()
+            # (Mount Olympus: the stuck story quest was skipped then, the
+            # player's call; no other farm skips anything.)
+            skip = (self._last_main or "The Last Meow") if farm.name == "Mount Olympus" else ""
+            if skip:
+                self.setbacks.skipped.add(skip)
+                self.setbacks.save()
             self._last_rank = -1e9
             logger.success(f"ALERT: {farm.name}: the whole set is in after {farm.runs} runs; farming done. "
-                           f"Levelling on side quests ({skip!r} skipped)")
+                           + (f"Levelling on side quests ({skip!r} skipped)" if skip else "Back to quests"))
             return False
         if zone != entry.outside:
             # The Mark stays at the sigil (made before each Team Up): Recall is

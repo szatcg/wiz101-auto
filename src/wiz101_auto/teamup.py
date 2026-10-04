@@ -23,11 +23,12 @@ from . import ui
 from .relog import _find_button
 from .upkeep import wait_for_loading
 
-TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus"}
+TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus",
+                    "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01"}  # the Waterworks
 # Every zone of those dungeons (their rooms are separate interiors).
-TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_")
+TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_", "WizardCity/Gauntlets/WC_Triton_Gauntlet1/")
 # How quest steps name those dungeons ("Defeat Zeus Sky Father in Mount Olympus").
-TEAM_UP_NAMES = ("mount olympus",)
+TEAM_UP_NAMES = ("mount olympus", "waterworks")
 TEAM_UP_WORDS = ("team up!", "team up")
 # Queue with Team Up too (besides watching the sigil for a party gathering;
 # a party on the sigil wins: the Team Up screen is closed to go in with them).

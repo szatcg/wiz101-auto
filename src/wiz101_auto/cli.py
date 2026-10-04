@@ -276,6 +276,8 @@ def main(argv: list[str] | None = None):
 
         farm = Farm.load()
         farm.active = not args.stop
+        if args.dungeon and args.dungeon != farm.dungeon:
+            farm.complete, farm.runs = False, 0  # (a new farm: the last one's "done" isn't this one's)
         farm.dungeon = args.dungeon or farm.dungeon
         farm.name = args.name or farm.name
         farm.final_boss = args.boss or farm.final_boss
