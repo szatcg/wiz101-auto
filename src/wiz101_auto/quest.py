@@ -2275,8 +2275,12 @@ class Quester:
             return False
         if not await is_free(self.client) or await self._in_dungeon(zone):
             return False
-        from .trainer import go_home
+        from .trainer import go_home, is_house
 
+        if is_house(zone):
+            # Home already (Go Home does nothing here: it looped pressing it):
+            # the house's world gate to Wizard City.
+            return await self._to_world_stage("WizardCity", f"the quest is in Wizard City ({target})")
         logger.info(f"the quest is in Wizard City ({target}); Go Home, then the world gate")
         return await go_home(self.client)
 
