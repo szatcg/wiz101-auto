@@ -272,7 +272,13 @@ def obey_controller(client, controller):
         return wrapped
 
     client._controller = controller  # (smoothwalk releases W while paused)
-    client.teleport = gate(client.teleport)
+    teleport = gate(client.teleport)
+
+    async def noted_teleport(*args, **kwargs):
+        client._last_teleport_at = time.monotonic()  # (a move of ours: not a defeat's)
+        return await teleport(*args, **kwargs)
+
+    client.teleport = noted_teleport
     client.send_key = gate(client.send_key)
     mouse = client.mouse_handler
     mouse.click = gate(mouse.click)
@@ -318,12 +324,17 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
             fight_zone = await client.zone_name() or ""  # a defeat moves us elsewhere
             fight_spot = await client.body.position()
             await fighter.handle_combat()
+            fight_over = time.monotonic()
             await asyncio.sleep(1.5)
             hp = await client.stats.current_hitpoints()
             max_hp = await max_health(client)
             moved = await client.zone_name() != fight_zone or (
                 (await client.body.position()).distance(fight_spot) > DEFEAT_MOVE_DISTANCE
             )
+            if getattr(client, "_last_teleport_at", 0.0) > fight_over:
+                # We moved ourselves (won on 6%, then "moving somewhere clear"
+                # within the wait): not the game sending a defeated wizard back.
+                moved = False
             # (Fleeing moves us away too, but isn't a defeat.)
             if not fighter.fled and (hp <= 1 or (max_hp and hp / max_hp < DEATH_HEALTH_RATIO and moved)):
                 # Losing a fight sends you back (elsewhere) with a sliver of
