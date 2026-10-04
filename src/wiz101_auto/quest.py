@@ -3527,6 +3527,22 @@ class Quester:
                         logger.info(f"quick errand first: {errand.name!r} ({errand.goal or errand.target}), "
                                     f"then back to {chosen.name!r}")
                     chosen = errand
+            if not self._mainline and not chosen.mainline and self._detour_gap_pending():
+                # On the way to ask for the story's next quest: a quest of the
+                # story's world tracked meanwhile, so the house's world gate
+                # opens the Spiral Map on that world (it opened on The Spiral
+                # Cup's Wysteria and took the bot there again and again).
+                try:
+                    gap_world = json.loads(DETOUR_GAP_FILE.read_text(encoding="utf-8")).get("zone", "")
+                except (OSError, ValueError):
+                    gap_world = ""
+                gap_world = SPIRAL_WORLD_NAMES.get(gap_world.split("/", 1)[0], gap_world.split("/", 1)[0])
+                there = [q for _, q in all_quests if q.zone and norm(q.zone) == norm(gap_world)
+                         and q.name not in set_aside]
+                if there and chosen not in there:
+                    logger.info(f"tracking {there[0].name!r} meanwhile: the Spiral Map then opens on "
+                                f"{there[0].zone} (the story's next quest is asked for there)")
+                    chosen = there[0]
             self._last_quests = [q for _, q in all_quests]
             _write_quest_book([q for _, q in all_quests], chosen, world)
             self._chosen_entry = chosen
