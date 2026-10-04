@@ -897,6 +897,32 @@ def _setup_fx(card: Card, kind: EffectKind, school: str) -> tuple[str, str, floa
     return (f"plan:{card.name}", best.school, best.value / 100)
 
 
+UNKNOWN_HIT_SHARE = 0.13  # an enemy never fought: a round of its hits as a share of our max health
+_STATS: list = [0.0, {}]  # (file time, enemies) of state/enemy_stats.json
+
+
+def incoming_per_round(battle: Battle) -> float:
+    """How much the live enemies should take off us next round: each one's
+    average damage per round from the fights logged (enemy_stats.json, the
+    simulator's), else UNKNOWN_HIT_SHARE of our max health."""
+    from pathlib import Path
+
+    path = Path("state") / "enemy_stats.json"
+    try:
+        mtime = path.stat().st_mtime
+        if mtime != _STATS[0]:
+            import json
+
+            _STATS[:] = [mtime, json.loads(path.read_text(encoding="utf-8")).get("enemies", {})]
+    except (OSError, ValueError):
+        pass
+    total = 0.0
+    for e in battle.live_enemies:
+        rounds = [*_STATS[1].get(e.name, {}).get("alone", []), *_STATS[1].get(e.name, {}).get("shared", [])]
+        total += sum(rounds) / len(rounds) if rounds else UNKNOWN_HIT_SHARE * battle.me.max_health
+    return total
+
+
 def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) -> Action | None:
     """Humongofrog as it stands vs. with blades/traps from the hand: if some
     of them make it kill enemies it wouldn't now, play one of the smallest such
@@ -923,6 +949,13 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
     now_kills, _ = outcome(list(me.outgoing_effects), base_in)
     if now_kills == len(enemies):
         return None
+    hit = incoming_per_round(battle)
+    if card.castable and hit >= me.health:
+        # No round to spare for set-up: 4 Waterworks guards took the wizard
+        # from 2552 to 111 while it laid 2 traps for an Orthrus it never cast.
+        return Action(ActionKind.CAST, card, None,
+                      reason=f"{card.name} now: ~{hit:.0f} incoming next round, {me.health} health left "
+                             f"(no time to set up; ~{now_kills} of {len(enemies)} die)")
     moves = []  # (card, target, kind, fx, hits)
     for c in battle.cards:
         if c.is_enchant or c is card:
