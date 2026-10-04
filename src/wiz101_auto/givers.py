@@ -343,8 +343,11 @@ class QuestGivers:
 
         places = FALLBACK_SIDE_PLACES.get(world, ())
         fallback = self.q._grinding and any(zone.startswith(p + "/") for p in places)
-        if not zone or not world or (zone.split("/", 1)[0] != world and not fallback) \
-                or await self.q._in_dungeon(zone):
+        # (The story's own sweep counts in any world: _main_world still named
+        # an older one, and Zafaria's hub NPCs were never asked for its next quest.)
+        story_sweep = bool(zone) and zone == self.main_sweep_zone
+        off_world = not world or (zone.split("/", 1)[0] != world and not fallback)
+        if not zone or (off_world and not story_sweep) or await self.q._in_dungeon(zone):
             return False
         if (load_guide(zone.split("/", 1)[0]) is None and zone != self.main_sweep_zone
                 and not self.q._grinding):
