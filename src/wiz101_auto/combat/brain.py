@@ -2491,6 +2491,7 @@ def _stun_block_first(battle: Battle) -> Action | None:
 # the round he's bare.
 SHIELD_DROPS_ON_HEAL = ("tim-tim snakeeye",)
 CHEAT_SHIELD = -0.5  # an incoming effect this low (or lower) is his cheat shield
+BIG_HIT_PIPS = 4  # a hit worth his one bare round costs this many pips or more
 
 
 def _heal_trick(battle: Battle, action: Action) -> Action | None:
@@ -2502,11 +2503,16 @@ def _heal_trick(battle: Battle, action: Action) -> Action | None:
     hits_him = (action.kind is ActionKind.CAST and card is not None and card.is_damage
                 and (card.is_aoe or action.target is boss))
     if not shielded:
-        if hits_him:
+        # The one bare round is for a real hit: a small one (the 0-pip wand
+        # hit) only brings his shield back.
+        if hits_him and card.pip_cost >= BIG_HIT_PIPS:
             return None
-        hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
+        hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal
+                and c.pip_cost >= BIG_HIT_PIPS]
         if not hits:
-            return None
+            if not hits_him:
+                return None
+            return _hold_for_one_shot(battle, Strategy(), f"{boss.name} is bare but no big hit is ready")
         best = max(hits, key=lambda c: hit_damage(c, battle.me, boss))
         return Action(ActionKind.CAST, best, None if best.is_aoe else boss,
                       reason=f"{boss.name}'s shield is down: {best.name} now")
