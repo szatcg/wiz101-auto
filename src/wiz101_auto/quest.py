@@ -2325,7 +2325,21 @@ class Quester:
         Map with the quest's world already ticked: press Go To World. True if
         the map was open."""
         if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+            self._map_tries = 0
             return False
+        tries = self._map_tries = getattr(self, "_map_tries", 0) + 1
+        if tries > MAP_GO_TRIES:
+            # The map open step after step and nothing taking us anywhere (at
+            # the Zafaria hub for The Spiral Cup's world; with the map up the
+            # quest book can't be read, so no main quest was known either):
+            # close it and rank the quests again.
+            logger.warning("the Spiral Map won't take us anywhere: closing it and choosing quests again")
+            self._map_tries = 0
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
+            self._ranked_for = None
+            self._last_rank = -1e9
+            return True
         if not self._mainline and self._detour_gap_pending():
             # On the way to ask for the story's next quest: its world, not the
             # tracked side quest's (the map ticked Wysteria for The Spiral Cup
@@ -2358,17 +2372,6 @@ class Quester:
             logger.info("on the Spiral Map, but the quest is in this world: leaving the map")
             await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
             await asyncio.sleep(1.0)
-            return True
-        tries = self._map_tries = getattr(self, "_map_tries", 0) + 1
-        if tries > MAP_GO_TRIES:
-            # Go To World does nothing (stuck on the map at the Zafaria hub for
-            # The Spiral Cup's world): close it and rank the quests again.
-            logger.warning("the Spiral Map won't take us there: closing it and choosing quests again")
-            self._map_tries = 0
-            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
-            await asyncio.sleep(1.0)
-            self._ranked_for = None
-            self._last_rank = -1e9
             return True
         logger.info("on the Spiral Map: going to the world the quest leads to")
         before = await self.client.zone_name()
@@ -6875,8 +6878,10 @@ class Quester:
                 VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
         self._fetch_next_story_quest()
         if VISIT_FILE.exists() and await self._visit_npc():
+            logger.debug("step: visited an NPC")
             return
         if await self._leave_spiral_map():
+            logger.debug("step: Spiral Map")
             return
         if await self._dorm_to_wizard_city():
             logger.debug("step: dorm to Wizard City")
