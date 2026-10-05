@@ -1750,13 +1750,13 @@ def _dig_for_a_hit(battle: Battle) -> Action | None:
 TRAP_SETUP_ROUNDS = 2  # traps in hand worth this many more rounds when they make the hit kill the boss
 
 
-def _traps_make_the_kill(battle: Battle, hit: Card, boss: Combatant) -> bool:
+def _traps_make_the_kill(battle: Battle, hit: Card, boss: Combatant, bosses_only: bool = True) -> bool:
     """The hit leaves the boss alive now, but with the traps in hand (up to
     TRAP_SETUP_ROUNDS of them, each a new spell on him) it would kill him, and
     we live that long (the player: Kallah Silverback; Orthrus killed only the
     Gorilla Spider Witch, two Feints first and it kills both, the boss rounds
     sooner)."""
-    if not boss.is_boss or hit_damage(hit, battle.me, boss) >= boss.health:
+    if (bosses_only and not boss.is_boss) or hit_damage(hit, battle.me, boss) >= boss.health:
         return False
     traps = [c for c in battle.cards if EffectKind.TRAP in c.kinds and not c.is_damage
              and c.target is Target.ENEMY_SINGLE
@@ -2759,11 +2759,11 @@ def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action |
         return None
     payoff = max(payoffs, key=lambda c: c.pip_cost)
     target = action.target
-    if (EffectKind.TRAP in card.kinds and target is not None and target.is_boss
-            and hit_damage(payoff, battle.me, target) < target.health):
-        # A trap on a boss the payoff wouldn't kill alone: worth the power pip
-        # (the player: two Feints, the necklace's and the trained one, make an
-        # Orthrus one-shot a high-health boss; it hardly ever played Feint).
+    if (EffectKind.TRAP in card.kinds and target is not None
+            and _traps_make_the_kill(battle, payoff, target, bosses_only=False)):
+        # The traps in hand (this one among them) and the payoff kill it: cast
+        # them now, power pips or not (the player: as soon as one or two
+        # Feints and a hit kill it; free setup first only while they don't).
         return None
     after = _pay(card, school, battle.pips, battle.power_pips)
     if after is None:

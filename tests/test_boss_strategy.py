@@ -577,4 +577,9 @@ def test_feint_on_a_tough_boss_is_paid_with_a_power_pip():
     boss = enemy("Kallah Silverback", 5910, boss=True)
     b = battle([orthrus, feint], [boss], my=my)
     b.pips, b.power_pips = 0, 2
-    assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None  # Feint goes
+    import unittest.mock as um
+    with um.patch.object(brain, "incoming_per_round", return_value=300.0):
+        # 1500 x1.7 = 2550 short of 5910: no kill yet, the Feint waits for a regular pip
+        assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is not None
+        boss.health = 2400  # one Feint and Orthrus kill him: Feint now, on a power pip
+        assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None
