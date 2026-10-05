@@ -273,6 +273,13 @@ def _apply_hit(f: Fight, c: Card, targets: list[Combatant], rng: random.Random):
     f.me.outgoing_effects = _use_up(f.me.outgoing_effects, c.school)
 
 
+def _fx_key(c: Card) -> str:
+    """A hanging blade/trap's key as the game gives it ("spell:<id>"), so the
+    brain's stacking check knows its copies (as "sim:Feint" it planned three
+    Feints on Ranzan: copies of one spell don't stack)."""
+    return f"spell:{c.template_id}" if c.template_id else f"sim:{c.name}"
+
+
 def _cast(f: Fight, action, rng: random.Random):
     c = action.card
     f.hand = [h for h in f.hand if h is not c]
@@ -293,11 +300,11 @@ def _cast(f: Fight, action, rng: random.Random):
     elif EffectKind.BLADE in kinds:
         for e in c.effects:
             if e.kind is EffectKind.BLADE:
-                f.me.outgoing_effects.append((f"sim:{c.name}", e.school, e.value / 100))
+                f.me.outgoing_effects.append((_fx_key(c), e.school, e.value / 100))
     elif EffectKind.TRAP in kinds and action.target:
         for e in c.effects:
             if e.kind is EffectKind.TRAP:
-                action.target.incoming_effects.append((f"sim:{c.name}", e.school, e.value / 100))
+                action.target.incoming_effects.append((_fx_key(c), e.school, e.value / 100))
         if c.name == "Feint":
             f.me.incoming_effects.append(("sim:Feint self", "", 0.3))
     elif EffectKind.SHIELD in kinds:

@@ -512,3 +512,17 @@ def test_the_plan_preview_enchants_once():
     plan = plan_preview(b, first, None)
     spells = [s["spell"] for s in plan["steps"]]
     assert spells.count("Gargantuan") == 1 and "Orthrus" in spells
+
+
+def test_a_second_copy_of_feint_doesnt_stack_in_the_sim():
+    from wiz101_auto.combat.brain import _is_duplicate
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+    from wiz101_auto.combat.sim import _fx_key
+
+    def feint(tid):
+        return Card(0, "Feint", school="death", template_id=tid,
+                    effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+
+    up = [(_fx_key(feint(10)), "", 0.7), ("spell:999", "storm", -0.2)]  # + a game effect of the boss's own
+    assert _is_duplicate(feint(10), EffectKind.TRAP, up, "myth")      # the trained Feint again: no
+    assert not _is_duplicate(feint(20), EffectKind.TRAP, up, "myth")  # the necklace's: stacks
