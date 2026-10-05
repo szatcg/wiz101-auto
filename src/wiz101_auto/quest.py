@@ -140,6 +140,8 @@ FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
+DUNGEON_SETTLE = 15.0  # after a fight in a dungeon: no heal trip out for this long (cutscenes)
+BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to appear before a heal trip
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
@@ -2045,6 +2047,31 @@ class Quester:
             return False
         return m.objective == await self.objective() and m.zone == await self.client.zone_name()
 
+    async def _boss_settled(self, objective: str) -> bool:
+        """Safe to leave a dungeon to heal? Not during a cutscene, not right
+        after a fight, and with a boss to beat next, not until he's in view
+        (the player: killing the King's Tomb spider plays the cutscene that
+        spawns Zanga Zebu; healing then left him unspawned for good). After
+        BOSS_SPAWN_WAIT it goes anyway."""
+        since = time.monotonic() - (self.fighter.combat_ended_at if self.fighter else 0.0)
+        if not await is_free(self.client):
+            logger.debug("heal trip: a cutscene or dialogue first")
+            return False
+        if since < DUNGEON_SETTLE:
+            logger.debug("heal trip: just out of a fight in a dungeon; waiting for what it sets off")
+            return False
+        target = defeat_target(objective)
+        if target and since < BOSS_SPAWN_WAIT:
+            from .bossfarm import mobs_named
+
+            names = {_norm_name(n) for n, _p in await mobs_named(self.client)}
+            if _norm_name(target) not in names:
+                if getattr(self, "_spawn_wait_logged", None) != target:
+                    self._spawn_wait_logged = target
+                    logger.info(f"waiting for {target} to appear before leaving to heal")
+                return False
+        return True
+
     async def _heal_trip(self, force: bool = False, marked: bool = False) -> bool:
         """This zone lacks what recovery needs: heal from the hub and Recall
         back instead of walking out and back through the gates. Goes when the
@@ -2061,6 +2088,8 @@ class Quester:
             # Emperor's Palace at 2% health, and no trip meant no healing.)
             return False
         objective = await self.objective()
+        if await self._in_dungeon(zone) and not await self._boss_settled(objective or ""):
+            return False  # (stay: the boss's spawn cutscene; leaving broke the copy)
         dest = objective_zone(objective) if objective else None
         coming_back = dest == zone or (dest is None and is_combat_objective(objective or ""))
         if not zone or not (marked or coming_back or force):
@@ -7065,6 +7094,8 @@ class Quester:
                     await asyncio.sleep(1.5)
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
+        if heal_now and in_dungeon and not await self._boss_settled(await self.objective() or ""):
+            return  # (no trip out yet: the boss's spawn cutscene)
         if heal_now and self.healer and in_dungeon and await self.healer.between_fights(zone_now):
             return
         if heal_now and self.upkeep and not await recover(
