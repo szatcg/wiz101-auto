@@ -86,9 +86,9 @@ def is_team_up_zone(zone: str) -> bool:
 # runs, at least 4 players.
 CONFIRM_WINDOW = "TeamUpConfirmationWindow"
 TEAM_CHOICES = ("TeamTypeFarmingCheckBox", "TeamSize4CheckBox")
-# A quest's dungeon (the team list: lost 5 times alone): questing, 3+ players
-# (the player: farming and 4 was wrong for Belloq).
-QUEST_TEAM_CHOICES = ("TeamTypeQuestingCheckBox", "TeamSize3CheckBox")
+# A quest's dungeon (the team list: lost 5 times alone): questing, 2+ players
+# (the player: farming and 4 was wrong for Belloq; 2+ is faster).
+QUEST_TEAM_CHOICES = ("TeamTypeQuestingCheckBox", "TeamSize2CheckBox")
 CONFIRM_WORDS = ("team up", "join", "join team", "find team", "search", "yes", "ok", "go", "accept", "ready")
 TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
 # Players gathering on the sigil to go in: with this many others on it, press
@@ -275,7 +275,7 @@ async def cancel_queue(client) -> bool:
 
 async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     """Tick the team type and minimum size (`choices`: Farming and 4, or for a
-    quest Questing and 3) on the Team Up form, then press its TEAM UP!. True
+    quest Questing and 2) on the Team Up form, then press its TEAM UP!. True
     if the form was there."""
     form = await ui._visible_named(client.root_window, CONFIRM_WINDOW)
     if form is None:
@@ -293,7 +293,7 @@ async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     if button is None:
         logger.warning("team up: no TEAM UP! button on the form")
         return True
-    kind = "questing, 3+" if choices == QUEST_TEAM_CHOICES else "farming, 4+"
+    kind = "questing, 2+" if choices == QUEST_TEAM_CHOICES else "farming, 4+"
     logger.info(f"team up: pressing TEAM UP! on the form ({kind} players)")
     await ui.click_center(client, button)
     await asyncio.sleep(1.5)
