@@ -257,6 +257,7 @@ TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where 
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
 TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long (searching the rooms): they left; leave
 TEAM_TALK_TRIES = 3  # a talk step in a team dungeon: tries before it's taken as waiting on the team
+TEAM_ALONE_QUEST = 20.0  # a quest dungeon on the team list, no teammate in sight this long: out, Team Up
 TEAM_ALONE_AFTER = 180.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -5323,7 +5324,14 @@ class Quester:
         gone = self._team_with_us and now - self._mate_last_seen > TEAM_GONE_AFTER
         if self._team_alone_since is None:
             self._team_alone_since = now
-        elif (not self._team_with_us and now - self._team_alone_since > TEAM_ALONE_AFTER) or gone:
+        from .teamup import team_list
+
+        # (A quest dungeon on the team list: alone in there means back in by
+        # Recall after a loss, not a team elsewhere: out at once to Team Up.)
+        in_quest_team = (await self.client.zone_name() or "") in team_list()
+        alone_after = TEAM_ALONE_QUEST if in_quest_team else TEAM_ALONE_AFTER
+        elif_alone = not self._team_with_us and now - self._team_alone_since > alone_after
+        if (elif_alone or gone) and now - self._team_alone_since > 0:
             # The team left (none seen for TEAM_GONE_AFTER: they went after
             # Apollo, and it waited alone in the Moon Chamber for 20 minutes).
             # Only when no teammate has been seen in here at all (and we didn't
@@ -5570,7 +5578,8 @@ class Quester:
         last = seen[1]
         key = (zone, round(last.x / 300), round(last.y / 300))
         tries = self._track_tries.get(key, 0)
-        if walking and not (seen[3] and tries < TEAM_TRACK_TRIES) and not self.__dict__.get("_to_marker"):
+        if (walking and self._team_with_us and not (seen[3] and tries < TEAM_TRACK_TRIES)
+                and not self.__dict__.get("_to_marker")):
             # On foot and nobody to follow here (the team left this room before
             # we loaded in, or their tracks led nowhere): on toward the dungeon
             # quest's objective, which is where they're headed (the player).
