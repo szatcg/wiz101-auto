@@ -266,7 +266,8 @@ def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> f
 
 
 CRIT_MARGIN = 1.0  # a crit "kills" at its predicted damage (the player: no margin; one miss was bad luck)
-CRIT_GAMBLE_PLAN_MAX = 3  # a sure kill this many rounds off (and safe): no gamble
+GAMBLE_PLAN_HORIZON = 12  # how far the sure plan a gamble is weighed against looks
+GAMBLE_PLAN_SECONDS = 1.0  # ... within this long
 CRIT_GAMBLE = 0.5  # a spell that ends the fight only on a crit is cast at this chance or better
 
 
@@ -281,14 +282,12 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     # gamble (the player: the gamble crit and still killed none; a blade more
     # would have made it sure).
     try:
-        sure = plan_hand_use(battle)[0]
+        sure = plan_hand_use(battle, GAMBLE_PLAN_HORIZON, time.monotonic() + GAMBLE_PLAN_SECONDS)[0]
     except Exception:
         sure = 99
-    # The safe route when we live to see it: health above what the enemies
-    # deal until the sure kill lands (the player: low health, take the
-    # gamble; there may not be another turn).
-    if sure <= CRIT_GAMBLE_PLAN_MAX and battle.me.health > max(1, sure) * incoming_per_round(battle):
-        return None
+    # Low health: we may not live to see the sure kill (the player: take the
+    # gamble then). Otherwise only a gamble that saves rounds on average.
+    lives = battle.me.health > max(1, min(sure, GAMBLE_PLAN_HORIZON)) * incoming_per_round(battle)
     if action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage:
         if clear_chance(action.card, battle.me, alive if action.card.is_aoe else
                         [t for t in alive if t is action.target]) >= 1.0 and (
@@ -304,6 +303,13 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     if best is None:
         return None
     p, card = best
+    # The player: gamble only when it saves more rounds than it costs. Now:
+    # 1 round on a crit; a miss leaves (about) the sure plan still to play.
+    # Sure: `sure` rounds. With no sure kill in reach, any CRIT_GAMBLE odds go.
+    # At least a whole round saved on average (2 rounds to a sure kill: never;
+    # 3: from 67%; 4: from 50%).
+    if lives and sure < 99 and 1 + (1 - p) * sure > sure - 1:
+        return None
     pc, pb, normal, crit = crit_odds(card, battle.me, alive[0])
     return Action(ActionKind.CAST, card, None if card.is_aoe else alive[0],
                   reason=f"{card.name} ends the fight on a crit: {p:.0%} (crit {pc:.0%}, "

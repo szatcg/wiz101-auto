@@ -110,3 +110,19 @@ def test_gamble_only_when_the_sure_kill_comes_too_late():
         healthy.me.health = 600
         got = brain._crit_gamble(healthy, wait)                   # 600 < 2 rounds x 500: gamble
         assert got is not None and got.card is frog
+
+
+def test_gamble_saves_a_round_on_average():
+    from wiz101_auto.combat import brain
+
+    frog = Card(1, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 900)])
+    b = Battle(me=me(100, level=60), allies=[], enemies=[foe(1400, name="A"), foe(1400, name="B")],
+               cards=[frog], pips=6, power_pips=0)
+    wait = Action(ActionKind.PASS, reason="saving pips")
+    import unittest.mock as um
+    with um.patch.object(brain, "incoming_per_round", return_value=100.0):
+        with um.patch.object(brain, "plan_hand_use", return_value=(3, set())):
+            assert brain._crit_gamble(b, wait) is None       # 60% vs 3 rounds: saves 0.8 of a round
+        with um.patch.object(brain, "plan_hand_use", return_value=(5, set())):
+            assert brain._crit_gamble(b, wait) is not None   # vs 5 rounds: saves 2
