@@ -70,3 +70,14 @@ def test_ironworks_dungeon_quests_are_always_skipped(tmp_path):
     s = Setbacks.load(tmp_path / "setbacks.json")  # no file: nothing saved yet
     aside = s.set_aside(level=33)
     assert {"No Entry", "Gate Crashers"} <= aside
+
+
+def test_a_stuck_quest_stays_aside_until_nothing_else_is_left(tmp_path):
+    from wiz101_auto.setbacks import Setbacks
+
+    s = Setbacks(tmp_path / "s.json") if "path" in Setbacks.__init__.__code__.co_varnames else Setbacks()
+    s.set_quest_aside("Into the Zebra Tomb", "Explore King's Tomb", 66, now=0.0, main=True, stuck=True)
+    assert "Into the Zebra Tomb" in s.set_aside(67, now=10_000.0)  # a level-up and hours later: still aside
+    assert s.release_stuck(now=100.0) == []                         # not yet an hour
+    assert s.release_stuck(now=4000.0) == ["Into the Zebra Tomb"]
+    assert "Into the Zebra Tomb" not in s.set_aside(67, now=4000.0)

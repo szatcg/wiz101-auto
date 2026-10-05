@@ -16,6 +16,7 @@ from pathlib import Path
 DEFEATS_TO_DEFER = 2  # side quests
 MAIN_DEFEATS_TO_DEFER = 5  # main-story objectives: fights have variance, keep trying
 DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
+STUCK_RELEASE_SECONDS = 3600.0  # nothing left but grinding: a stuck quest is tried again after this
 MAIN_RETRY_SECONDS = 900.0  # a main-story quest set aside for being stuck: tried again after this
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
@@ -65,13 +66,20 @@ class Setbacks:
 
     def set_quest_aside(
         self, quest: str, objective: str, level: int, now: float | None = None, main: bool = False,
-        retry_after: float | None = None,
+        retry_after: float | None = None, stuck: bool = False,
     ):
         """Put `quest` aside now (e.g. no way to progress it), like two defeats do.
         A main-story quest comes back only with a level-up (side quests fill in
         until then); others also after DEFER_SECONDS. `retry_after`: stuck
         rather than beaten, so try again after that many seconds anyway."""
         now = time.time() if now is None else now
+        if stuck:
+            # The player: a quest the bot can't figure out (not a lost fight)
+            # stays aside: side quests for experience instead; back only when
+            # there's nothing else to do (release_stuck), never on a timer.
+            self.deferred[quest] = {"level": level, "at": now, "objective": objective, "main": main,
+                                    "stuck": True}
+            return
         if main and retry_after is None:
             # (Not until a level-up: 'Quest for Perfection', set aside while an
             # Orange Crystal Sample couldn't be found, left the bot grinding.)
@@ -86,10 +94,19 @@ class Setbacks:
         now = time.time() if now is None else now
         done = [
             q for q, d in self.deferred.items()
-            if level > d.get("level", 0)
+            if not d.get("stuck") and level > d.get("level", 0)
             or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
             or ("until" in d and now > d["until"])
         ]
         for q in done:
             del self.deferred[q]
         return set(self.deferred) | self.skipped | ALWAYS_SKIP
+
+    def release_stuck(self, now: float | None = None, after: float = STUCK_RELEASE_SECONDS) -> list[str]:
+        """Nothing else to do: quests set aside as stuck at least `after` ago
+        come back (another try beats grinding). The ones released."""
+        now = time.time() if now is None else now
+        back = [q for q, d in self.deferred.items() if d.get("stuck") and now - d.get("at", 0) >= after]
+        for q in back:
+            del self.deferred[q]
+        return back

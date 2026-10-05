@@ -1257,9 +1257,8 @@ class Quester:
                 quest = None
             if quest:
                 level = await self.client.stats.reference_level()
-                self.setbacks.set_quest_aside(
-                    quest, objective, level, main=quest in self._mainline, retry_after=STUCK_RETRY_SECONDS
-                )
+                self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline,
+                                              stuck=True)
                 self.setbacks.save()
                 logger.warning(
                     f"no progress on {objective!r} for {waited / 60:.0f} min: setting {quest!r} aside "
@@ -1271,7 +1270,10 @@ class Quester:
                 self._last_rank = -1e9  # re-rank on this step
             return
         if waited > self.cfg.stuck_minutes * 60:
-            self.controller.stop(f"no quest progress for {self.cfg.stuck_minutes} min on {objective!r}")
+            # Never stop for it (the player: hours lost stopped): set aside
+            # again and on with whatever else there is.
+            self._stall_switched_for = None
+            self._last_progress_time = time.monotonic() - STALL_SWITCH_SECONDS
 
     # --- movement ------------------------------------------------------------
 
@@ -2412,6 +2414,14 @@ class Quester:
             return True
         if await self._detour_ask():
             return True
+        back = self.setbacks.release_stuck()
+        if back:
+            # Nothing else to do: another try at the stuck quests beats grinding.
+            self.setbacks.save()
+            logger.info(f"nothing else to do: trying {', '.join(map(repr, back))} again")
+            self._ranked_for = None
+            self._last_rank = -1e9
+            return True
         zone = await self.client.zone_name() or ""
         world = self._grind_world()  # (the highest-level world we've reached: Celestia)
         in_main_world = not world or zone.split("/", 1)[0] == world
@@ -2503,8 +2513,11 @@ class Quester:
         if not quest:
             return await self.switch_quest()
         level = await self.client.stats.reference_level()
+        # Can't be progressed (not a lost fight): aside as stuck, no timed retry
+        # (the player: side quests for experience; back when nothing else is left).
         self.setbacks.set_quest_aside(
-            quest, objective, level, main=quest in self._mainline, retry_after=retry_after
+            quest, objective, level, main=quest in self._mainline, retry_after=retry_after,
+            stuck=retry_after == STUCK_RETRY_SECONDS,
         )
         self.setbacks.save()
         if quest in self._mainline:
