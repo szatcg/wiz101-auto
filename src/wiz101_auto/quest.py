@@ -4108,6 +4108,18 @@ class Quester:
         logger.info(f"no {item!r} anywhere in {zone.split('/')[-1]} right now")
         return False
 
+    def _room_with(self, item: str, area: str) -> str | None:
+        """A building of `area` where an entity named exactly `item` was seen,
+        when none by that name was seen in `area` itself."""
+        want = item.strip().lower()
+
+        def has(z: str) -> bool:
+            return any(n.strip().lower() == want for n in self.entity_map.zones.get(z, {}))
+
+        if not want or has(area):
+            return None
+        return next((z for z in self.entity_map.zones if room_of(z, area) and has(z)), None)
+
     async def collect(self, item: str, objective: str) -> bool:
         """Handle a collect objective. Returns True if it did something this step."""
         names = loose_names(item)
@@ -7610,6 +7622,13 @@ class Quester:
                     logger.info(f"{objective!r}: none in this building; going out to {where}")
                     await self.go_to_zone(where)
                     return
+            elif where and where == zone and (room := self._room_with(item, zone)):
+                # Seen by that very name in a building of this area (Drum in the
+                # Drum House): in there, not a sweep outside that took the
+                # Drum House's webs for drums.
+                logger.info(f"{objective!r}: {item!r} was seen in {room}; going in")
+                await self.go_to_zone(room)
+                return
             elif where and where != zone and not searching_here:
                 if gate_toward(zone, where, self._bad_gates):
                     logger.info(f"{objective!r} is in {where}; going there first")
