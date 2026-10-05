@@ -140,6 +140,7 @@ FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
+ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -6028,7 +6029,11 @@ class Quester:
         misses = self.__dict__.setdefault("_engage_misses", {})
         key = (objective, zone, target)
         miss = misses.get(key, 0)
-        if miss or walk:
+        # Walking in tried ENGAGE_WALK_TRIES times for nothing: every other try
+        # a landing on him again (Zanga Zebu: 25 walk-ins from 2,185 away, no
+        # fight; the teleport is the player's way outside the Waterworks).
+        land_again = not walk and miss >= ENGAGE_WALK_TRIES and miss % 2 == 1
+        if (miss or walk) and not land_again:
             self._walked_in_at = time.monotonic()
             # The player: from where we fought the room's last enemies, walk in
             # (teleported near him, Malistaire showed but never fully loaded,
@@ -6067,7 +6072,8 @@ class Quester:
                     await asyncio.wait_for(self.client.goto(pos.x, pos.y), 45)
                 await asyncio.sleep(4.0)
         else:
-            logger.info(f"going after {target} for {objective!r}")
+            logger.info(f"going after {target} for {objective!r}" + (f" (landing on him, try {miss + 1})"
+                                                                   if land_again else ""))
             allow_engage(self.client)  # this teleport is meant to start the fight
             await self.client.teleport(pos)
             await asyncio.sleep(3.0)
