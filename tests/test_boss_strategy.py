@@ -462,3 +462,23 @@ def test_tim_tim_heal_trick():
     tim.incoming_effects = []
     got = brain._heal_trick(b, Action(ActionKind.CAST, blade, my))
     assert got is not None and got.card is orthrus  # bare: the big hit now
+
+
+def test_tim_tim_heals_only_with_the_hit_affordable_next_round():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True, castable=False)
+    pixie = Card(2, "Pixie", school="myth", pip_cost=2, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)])
+    blade = _setup(1, "Mythblade", "blade")
+    my = me(2000, 2736)
+    my.school = "myth"
+    my.blade_count = 2
+    tim = enemy("Tim-tim Snakeeye", 5675, boss=True)
+    tim.incoming_effects = [("shield", "", -0.9)]
+    b = battle([orthrus, pixie, blade], [tim], my=my)
+    b.pips, b.power_pips = 0, 1  # 2 pips: the heal leaves 0, +1 next round: no Orthrus
+    got = brain._heal_trick(b, Action(ActionKind.PASS))
+    assert got is None or got.card is not pixie
+    b.pips, b.power_pips = 0, 4  # 8: the heal leaves 6, +1: Orthrus next round
+    got = brain._heal_trick(b, Action(ActionKind.PASS))
+    assert got is not None and got.card is pixie

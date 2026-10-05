@@ -2513,8 +2513,14 @@ def _heal_trick(battle: Battle, action: Action) -> Action | None:
     heals = [c for c in _castable(battle.cards) if c.is_heal]
     big = [c for c in battle.cards if c.is_damage and c.pip_cost >= 4]
     ready = battle.me.blade_count >= 1 or hits_him or action.kind is ActionKind.PASS
-    if heals and big and ready:
+    if heals and big:
         heal = min(heals, key=lambda c: c.pip_cost)
+        # His shield is down for one round only: the heal only when the big
+        # hit is affordable next round (it healed on 1 pip, then had nothing
+        # to hit with while he was bare). Pips after the heal, plus a pip.
+        pips_next = battle.pips + 2 * battle.power_pips - heal.pip_cost + 1
+        ready = ready and pips_next >= min(c.pip_cost for c in big)
+    if heals and big and ready:
         return Action(ActionKind.CAST, heal, battle.me,
                       reason=f"{heal.name}: a heal makes {boss.name} drop his shield next round")
     if hits_him:
@@ -2536,6 +2542,10 @@ def _last_stand(battle: Battle, action: Action) -> Action | None:
         return None
     if any(c.is_heal for c in battle.cards):
         return None  # (a heal in hand, castable or saved for: the heal rules decide)
+    if any(any(_is(e, k) for k in SHIELD_DROPS_ON_HEAL) and any(v <= CHEAT_SHIELD for _k, _s, v in
+                                                               e.incoming_effects)
+           for e in battle.live_enemies):
+        return None  # (a hit into Tim-tim's -90% shield does nothing: Orthrus for 258)
     if battle.me.health > incoming_per_round(battle) * LAST_STAND_MARGIN:
         return None
     hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
