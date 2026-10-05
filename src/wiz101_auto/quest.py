@@ -601,6 +601,9 @@ def quest_is_errand(q: QuestEntry) -> bool:
 # stuck. Quick side-quest errands on the way (a turn-in, a talk) are off: one
 # led on to 'Mane of Terror' and a defeat by its boss.
 ERRAND_DETOURS = False
+# The player (2026-10-05): a stuck main quest means side quests for experience,
+# not farming (it switched the Waterworks farm on, which needs a team).
+FARM_WHEN_STUCK = False
 
 
 def errand_detour(
@@ -2527,7 +2530,7 @@ class Quester:
         MAIN_DEFEATS_TO_DEFER times, or no main quest at all; or stuck
         STUCK_TIMES_TO_FARM times) it farms Aquila instead of side quests."""
         self._stuck_times[quest] = self._stuck_times.get(quest, 0) + 1
-        if hard or self._stuck_times[quest] >= STUCK_TIMES_TO_FARM:
+        if FARM_WHEN_STUCK and (hard or self._stuck_times[quest] >= STUCK_TIMES_TO_FARM):
             self._farm_when_stuck(quest, why)
         now = time.monotonic()
         if now - self._alerted.get(quest, -1e9) < ALERT_REPEAT_SECONDS:
