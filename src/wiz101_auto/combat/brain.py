@@ -2758,6 +2758,13 @@ def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action |
     if not payoffs:
         return None
     payoff = max(payoffs, key=lambda c: c.pip_cost)
+    target = action.target
+    if (EffectKind.TRAP in card.kinds and target is not None and target.is_boss
+            and hit_damage(payoff, battle.me, target) < target.health):
+        # A trap on a boss the payoff wouldn't kill alone: worth the power pip
+        # (the player: two Feints, the necklace's and the trained one, make an
+        # Orthrus one-shot a high-health boss; it hardly ever played Feint).
+        return None
     after = _pay(card, school, battle.pips, battle.power_pips)
     if after is None:
         return None

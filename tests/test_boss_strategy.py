@@ -563,3 +563,18 @@ def test_the_bigger_hit_is_cast_when_castable_not_saved_for():
     b.pips, b.power_pips = 0, 7
     a = brain.decide(b, discards_left=0)
     assert a.kind is ActionKind.CAST and a.card is orthrus
+
+
+def test_feint_on_a_tough_boss_is_paid_with_a_power_pip():
+    from wiz101_auto.combat.brain import Strategy, _pip_wise_setup
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 1500, 7, aoe=True)
+    feint = Card(1, "Feint", school="death", pip_cost=1, template_id=10,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    my = me(2500, 3000)
+    my.school = "myth"
+    boss = enemy("Kallah Silverback", 5910, boss=True)
+    b = battle([orthrus, feint], [boss], my=my)
+    b.pips, b.power_pips = 0, 2
+    assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None  # Feint goes
