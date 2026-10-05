@@ -783,8 +783,8 @@ function renderPlanner(p) {
     const widest = bands.length ? pct(bands[0][1]) : 0;
     const bandHtml = bands.map(([cls, d]) =>
       `<span class="${cls}" style="left:${pct(e.hp) - pct(d)}%; width:${pct(d)}%"></span>`).join("");
-    const ko = cr && cr[0] && cr[3] >= e.hp && hi < e.hp ? ' <span class="ko">KO on a crit</span>' : "";
-    const critline = cr && cr[0] ? `<div class="critline">💥 crit ${cr[0]}% · blocks ${cr[1]}% · ${cr[2]} → ${cr[3]} on a crit${ko}</div>` : "";
+    // Just the true crit chance: crit, less the enemy's block (the player).
+    const critline = cr && cr[0] ? `<div class="critline">💥 ${Math.round(cr[0] * (100 - cr[1]) / 100)}%</div>` : "";
     return `<div class="pfoe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
       <span>${e.hp} / ${e.max}${label}</span></div>
       <div class="pbar"><span class="keep" style="width:${pct(e.hp) - widest}%"></span>${bandHtml}</div>${critline}</div>`;
@@ -875,7 +875,7 @@ function renderLower() {
       return `<div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
         <span>${e.hp} / ${e.max}${mark}</span></div>
         <div class="bar"><div style="width:${after}%"></div>${bandHtml}</div>
-        ${cr && cr.c ? `<div class="critline">💥 crit ${cr.c}% · blocks ${cr.b}% · ${cr.n} → ${cr.x} on a crit${cr.x >= e.hp && cr.n < e.hp ? ' <span class="ko">KO on a crit</span>' : ""}</div>` : ""}</div>`;
+        ${cr && cr.c ? `<div class="critline">💥 ${Math.round(cr.c * (100 - cr.b) / 100)}%</div>` : ""}</div>`;
     }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     // A crit gamble: the odds it pays off, plainly (the player couldn't tell).
