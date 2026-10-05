@@ -552,3 +552,14 @@ def test_traps_first_when_they_make_the_hit_kill_the_boss():
     with um.patch.object(brain, "incoming_per_round", return_value=300.0):
         got = brain._hit_when_set_up(b2, Action(ActionKind.CAST, blade, my))
     assert got is not None and got.card is orthrus
+
+
+def test_the_bigger_hit_is_cast_when_castable_not_saved_for():
+    frog = _myth(0, "Humongofrog", 600, 4, aoe=True)
+    orthrus = _myth(1, "Orthrus", 1500, 7, aoe=True)
+    my = me(478, 3019)
+    my.school = "myth"
+    b = battle([frog, orthrus], [enemy("Kallah Silverback", 2035, boss=True)], my=my)
+    b.pips, b.power_pips = 0, 7
+    a = brain.decide(b, discards_left=0)
+    assert a.kind is ActionKind.CAST and a.card is orthrus

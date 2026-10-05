@@ -2347,6 +2347,12 @@ def _boss_setup_first(battle: Battle, action: Action, discards_left: int = 0) ->
     if bigger and card.pip_cost > 0:  # (a 0-pip hit costs nothing: Super Strike breaking a shield)
         big = max(bigger, key=lambda c: hit_damage(c, battle.me, boss))
         if any(c is big for c in battle.cards):
+            if big.castable:
+                # (Castable now: cast it. It passed seven rounds 'keeping pips
+                # for Orthrus' on 14 pips with Orthrus in hand, and lost.)
+                return Action(ActionKind.CAST, big, None if big.is_aoe else boss,
+                              reason=f"{big.name} over {card.name} "
+                                     f"(~{dmg:.0f} of {boss.name}'s {boss.health})")
             return Action(ActionKind.PASS, reason=f"keeping pips for {big.name} over {card.name} "
                                                   f"(~{dmg:.0f} of {boss.name}'s {boss.health})")
         if discards_left > 0 and not card.treasure and not card.item:
