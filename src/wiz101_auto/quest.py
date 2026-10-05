@@ -139,6 +139,7 @@ TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the 
 FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
+MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -2358,12 +2359,26 @@ class Quester:
             await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
             await asyncio.sleep(1.0)
             return True
+        tries = self._map_tries = getattr(self, "_map_tries", 0) + 1
+        if tries > MAP_GO_TRIES:
+            # Go To World does nothing (stuck on the map at the Zafaria hub for
+            # The Spiral Cup's world): close it and rank the quests again.
+            logger.warning("the Spiral Map won't take us there: closing it and choosing quests again")
+            self._map_tries = 0
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
+            self._ranked_for = None
+            self._last_rank = -1e9
+            return True
         logger.info("on the Spiral Map: going to the world the quest leads to")
+        before = await self.client.zone_name()
         for _ in range(5):
             if not await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT):
                 break
             await asyncio.sleep(0.5)
         await wait_for_loading(self.client)
+        if await self.client.zone_name() != before:
+            self._map_tries = 0
         return True
 
     async def _pick_up_wanted(self) -> bool:
@@ -3760,7 +3775,14 @@ class Quester:
         return pinned
 
     async def switch_quest(self) -> bool:
-        """Track the next quest in the quest book. True if the objective changed."""
+        """Track the next quest in the quest book. True if the objective changed.
+        Never away from the main story (the player: the main quest only; it
+        switched from 'Talk to Juma Fasttrack' to The Spiral Cup's step)."""
+        if self._mainline:
+            logger.info("not switching quests: the main story stays tracked")
+            self._ranked_for = None
+            self._last_rank = -1e9  # (re-rank: put the main quest back if the game moved off it)
+            return False
         before = await self.objective()
         if not await self._open_quest_book():
             logger.warning("could not open the quest book to switch quests")
