@@ -92,11 +92,14 @@ class Setbacks:
         """Quests still set aside; those whose time is up (a level gained, or
         DEFER_SECONDS passed) are released."""
         now = time.time() if now is None else now
+        # (Stuck ones only come back by release_stuck: the hour for side
+        # quests let 'All Your Basilisk...' back to its broken gate.)
         done = [
             q for q, d in self.deferred.items()
-            if not d.get("stuck") and level > d.get("level", 0)
-            or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
-            or ("until" in d and now > d["until"])
+            if not d.get("stuck") and (
+                level > d.get("level", 0)
+                or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
+                or ("until" in d and now > d["until"]))
         ]
         for q in done:
             del self.deferred[q]

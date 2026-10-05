@@ -81,3 +81,12 @@ def test_a_stuck_quest_stays_aside_until_nothing_else_is_left(tmp_path):
     assert s.release_stuck(now=100.0) == []                         # not yet an hour
     assert s.release_stuck(now=4000.0) == ["Into the Zebra Tomb"]
     assert "Into the Zebra Tomb" not in s.set_aside(67, now=4000.0)
+
+
+def test_a_stuck_side_quest_isnt_released_by_the_hour(tmp_path):
+    from wiz101_auto.setbacks import Setbacks
+
+    s = Setbacks(tmp_path / "s.json") if "path" in Setbacks.__init__.__code__.co_varnames else Setbacks()
+    s.set_quest_aside("All Your Basilisk...", "Go To The Hoarder's Tower", 67, now=0.0, main=False,
+                      stuck=True)
+    assert "All Your Basilisk..." in s.set_aside(67, now=10_000.0)
