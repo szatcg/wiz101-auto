@@ -130,8 +130,11 @@ class DeckItems:
             want = norm(name)
             for _ in range(DECK_SLOTS):
                 shown = norm(await ui.text_at(self.client, [*DECK_PAGE, "DeckName"]))
-                if shown and (want.startswith(shown) or shown.startswith(want)):
-                    break  # (the page cuts long names short)
+                # (The page cuts long names short; but at least 12 letters of
+                # it: a short or empty read matched the worn deck, and Equip
+                # on it took it off: no deck at all.)
+                if shown and (shown == want or (len(shown) >= 12 and want.startswith(shown))):
+                    break
                 if not await ui.click(self.client, [*DECK_PAGE, "NextDeck"]):
                     return False
                 await asyncio.sleep(0.4)
@@ -173,7 +176,32 @@ class DeckItems:
         logger.info(f"decks: {'wearing' if ok else 'could not put on'} {name!r} ({role} deck)")
         if ok:
             _note_cards(role)
+        else:
+            await self._any_deck_on(role)
         return ok
+
+    async def _any_deck_on(self, role: str):
+        """After a failed switch: a deck still worn? Else the other role's deck
+        back on (the player found the wizard with no deck at all)."""
+        d = load()
+        tab = d.get("tab")
+        if not tab:
+            return
+        try:
+            if not await self.gear._open():
+                return
+            try:
+                worn = [n for n, on in await self.list_decks(tab) if on]
+                if worn:
+                    return
+                other = d.get("aoe" if role == "single" else "single")
+                logger.warning(f"decks: no deck on after the switch; putting {other!r} back on")
+                if other and await self._put_on(tab, other):
+                    _note_cards("aoe" if role == "single" else "single")
+            finally:
+                await self.gear._close()
+        except Exception as exc:
+            logger.warning(f"decks: checking for a worn deck failed ({exc!r})")
 
     async def amulet_tab(self) -> str | None:
         """The backpack's amulet tab button, found by name (like the deck tab)."""
