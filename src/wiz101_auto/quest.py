@@ -2795,9 +2795,13 @@ class Quester:
         # (A fight started, or the timer: try again next step, but never loop.)
         self._recall_fails = getattr(self, "_recall_fails", 0) + 1
         if self._recall_fails >= RECALL_TRIES:
-            logger.warning(f"Recall to {marked_zone} failed {self._recall_fails} times; giving it up")
+            logger.warning(f"Recall to {marked_zone} failed {self._recall_fails} times; giving it up "
+                           "(and the mark: the game has none there)")
             self._recall_fails = 0
             self._recall_pending = False
+            # (Kept, every restart tried it again: Ogun's shack, long after him.)
+            self._mark = None
+            save_mark(None)
         return True
 
     async def _resume_instance(self, marked_zone: str) -> bool:
