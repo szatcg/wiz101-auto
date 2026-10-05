@@ -265,7 +265,7 @@ def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> f
     return (1 - pc) * (1.0 if no_crit else 0.0) + pc * on_crit
 
 
-CRIT_MARGIN = 1.15  # a crit "kills" only with this much over the health (rolls, a weakness cast first)
+CRIT_MARGIN = 1.0  # a crit "kills" at its predicted damage (the player: no margin; one miss was bad luck)
 CRIT_GAMBLE_PLAN_MAX = 3  # a sure kill this many rounds off (and safe): no gamble
 CRIT_GAMBLE = 0.5  # a spell that ends the fight only on a crit is cast at this chance or better
 
