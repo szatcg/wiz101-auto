@@ -7111,7 +7111,21 @@ class Quester:
                 self._team_alone_since = None
                 await go_to_hub(self.client)
                 return
-        if is_team_up_zone(zone_now):
+        team_mode = is_team_up_zone(zone_now)
+        if team_mode:
+            from .teamup import team_list
+
+            if zone_now in team_list() and not is_combat_objective(await self.objective() or ""):
+                # A quest dungeon taken with a team (the team list): the fight
+                # is over, our quest goes on alone (the player: it followed an
+                # AFK teammate round Belloq's tent after the win).
+                if not getattr(self, "_team_done_logged", False):
+                    self._team_done_logged = True
+                    logger.info("the team fight is done: going on alone (out of the dungeon)")
+                team_mode = False
+            else:
+                self._team_done_logged = False
+        if team_mode:
             if time.monotonic() - self._team_ranked > TEAM_RERANK_SECONDS:
                 # The dungeon hands out its quest on entering: track it (its
                 # marker leads room to room; the team step ends the step before
