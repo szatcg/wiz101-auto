@@ -140,6 +140,7 @@ FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
+ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
@@ -1261,6 +1262,13 @@ class Quester:
                             "(the detour's 'stay')")
                 self._last_progress_time = time.monotonic()
                 quest = None
+            here = await self.client.zone_name() or ""
+            if quest and await self._in_dungeon(here) and await self._reenter_for_npc(objective, here):
+                # Stuck inside a dungeon: a fresh copy first ('Explore King's
+                # Tomb' led nowhere once the copy had broken).
+                self._stall_switched_for = None
+                self._last_progress_time = time.monotonic()
+                return
             if quest:
                 level = await self.client.stats.reference_level()
                 self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline,
@@ -6054,6 +6062,12 @@ class Quester:
         misses = self.__dict__.setdefault("_engage_misses", {})
         key = (objective, zone, target)
         miss = misses.get(key, 0)
+        if miss >= ENGAGE_RESET_MISSES and await self._reenter_for_npc(objective, zone):
+            # A boss that never starts its fight: this copy of the dungeon is
+            # broken (Zanga Zebu in the King's Tomb, a known game bug after
+            # leaving and coming back in): a fresh copy (the player's notes).
+            misses.pop(key, None)
+            return False
         # Walking in tried ENGAGE_WALK_TRIES times for nothing: every other try
         # a landing on him again (Zanga Zebu: 25 walk-ins from 2,185 away, no
         # fight; the teleport is the player's way outside the Waterworks).
