@@ -231,6 +231,11 @@ async def _all_texts(window, depth: int = 0) -> list[str]:
     return out
 
 
+def in_pet_game(zone: str) -> bool:
+    """The pet game's own zone ("ThePhantomZoneWorld/PetGameDance")."""
+    return "petgame" in (zone or "").lower()
+
+
 class PetDancer:
     """Pet trips from inside the bot (the one process hooked in): a `pet`
     request, or (cfg.auto) whenever the wizard's energy is full, until the
@@ -327,7 +332,14 @@ class PetDancer:
 
     async def trip(self, wanted: int):
         start = await self.client.zone_name() or ""
-        if start != PET_PARK:
+        resumed = in_pet_game(start)
+        if resumed:
+            # Back in a game already (a restart mid-dance): play on from here,
+            # then back to the mark the trip made (the player: it sat stuck in
+            # the dance game after a restart).
+            logger.info("pet: in the dance game already: playing on")
+            marked = bool(self.q._mark)
+        elif start != PET_PARK:
             marked = await self.q._mark_here("travel", require_clear=False)
             note = " (marked here)" if marked else ""
             logger.info(f"pet: going to the Pet Pavilion for the dance game{note}")
@@ -391,6 +403,11 @@ class PetDancer:
         """One game, from the sigil to the reward screen closed: 'won', or
         why it stopped ('no energy', 'no snacks', 'no sigil', 'no game')."""
         root = self.client.root_window
+        if await _visible(root, "PetGameDance"):
+            # A game under way (resumed): dance it out, then its rewards.
+            if not await self.dance():
+                return "no game"
+            return await self.collect()
         await self._finish_rewards()  # (a reward page left open from the last game)
         if not await _visible(root, "PetGameTracks"):
             if not await self._on_sigil():

@@ -7048,6 +7048,13 @@ class Quester:
         await self._learn_door_walk()
         await clear_popups(self.client)
         logger.debug("step: popups cleared")
+        from .petdance import in_pet_game
+
+        if self.pet is not None and in_pet_game(await self.client.zone_name() or ""):
+            # In the dance game (a restart mid-trip): the pet trip plays on,
+            # never the quest's spellbook or a relog from there.
+            await self.pet.trip(0)
+            return
         if self._grinding and not VISIT_FILE.exists() and self._main_world:
             # Nothing left to do here: a giver from the player's list with a
             # quest for us (MooShu: Ken Shui in the Village of Sorrow) beats
