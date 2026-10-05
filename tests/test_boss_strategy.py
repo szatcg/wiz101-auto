@@ -379,3 +379,32 @@ def test_belloq_is_hit_every_round():
     assert got is not None and got.card is bolt and got.target is belloq
     b2 = battle([orthrus, blade], [merc, belloq], my=my)  # nothing reaches him: as chosen
     assert brain._keep_hitting(b2, Action(ActionKind.CAST, blade, my)) is None
+
+
+def test_zafaria_cheaters():
+    from wiz101_auto.combat.brain import Strategy, _cheat_rules
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    bolt = _myth(1, "Myth Bolt", 300, 1)
+    blade = _setup(2, "Mythblade", "blade")
+    my = me(2500, 2700)
+    my.school = "myth"
+    # Nergal: no hit that leaves him alive; one that kills him goes.
+    nergal = enemy("Nergal, the Burned Lion", 4000, boss=True)
+    b = battle([bolt, blade], [nergal], my=my)
+    held = _cheat_rules(b, Action(ActionKind.CAST, bolt, nergal), Strategy())
+    assert held is not None and held.card is not bolt
+    weak = enemy("Nergal, the Burned Lion", 100, boss=True)
+    b1 = battle([bolt, blade], [weak], my=my)
+    assert _cheat_rules(b1, Action(ActionKind.CAST, bolt, weak), Strategy()) is None
+    # Shaka Zebu: his minion is never the target while he lives.
+    shaka, minion = enemy("Shaka Zebu", 5000, boss=True), enemy("Carrion Flower Man", 1700)
+    b2 = battle([bolt, blade], [shaka, minion], my=my)
+    got = _cheat_rules(b2, Action(ActionKind.CAST, bolt, minion), Strategy())
+    assert got is not None and got.target is not minion
+    # The Spectral Elephant: the single hit goes to another guardian.
+    eleph, rhino = enemy("Spectral Elephant", 3000), enemy("Spectral Rhino", 2000)
+    b3 = battle([bolt, orthrus], [eleph, rhino], my=my)
+    got = _cheat_rules(b3, Action(ActionKind.CAST, bolt, eleph), Strategy())
+    assert got is not None and got.target is rhino

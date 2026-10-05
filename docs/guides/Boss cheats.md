@@ -8,6 +8,14 @@ Add new bosses here and to the brain.
 | Luska Charmbeak (Waterworks) | Answers single-target spells from un-inked wizards (1,200-2,100) | `NO_SINGLE_TARGET`: no single-target spells at him; hit-alls only |
 | Sylster Glowstorm (Waterworks) | Doom and Gloom cycles: light (traps/prisms) / dark (blades) | `_sylster_rules` / `sylster_cycle` |
 | Belloq (Zafaria, Waterfront) | Ra (1,200+, rising) at the start of any round after one he wasn't hit; minions triage DoTs off him; Frost Giant stuns | `HIT_EVERY_ROUND`: the cheapest hit that reaches him every round, no DoT while minions live |
+| Nergal, the Burned Lion (Zafaria, Savannah) | Weakness on round 1 and every 4th; dispels the school of any hit that leaves him alive | `ONE_SHOT_ONLY`: no hit unless it kills him outright; blades/traps until then |
+| Shaka Zebu (Zafaria, Zamunda) | Satyr to full whenever hurt while his minion lives; minion killed: Meteor (500) every 3 rounds | `ONE_SHOT_ONLY` + `MINION_LAST`: one-shot him from full, his minion never targeted while he lives |
+| Spectral Elephant (Mirror Lake, after Tse-Tse Snaketail) | -90% Tower Shield, replaced every hit, until the Gorilla, Lion and Rhino are dead; guardians pierce/steal blades and traps | `SHIELDED_UNTIL_OTHERS_DIE`: single hits go to the others first (a Shatter, if packed, then the Elephant) |
+| Four Elephant Goliaths (Mirror Lake, final) | Turn order shuffled every 3rd round; Storm Lord / Leviathan stun chains and blade wipes | `_stun_block_first`: Stun Block / Conviction in hand goes up first; then blades and Orthrus |
+
+The one-shot rule gives up after round 12 (`ONE_SHOT_GIVE_UP_ROUND`) so a
+fight can't stall forever. Mirror Lake will likely need other players (the
+team list takes any main-quest dungeon after 5 losses).
 
 ## Belloq (Under the Big Tent)
 

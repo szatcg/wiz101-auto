@@ -2401,14 +2401,95 @@ def _keep_hitting(battle: Battle, action: Action) -> Action | None:
                   reason=f"{boss.name} must be hit every round (else his Ra cheat): {best.name}")
 
 
+# Zafaria's cheating bosses (the player's notes):
+# - Nergal, the Burned Lion dispels the school of any hit that leaves him
+#   alive; Shaka Zebu heals to full with Satyr while his minion lives. Only
+#   a hit that kills them outright: until then, blades and traps.
+ONE_SHOT_ONLY = ("nergal", "shaka zebu")
+# - Shaka Zebu's minion: killing it makes him Meteor every 3 rounds: last.
+MINION_LAST = {"shaka zebu"}
+# - Mirror Lake's Spectral Elephant re-shields (-90%) while the Gorilla, Lion
+#   or Rhino lives: never the single-target hits' target before them.
+SHIELDED_UNTIL_OTHERS_DIE = "spectral elephant"
+ONE_SHOT_GIVE_UP_ROUND = 12  # waited this long for a one-shot: hit normally (no endless setup)
+
+
+def _is(e: Combatant, key: str) -> bool:
+    return key in e.name.lower()
+
+
+def _cheat_rules(battle: Battle, action: Action, strat: Strategy) -> Action | None:
+    """The cheating bosses' rules on the chosen move (see above). None: as chosen."""
+    if action.kind is not ActionKind.CAST or action.card is None or not action.card.is_damage:
+        return None
+    card, alive = action.card, battle.live_enemies
+    struck = alive if card.is_aoe else [e for e in alive if e is action.target]
+    # The Spectral Elephant behind his shield: another guardian instead.
+    if not card.is_aoe and any(_is(e, SHIELDED_UNTIL_OTHERS_DIE) for e in struck):
+        others = [e for e in alive if not _is(e, SHIELDED_UNTIL_OTHERS_DIE)]
+        if others:
+            to = min(others, key=lambda e: e.health)
+            return Action(ActionKind.CAST, card, to, reason=f"{card.name} on {to.name}: the Elephant's "
+                                                            "shield holds while the others live")
+    # Shaka Zebu's minion while he lives: not that one.
+    boss = next((e for e in alive if any(_is(e, k) for k in MINION_LAST)), None)
+    if boss is not None and not card.is_aoe and struck and struck[0] is not boss:
+        return _hold_for_one_shot(battle, strat, f"{boss.name}'s minion dies last (else his Meteors)")
+    # One-shot bosses: no hit that leaves them alive.
+    if (battle.round or 0) >= ONE_SHOT_GIVE_UP_ROUND:
+        return None
+    for e in struck:
+        if any(_is(e, k) for k in ONE_SHOT_ONLY) and hit_damage(card, battle.me, e) < e.health:
+            return _hold_for_one_shot(battle, strat, f"{e.name} only to a hit that kills him outright "
+                                                     f"({card.name} ~{hit_damage(card, battle.me, e):.0f} "
+                                                     f"of {e.health})")
+    return None
+
+
+def _hold_for_one_shot(battle: Battle, strat: Strategy, why: str) -> Action:
+    """Instead of the hit: a blade or trap (free first, any castable then),
+    else a pass to save pips."""
+    free = _free_setup(battle, strat)
+    if free is not None:
+        free.reason = f"{why}: {free.reason}"
+        return free
+    setup = [c for c in _castable(battle.cards) if not c.is_damage
+             and ({EffectKind.BLADE, EffectKind.TRAP} & set(c.kinds))]
+    if setup:
+        c = min(setup, key=lambda c: c.pip_cost)
+        focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
+        target = battle.me if EffectKind.BLADE in c.kinds else (
+            None if c.target is Target.ENEMY_ALL else focus)
+        return Action(ActionKind.CAST, c, target, reason=f"{why}: setting up with {c.name}")
+    return Action(ActionKind.PASS, reason=f"{why}: saving pips")
+
+
+def _stun_block_first(battle: Battle) -> Action | None:
+    """The Elephant Goliaths chain-stun (Storm Lord, Leviathan): a Stun Block
+    card in hand goes up first (the player's notes)."""
+    if not any(_is(e, "goliath") for e in battle.live_enemies):
+        return None
+    if battle.me.blade_count or (battle.round or 0) > 2:
+        return None
+    card = next((c for c in _castable(battle.cards) if "stun block" in c.name.lower()
+                 or "conviction" in c.name.lower()), None)
+    if card is None:
+        return None
+    return Action(ActionKind.CAST, card, battle.me, reason=f"{card.name} first: the Goliaths chain-stun")
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     battle = _no_single_target(battle)
-    early = _enchant_early(battle)
+    early = _enchant_early(battle) or _stun_block_first(battle)
     if early is not None:
         return early
     action = _decide_seen_raw(battle, strat, **kw)
     try:
         action = _keep_hitting(battle, action) or action
+    except Exception:
+        pass
+    try:
+        action = _cheat_rules(battle, action, strat or Strategy()) or action
     except Exception:
         pass
     try:
