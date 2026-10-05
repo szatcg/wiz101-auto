@@ -1122,6 +1122,15 @@ def _is_duplicate(card: Card, kind: EffectKind, effects: list[tuple[str, str, fl
     spell don't stack: a second one adds nothing to the next hit. Each part is
     judged by its own school (Spirit Blade is a Balance card with myth, life
     and death blades), and only parts that boost `mine` (our school) count."""
+    if card.template_id:
+        # The spell itself: blades from different spells stack, copies of one
+        # don't (the player: the pet's, Shango's amulet's and the trained
+        # Mythblade are three blades of the same size that all stack).
+        key = f"spell:{card.template_id}"
+        if any(k == key for k, _s, _v in effects):
+            return True
+        if any(k.startswith("spell:") for k, _s, _v in effects):
+            return False  # (the hanging ones are known by spell: none is this one)
     for e in card.effects:
         if e.kind is not kind:
             continue

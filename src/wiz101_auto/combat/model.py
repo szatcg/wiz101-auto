@@ -65,6 +65,7 @@ class Card:
     treasure: bool = False
     item: bool = False  # granted by gear (e.g. a wand's off-school spells)
     template_name: str = ""  # e.g. 'Minion Myth 001' (display names lack the number)
+    template_id: int = 0  # the spell's id: a hanging blade/trap's "spell:<id>" is this card's own
 
     @cached_property  # effects never change after a card is made
     def target(self) -> Target:

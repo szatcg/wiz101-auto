@@ -189,6 +189,10 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
         template = await gspell.spell_template()
         name = template_name = await template.name()
         try:
+            template_id = int(await gspell.template_id() or 0)
+        except Exception:
+            template_id = 0
+        try:
             name = await lang_name(card.combat_handler.client, await card.display_name_code()) or name
         except Exception:
             pass
@@ -219,6 +223,7 @@ async def read_card(index: int, card: CombatCard) -> Card | None:
             treasure=await card.is_treasure_card(),
             item=await _is_item(card),
             template_name=template_name,
+            template_id=template_id,
         )
     except Exception as exc:
         logger.debug(f"could not read card {index}: {exc}")

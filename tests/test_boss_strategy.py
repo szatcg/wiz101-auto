@@ -482,3 +482,16 @@ def test_tim_tim_heals_only_with_the_hit_affordable_next_round():
     b.pips, b.power_pips = 0, 4  # 8: the heal leaves 6, +1: Orthrus next round
     got = brain._heal_trick(b, Action(ActionKind.PASS))
     assert got is not None and got.card is pixie
+
+
+def test_blades_from_different_spells_stack():
+    from wiz101_auto.combat.brain import _is_duplicate
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    def mythblade(tid):
+        return Card(0, "Mythblade", school="myth", template_id=tid,
+                    effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school="myth")])
+
+    up = [("spell:111", "myth", 0.35)]  # the trained Mythblade hanging
+    assert _is_duplicate(mythblade(111), EffectKind.BLADE, up, "myth")       # its copy: no
+    assert not _is_duplicate(mythblade(222), EffectKind.BLADE, up, "myth")   # the pet's: stacks
