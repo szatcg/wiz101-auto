@@ -474,6 +474,19 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
             discards -= 1
             _note(f, round=rnd, who="Wizard", act="discard", card=action.card.name, reason=action.reason)
             continue
+        if action.kind is ActionKind.ENCHANT and action.card is not None and action.target_card is not None:
+            # An enchant doesn't end the turn: the enchant card leaves the hand
+            # and its damage goes onto the spell (unhandled, it read as a pass
+            # and the plan showed 'Gargantuan' round after round).
+            if record is not None:
+                record.append((rnd, action, [e.health for e in f.enemies], None))
+            f.hand = [_enchanted(h, action.card) if h is action.target_card else h
+                      for h in f.hand if h is not action.card]
+            for i, c in enumerate(f.hand):
+                c.index = i
+            _note(f, round=rnd, who="Wizard", act="enchant", card=action.card.name,
+                  target=action.target_card.name, reason=action.reason)
+            continue
         before = [e.health for e in f.enemies]
         expect = _expected_hits(f, action) if record is not None else None
         cast = False
@@ -854,6 +867,16 @@ def _same_enemy(battle: Battle, f: Fight, target: Combatant):
     return next((e for e in f.enemies if e.name == target.name), None)
 
 
+def _enchanted(card: Card, enchant: Card) -> Card:
+    """`card` with `enchant`'s damage added to its hits (Giant, Gargantuan)."""
+    from dataclasses import replace as _replace
+
+    extra = sum(e.value for e in enchant.effects if e.kind is EffectKind.ENCHANT_DAMAGE)
+    effects = [_replace(e, value=e.value + extra) if e.kind in (EffectKind.DAMAGE, EffectKind.DOT) else e
+               for e in card.effects]
+    return _replace(card, effects=effects, enchanted=True)
+
+
 def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None = None,
                  steps: int = PLAN_STEPS, discards: int = 2) -> dict:
     """The fight played on from the move just chosen, the way the bot means to
@@ -877,7 +900,10 @@ def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None =
         target = None
         if first.target is not None:
             target = f.me if first.target is battle.me else _same_enemy(battle, f, first.target)
-        forced = Action(first.kind, card, target, reason=first.reason)
+        target_card = None
+        if first.target_card is not None and first.target_card in battle.cards:
+            target_card = f.hand[battle.cards.index(first.target_card)]  # (the enchanted spell)
+        forced = Action(first.kind, card, target, target_card=target_card, reason=first.reason)
     names = [e.name for e in f.enemies]
     lo = [max(0, e.health) for e in f.enemies]
     hi = list(lo)
@@ -904,6 +930,8 @@ def plan_preview(battle: Battle, first: Action, strat=None, stats: dict | None =
                     dmg.append(None)
             target = action.target.name if action.target is not None else (
                 "all enemies" if action.card is not None and action.card.is_aoe else "")
+            if action.kind is ActionKind.ENCHANT and action.target_card is not None:
+                target = action.target_card.name  # ("Gargantuan → Orthrus")
             on_us = target == f.me.name or (not target and category(action) in SELF_KINDS)
             out_steps.append({
                 "round": r, "kind": category(action),

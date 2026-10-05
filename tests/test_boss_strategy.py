@@ -495,3 +495,20 @@ def test_blades_from_different_spells_stack():
     up = [("spell:111", "myth", 0.35)]  # the trained Mythblade hanging
     assert _is_duplicate(mythblade(111), EffectKind.BLADE, up, "myth")       # its copy: no
     assert not _is_duplicate(mythblade(222), EffectKind.BLADE, up, "myth")   # the pet's: stacks
+
+
+def test_the_plan_preview_enchants_once():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+    from wiz101_auto.combat.sim import plan_preview
+
+    orthrus = _myth(0, "Orthrus", 700, 4, aoe=True)
+    garg = Card(1, "Gargantuan", school="sun", pip_cost=0, treasure=True,
+                effects=[Effect(EffectKind.ENCHANT_DAMAGE, Target.SPELL, 225)])
+    my = me(2500, 2700)
+    my.school = "myth"
+    b = battle([orthrus, garg], [enemy("Ogun Daggertooth", 1850, boss=True)], my=my)
+    b.pips, b.power_pips = 0, 2
+    first = Action(ActionKind.ENCHANT, garg, target_card=orthrus)
+    plan = plan_preview(b, first, None)
+    spells = [s["spell"] for s in plan["steps"]]
+    assert spells.count("Gargantuan") == 1 and "Orthrus" in spells
