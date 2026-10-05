@@ -110,6 +110,14 @@
   .foe .bar > div { position: absolute; top: 0; bottom: 0; left: 0; background: linear-gradient(90deg, #b3263f, #ff5f6d); }
   .foe .bar > .hit { left: auto; background: repeating-linear-gradient(45deg, #ffe08a, #ffe08a 6px, #f2c14e 6px, #f2c14e 12px);
     box-shadow: 0 0 10px rgba(255, 224, 138, 0.9); animation: pulse 0.9s infinite; }
+  /* Damage bands from the end of the health (the player's colours): regular
+     hit lowest roll, regular highest roll, crit lowest roll, crit highest roll. */
+  .foe .bar > .band { left: auto; box-shadow: none; }
+  .foe .bar > .b-reg { background: rgba(255, 95, 109, 0.55); }
+  .foe .bar > .b-regmax { background: #7a0f1f; }
+  .foe .bar > .b-crit { background: rgba(255, 230, 120, 0.55); }
+  .foe .bar > .b-critmax { background: linear-gradient(90deg, #c99a1e, #ffd54f); box-shadow: 0 0 10px rgba(255, 213, 79, 0.8);
+    animation: pulse 0.9s infinite; }
   .foe .dmg { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
   .foe .ko { color: #10121f; background: var(--gold); border-radius: 5px; padding: 0 6px; margin-left: 6px; font-weight: 900; }
   .move { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
@@ -829,11 +837,23 @@ function renderLower() {
     const foes = b.enemies.map((e, i) => [e, predict[i] || 0, crits[i]]).filter(([e]) => !e.dead).map(([e, dmg, cr]) => {
       const hpPct = e.max ? (100 * e.hp) / e.max : 0;
       const hitPct = e.max ? (100 * Math.min(dmg, e.hp)) / e.max : 0;
-      const after = hpPct - hitPct;
+      // Bands: a damage roll of about ±7% around the predicted hit, and the
+      // crit's (cr.x) the same; the widest drawn first, the surest on top.
+      const ROLL = 0.07;
+      const reg = cr && cr.n ? cr.n : dmg;
+      const bands = !reg ? [] : [
+        ...(cr && cr.c && cr.x ? [["b-critmax", cr.x * (1 + ROLL)], ["b-crit", cr.x * (1 - ROLL)]] : []),
+        ["b-regmax", reg * (1 + ROLL)], ["b-reg", reg * (1 - ROLL)],
+      ];
+      const pct = (d) => (e.max ? (100 * Math.min(d, e.hp)) / e.max : 0);
+      const widest = bands.length ? pct(bands[0][1]) : hitPct;
+      const after = hpPct - widest;
+      const bandHtml = bands.map(([cls, d]) =>
+        `<div class="band ${cls}" style="left:${hpPct - pct(d)}%; width:${pct(d)}%"></div>`).join("");
       const mark = !dmg ? "" : dmg >= e.hp ? '<span class="ko">KO</span>' : `<span class="dmg">−${dmg}</span>`;
       return `<div class="foe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
         <span>${e.hp} / ${e.max}${mark}</span></div>
-        <div class="bar"><div style="width:${after}%"></div>${dmg ? `<div class="hit" style="left:${after}%; width:${hitPct}%"></div>` : ""}</div>
+        <div class="bar"><div style="width:${after}%"></div>${bandHtml}</div>
         ${cr && cr.c ? `<div class="critline">💥 crit ${cr.c}% · blocks ${cr.b}% · ${cr.n} → ${cr.x} on a crit${cr.x >= e.hp && cr.n < e.hp ? ' <span class="ko">KO on a crit</span>' : ""}</div>` : ""}</div>`;
     }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
