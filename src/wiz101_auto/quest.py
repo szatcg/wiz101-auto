@@ -586,6 +586,12 @@ def quest_is_errand(q: QuestEntry) -> bool:
     return bool(q.target) and not q.fight and not q.counted
 
 
+# The player (2026-10-04): the main quest only, side quests only when it's
+# stuck. Quick side-quest errands on the way (a turn-in, a talk) are off: one
+# led on to 'Mane of Terror' and a defeat by its boss.
+ERRAND_DETOURS = False
+
+
 def errand_detour(
     quests: list[QuestEntry], chosen: QuestEntry | None, set_aside: set[str] = frozenset(),
     world: str | None = None, max_hops: int = ERRAND_MAX_HOPS,
@@ -3520,7 +3526,8 @@ class Quester:
                     chosen, self._grinding = local, False
             # No errand detours while a quest is pinned: the player picked it
             # (quick Marleybone errands chained ahead of the Myth class quest).
-            if not self._grinding and not self._pin and not await self._in_dungeon(here):
+            if (ERRAND_DETOURS and not self._grinding and not self._pin
+                    and not await self._in_dungeon(here)):
                 errand = errand_detour([q for _, q in all_quests], chosen, set_aside, world)
                 if errand:
                     if not errand.active:
