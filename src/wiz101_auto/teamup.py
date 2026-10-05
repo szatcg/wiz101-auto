@@ -86,6 +86,9 @@ def is_team_up_zone(zone: str) -> bool:
 # runs, at least 4 players.
 CONFIRM_WINDOW = "TeamUpConfirmationWindow"
 TEAM_CHOICES = ("TeamTypeFarmingCheckBox", "TeamSize4CheckBox")
+# A quest's dungeon (the team list: lost 5 times alone): questing, 3+ players
+# (the player: farming and 4 was wrong for Belloq).
+QUEST_TEAM_CHOICES = ("TeamTypeQuestingCheckBox", "TeamSize3CheckBox")
 CONFIRM_WORDS = ("team up", "join", "join team", "find team", "search", "yes", "ok", "go", "accept", "ready")
 TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
 # Players gathering on the sigil to go in: with this many others on it, press
@@ -270,13 +273,14 @@ async def cancel_queue(client) -> bool:
     return True
 
 
-async def _fill_form(client) -> bool:
-    """Tick Farming and a minimum team size of 4 on the Team Up form, then
-    press its TEAM UP!. True if the form was there."""
+async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
+    """Tick the team type and minimum size (`choices`: Farming and 4, or for a
+    quest Questing and 3) on the Team Up form, then press its TEAM UP!. True
+    if the form was there."""
     form = await ui._visible_named(client.root_window, CONFIRM_WINDOW)
     if form is None:
         return False
-    for name in TEAM_CHOICES:
+    for name in choices:
         box = await ui._visible_named(form, name)
         if box is None:
             logger.warning(f"team up: no {name} on the form")
@@ -289,7 +293,8 @@ async def _fill_form(client) -> bool:
     if button is None:
         logger.warning("team up: no TEAM UP! button on the form")
         return True
-    logger.info("team up: pressing TEAM UP! on the form (farming, 4+ players)")
+    kind = "questing, 3+" if choices == QUEST_TEAM_CHOICES else "farming, 4+"
+    logger.info(f"team up: pressing TEAM UP! on the form ({kind} players)")
     await ui.click_center(client, button)
     await asyncio.sleep(1.5)
     await close_stray_forms(client)
@@ -379,6 +384,7 @@ async def team_up(quester, dungeon: str) -> str:
     zone = await client.zone_name()
     await _dump(client, "sigil")
     use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS or dungeon in team_list()
+    choices = QUEST_TEAM_CHOICES if dungeon in team_list() else TEAM_CHOICES
     if not use_queue:
         # No queue: wait on the sigil for players to gather (and go in with them).
         await close_stray_forms(client)
@@ -389,7 +395,7 @@ async def team_up(quester, dungeon: str) -> str:
     if await _resume_after_defeat(quester, zone):
         return "in"
     # The form may still be open from before (a restart): fill that one in.
-    form_done = not use_queue or await _fill_form(client)
+    form_done = not use_queue or await _fill_form(client, choices)
     if not form_done and await queued(client):
         logger.info("team up: already in the queue (Waiting); waiting on")
         form_done = True
@@ -402,7 +408,7 @@ async def team_up(quester, dungeon: str) -> str:
     quester.controller.allow_idle(TEAM_UP_WAIT + 60)
     try:
         # Whatever the Team Up window asks (join / search / confirm): accept.
-        for _ in range(0 if form_done or await _fill_form(client) else 3):
+        for _ in range(0 if form_done or await _fill_form(client, choices) else 3):
             if not await _click(client, CONFIRM_WORDS, "window"):
                 break
             await _dump(client, "window_after")
@@ -428,7 +434,7 @@ async def team_up(quester, dungeon: str) -> str:
                 # Not queued (a cooldown showed "TEAM UP! IN 05:51"): once the
                 # sigil offers TEAM UP! again, queue.
                 last_requeue = time.monotonic()
-                if await _click(client, ("team up!",), "sigil") and await _fill_form(client):
+                if await _click(client, ("team up!",), "sigil") and await _fill_form(client, choices):
                     logger.info("team up: queued again")
             mates = await teammates(client, await client.body.position())
             if any(m.distance(center) < SIGIL_AREA for m in mates):

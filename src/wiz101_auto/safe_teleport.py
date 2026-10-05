@@ -97,6 +97,22 @@ def allow_engage(client, seconds: float = 6.0):
     client._engaged_at = time.monotonic()
 
 
+def allow_teleport(client, seconds: float = 6.0):
+    """The next teleports (for `seconds`) go even in a walk-only zone (the
+    player: catching up with the team at the gate they went through)."""
+    client._teleport_until = time.monotonic() + seconds
+
+
+def walk_zone(client, zone: str) -> bool:
+    """Walk-only here: config movement.walk_only, or a dungeon on the team
+    list (the player's multiplayer mode, walked like the Waterworks)."""
+    if any(zone.startswith(p) for p in getattr(client, "_walk_only", ())):
+        return True
+    from .teamup import team_list
+
+    return zone in team_list()
+
+
 LANDED = 200.0  # a teleport that ends this near its target worked
 
 
@@ -107,9 +123,8 @@ async def _walk_instead(client, xyz) -> bool | None:
     """With walking on: walk to `xyz` instead of teleporting. True/False when
     walked (or, walk-only, tried); None to teleport as usual."""
     walk = getattr(client, "_walk", False)
-    only = getattr(client, "_walk_only", ())
-    if not walk and not only:
-        return None
+    if time.monotonic() < getattr(client, "_teleport_until", 0.0):
+        return None  # (allow_teleport: this one goes)
     try:
         zone = await client.zone_name() or ""
         here = await client.body.position()
@@ -117,7 +132,7 @@ async def _walk_instead(client, xyz) -> bool | None:
             return None
     except Exception:
         return None
-    walk_only = any(zone.startswith(p) for p in only)
+    walk_only = walk_zone(client, zone)
     if not walk and not walk_only:
         return None  # (walk_only set elsewhere doesn't mean walking here: it walked Olde Town)
     if math.dist((here.x, here.y), (xyz.x, xyz.y)) < WALK_MIN and not walk_only:

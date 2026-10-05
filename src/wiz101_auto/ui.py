@@ -27,6 +27,9 @@ POTION_BUTTON = ["WorldView", "windowHUD", "btnPotions"]
 # Spiral door / world gate
 SPIRAL_DOOR_TELEPORT = ["WorldView", "", "messageBoxBG", "ControlSprite", "teleportButton"]
 SPIRAL_DOOR_EXIT = ["WorldView", "", "messageBoxBG", "ControlSprite", "cancelButton"]
+# The world list shows 4 worlds a page (pageCount "1/3"): these turn the page.
+SPIRAL_DOOR_NEXT = ["WorldView", "", "messageBoxBG", "ControlSprite", "optionWindow", "rightButton"]
+SPIRAL_DOOR_PREV = ["WorldView", "", "messageBoxBG", "ControlSprite", "optionWindow", "leftButton"]
 
 # Modal popups
 MISSING_AREA = ["MessageBoxModalWindow", "messageBoxBG", "messageBoxLayout", "AdjustmentWindow"]

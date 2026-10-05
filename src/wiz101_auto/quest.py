@@ -49,7 +49,7 @@ from .givers import QuestGivers
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
 from .questlist import SIDE_WORLDS, CompletionTracker, load_quest_list, norm
-from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
+from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted, walk_zone
 from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .teamup import TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
@@ -139,12 +139,14 @@ TEAM_FOLLOW_WALKING = 300.0  # on foot (walk-only zones): this close behind the 
 FARM_ONLY_DUNGEONS = ("WizardCity/Gauntlets/WC_Triton_Gauntlet1/",)
 DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: start near the door
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
+SPIRAL_PAGES = 6  # pages of the Spiral Map's world list looked through for a world
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
 DUNGEON_SETTLE = 15.0  # after a fight in a dungeon: no heal trip out for this long (cutscenes)
 BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to appear before a heal trip
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
+GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of their gate, walk in
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -1530,7 +1532,8 @@ class Quester:
         from .walkmap import walk_path
 
         walking = getattr(self.client, "_walk", False) or any(
-            (zone or "").startswith(p) for p in getattr(self.client, "_walk_only", ()))
+            (zone or "").startswith(p) for p in getattr(self.client, "_walk_only", ())) or walk_zone(
+            self.client, zone or "")
 
         async def walk_there() -> bool:
             path = await walk_path(zone or "", await self._position(), target) if zone else None
@@ -4837,6 +4840,16 @@ class Quester:
 
             label = SPIRAL_WORLD_NAMES.get(world, world.lower())
             button = await _find_button(self.client.root_window, (label,))
+            # Not on this page (4 worlds a page): page on through the list.
+            for _ in range(SPIRAL_PAGES):
+                if button is not None:
+                    break
+                if not await ui.click(self.client, ui.SPIRAL_DOOR_NEXT):
+                    break
+                await asyncio.sleep(0.4)
+                button = await _find_button(self.client.root_window, (label,))
+            if button is None:
+                logger.warning(f"{why}: {label.title()} isn't on the Spiral Map's pages")
             if button is not None:
                 logger.info(f"{why}: choosing {label.title()} on the Spiral Map")
                 await ui.click_center(self.client, button)
@@ -5442,7 +5455,7 @@ class Quester:
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
         elif mates:
             here_zone = await self.client.zone_name() or ""
-            walking = any(here_zone.startswith(p) for p in getattr(self.client, "_walk_only", ()))
+            walking = walk_zone(self.client, here_zone)
             # The teammate furthest along (the player: follow whoever leads
             # through the dungeon): furthest from where we came into this
             # room; on foot (walk-only zones) closer behind, to be pulled
@@ -5539,7 +5552,7 @@ class Quester:
         if it went somewhere."""
         zone = await self.client.zone_name() or ""
         seen = self._mate_seen
-        walking = any(zone.startswith(p) for p in getattr(self.client, "_walk_only", ()))
+        walking = walk_zone(self.client, zone)
         lost_after = TEAM_LOST_WALKING if walking else TEAM_LOST_AFTER
         if walking and (not seen or seen[0] != zone):
             # Just came into this room and nobody's here (they'd moved on
@@ -5588,6 +5601,16 @@ class Quester:
                     gate = min(near, key=lambda g: distance(g, ahead))
                     logger.info(f"the team went on; to the gate by their tracks at "
                                 f"({gate.x:.0f}, {gate.y:.0f})")
+                    # Teleported beside it (the player: walking after the
+                    # team snagged on the scenery), then the short walk in.
+                    from .safe_teleport import allow_teleport
+
+                    me = await self._position()
+                    dx, dy = me.x - gate.x, me.y - gate.y
+                    k = GATE_CATCH_UP / (math.hypot(dx, dy) or 1.0)
+                    allow_teleport(self.client)
+                    await self.client.teleport(XYZ(gate.x + dx * k, gate.y + dy * k, gate.z))
+                    await asyncio.sleep(TELEPORT_SETTLE)
                     await self.approach_and_walk(gate, zone)
                     await wait_for_loading(self.client)
                     now = await self.client.zone_name() or ""
