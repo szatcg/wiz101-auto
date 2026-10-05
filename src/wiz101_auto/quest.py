@@ -7627,6 +7627,13 @@ class Quester:
                 # Drum House): in there, not a sweep outside that took the
                 # Drum House's webs for drums.
                 logger.info(f"{objective!r}: {item!r} was seen in {room}; going in")
+                # Its way in a dungeon sigil (the Drum House): stand on it for
+                # the countdown, no door walk (moving cancels it).
+                for door, _approach in self.doors.leading_to(zone, room):
+                    sigil = await self._sigil_at(XYZ(*door))
+                    if sigil is not None:
+                        await self._enter_by_sigil(sigil, zone)
+                        return
                 await self.go_to_zone(room)
                 return
             elif where and where != zone and not searching_here:

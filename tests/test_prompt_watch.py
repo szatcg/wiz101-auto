@@ -29,3 +29,11 @@ def test_collect_prompt_for_any_sample_of_the_kind():
     assert should_collect(both, "Press X", "Crystal Sample")
     assert not should_collect(red, "Press X to talk", "Crystal Sample")
     assert not should_collect("Talk To Zarek Pickmaster", "Press X", "Crystal Sample")
+
+
+def test_a_sigil_named_after_the_item_is_not_a_pick_up():
+    from wiz101_auto.prompt_watch import should_collect
+
+    assert not should_collect("Collect Drum in Elephant Graveyard (0 of 4)", "Press X to enter", "Drum House")
+    assert should_collect("Collect Drum in Elephant Graveyard (0 of 4)", "Press X to collect", "Drum")
+    assert should_collect("Collect Red Crystal Sample", "Press X", "Crystal Sample")

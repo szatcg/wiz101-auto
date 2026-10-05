@@ -78,6 +78,8 @@ def should_collect(objective: str, prompt: str, title: str) -> bool:
     item = collect_item_name(objective or "")
     if not item or not title or "talk" in (prompt or "").lower():
         return False
+    if len(title.split()) > len(item.split()):
+        return False  # a bigger thing named after it: the "Drum House" sigil isn't a Drum
     return any(matches_item(name, title) for name in loose_names(item)[:2])
 
 
