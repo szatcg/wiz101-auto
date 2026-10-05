@@ -6762,6 +6762,18 @@ class Quester:
                 return
             await asyncio.sleep(3.0)
 
+    async def _press_x_at_thing(self, prompt: str) -> bool:
+        """A Press X prompt at the thing to locate (a document, a crate: the
+        Bill of Lading on the barge took walking onto it from every side,
+        forever): press it. Never a teleporter's or a door's. True if pressed."""
+        if not prompt or not await is_free(self.client):
+            return False
+        if any(w in prompt for w in ("teleport", "activate", "enter", "exit", "door")):
+            return False
+        logger.info(f"pressing X at the prompt '{prompt}'")
+        await self.client.send_key(Keycode.X, 0.1)
+        return True
+
     async def _locate_by_walking(self, objective: str) -> bool:
         """'Locate X': the game counts the spot when we walk into it, not when
         a teleport puts us there. Land a little off the marker and walk onto
@@ -6779,6 +6791,8 @@ class Quester:
                 if await self.objective() == objective and await is_free(self.client) and "talk" in prompt:
                     await self.interact(f"Talk To {name}")  # (never the teleporter's 'activate')
                     await asyncio.sleep(1.5)
+                elif await self.objective() == objective and await self._press_x_at_thing(prompt):
+                    await asyncio.sleep(1.5)
                 if await self.objective() != objective or not await is_free(self.client):
                     logger.success(f"located {name}")
                     return True
@@ -6789,6 +6803,9 @@ class Quester:
             await asyncio.sleep(TELEPORT_SETTLE)
             await self.client.goto(marker.x, marker.y)
             await asyncio.sleep(1.5)
+            if await self.objective() == objective and await self._press_x_at_thing(
+                    (await ui.text_at(self.client, ui.NPC_RANGE_TEXT)).lower()):
+                await asyncio.sleep(1.5)
             if await self.objective() != objective or not await is_free(self.client):
                 logger.success(f"located by walking in: {objective!r}")
                 return True
