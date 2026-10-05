@@ -143,6 +143,7 @@ SPIRAL_PAGES = 6  # pages of the Spiral Map's world list looked through for a wo
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
 DUNGEON_SETTLE = 15.0  # after a fight in a dungeon: no heal trip out for this long (cutscenes)
 BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to appear before a heal trip
+PET_RESUME_SECONDS = 600.0  # in the Pet Pavilion: the trip resumed at most this often
 NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
@@ -7050,9 +7051,19 @@ class Quester:
         logger.debug("step: popups cleared")
         from .petdance import in_pet_game
 
-        if self.pet is not None and in_pet_game(await self.client.zone_name() or ""):
+        zone_here = await self.client.zone_name() or ""
+        if self.pet is not None and in_pet_game(zone_here):
             # In the dance game (a restart mid-trip): the pet trip plays on,
             # never the quest's spellbook or a relog from there.
+            await self.pet.trip(0)
+            return
+        from .petdance import PET_PARK
+
+        if (self.pet is not None and self.pet.cfg.auto and zone_here == PET_PARK
+                and time.monotonic() - getattr(self, "_pet_resumed_at", -1e9) > PET_RESUME_SECONDS):
+            # In the Pet Pavilion with the trip cut short (a restart): train on
+            # until the energy runs out, then back to the mark (the player).
+            self._pet_resumed_at = time.monotonic()
             await self.pet.trip(0)
             return
         if self._grinding and not VISIT_FILE.exists() and self._main_world:
