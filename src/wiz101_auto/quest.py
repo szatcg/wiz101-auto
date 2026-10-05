@@ -2622,8 +2622,11 @@ class Quester:
         # met while healing) isn't a loss to X.
         target = defeat_target(objective)
         fought = self.fighter.last_enemy_names if self.fighter else []
-        if target and fought and not any(target.lower() in n.lower() or n.lower() in target.lower()
-                                         for n in fought):
+        bosses = self.fighter.last_bosses if self.fighter else set()
+        # (A boss counts whatever the objective calls him: 'Defeat Source of
+        # Corruption' is Tim-tim Snakeeye, and his losses never added up.)
+        if target and fought and not bosses and not any(
+                target.lower() in n.lower() or n.lower() in target.lower() for n in fought):
             logger.info(f"defeated by {', '.join(fought)}, not {target}: not counted against {objective!r}")
             return
         level = await self.client.stats.reference_level()
