@@ -583,3 +583,21 @@ def test_feint_on_a_tough_boss_is_paid_with_a_power_pip():
         assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is not None
         boss.health = 2400  # one Feint and Orthrus kill him: Feint now, on a power pip
         assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None
+
+
+def test_the_planner_finds_feints_into_orthrus():
+    from wiz101_auto.combat.brain import plan_hand_use
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 2200, 7, aoe=True, castable=False)
+    feint = Card(1, "Feint", school="death", pip_cost=1, template_id=10,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    feint2 = Card(2, "Feint", school="death", pip_cost=1, template_id=20,
+                  effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    my = me(3000, 3000)
+    my.school = "myth"
+    boss = enemy("Kallah Silverback", 5910, boss=True)
+    b = battle([orthrus, feint, feint2], [boss], my=my)
+    b.pips, b.power_pips = 0, 4  # Orthrus alone (2200) won't kill; with two Feints (x2.89) it does
+    rounds, used = plan_hand_use(b)
+    assert rounds < 99 and {1, 2} <= used

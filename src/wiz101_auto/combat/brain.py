@@ -527,6 +527,12 @@ def _kill_action(battle: Battle) -> Action | None:
                 continue
             if target is not None and _overkill(card, target, battle):
                 continue  # the boss's big hit isn't spent on a small enemy
+            # The boss outlives it, but the traps in hand would let this hit
+            # kill him too: the traps first, the fight ends sooner (Kallah
+            # Silverback: Orthrus killed only his Gorilla Spider Witch).
+            standing = [e for e in battle.live_enemies if e.is_boss and e not in kills]
+            if any(_traps_make_the_kill(battle, card, b) for b in standing if card.is_aoe or b is target):
+                continue
             # Same number of kills: the one that also hurts the survivors most
             # (Humongofrog over Ether Golem), then the cheapest.
             spill = sum(min(hit_damage(card, battle.me, t), t.health) for t in victims if t not in kills)
@@ -1913,11 +1919,15 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
         for i, c in enumerate(pool):
             if i in used or not arrived(i, depth) or (depth == 0 and i < in_hand and not c.castable):
                 continue
+            # Setup of any cost, paid as the game would (Feint, 1 pip off our
+            # school: a power pip counts 1). Only 0-pip setup was searched, so
+            # no plan ever had Feint before Orthrus (the player: that should
+            # come out of the search, not a rule).
             if c.is_damage:
                 kind = "hit"
-            elif c.pip_cost == 0 and EffectKind.TRAP in c.kinds:
+            elif EffectKind.TRAP in c.kinds and c.target is not Target.ALLY_SINGLE:
                 kind = "trap"
-            elif c.pip_cost == 0 and EffectKind.BLADE in c.kinds:
+            elif EffectKind.BLADE in c.kinds:
                 kind = "blade"
             else:
                 continue
@@ -1959,19 +1969,25 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                 search(depth + 1, paid[0] + 1, paid[1], used | {i}, _use_up(out_fx, school),
                        _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act, steps + [step])
             else:
+                existing = out_fx if kind == "blade" else in_fx
+                ekind = EffectKind.BLADE if kind == "blade" else EffectKind.TRAP
+                real = me.outgoing_effects if kind == "blade" else target.incoming_effects
+                if _is_duplicate(c, ekind, real, my_school) or any(
+                        k == f"plan:{c.template_id or c.name}" for k, _s, _v in existing):
+                    continue  # a copy of one that's up adds nothing (by spell: two Feints stack)
                 if act is None:
                     t = None if (kind == "blade" and c.target is not Target.ENEMY_SINGLE) else target
                     if kind == "blade" and c.target is Target.ALLY_SINGLE:
                         t = me
                     act = Action(ActionKind.CAST, c, t, reason="")
-                value = sum(e.value for e in c.effects if e.kind in (EffectKind.TRAP, EffectKind.BLADE)) / 100
-                existing = out_fx if kind == "blade" else in_fx
-                same = next((k for k, sch, v in existing if sch == school and abs(v - value) < 0.005), None)
-                fx = (same or f"plan:{c.name}", school, value)  # a copy of one that's up doesn't stack
-                new_out = out_fx + [fx] if kind == "blade" else out_fx
-                new_in = in_fx + [fx] if kind == "trap" else in_fx
-                search(depth + 1, paid[0] + 1, paid[1], used | {i}, new_out, new_in, hp, spent, act,
-                       steps + [c.name])
+                # Each part under its own school (Feint's trap is for every
+                # school, though Feint is a death card).
+                fx = [(f"plan:{c.template_id or c.name}", (e.school or "").lower(), e.value / 100)
+                      for e in c.effects if e.kind is ekind]
+                new_out = out_fx + fx if kind == "blade" else out_fx
+                new_in = in_fx + fx if kind == "trap" else in_fx
+                search(depth + 1, paid[0] + 1, paid[1], used | {i}, new_out, new_in, hp, spent + c.pip_cost,
+                       act, steps + [c.name])
         # pass: keep the pips
         search(depth + 1, normal + 1, power, used, out_fx, in_fx, hp, spent,
                first or Action(ActionKind.PASS, reason=""), steps + ["pass"])
