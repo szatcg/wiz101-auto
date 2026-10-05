@@ -7115,7 +7115,10 @@ class Quester:
         if team_mode:
             from .teamup import team_list
 
-            if zone_now in team_list() and not is_combat_objective(await self.objective() or ""):
+            obj_now = await self.objective() or ""
+            who = talk_target(obj_now) or defeat_target(obj_now) or ""  # ("Talk to Belloq" starts his fight)
+            boss_here = DungeonMemory.load().bosses.get(who) == zone_now
+            if zone_now in team_list() and not is_combat_objective(obj_now) and not boss_here:
                 # A quest dungeon taken with a team (the team list): the fight
                 # is over, our quest goes on alone (the player: it followed an
                 # AFK teammate round Belloq's tent after the win).
