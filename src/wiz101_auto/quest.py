@@ -51,7 +51,7 @@ from .npc import ServicesMenu
 from .questlist import SIDE_WORLDS, CompletionTracker, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted
 from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_DUNGEONS, TEAM_UP_NAMES, is_team_up_zone
+from .teamup import TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -1811,7 +1811,9 @@ class Quester:
                 # Nothing to heal with here and "enough to go on" (84%): enter
                 # rather than loop sigil <-> heal (it did, at 82-84%).
         dungeon = self._dungeon_at(zone or "", sigil)
-        if dungeon in TEAM_UP_DUNGEONS:
+        from .teamup import is_team_dungeon
+
+        if is_team_dungeon(dungeon or ""):
             # Too hard alone: only with a team (the Team Up button on the sigil).
             from .teamup import team_up
 
@@ -2572,6 +2574,32 @@ class Quester:
         self._last_rank = -1e9
         return True
 
+    def _team_instead(self, quest: str, objective: str, losses: int) -> bool:
+        """A main-quest boss in a dungeon with a sigil beat us `losses` times:
+        that dungeon goes on the team list (the player's "multiplayer mode":
+        wait at its sigil, Team Up, fight it with 2+ players, as at Mount
+        Olympus). True if it did; False outside a known dungeon."""
+        from .teamup import add_team_dungeon, is_team_dungeon
+
+        if quest not in self._mainline:
+            return False
+        memory = DungeonMemory.load()
+        fought = self.fighter.last_enemy_names if self.fighter else []
+        zone = (getattr(self.controller, "last_death", None) or (0, ""))[1]
+        dungeon = next((memory.bosses[n] for n in fought if n in memory.bosses), None) or (
+            zone if zone in memory.dungeons else None)
+        entry = memory.dungeons.get(dungeon or "")
+        if not dungeon or entry is None or not entry.sigil or is_team_dungeon(dungeon):
+            return False
+        add_team_dungeon(dungeon, quest)
+        logger.warning(f"lost {objective!r} {losses} times: {dungeon.split('/')[-1]} with a team from now on "
+                       f"(Team Up at its sigil) until {quest!r} is done")
+        self._alert_main_stuck(quest, f"lost {objective!r} {losses} times; waiting for a team")
+        self._recall_pending = False
+        self._ranked_for = None
+        self._last_rank = -1e9
+        return True
+
     async def _note_defeats(self):
         """After a defeat, count it against the objective; the second one sets the
         quest aside for another questline (until a level-up or an hour passes)."""
@@ -2615,7 +2643,9 @@ class Quester:
                             .get("defeats_before_wait", DETOUR_DEFEATS))
             except (OSError, ValueError, TypeError):
                 pass
-            if n >= limit and not self._detour_stays(quest):
+            if n >= limit and self._team_instead(quest, objective, n):
+                self.setbacks.defeats.pop(objective, None)
+            elif n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
@@ -2644,6 +2674,10 @@ class Quester:
             # again; fewer tries until a level-up makes the wizard stronger.)
             again = f"set aside at level {level}: {objective}"
             limit = MAIN_LOSSES_RETRY_SAME_LEVEL if again in self.setbacks.defeats else MAIN_LOSSES_NO_LADDER
+            if n >= MAIN_LOSSES_NO_LADDER and quest and self._team_instead(quest, objective, n):
+                self.setbacks.defeats.pop(objective, None)
+                self.setbacks.save()
+                return
             if not ladder and n >= limit and quest:
                 self.setbacks.defeats[again] = 1
                 # One deck for every fight (combat.adapt_deck: false): nothing
@@ -3398,6 +3432,11 @@ class Quester:
                 # them): twice a false "no main quest" alert, and the pin
                 # dropped. Such a read decides nothing is done.
                 complete = False
+            if complete:
+                from .teamup import drop_team_dungeons
+
+                for d in drop_team_dungeons({q.name for _, q in all_quests}):
+                    logger.info(f"{d.split('/')[-1]}'s quest is done: alone there again")
             det = self._detour_names()
             game_main = {id(q): q.mainline for _, q in all_quests}
             # None of the world's own quests in the book yet: its lead-in (the

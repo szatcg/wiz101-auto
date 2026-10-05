@@ -2370,12 +2370,47 @@ def _enchant_early(battle: Battle) -> Action | None:
     return None
 
 
+# Bosses that must take damage every round (the player's cheat notes):
+# Belloq casts an escalating Ra (1,200+) at the start of any round after one
+# in which nobody hit him. His minions triage damage-over-time off him, so no
+# DoTs at him while they live.
+HIT_EVERY_ROUND = {"belloq"}
+
+
+def _keep_hitting(battle: Battle, action: Action) -> Action | None:
+    """With such a boss alive and the turn ending in something that doesn't
+    hurt him: the cheapest castable hit that reaches him instead (a hit-all
+    counts; no DoT while his minions are up)."""
+    boss = next((e for e in battle.live_enemies if e.name.lower() in HIT_EVERY_ROUND), None)
+    if boss is None:
+        return None
+    if action.kind not in (ActionKind.CAST, ActionKind.PASS):
+        return None  # (an enchant or a discard: the turn goes on)
+    card = action.card
+    if action.kind is ActionKind.CAST and card is not None and card.is_damage and (
+            card.is_aoe or action.target is boss):
+        return None
+    minions = len(battle.live_enemies) > 1
+    hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal
+            and not (minions and EffectKind.DOT in c.kinds and EffectKind.DAMAGE not in c.kinds)
+            and (c.is_aoe or c.target is Target.ENEMY_SINGLE)]
+    if not hits:
+        return None
+    best = min(hits, key=lambda c: (c.pip_cost, -hit_damage(c, battle.me, boss)))
+    return Action(ActionKind.CAST, best, None if best.is_aoe else boss,
+                  reason=f"{boss.name} must be hit every round (else his Ra cheat): {best.name}")
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     battle = _no_single_target(battle)
     early = _enchant_early(battle)
     if early is not None:
         return early
     action = _decide_seen_raw(battle, strat, **kw)
+    try:
+        action = _keep_hitting(battle, action) or action
+    except Exception:
+        pass
     try:
         action = _hit_when_set_up(battle, action) or action
     except Exception:

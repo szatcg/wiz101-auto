@@ -13,6 +13,7 @@ in TEAM_UP_DUNGEONS (zone ids of the dungeons' first rooms).
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import time
 from pathlib import Path
@@ -40,9 +41,45 @@ REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after it
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
 
+TEAM_LIST_FILE = Path("state") / "team_dungeons.json"  # {dungeon: quest}: added after 5 losses
+
+
+def team_list() -> dict[str, str]:
+    """Dungeons added to team play by the bot (a main-quest boss there won 5
+    times: the player's "multiplayer mode"), each with the quest it's for."""
+    try:
+        return dict(json.loads(TEAM_LIST_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def add_team_dungeon(dungeon: str, quest: str) -> None:
+    teams = team_list()
+    teams[dungeon] = quest
+    TEAM_LIST_FILE.parent.mkdir(exist_ok=True)
+    TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
+
+
+def drop_team_dungeons(open_quests: set[str]) -> list[str]:
+    """Added dungeons whose quest is done (no longer in the book) go back to
+    solo. The ones dropped."""
+    teams = team_list()
+    gone = [d for d, q in teams.items() if q not in open_quests]
+    if gone:
+        for d in gone:
+            del teams[d]
+        TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
+    return gone
+
+
+def is_team_dungeon(dungeon: str) -> bool:
+    """A dungeon only entered with a team: the fixed ones, and those added."""
+    return dungeon in TEAM_UP_DUNGEONS or dungeon in team_list()
+
+
 def is_team_up_zone(zone: str) -> bool:
     """A room of a dungeon that is only entered with a team."""
-    return zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES)
+    return zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or zone in team_list()
 
 
 # The form TEAM UP! opens (mapped from state/teamup_window.txt): farming
@@ -341,7 +378,7 @@ async def team_up(quester, dungeon: str) -> str:
     client = quester.client
     zone = await client.zone_name()
     await _dump(client, "sigil")
-    use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS
+    use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS or dungeon in team_list()
     if not use_queue:
         # No queue: wait on the sigil for players to gather (and go in with them).
         await close_stray_forms(client)

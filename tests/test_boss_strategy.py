@@ -361,3 +361,21 @@ def test_set_up_enough_hits_instead_of_another_blade():
     assert got is not None and got.card is orthrus
     my.blade_count = 1  # not set up yet: the blade as chosen
     assert brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my)) is None
+
+
+def test_belloq_is_hit_every_round():
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True, castable=False)
+    bolt = _myth(1, "Myth Bolt", 300, 1)
+    blade = _setup(2, "Mythblade", "blade")
+    my = me(2000, 2700)
+    my.school = "myth"
+    belloq = enemy("Belloq", 5070, boss=True)
+    merc = enemy("Greyhorn Mercenary", 1390)
+    b = battle([orthrus, bolt, blade], [merc, belloq], my=my)
+    b.pips, b.power_pips = 1, 0
+    got = brain._keep_hitting(b, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is bolt and got.target is belloq
+    b2 = battle([orthrus, blade], [merc, belloq], my=my)  # nothing reaches him: as chosen
+    assert brain._keep_hitting(b2, Action(ActionKind.CAST, blade, my)) is None
