@@ -2337,6 +2337,13 @@ class Quester:
             self._map_tries = 0
             await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
             await asyncio.sleep(1.0)
+            if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+                # Clicks don't reach it (the game window 97% off screen): Escape.
+                await self.client.send_key(Keycode.ESC, 0.1)
+                await asyncio.sleep(1.0)
+                if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+                    logger.warning("the Spiral Map is still open: move the game window onto a monitor "
+                                   "(clicks don't reach it)")
             self._ranked_for = None
             self._last_rank = -1e9
             return True
