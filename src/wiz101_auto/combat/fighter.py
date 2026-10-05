@@ -171,9 +171,13 @@ def draw_chance(left: int, wanted: int, draws: int) -> float:
 def _plan_crits(battle, action) -> dict:
     """{enemy index: [crit %, block %, damage, damage on a crit]} for the move
     (or, on a setup round, the next big hit): the plan card's bars."""
+    from dataclasses import replace as _replace
+
     from .brain import predicted_crits
 
     try:
+        if action.card is not None and "prism" in action.card.name.lower() and action.target:
+            battle = _replace(battle, prismed=set(battle.prismed) | {action.target.name})  # (cast now)
         shown = action if action.card is not None and action.card.is_damage else (_next_hit(battle) or action)
         return {str(i): list(v) for i, v in predicted_crits(battle, shown).items()}
     except Exception:
@@ -684,6 +688,9 @@ class Fighter(CombatHandler):
             if not predicted:
                 # A setup round: the bars show the biggest hit in hand, the one
                 # the blades are for (the player: no crit numbers on those rounds).
+                # A prism cast now counts already (it showed 167, unprismed).
+                if action.card is not None and "prism" in action.card.name.lower() and action.target:
+                    battle.prismed = set(battle.prismed) | {action.target.name}
                 shown = _next_hit(battle) or action
                 predicted = predicted_damage(battle, shown)
             if predicted:  # for the stream page's health bars
