@@ -408,3 +408,19 @@ def test_zafaria_cheaters():
     b3 = battle([bolt, orthrus], [eleph, rhino], my=my)
     got = _cheat_rules(b3, Action(ActionKind.CAST, bolt, eleph), Strategy())
     assert got is not None and got.target is rhino
+
+
+def test_last_stand_hits_instead_of_a_blade():
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Spirit Blade", "blade")
+    my = me(54, 2736)
+    my.school = "myth"
+    boss = enemy("Tim-tim Snakeeye", 5663, boss=True)
+    b = battle([orthrus, blade], [boss], my=my)
+    b.pips, b.power_pips = 1, 3
+    got = brain._last_stand(b, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is orthrus
+    my.health = 2700  # healthy: the blade as chosen
+    assert brain._last_stand(b, Action(ActionKind.CAST, blade, my)) is None

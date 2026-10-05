@@ -2478,6 +2478,35 @@ def _stun_block_first(battle: Battle) -> Action | None:
     return Action(ActionKind.CAST, card, battle.me, reason=f"{card.name} first: the Goliaths chain-stun")
 
 
+LAST_STAND_MARGIN = 1.0  # health under this many rounds of incoming damage: no more setup
+
+
+def _last_stand(battle: Battle, action: Action) -> Action | None:
+    """The next enemy round should kill us and nothing in hand heals: the
+    biggest castable hit now instead of a blade, trap or pass (Tim-tim
+    Snakeeye: at 54 health the bot cast Spirit Blade with Orthrus castable)."""
+    if not battle.live_enemies or action.kind not in (ActionKind.CAST, ActionKind.PASS):
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and (
+            action.card.is_damage or action.card.is_heal or EffectKind.SHIELD in action.card.kinds):
+        return None
+    if any(c.is_heal for c in battle.cards):
+        return None  # (a heal in hand, castable or saved for: the heal rules decide)
+    if battle.me.health > incoming_per_round(battle) * LAST_STAND_MARGIN:
+        return None
+    hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
+    if not hits:
+        return None
+    focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
+
+    def worth(c: Card) -> float:
+        return hit_damage(c, battle.me, focus) * (len(battle.live_enemies) if c.is_aoe else 1)
+
+    best = max(hits, key=worth)
+    return Action(ActionKind.CAST, best, None if best.is_aoe else focus,
+                  reason=f"last stand at {battle.me.health} health: {best.name} now")
+
+
 def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     battle = _no_single_target(battle)
     early = _enchant_early(battle) or _stun_block_first(battle)
@@ -2490,6 +2519,10 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
         pass
     try:
         action = _cheat_rules(battle, action, strat or Strategy()) or action
+    except Exception:
+        pass
+    try:
+        action = _last_stand(battle, action) or action
     except Exception:
         pass
     try:
