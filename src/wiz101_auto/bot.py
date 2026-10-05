@@ -282,6 +282,11 @@ def obey_controller(client, controller):
     client.send_key = gate(client.send_key)
     mouse = client.mouse_handler
     mouse.click = gate(mouse.click)
+    # (Every mouse move too: paused mid Team Up, a window click moved the
+    # cursor with the mouseless hook off and the step died on HookNotActive.)
+    for name in ("click_window", "set_mouse_position"):
+        if hasattr(mouse, name):
+            setattr(mouse, name, gate(getattr(mouse, name)))
 
 
 def _click_left_of_center(client):
