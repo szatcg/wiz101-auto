@@ -1091,7 +1091,7 @@ function renderTracker() {
   const chips = (rows, field, cls) => rows.filter((r) => r[field] > 0).map((r) => {
     const w = field === "left" ? better[r.name] : null;
     const odds = "";  // (the draw odds are in the Best Draw panel)
-    const art = cardArt(r.name);
+    const art = r.art || cardArt(r.name);  // (the pet's own art for its cards)
     if (art) {
       return `<span class="art ${cls}${w ? " want" : ""}" title="${esc(r.name)}"><img src="/cards/${art}" alt="">${
         odds}<span class="cnt">×${r[field]}</span></span>`;

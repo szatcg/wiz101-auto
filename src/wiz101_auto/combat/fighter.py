@@ -131,6 +131,27 @@ def _write_plan(battle, action, strategy, discards: int, gone=None, discarded=No
         logger.debug(f"battle plan not written: {exc!r}")
 
 
+PET_ART = Path("docs") / "spell_images" / "pet"  # the player's art for the pet's cards
+PET_WORDS = ("pet", "gryphon")  # in an item card's template name: the pet's card
+_ITEM_NAMES_SEEN: set[str] = set()
+
+
+def _item_art(card) -> str | None:
+    """The pet's own art for a card the pet gives (docs/spell_images/pet/
+    <name>_spell.png), when its template name says it's the pet's. Item cards'
+    template names are logged once each (to tell the pet's from the amulet's)."""
+    if not getattr(card, "item", False):
+        return None
+    tname = (card.template_name or "").lower()
+    if tname and tname not in _ITEM_NAMES_SEEN:
+        _ITEM_NAMES_SEEN.add(tname)
+        logger.info(f"item card {card.name!r}: template {card.template_name!r}")
+    if not any(w in tname for w in PET_WORDS):
+        return None
+    f = PET_ART / f"{card.name.lower().replace(' ', '_')}_spell.png"
+    return f"pet/{f.name}" if f.is_file() else None
+
+
 def deck_tracker(battle, gone, discarded=None) -> list[dict]:
     """The deck this fight: per card, copies still to draw, in hand, played
     and discarded (and used: both), for the stream page; a deck that isn't
@@ -142,9 +163,15 @@ def deck_tracker(battle, gone, discarded=None) -> list[dict]:
 
     def row(card) -> dict:
         key = _deck_name(card)
+        art = _item_art(card)
+        if art:
+            key = f"{key} ({art})"  # (the pet's Feint apart from the trained one)
         used, tossed = int(gone.get(key, 0)), int(discarded.get(key, 0))
-        return rows.setdefault(key, {"name": card.name, "left": 0, "hand": 0, "used": used,
-                                     "played": max(0, used - tossed), "discarded": tossed})
+        r = rows.setdefault(key, {"name": card.name, "left": 0, "hand": 0, "used": used,
+                                  "played": max(0, used - tossed), "discarded": tossed})
+        if art:
+            r["art"] = art
+        return r
 
     for c in battle.upcoming:
         row(c)["left"] += 1
