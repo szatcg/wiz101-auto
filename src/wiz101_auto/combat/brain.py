@@ -2485,6 +2485,43 @@ def _stun_block_first(battle: Battle) -> Action | None:
     return Action(ActionKind.CAST, card, battle.me, reason=f"{card.name} first: the Goliaths chain-stun")
 
 
+# Tim-tim Snakeeye (the player's notes): an interrupt -90% Tower Shield at the
+# start and after every hit taken; casting a heal makes him drop it for one
+# round. Hits into the shield are wasted: set up, heal, then the big hit in
+# the round he's bare.
+SHIELD_DROPS_ON_HEAL = ("tim-tim snakeeye",)
+CHEAT_SHIELD = -0.5  # an incoming effect this low (or lower) is his cheat shield
+
+
+def _heal_trick(battle: Battle, action: Action) -> Action | None:
+    boss = next((e for e in battle.live_enemies if any(_is(e, k) for k in SHIELD_DROPS_ON_HEAL)), None)
+    if boss is None:
+        return None
+    shielded = any(v <= CHEAT_SHIELD for _k, _s, v in boss.incoming_effects)
+    card = action.card
+    hits_him = (action.kind is ActionKind.CAST and card is not None and card.is_damage
+                and (card.is_aoe or action.target is boss))
+    if not shielded:
+        if hits_him:
+            return None
+        hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
+        if not hits:
+            return None
+        best = max(hits, key=lambda c: hit_damage(c, battle.me, boss))
+        return Action(ActionKind.CAST, best, None if best.is_aoe else boss,
+                      reason=f"{boss.name}'s shield is down: {best.name} now")
+    heals = [c for c in _castable(battle.cards) if c.is_heal]
+    big = [c for c in battle.cards if c.is_damage and c.pip_cost >= 4]
+    ready = battle.me.blade_count >= 1 or hits_him or action.kind is ActionKind.PASS
+    if heals and big and ready:
+        heal = min(heals, key=lambda c: c.pip_cost)
+        return Action(ActionKind.CAST, heal, battle.me,
+                      reason=f"{heal.name}: a heal makes {boss.name} drop his shield next round")
+    if hits_him:
+        return _hold_for_one_shot(battle, Strategy(), f"{boss.name}'s -90% shield is up")
+    return None
+
+
 LAST_STAND_MARGIN = 1.0  # health under this many rounds of incoming damage: no more setup
 
 
@@ -2526,6 +2563,10 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
         pass
     try:
         action = _cheat_rules(battle, action, strat or Strategy()) or action
+    except Exception:
+        pass
+    try:
+        action = _heal_trick(battle, action) or action
     except Exception:
         pass
     try:

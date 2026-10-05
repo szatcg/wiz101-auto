@@ -442,3 +442,23 @@ def test_an_untouched_boss_is_hit_by_round_four():
     b.round = 4
     got = brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my))
     assert got is not None and got.card is orthrus
+
+
+def test_tim_tim_heal_trick():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Mythblade", "blade")
+    pixie = Card(2, "Pixie", school="myth", pip_cost=2, effects=[Effect(EffectKind.HEAL, Target.SELF, 400)])
+    my = me(2000, 2736)
+    my.school = "myth"
+    my.blade_count = 2
+    tim = enemy("Tim-tim Snakeeye", 5675, boss=True)
+    tim.incoming_effects = [("shield", "", -0.9)]
+    b = battle([orthrus, blade, pixie], [tim], my=my)
+    b.pips, b.power_pips = 2, 3
+    got = brain._heal_trick(b, Action(ActionKind.CAST, orthrus, None))
+    assert got is not None and got.card is pixie  # shielded: the heal, not Orthrus into -90%
+    tim.incoming_effects = []
+    got = brain._heal_trick(b, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is orthrus  # bare: the big hit now
