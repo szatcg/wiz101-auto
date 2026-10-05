@@ -1716,7 +1716,8 @@ def _hit_when_set_up(battle: Battle, action: Action) -> Action | None:
     # Or set up long enough: untouched at round SETUP_ROUNDS_MAX (Tim-tim
     # Snakeeye's shield ate the traps; six rounds of blades with Orthrus
     # castable, never a hit, and the bot died).
-    stalled = (battle.round or 0) >= SETUP_ROUNDS_MAX and focus.health >= UNTOUCHED * focus.max_health
+    stalled = (focus.is_boss and action.kind is ActionKind.CAST  # (a pass saving for a hit-all stands)
+               and (battle.round or 0) >= SETUP_ROUNDS_MAX and focus.health >= UNTOUCHED * focus.max_health)
     if not stalled and (battle.me.blade_count < SETUP_ENOUGH or focus.trap_count < SETUP_ENOUGH):
         return None
     hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
