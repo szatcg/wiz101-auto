@@ -734,6 +734,16 @@ def safe_landing(target: XYZ, start: XYZ, mobs: list[XYZ], clearance: float) -> 
     return None
 
 
+def is_known_enemy(name: str, stats_file: Path = Path("state") / "enemy_stats.json") -> bool:
+    """Fought before (state/enemy_stats.json): its boss flag is then known."""
+    want = norm(name)
+    try:
+        enemies = json.loads(stats_file.read_text(encoding="utf-8")).get("enemies", {})
+    except (OSError, ValueError):
+        return False
+    return any(norm(n) == want for n in enemies)
+
+
 def is_known_boss(name: str, stats_file: Path = Path("state") / "enemy_stats.json") -> bool:
     """A boss by the fights logged (state/enemy_stats.json), or one with
     brothers to beat first (PRE_BOSSES) or a brother himself."""
@@ -7308,9 +7318,17 @@ class Quester:
                 extra: dict[str, int] = {}
                 if is_combat_objective(obj):
                     target = defeat_target(obj) or ""
-                    boss = (await self._in_any_dungeon(here) or "/interiors/" in here.lower()
-                            or any(bosses.get(n) for n in defeat_names(obj))
-                            or bool(target and is_known_boss(target)))
+                    # A boss by name (known bosses, the fights logged); a place
+                    # alone isn't enough (the boss deck and Feint necklace went
+                    # on for the Shadow-Web Haunts in an interior): only an
+                    # enemy never fought yet, inside, counts as a likely boss,
+                    # and never a counted one ("(0 of 3)": regular enemies).
+                    known = bool(target and is_known_enemy(target))
+                    counted = bool(re.search(r"\(\d+ of \d+\)", obj))
+                    boss = (any(bosses.get(n) for n in defeat_names(obj))
+                            or bool(target and is_known_boss(target))
+                            or (not known and not counted
+                                and (await self._in_any_dungeon(here) or "/interiors/" in here.lower())))
                     if target and boss:
                         extra = await self._boss_prisms(target)
                 else:
