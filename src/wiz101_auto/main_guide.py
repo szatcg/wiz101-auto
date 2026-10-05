@@ -105,6 +105,9 @@ def _find(guide: list[GuideQuest], name: str) -> GuideQuest | None:
     return next((q for q in guide if same_name(q.name, name)), None)
 
 
+DONE_GAP = 6  # done guide quests further apart than this: the later ones are a namesake
+
+
 def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
                     alone: bool = False) -> GuideQuest | None:
     """The guide quest to fetch now: the one after the last one done, when it
@@ -112,6 +115,15 @@ def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
     it), or (`alone`: the main story's world) when no quest of the guide is
     in the book at all. None otherwise."""
     finished = [q.index for q in guide if _among(q.name, done)]
+    in_book = [q for q in guide if _among(q.name, book)]
+    # A done one far past the others is a same-named quest done long ago
+    # (#136 Lion Around after #121: the bot set off for #137 with #125 Drum
+    # Circle in the book).
+    finished = sorted(finished)
+    for k in range(1, len(finished)):
+        if finished[k] - finished[k - 1] > DONE_GAP:
+            finished = finished[:k]
+            break
     if not finished:
         return None
     after = [q for q in guide if q.index > max(finished)]
@@ -120,7 +132,6 @@ def next_to_pick_up(guide: list[GuideQuest], done: set[str], book: set[str],
     nxt = after[0]
     if _among(nxt.name, book) or _among(nxt.name, done):
         return None
-    in_book = [q for q in guide if _among(q.name, book)]
     if alone and not in_book:
         return nxt
     waiting = [q for q in in_book if q.index < nxt.index and not _among(q.name, done)]

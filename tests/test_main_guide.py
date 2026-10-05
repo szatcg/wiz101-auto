@@ -89,3 +89,12 @@ def test_where_an_item_comes_from():
     assert collect_source("Cogitator", g) == "Deactivated Golem"
     assert collect_source("Cogitators", g) == "Deactivated Golem"
     assert collect_source("Spare Parts", g) == ""
+
+
+def test_a_same_named_quest_done_long_ago_is_not_the_story_point():
+    from wiz101_auto.main_guide import GuideQuest, next_to_pick_up
+
+    guide = [GuideQuest(i, n, "") for i, n in [(124, "Drum House"), (125, "Drum Circle"),
+                                                (126, "Pure Water"), (136, "Lion Around"),
+                                                (137, "You Can Drive")]]
+    assert next_to_pick_up(guide, {"Drum House", "Lion Around"}, {"Drum Circle"}) is None
