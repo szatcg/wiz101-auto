@@ -28,6 +28,14 @@ BUTTONS = [*PAGE, "ButtonLayout"]
 DECK_SLOTS = 8  # decks the arrows go through before giving up
 
 
+def _same_item(shown: str, want: str) -> bool:
+    """The item `want` names: its exact name, or a part of it ("feint" ->
+    "Jewel of the Feint"), any case."""
+    a = "".join(c for c in (shown or "").lower() if c.isalnum())
+    b = "".join(c for c in (want or "").lower() if c.isalnum())
+    return bool(a and b) and (a == b or b in a)
+
+
 def load() -> dict:
     try:
         return json.loads(ITEMS_FILE.read_text(encoding="utf-8"))
@@ -167,13 +175,45 @@ class DeckItems:
             _note_cards(role)
         return ok
 
+    async def amulet_tab(self) -> str | None:
+        """The backpack's amulet tab button, found by name (like the deck tab)."""
+        w = await ui.window_at(self.client, BUTTONS)
+        if w is None:
+            return None
+        try:
+            for child in await w.children():
+                name = await child.name()
+                if "amulet" in name.lower() or "necklace" in name.lower():
+                    return name
+        except Exception:
+            return None
+        return None
+
+    async def equip_amulet(self, role: str) -> bool | None:
+        """The amulet that goes with this deck (deck_items.json "amulets":
+        {"aoe": "shango", "single": "feint"}, part of each name): the player's
+        Shango's Mythblade amulet for questing, the Jewel of the Feint for
+        bosses. True if worn after, None with none set for the role."""
+        want = (load().get("amulets") or {}).get(role)
+        if not want:
+            return None
+        if not await self.gear._open():
+            return False
+        try:
+            tab = await self.amulet_tab()
+            ok = bool(tab) and await self._put_on(tab, want)
+        finally:
+            await self.gear._close()
+        logger.info(f"decks: {'wearing' if ok else 'could not put on'} the amulet {want!r} ({role})")
+        return ok
+
     async def _put_on(self, tab: str, name: str) -> bool:
         """Equip the deck item `name`; an empty deck asks to copy the old
         deck's spells: no (each deck holds its own cards)."""
         await self.gear._open_tab(tab)
         for _ in range(3):
             for window, n, worn in await self.gear._items_on_page():
-                if n != name:
+                if not _same_item(n, name):
                     continue
                 if worn:
                     return True
@@ -192,7 +232,7 @@ class DeckItems:
         await self.gear._open_tab(tab)
         for _ in range(3):
             for _w, n, worn in await self.gear._items_on_page():
-                if n == name:
+                if _same_item(n, name):
                     return worn
             if not await ui.click(self.client, NEXT_PAGE):
                 break

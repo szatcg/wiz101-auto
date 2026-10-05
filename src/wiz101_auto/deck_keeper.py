@@ -115,6 +115,7 @@ class DeckKeeper:
         self.last_boss = False
         self._worn: str | None = None  # deck item role worn ("aoe" everyday, "single" boss)
         self._wear_failed_at = -1e9
+        self._added: set[str] = set()  # extras put in the player's deck (to take out again)
 
     def due(self, boss: bool = False,
             extra: dict[str, int] | None = None) -> tuple[dict[str, int], dict] | None:
@@ -132,7 +133,17 @@ class DeckKeeper:
         current = load_deck_counts()
         if not general.get("deck") or not known or not current:
             return None
-        target = target_deck(general, known, boss, extra)
+        if general.get("player_decks"):
+            # The player's own decks (the Karuvian and the Chieftain's): never
+            # rebuilt, only the extras asked for (a myth boss's prisms) go in,
+            # and out again after.
+            target = {n: c for n, c in current.items() if n not in self._added or n in extra}
+            for name, copies in extra.items():
+                if name in known:
+                    target[name] = max(target.get(name, 0), copies)
+                    self._added.add(name)
+        else:
+            target = target_deck(general, known, boss, extra)
         # Cards that aren't learned spells (treasure cards: the player's Giant
         # sun enchants) are the player's own: never taken out or counted.
         changes = {n: c for n, c in deck_changes(current, target).items() if n in known}
@@ -201,6 +212,10 @@ class DeckKeeper:
             self._wear_failed_at = time.monotonic()
             return False
         self._worn = role
+        try:  # (the amulet too: Shango's for questing, the Feint jewel for bosses)
+            await deckitems.DeckItems(client).equip_amulet(role)
+        except Exception as exc:
+            logger.warning(f"deck: couldn't put the amulet on ({exc!r})")
         await self.refresh(client)  # (its own cards: filled once, then just worn)
         return True
 
