@@ -63,7 +63,15 @@ def looks_like_person(name: str) -> bool:
     or a one-word pick-up ("Ore")."""
     # (Not a door's label: "To Teleporter Hub" sent the bot to Triton Avenue.)
     return (" " in name.strip() and not re.search(r"[_\d]", name) and "-" not in name
-            and name[:1].isupper() and not name.startswith("To "))
+            and name[:1].isupper() and not name.startswith("To ")
+            and not set(name.lower().split()) & _OBJECT_WORDS)
+
+
+# Words that make a display name a thing, not a person (the side-quest hunt
+# visited 'Cantrip Ritual Chest' and 'Duel Circle').
+_OBJECT_WORDS = frozenset({"chest", "circle", "sign", "signpost", "statue", "door", "gate", "portal",
+                           "table", "cauldron", "barrel", "crate", "banner", "totem", "teleporter",
+                           "fountain", "pedestal", "lever", "brazier", "obelisk", "switch"})
 
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose

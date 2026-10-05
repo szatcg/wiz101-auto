@@ -141,6 +141,7 @@ DOOR_SPOT_FAR = 800.0  # a learned door walk starting farther off than this: sta
 DOOR_SPOT_NEAR = 300.0  # ...this far short of it
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
+HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -512,6 +513,7 @@ def choose_quest(
     order: dict | None = None,
     world: str | None = None,
     fallback: tuple[str, ...] = (),
+    anywhere: bool = False,
 ) -> QuestEntry | None:
     """Which quest to track. Only the main story (and spell/class quests, which
     teach spells) while one of those can be worked on; side quests only when
@@ -537,6 +539,10 @@ def choose_quest(
             # (Nothing left in this world: the player's next places, e.g.
             # Wintertusk's side quests after Celestia's.)
             here = [q for q in available if quest_zone(q).startswith(place + "/")]
+        if not here and anywhere:
+            # This world's people all asked (`anywhere`): the side quests left in
+            # the book in other worlds beat grinding (the player: experience).
+            here = [q for q in available if quest_zone(q) and "/" in quest_zone(q)]
         if not here:
             return None  # nothing worth doing in this world: the caller grinds there
         active = next((q for q in here if q.active), None)
@@ -3500,8 +3506,9 @@ class Quester:
                         logger.info(f"the detour is over: the main story's world is {story} again")
                     world = story
             self._main_world = zone_world(world)
+            hunted_out = time.monotonic() - getattr(self, "_hunt_exhausted", -1e9) < HUNT_EXHAUSTED_SECONDS
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
-                                  FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()))
+                                  FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=hunted_out)
             grinding = chosen is None and bool(all_quests)
             if grinding and not self._grinding:
                 logger.warning(f"nothing to do in {world}: fighting there for experience until a level-up")
@@ -6902,6 +6909,16 @@ class Quester:
                     if target:
                         break
                 source = "for side quests instead of grinding"
+            if not target and not getattr(self, "_hunt_exhausted_logged", False):
+                # Nobody left to ask here: the other worlds' side quests in the
+                # book before grinding (choose_quest's `anywhere`).
+                self._hunt_exhausted = time.monotonic()
+                self._hunt_exhausted_logged = True
+                logger.info("everyone here asked for quests: side quests in other worlds next")
+                self._ranked_for = None
+                self._last_rank = -1e9
+            elif target:
+                self._hunt_exhausted_logged = False
             if target:
                 npc, where = target
                 self.givers._remember(where, npc)  # one try an hour, whatever happens
