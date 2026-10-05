@@ -3629,8 +3629,12 @@ class Quester:
                 # (Never over a class quest: 'Bone to be Wild' waited while
                 # Wizard Tours was kept for being mid-way.)
                 spell_first = bool(chosen and chosen.activity) and not (busy and busy.activity)
+                # (Nor a side quest over the main story: the player's main
+                # quest first; 'Bad Vacation' kept 'Ship of Tears' waiting.)
+                busy_counts = bool(busy and (busy.mainline or busy.activity))
+                main_first = bool(chosen and chosen.mainline) and not busy_counts
                 if (busy is not None and busy is not chosen and busy.name not in set_aside
-                        and not in_side_world(busy) and not spell_first):
+                        and not in_side_world(busy) and not spell_first and not main_first):
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
