@@ -82,8 +82,14 @@ def view(quest: str, objective: str, world: str = "", path: Path = STEPS_FILE) -
 
     guide = load_guide(world) if world else None
     g = next((q for q in guide or [] if same_quest(q.name, quest)), None)
+    main = _main_guide_goals(world, quest) if world and not (g and g.goals) else []
     if g and g.goals:
         nxt, source = g.goals[len(done) + 1:], "quest list"
+    elif main:
+        # The player's main-story guide (docs/guides/<World>.txt): the real
+        # steps ("Talk to Edith Benchley in Celestia Base Camp"), not the
+        # world list's step types ("Talk to someone").
+        nxt, source = main[len(done) + 1:], "story guide"
     else:
         from .questlist import load_world_lists, norm
 
@@ -93,6 +99,14 @@ def view(quest: str, objective: str, world: str = "", path: Path = STEPS_FILE) -
             tags = [t for t in lq.tags if not t.upper().startswith("SIDE")]
             nxt, source = [_tag_words(t) for t in tags[len(done) + 1:]], "world list"
     return {"quest": quest, "done": done, "now": objective, "next": nxt, "source": source}
+
+
+def _main_guide_goals(world: str, quest: str) -> list[str]:
+    """The quest's steps in the player's main-story guide for `world`, [] if none."""
+    from .main_guide import load, same_name
+
+    g = next((q for q in load(world) if same_name(q.name, quest)), None)
+    return [x.strip() for x in g.steps.split(" + ") if x.strip()] if g else []
 
 
 _FOLLOW = re.compile(
