@@ -619,3 +619,23 @@ def test_three_different_feints_all_plan_in():
     b.pips, b.power_pips = 0, 5
     rounds, used = plan_hand_use(b)
     assert rounds < 99 and {1, 2, 3} <= used
+
+
+def test_a_hit_the_plan_outclasses_and_a_costly_blade_are_spare():
+    from wiz101_auto.combat.brain import covered_by_plan
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 1500, 7, aoe=True)
+    frog = _myth(1, "Humongofrog", 1100, 5, aoe=True)
+    spirit = Card(2, "Spirit Blade", school="balance", pip_cost=1, template_id=50,
+                  effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 25, school="myth")])
+    feint = Card(3, "Feint", school="death", pip_cost=1, template_id=10,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    my = me(3000, 3000)
+    my.school = "myth"
+    my.outgoing_effects = [("spell:30", "myth", 0.35)]  # a Mythblade up
+    b = battle([orthrus, frog, spirit, feint], [enemy("Kallah Silverback", 5000, boss=True)], my=my)
+    assert covered_by_plan(b, frog, {0})  # Orthrus is the plan: Humongofrog can go
+    assert not covered_by_plan(b, frog, {3})  # no hit in the plan: it stays
+    assert covered_by_plan(b, spirit, {0})  # a Mythblade's up: Spirit Blade can go
+    assert not covered_by_plan(b, feint, {0})  # traps stay

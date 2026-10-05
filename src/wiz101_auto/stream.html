@@ -605,6 +605,7 @@
   .bdt { display: flex; flex-direction: column; line-height: 1.3; color: var(--text); min-width: 0; }
   .bdn { font-size: 17px; font-weight: 800; }
   .bds { font-size: 14px; color: #1f6b2a; font-weight: 800; }
+  .bdtoss { font-size: 14px; font-weight: 800; color: #6b4a1f; margin-top: 4px; }
   .bdfloat { position: absolute; right: 470px; bottom: 262px; width: 300px; height: 0; z-index: 6; pointer-events: none; }
   .bdsay { position: absolute; left: -60px; right: -60px; bottom: 8px; text-align: center; font-size: 30px;
     animation: bdrise 3.2s ease-out forwards; }
@@ -1037,7 +1038,7 @@ function renderBestDraw(p, inBattle) {
   // changes, whether the card dug for came (rising green or red text).
   const panel = $("bestDraw");
   if (!inBattle) { bdTurn = null; panel.style.display = "none"; return; }
-  if (p && p.active && (p.deck || []).length && (!bdTurn || p.round !== bdTurn.round)) {
+  if (p && p.active && (p.deck || []).length) {
     const imp = p.improve || {};
     const cards = Object.entries(imp.cards || {})
       .map(([name, w]) => ({ name, saves: (imp.base || 0) - w.rounds, odds: w.odds }))
@@ -1045,22 +1046,35 @@ function renderBestDraw(p, inBattle) {
       .sort((a, b) => b.saves - a.saves || b.odds - a.odds)
       .slice(0, 3);
     const hand = Object.fromEntries((p.deck || []).map((r) => [r.name, r.hand]));
-    if (bdTurn && p.round > bdTurn.round && bdTurn.cards.length) {
-      const got = bdTurn.cards.find((c) => (hand[c.name] || 0) > (bdTurn.hand[c.name] || 0));
-      if (got) bdSay(`Drew ${got.name}! −${got.saves} round${got.saves === 1 ? "" : "s"}`, true);
-      else bdSay(`No ${bdTurn.cards[0].name} this round`, false);
+    if (!bdTurn || p.round !== bdTurn.round) {
+      if (bdTurn && p.round > bdTurn.round && bdTurn.cards.length) {
+        const got = bdTurn.cards.find((c) => (hand[c.name] || 0) > (bdTurn.hand[c.name] || 0));
+        if (got) bdSay(`Drew ${got.name}! −${got.saves} round${got.saves === 1 ? "" : "s"}`, true);
+        else bdSay(`No ${bdTurn.cards[0].name} this round`, false);
+      }
+      bdTurn = { round: p.round, cards, hand, tossed: [], draws: imp.draws || 0 };
+    } else if (cards.length) {
+      // Discards this turn: each is one more draw, the odds go up (the hand
+      // at the turn's start stays the baseline for "Drew X!").
+      bdTurn.cards = cards;
+      bdTurn.draws = imp.draws || bdTurn.draws;
     }
-    bdTurn = { round: p.round, cards, hand };
+    if (imp.toss && bdTurn.lastToss !== `${p.round}:${(p.deck || []).map((r) => r.discarded).join()}`) {
+      bdTurn.tossed.push(imp.toss);
+      bdTurn.lastToss = `${p.round}:${(p.deck || []).map((r) => r.discarded).join()}`;
+    }
   }
   const cards = (bdTurn && bdTurn.cards) || [];
-  panel.style.display = cards.length ? "" : "none";
-  if (!cards.length) return;
+  panel.style.display = cards.length || (bdTurn && bdTurn.tossed.length) ? "" : "none";
+  if (!cards.length && !(bdTurn && bdTurn.tossed.length)) return;
   const html = cards.map((c) => {
     const art = cardArt(c.name);
     const pic = art ? `<img src="/cards/${art}" alt="">` : "";
     return `<div class="bd">${pic}<div class="bdt"><div class="bdn">${esc(c.name)}</div>` +
       `<div class="bds">−${c.saves} round${c.saves === 1 ? "" : "s"} · ${c.odds}% next draw</div></div></div>`;
-  }).join("");
+  }).join("") + (bdTurn.tossed.length
+    ? `<div class="bdtoss">🗑️ ${bdTurn.tossed.map(esc).join(", ")} · ${bdTurn.draws} draw${bdTurn.draws === 1 ? "" : "s"} next round</div>`
+    : "");
   if ($("bdList").dataset.html !== html) { $("bdList").dataset.html = html; $("bdList").innerHTML = html; }
 }
 function bdSay(text, good) {

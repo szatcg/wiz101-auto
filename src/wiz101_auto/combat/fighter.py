@@ -245,15 +245,21 @@ def improve_odds(battle, action) -> dict:
     except Exception:
         return {}
     if not better:
-        return {"base": base}
+        out = {"base": base}
+        if action.kind is ActionKind.DISCARD and action.card is not None:
+            out["toss"] = action.card.name
+        return out
     tossed = 1 if action.kind in (ActionKind.CAST, ActionKind.DISCARD) else 0
     draws = max(1, HAND_MAX - len(battle.cards) + tossed)
     left = len(battle.upcoming)
     counts = {n: sum(1 for c in battle.upcoming if c.name == n) for n in better}
     cards = {n: {"rounds": r, "odds": round(100 * draw_chance(left, counts[n], draws))}
              for n, r in better.items()}
-    return {"base": base, "draws": draws, "cards": cards,
-            "any": round(100 * draw_chance(left, sum(counts.values()), draws))}
+    out = {"base": base, "draws": draws, "cards": cards,
+           "any": round(100 * draw_chance(left, sum(counts.values()), draws))}
+    if action.kind is ActionKind.DISCARD and action.card is not None:
+        out["toss"] = action.card.name  # (the panel lists the round's discards)
+    return out
 
 
 def _note_unknown_cards(battle) -> None:
@@ -670,13 +676,13 @@ class Fighter(CombatHandler):
                                 for c in battle.cards]
             # One plan discard a round at most (four in a round ran the deck dry).
             action = decide(battle, self.strategy, discards_left=discards_left,
-                            plan_discards=self._plan_toss_round != battle.round)
+                            plan_discards=self._plan_toss_round != battle.round, odds_discards=True)
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
             # Rollouts weigh the move that ends the turn, within a time budget:
             # run before each plan discard too, round 1 took 30 s and the timer
             # ran out (the discards are the brain's own free moves).
-            plan_toss = action.kind is ActionKind.DISCARD and "plan" in (action.reason or "")
+            plan_toss = action.kind is ActionKind.DISCARD and (action.reason or "").startswith("not in the")
             if plan_toss:
                 self._plan_toss_round = battle.round
             late = time.monotonic() - round_started > ROLLOUT_BUDGET

@@ -1677,6 +1677,31 @@ def keep_from_discard(card: Card) -> bool:
     return card.is_damage and card.pip_cost >= 2
 
 
+def covered_by_plan(battle: Battle, card: Card, used: set[int]) -> bool:
+    """A card kept from discards (keep_from_discard) that the fastest plan
+    makes spare, so it may go for a draw (the player: the bot should know it
+    won't need Humongofrog when Orthrus is the plan, and Spirit Blade is worth
+    less than the Mythblades for its pip): a big hit when the plan plays a hit
+    in hand at least as strong on every enemy; a blade that costs pips when a
+    free one is in hand or up already. Traps (Feint) and free blades stay."""
+    if card.index in used:
+        return False
+    if card.is_damage:
+        hits = [c for c in battle.cards if c.index in used and c.is_damage and c is not card]
+        return any(all(hit_damage(h, battle.me, e) >= hit_damage(card, battle.me, e)
+                       for e in battle.live_enemies) and (h.is_aoe or not card.is_aoe
+                                                          or len(battle.live_enemies) == 1)
+                   for h in hits)
+    if EffectKind.TRAP in card.kinds or card.pip_cost == 0:
+        return False
+    free = [c for c in battle.cards if c is not card and c.pip_cost == 0 and EffectKind.BLADE in c.kinds]
+    return bool(free or battle.me.outgoing_effects)
+
+
+def _spare(battle: Battle, card: Card, used: set[int]) -> bool:
+    return not keep_from_discard(card) or covered_by_plan(battle, card, used)
+
+
 def _plan_discard(battle: Battle) -> Action | None:
     """A hand card the fastest plan doesn't play, discarded while cards are
     left to draw (the player's: Vermin Virtuoso drawn into a Colossus plan
@@ -1709,10 +1734,10 @@ def _plan_discard(battle: Battle) -> Action | None:
     spare = [c for c in battle.cards if c.index not in used and not any(c is h for h in kept_heals)
              and not c.treasure
              and not c.is_enchant and not is_reshuffle(c) and not c.item and c.name not in plan_names
-             and not keep_from_discard(c)]
+             and _spare(battle, c, used)]
     if not spare:
         return None
-    card = min(spare, key=lambda c: (c.is_heal, c.base_damage()))
+    card = min(spare, key=lambda c: (c.is_heal, keep_from_discard(c), c.base_damage()))
     return Action(ActionKind.DISCARD, card, reason=f"not in the {base}-round plan; drawing for a better card")
 
 
@@ -2176,6 +2201,7 @@ def is_reshuffle(card: Card) -> bool:
 
 SURE_KILL_REASON = "making room to draw the whole deck"
 ODDS_GAIN = 0.15  # a discard that raises the chance of a better draw this much (no 2-a-round limit)
+ODDS_ROUNDS_GAIN = 0.1  # ... or saves this many rounds on average (chance gained x rounds it saves)
 ODDS_ENOUGH = 0.95  # ... until the chance is this good
 
 
@@ -2199,23 +2225,30 @@ def _dig_for_odds(battle: Battle) -> Action | None:
     doesn't play; never Reshuffle, treasure, items or the one kept heal."""
     if not battle.live_enemies or not battle.deck_known or len(battle.upcoming) < 2:
         return None
-    base, better = improving_draws(battle)
-    if not better:
+    # (As far ahead as the Best Draw panel: a boss is past PLAN_ROUNDS.)
+    base, better = improving_draws(battle, DISCARD_PLAN_HORIZON, DISCARD_PLAN_SECONDS)
+    if not better or base >= 99:
         return None
     n = len(battle.upcoming)
     m = sum(1 for c in battle.upcoming if c.name in better)
     room = max(0, HAND_SIZE - len(battle.cards))
     now, more = draw_chance(n, m, room), draw_chance(n, m, room + 1)
-    if now >= ODDS_ENOUGH or more - now < ODDS_GAIN:
+    saves = base - min(better.values())
+    if now >= ODDS_ENOUGH or (more - now < ODDS_GAIN and (more - now) * saves < ODDS_ROUNDS_GAIN):
         return None
-    _rounds, used = plan_hand_use(battle)
+    try:
+        _rounds, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON, time.monotonic() + DISCARD_PLAN_SECONDS)
+    except SearchTimeout:
+        return None
+    plan_names = {c.name for c in battle.cards if c.index in used}
     heals = [c for c in battle.cards if c.is_heal and not c.is_damage]
     keep_heal = max(heals, key=lambda c: c.heal_amount()) if heals else None
     spare = [c for c in battle.cards if c.index not in used and c is not keep_heal and not c.treasure
-             and not c.item and not c.is_enchant and not is_reshuffle(c) and not keep_from_discard(c)]
+             and not c.item and not c.is_enchant and not is_reshuffle(c) and c.name not in plan_names
+             and _spare(battle, c, used)]
     if not spare:
         return None
-    card = min(spare, key=lambda c: (c.is_heal, c.base_damage()))
+    card = min(spare, key=lambda c: (c.is_heal, keep_from_discard(c), c.base_damage()))
     want = ", ".join(sorted(better))
     return Action(ActionKind.DISCARD, card,
                   reason=f"odds: {now:.0%} -> {more:.0%} to draw {want} (shortens the {base}-round plan)")
@@ -2265,14 +2298,15 @@ def _dig_for_sure_kill(battle: Battle) -> Action | None:
 
 
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
-           plan_discards: bool = False) -> Action:
+           plan_discards: bool = False, odds_discards: bool | None = None) -> Action:
     """The action for this step. Reshuffle (the player's: never discarded)
     is kept out of every other rule; it's cast instead of passing when the
     deck is all but drawn (the cards played come back to draw from)."""
     sure = _dig_for_sure_kill(battle)
     if sure is not None:
         return sure
-    if plan_discards:
+    if plan_discards if odds_discards is None else odds_discards:
+        # (Not one a round: each discard is one more draw, while the odds gain.)
         try:
             odds = _dig_for_odds(battle)
         except Exception:
