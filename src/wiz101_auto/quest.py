@@ -3547,7 +3547,12 @@ class Quester:
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
                                       self.setbacks.skipped,
                                       entered_with=self._entry_quest[1] if real else "")
-                if local and local is not chosen:
+                # A side quest of the dungeon's doesn't beat the main story (the
+                # player: the main quest only; 'Tomb of the Zebra Kings' kept the
+                # bot at Zanga Zebu over 'Into the Zebra Tomb'), except farming.
+                side_over_main = (local is not None and not local.mainline and chosen.mainline
+                                  and not Farm.load().active)
+                if local and local is not chosen and not side_over_main:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
             # No errand detours while a quest is pinned: the player picked it
