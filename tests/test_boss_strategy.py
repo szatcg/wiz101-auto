@@ -526,3 +526,29 @@ def test_a_second_copy_of_feint_doesnt_stack_in_the_sim():
     up = [(_fx_key(feint(10)), "", 0.7), ("spell:999", "storm", -0.2)]  # + a game effect of the boss's own
     assert _is_duplicate(feint(10), EffectKind.TRAP, up, "myth")      # the trained Feint again: no
     assert not _is_duplicate(feint(20), EffectKind.TRAP, up, "myth")  # the necklace's: stacks
+
+
+def test_traps_first_when_they_make_the_hit_kill_the_boss():
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 2200, 7, aoe=True)  # x1.7 x1.7 with two Feints: kills 5910
+    feint = Card(1, "Feint", school="death", template_id=10,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    feint2 = Card(2, "Feint", school="death", template_id=20,
+                  effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    blade = _setup(3, "Mythblade", "blade")
+    my = me(2500, 3000)
+    my.school = "myth"
+    my.blade_count = 2
+    boss = enemy("Kallah Silverback", 5910, boss=True)
+    witch = enemy("Gorilla Spider Witch", 2110)
+    b = battle([orthrus, feint, feint2, blade], [boss, witch], my=my)
+    b.pips, b.power_pips, b.round = 1, 3, 4
+    import unittest.mock as um
+    with um.patch.object(brain, "incoming_per_round", return_value=300.0):
+        assert brain._hit_when_set_up(b, Action(ActionKind.CAST, feint, boss)) is None  # Feints first
+    b2 = battle([orthrus, blade], [boss, witch], my=my)  # no Feint in hand: hit now
+    b2.pips, b2.power_pips, b2.round = 1, 3, 4
+    with um.patch.object(brain, "incoming_per_round", return_value=300.0):
+        got = brain._hit_when_set_up(b2, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is orthrus

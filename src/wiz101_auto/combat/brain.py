@@ -1747,6 +1747,38 @@ def _dig_for_a_hit(battle: Battle) -> Action | None:
     return Action(ActionKind.DISCARD, card, reason=f"no hit in hand: {card.name} out, drawing for a hit")
 
 
+TRAP_SETUP_ROUNDS = 2  # traps in hand worth this many more rounds when they make the hit kill the boss
+
+
+def _traps_make_the_kill(battle: Battle, hit: Card, boss: Combatant) -> bool:
+    """The hit leaves the boss alive now, but with the traps in hand (up to
+    TRAP_SETUP_ROUNDS of them, each a new spell on him) it would kill him, and
+    we live that long (the player: Kallah Silverback; Orthrus killed only the
+    Gorilla Spider Witch, two Feints first and it kills both, the boss rounds
+    sooner)."""
+    if not boss.is_boss or hit_damage(hit, battle.me, boss) >= boss.health:
+        return False
+    traps = [c for c in battle.cards if EffectKind.TRAP in c.kinds and not c.is_damage
+             and c.target is Target.ENEMY_SINGLE
+             and not _is_duplicate(c, EffectKind.TRAP, boss.incoming_effects, battle.me.school.lower())]
+    seen: set = set()
+    chosen = []
+    for c in sorted(traps, key=lambda c: -sum(e.value for e in c.effects)):
+        key = c.template_id or id(c)
+        if key not in seen:
+            seen.add(key)
+            chosen.append(c)
+    chosen = chosen[:TRAP_SETUP_ROUNDS]
+    if not chosen:
+        return False
+    if battle.me.health <= (len(chosen) + 1) * incoming_per_round(battle):
+        return False  # (no time for it)
+    extra = [(f"plan:{i}", e.school, e.value / 100) for i, c in enumerate(chosen)
+             for e in c.effects if e.kind is EffectKind.TRAP]
+    trapped = replace(boss, incoming_effects=[*boss.incoming_effects, *extra])
+    return hit_damage(hit, battle.me, trapped) >= boss.health
+
+
 def _hit_when_set_up(battle: Battle, action: Action) -> Action | None:
     """Set up enough (SETUP_ENOUGH blades on us and traps on the boss/target)
     and a hit castable now: hit instead of another blade, trap or pass (the
@@ -1776,6 +1808,8 @@ def _hit_when_set_up(battle: Battle, action: Action) -> Action | None:
         return hit_damage(c, battle.me, focus) * (len(battle.live_enemies) if c.is_aoe else 1)
 
     best = max(hits, key=worth)
+    if _traps_make_the_kill(battle, best, focus):
+        return None  # (the traps in hand first: then one hit kills the boss too)
     return Action(ActionKind.CAST, best, None if best.is_aoe else focus,
                   reason=f"set up ({battle.me.blade_count} blades, {focus.trap_count} traps): hitting now")
 
