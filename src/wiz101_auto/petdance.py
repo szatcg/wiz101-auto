@@ -35,6 +35,7 @@ NPC_TITLE = ["WorldView", "NPCRangeWin", "wndTitleBackground", "NPCRangeTxtTitle
 MOVES = str.maketrans("abcd", "WDSA")
 ROUNDS = 5  # rounds in a dance game
 HOOK_SETTLE = 5.0  # the hook misses turns when a game starts right after it's placed
+QUEST_FIRST_MAX = 1800.0  # energy full: the quest it's on finished first, waited for at most this long
 MAX_GAMES = 200  # a ceiling for "until the energy runs out"
 WM_KEYDOWN, WM_KEYUP = 0x100, 0x101
 
@@ -244,6 +245,8 @@ class PetDancer:
         self.feed = self.cfg.feed
         self._next_check = 0.0
         self._dumped: set[str] = set()
+        self._wait_quest: str | None = None  # energy full: the quest to finish first
+        self._wait_since = 0.0
 
     def done(self) -> bool:
         pet = load_pet()
@@ -274,7 +277,20 @@ class PetDancer:
             return False
         now, most = await self.energy()
         if now is None or not most or now < most:
+            self._wait_quest = None
             return False
+        # The player: finish the quest it's on first, then the pet (at most
+        # QUEST_FIRST_MAX: a stuck quest doesn't keep the pet waiting).
+        if self._wait_quest is None:
+            self._wait_quest = getattr(self.q, "_active_quest", None) or ""
+            self._wait_since = time.monotonic()
+            if self._wait_quest:
+                logger.info(f"pet: energy full ({now}/{most}): the dance game after {self._wait_quest!r}")
+        open_now = {q.name for q in getattr(self.q, "_last_quests", []) or []}
+        if (self._wait_quest and self._wait_quest in open_now
+                and time.monotonic() - self._wait_since < QUEST_FIRST_MAX):
+            return False
+        self._wait_quest = None
         pet = load_pet()
         what = f"{pet.get('kind') or 'pet'} {pet.get('stage') or ''}".strip()
         logger.info(f"pet: energy full ({now}/{most}): off to the dance game ({what})")
