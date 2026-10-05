@@ -601,3 +601,21 @@ def test_the_planner_finds_feints_into_orthrus():
     b.pips, b.power_pips = 0, 4  # Orthrus alone (2200) won't kill; with two Feints (x2.89) it does
     rounds, used = plan_hand_use(b)
     assert rounds < 99 and {1, 2} <= used
+
+
+def test_three_different_feints_all_plan_in():
+    from wiz101_auto.combat.brain import plan_hand_use
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    def feint(i, tid, item=False):
+        return Card(i, "Feint", school="death", pip_cost=1, template_id=tid, item=item,
+                    effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+
+    orthrus = _myth(0, "Orthrus", 1500, 7, aoe=True, castable=False)
+    my = me(3000, 3000)
+    my.school = "myth"
+    boss = enemy("Big Boss", 7000, boss=True)  # 1500 x1.7^3 = 7370: only all three Feints kill
+    b = battle([orthrus, feint(1, 10), feint(2, 20, item=True), feint(3, 30, item=True)], [boss], my=my)
+    b.pips, b.power_pips = 0, 5
+    rounds, used = plan_hand_use(b)
+    assert rounds < 99 and {1, 2, 3} <= used

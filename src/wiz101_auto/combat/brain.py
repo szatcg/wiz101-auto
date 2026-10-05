@@ -1745,7 +1745,8 @@ def _dig_for_a_hit(battle: Battle) -> Action | None:
         elif EffectKind.TRAP in kinds and focus.trap_count >= SETUP_ENOUGH:
             spare.append((0, c))
         elif (EffectKind.BLADE in kinds or EffectKind.TRAP in kinds) and sum(
-                1 for x in battle.cards if x.name == c.name) > 1:
+                1 for x in battle.cards if x.name == c.name
+                and (x.template_id or x.name) == (c.template_id or c.name)) > 1:  # (a copy of the same spell)
             spare.append((1, c))
     if not spare:
         return None
@@ -1753,7 +1754,8 @@ def _dig_for_a_hit(battle: Battle) -> Action | None:
     return Action(ActionKind.DISCARD, card, reason=f"no hit in hand: {card.name} out, drawing for a hit")
 
 
-TRAP_SETUP_ROUNDS = 2  # traps in hand worth this many more rounds when they make the hit kill the boss
+TRAP_SETUP_ROUNDS = 3  # traps in hand worth this many more rounds when they make the hit kill the boss
+# (three Feints stack: the trained one, the Jewel of the Feint's and the Plucky Gryphon's)
 
 
 def _traps_make_the_kill(battle: Battle, hit: Card, boss: Combatant, bosses_only: bool = True) -> bool:
