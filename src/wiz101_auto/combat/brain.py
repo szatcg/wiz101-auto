@@ -243,7 +243,7 @@ def kill_chance(card: Card, attacker: Combatant, target: Combatant) -> float:
     pc, pb, normal, crit = crit_odds(card, attacker, target)
     if normal >= target.health:
         return 1.0
-    return pc * (1 - pb) if crit >= target.health else 0.0
+    return pc * (1 - pb) if crit >= CRIT_MARGIN * target.health else 0.0
 
 
 def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> float:
@@ -258,10 +258,15 @@ def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> f
     no_crit = all(normal >= t.health for (_c, _b, normal, _x), t in zip(odds, targets, strict=True))
     on_crit = 1.0
     for (_c, pb, normal, crit), t in zip(odds, targets, strict=True):
-        on_crit *= 1.0 if normal >= t.health else ((1 - pb) if crit >= t.health else 0.0)
+        # (A crit that only just kills doesn't count: a weakness cast before
+        # our turn, or a low roll, left both Shadow-Web Haunts alive after a
+        # crit Humongofrog predicted ~50 over one's health.)
+        on_crit *= 1.0 if normal >= t.health else ((1 - pb) if crit >= CRIT_MARGIN * t.health else 0.0)
     return (1 - pc) * (1.0 if no_crit else 0.0) + pc * on_crit
 
 
+CRIT_MARGIN = 1.15  # a crit "kills" only with this much over the health (rolls, a weakness cast first)
+CRIT_GAMBLE_PLAN_MAX = 3  # a sure kill this many rounds off (and safe): no gamble
 CRIT_GAMBLE = 0.5  # a spell that ends the fight only on a crit is cast at this chance or better
 
 
@@ -271,6 +276,15 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     the fight already, or nothing ends it with CRIT_GAMBLE odds."""
     alive = battle.live_enemies
     if not alive:
+        return None
+    # A sure kill a few rounds off, and not in danger: set it up rather than
+    # gamble (the player: the gamble crit and still killed none; a blade more
+    # would have made it sure).
+    try:
+        sure = plan_hand_use(battle)[0]
+    except Exception:
+        sure = 99
+    if sure <= CRIT_GAMBLE_PLAN_MAX and battle.me.health > 2 * incoming_per_round(battle):
         return None
     if action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage:
         if clear_chance(action.card, battle.me, alive if action.card.is_aoe else

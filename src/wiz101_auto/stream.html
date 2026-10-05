@@ -119,6 +119,8 @@
   .foe .bar > .b-critmax { background: linear-gradient(90deg, #c99a1e, #ffd54f); box-shadow: 0 0 10px rgba(255, 213, 79, 0.8);
     animation: pulse 0.9s infinite; }
   .foe .dmg { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
+  .gamble { margin-top: 8px; padding: 6px 10px; border-radius: 8px; font-weight: 800; color: #10121f;
+    background: linear-gradient(90deg, #c99a1e, #ffd54f); box-shadow: 0 0 12px rgba(255, 213, 79, 0.7); }
   .foe .ko { color: #10121f; background: var(--gold); border-radius: 5px; padding: 0 6px; margin-left: 6px; font-weight: 900; }
   .move { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
   .move .what { font-weight: 800; font-size: 16px; }
@@ -857,9 +859,12 @@ function renderLower() {
         ${cr && cr.c ? `<div class="critline">💥 crit ${cr.c}% · blocks ${cr.b}% · ${cr.n} → ${cr.x} on a crit${cr.x >= e.hp && cr.n < e.hp ? ' <span class="ko">KO on a crit</span>' : ""}</div>` : ""}</div>`;
     }).join("");
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
+    // A crit gamble: the odds it pays off, plainly (the player couldn't tell).
+    const gm = /ends the fight on a crit: (\d+)%/.exec(b.text || "");
+    const gamble = gm ? `<div class="gamble">🎲 Crit gamble: ${gm[1]}% to end the fight (gold: damage on a crit)</div>` : "";
     $("lower").className = "card grow battle";
     $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3></div>
-      ${foes}
+      ${gamble}${foes}
       <div class="move"><span class="label">Wizzbot's move</span><div class="what">${what}</div></div>
       ${b.plan ? `<div class="plan">🧮 Plan: ${esc(b.plan.replaceAll(" > ", " → ").split(" | ").join(" · ").replace(/; skipping the minion.*/, ""))}</div>` : ""}`;
     return;

@@ -38,9 +38,9 @@ def test_kill_and_clear_chances():
     assert kill_chance(BOLT, m, foe(900)) == 1.0          # dies anyway
     assert kill_chance(BOLT, m, foe(1500)) > 0.5          # only on a crit (x2, no block): the crit chance
     assert kill_chance(BOLT, m, foe(5000)) == 0.0         # not even on a crit
-    two = [foe(1000, name="A"), foe(800, 100, name="B")]  # Orthrus 700: both die only on a crit
+    two = [foe(1000, name="A"), foe(750, 100, name="B")]  # Orthrus 700: both die only on a crit
     p = clear_chance(ORTHRUS, m, two)
-    assert 0 < p < crit_chance(m, two[0], "myth")         # B may block it (x1.25 still kills B)
+    assert 0 < p < crit_chance(m, two[0], "myth")         # B may block it (x1.25 still kills B, with margin)
 
 
 def test_the_crit_gamble():
