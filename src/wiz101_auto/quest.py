@@ -663,6 +663,17 @@ def in_same_area(zone: str, first_room: str) -> bool:
     return zone.startswith(area + "/") and area.count("/") >= 1
 
 
+def room_of(zone: str, where: str) -> bool:
+    """Is `zone` a building of the area `where` ("Zafaria/Interiors/
+    ZF_Z10_I03_Drum_House" of "Zafaria/ZF_Z10_Elephant_Graveyard": the same
+    area code, ZF_Z10)?"""
+    if "/interiors/" not in zone.lower():
+        return False
+    room, area = zone.rsplit("/", 1)[-1].split("_"), where.rsplit("/", 1)[-1].split("_")
+    return (len(room) > 2 and len(area) > 2 and room[:2] == area[:2]
+            and zone.split("/", 1)[0] == where.split("/", 1)[0])
+
+
 def dungeon_quest(
     quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset(),
     skipped: set[str] = frozenset(), entered_with: str | None = None,
@@ -7589,7 +7600,17 @@ class Quester:
             where = objective_zone(objective)
             # Not while searching the zones around it (see _search_next_zone).
             searching_here = zone in self._zones_searched.get(objective, ())
-            if where and where != zone and not searching_here:
+            if where and where != zone and room_of(zone or "", where):
+                # A building of that area (the Drum House in Elephant Graveyard:
+                # "Collect Drum in Elephant Graveyard" has its drums inside, no
+                # marker, and the bot waited 3 min and set the main quest aside).
+                if await self.collect(item, objective):
+                    return
+                if gate_toward(zone, where, self._bad_gates):
+                    logger.info(f"{objective!r}: none in this building; going out to {where}")
+                    await self.go_to_zone(where)
+                    return
+            elif where and where != zone and not searching_here:
                 if gate_toward(zone, where, self._bad_gates):
                     logger.info(f"{objective!r} is in {where}; going there first")
                     await self.go_to_zone(where)
