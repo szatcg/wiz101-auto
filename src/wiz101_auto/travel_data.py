@@ -173,6 +173,15 @@ EXTRA_DISPLAY_ZONES = [
 def named_zone(objective: str, display_zones: DisplayZones) -> str | None:
     """Zone id of the place `objective` names ("... in Golem Court"), if known."""
     text = objective.lower()
+    # The place after the last " in " first: "Go to Barracks in Zamunda" named
+    # Krokotopia's Barracks (the first known name anywhere in the text).
+    if " in " in text:
+        tail = text.rsplit(" in ", 1)[1].strip()
+        tail = re.sub(r"\s*\(\d+ of \d+\)\s*$", "", tail)
+        hit = next((zone_id for name, zone_id in display_zones if name == tail), None) or next(
+            (zone_id for name, zone_id in display_zones if name in tail), None)
+        if hit:
+            return hit
     return next((zone_id for name, zone_id in display_zones if name in text), None)
 
 

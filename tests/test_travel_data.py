@@ -217,3 +217,11 @@ def test_is_world_hub():
     assert is_world_hub("DragonSpire/DS_Hub_Cathedral")
     assert not is_world_hub("DragonSpire/DS_A2_Battle/DS_A2Hub_Necropolis")
     assert not is_world_hub("")
+
+
+def test_the_place_after_in_comes_first():
+    from wiz101_auto.travel_data import objective_zone
+
+    assert objective_zone("Go to Barracks in Zamunda").startswith("Zafaria/")
+    assert objective_zone("Defeat Greyhorn Mercenaries in Zamunda Outskirts (0 of 2)") == \
+        "Zafaria/ZF_Z05_Zamunda_Outskirts"
