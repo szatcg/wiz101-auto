@@ -7130,17 +7130,23 @@ class Quester:
             if switched:
                 logger.info("the game is tracking another quest: ranking the quest book again")
             self.controller.allow_idle(30)
+            tracked = False
             try:
                 # Reading the quest book stands still: not beside enemies.
                 await move_to_safety(self.client, EXPOSED_RADIUS, "before reading the quest book")
-                if await self.prioritize_quests():
+                tracked = await self.prioritize_quests()
+                if tracked:
                     await asyncio.sleep(1.0)
                     objective = await self.objective()
             finally:
                 self.controller.end_idle()
             self._ranked_for = objective
             try:
-                self._ranked_quest = await self.client.quest_id()
+                # Kept as it was before the reading when the ranking only
+                # continued: a switch made by the game while the book was read
+                # (re-entering the King's Tomb tracked The Spiral Cup) is then
+                # seen at the next step, not taken for our quest's next step.
+                self._ranked_quest = await self.client.quest_id() if tracked or quest_id is None else quest_id
             except Exception:
                 pass
             # (After the ranking too: Jotun's quest set aside after two losses,
