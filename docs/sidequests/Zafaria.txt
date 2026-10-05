@@ -1,0 +1,231 @@
+Zafaria side quests by quest giver (from the player, 2026-10-05; givers.py reads it).
+
+(Rewards aren't listed: '(0 XP)' only marks each quest line for the parser.)
+
+BAOBAB CROSSROADS
+
+Koyate Ghostmane
+To Market, To Market (0 XP)
+- Talk to Koyate Ghostmane in Baobab Market
+
+Inyanga Whitestripes
+The Staff of Solomon (0 XP)
+- Defeat Jackal Bandit and Collect the Staff of Solomon
+
+Inyanga Whitestripes
+Mane of Terror (0 XP)
+- Go to Blackmane's Cave
+- Defeat Amra Blackmane
+- Go to the Cage
+
+Inyanga Whitestripes
+Astral Weeks (0 XP)
+- Talk to Mandisa Autumnrain in Zamunda
+
+Inyanga Whitestripes
+Bungle in the Jungle (0 XP)
+- Talk to Koko Smokesign
+
+Inyanga Whitestripes
+Professor Who? (0 XP)
+- Defeat Gorilla Spider Witch
+
+Inyanga Whitestripes
+Relative Dimensions (0 XP)
+- Talk to the Professor in Regent's Square, Marleybone
+
+BAOBAB CROWN
+
+Kiliman Copperleaf
+Art History (0 XP)
+- Find the Zafaria History books
+
+Kiliman Copperleaf
+Family Tree (0 XP)
+- Defeat Spearfang Slasher and Collect 11 Book Pages
+
+Prospector Zeke
+Hey Hey It's the Monkeys (0 XP)
+- Find the Monkeys
+
+Prospector Zeke
+Zantar of the Gorillas (0 XP)
+- Talk to Zantar in Drum Jungle
+
+BAOBAB MARKET
+
+Koyate Ghostmane
+Drum a Little Drum (0 XP)
+- Craft 2 Spirit Caller Drums (Grandmaster Artisan only)
+
+Rose Houghton
+Bad Vacation (0 XP)
+- Defeat Inzinzebu Bandit and Collect Purse
+
+Rose Houghton
+Treacherous Wilds (0 XP)
+- Talk to Ntokozo Truestride
+- Defeat Inzinzebu Bandit, Lion Ravager, and Jackal Bandit and Collect Clues
+
+Rose Houghton
+T.I.Z. (0 XP)
+- Defeat Spearfang Slasher, Thornpaw Hunter and Collect Traveling Papers
+
+Rose Houghton
+Out of Zafaria (0 XP)
+- Talk to Professor Winthrop in the Altar of Kings, Krokotopia
+
+SAVANNAH
+
+Olemeeli Thornpaw
+Better Mousetrap (0 XP)
+- Collect Whistling Thorn Wood
+- Place Mousetrap in Savannah
+
+Kadinzebu Thunderhoof
+Rite of Passage (0 XP)
+- Find Stick
+- Find Sharp Blade
+- Find Rawhide
+
+Kadinzebu Thunderhoof
+Spearcraft (0 XP)
+- Talk to Koyate Ghostmane
+
+Esop Thornpaw
+Spirit and Shadow (0 XP)
+- Locate and Defeat Killmore Spiritwalker and Bwana Shadowriver
+
+ZAMUNDA OUTSKIRTS
+
+Mondli Greenhoof
+Gone Basket Gone (0 XP)
+- Defeat Jackal Bandit and Collect 3 Red Tea
+- Defeat Longdreamer Shaman and Collect 2 Grains of Paradise
+- Defeat Greyhorn Mercenary and Collect Woven Basket
+
+Mondli Greenhoof
+Gift Basket (0 XP)
+- Talk to Sir Reginald Baxby
+
+ZAMUNDA
+
+Mandisa Autumnrain
+Stars and Stripes (0 XP) (after finishing “Astral Weeks”)
+- Defeat Longdreamer Shaman and Collect 3 Star Ritual Pages
+- Go to Star Obelisk
+
+Amahle Autumnrain
+Rival Gangs (0 XP)
+- Talk to Juma Fasttrack
+- Talk to Laduma Thunderhoof
+
+Themba Truestride
+Lost Letter (0 XP)
+- Talk to Mandisa Autumnrain
+
+Themba Truestride
+Sleepless in Zamunda (0 XP)
+- Talk to Juma Fasttrack
+
+Themba Truestride
+TH is for Themba (0 XP)
+- Defeat Jackal Bandit and Collect Letter
+- Go to Karl's Cave
+- Defeat Karl Thriceborn
+
+Themba Truestride
+You've Got Mail (0 XP)
+- Talk to Mandisa Autumnrain
+
+Zebu Blackstripes
+King of Old Zafaria (0 XP)
+- Defeat Jackal Bandit and Collect Sword of the Duelist
+
+Zebu Blackstripes
+Scrolls of the Zebu Kings (0 XP)
+- Defeat Longdreamer Shaman and Collect 3 Scrolls
+
+Zebu Blackstripes
+Number One Fan (0 XP)
+- Defeat Greyhorn Mercenary and Collect War Fan
+
+STONE TOWN
+
+Kella Longthought
+Mousecapades (0 XP)
+- Catch 4 Mice
+
+Kella Longthought
+Wind-up Toy (0 XP)
+- Look for Sneaky Figure
+- Search Tower, Defeat Zandile Wildside
+
+Aryanah Silvertusk
+Stone Age (0 XP)
+- Talk to Sobaka
+- Go to library
+- Talk to Zarafa Bayleaf
+
+Jorton Whoghard
+Cool Cat (0 XP)
+- Talk to Rakstede Steelhorn
+- Talk to Aleksi Flowers
+- Defeat Aleksi Flowers
+- Locate Ice Cat's Pen
+
+Jorton Whoghard
+Savaberries (0 XP)
+- Defeat Greyhorn Mercenary and Collect Information
+- Defeat Fire Lion Ravagers and Collect 4 Savaberries
+
+Jorton Whoghard
+Playscape (0 XP)
+- Defeat Musuth Berserker and Collect Charmer Toy
+
+WATERFRONT
+
+Zeddgan Spellfeather
+Four Feathers (0 XP)
+- Go to Nathi's Clearing
+- Collect Flameingo Feather
+- Locate and Defeat Jata Brokenspear
+- Locate Amedras' Tower, Defeat Amedras Lightstep
+- Locate Bolu Bigfist's Hut
+
+Zarafa Bayleaf
+Key Largo (0 XP) (after finishing “Stone Age”)
+- Defeat Black Tusk Cultist and Collect Key
+
+Zarafa Bayleaf
+Long Memory (0 XP)
+- Go to Waterfront Library
+- Read History of Stone Town
+
+Zarafa Bayleaf
+Queen's Peace (0 XP)
+- Defeat Greyhorn Mercenary and Collect Zarafa's Letter
+- Talk to Aryanah Silvertusk
+
+Zarafa Bayleaf
+Say What? (0 XP)
+- Defeat Musuth Berserker and Collect Akkadian Stone Piece
+
+Zarafa Bayleaf
+Glue Stick (0 XP)
+- Talk to Zeddgan Spellfeather
+
+Zarafa Bayleaf
+Pot of Glue (0 XP)
+- Defeat Black Tusk Cultist and Collect Birch-bark Tar Pot
+
+Zarafa Bayleaf
+Sticky Words (0 XP)
+- Locate Akkadian Stone
+
+DRUM JUNGLE
+
+Koko Smokesign
+Midnight Sun (0 XP)
+- Defeat Black Tusk Cultist and Collect 4 Obelisk Piece
+- Go to Sun Obelisk

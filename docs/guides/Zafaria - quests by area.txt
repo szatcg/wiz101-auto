@@ -1,0 +1,650 @@
+Zafaria quests by area and quest giver (from the player, 2026-10-05).
+Source for docs/guides/Zafaria.txt (main) and docs/sidequests/Zafaria.txt (side).
+
+.:Baobab Crossroads:.
+
+Main Quests
+
+Quest Giver: Inyanga Whitestripes
+Quest: Jambo Means Hello
+Task: Talk to Lethu Blunthoof
+Quest: Meet the Elephants
+Task: Talk to Rasik Pridefall in Baobab Crown
+Quest: Into the Lion's Jaws (after completing "Permission Granted")
+Task: Talk to Lethu Blunthoof
+Quest: Fruit of Life (after completing "Meddling Wizards")
+Task: Locate 3 Baobab Fruit
+Task: Locate Cauldron
+Quest: Lioness Sleeps Tonight
+Task: Defeat 8 Lion Ravagers
+Task: Go to Queen's Cave
+Task: Defeat and Talk to Tanei Ghostmane
+Quest: Book of Babalawo (after completing "Heal Me")
+Task: Talk to Kiliman Copperleaf
+Task: Locate Book in Baobab Crown
+Quest: Local Treasures
+Task: Talk to Unathi Nightrunner and Vir Goodheart
+Task: Talk to Ntokozo Truestride and Marwa Jadetusk
+Quest: Off the Boil
+Task: Use Cauldron
+Task: Locate Watering Hole in Savannah
+Task: Talk to Tanei Ghostmane
+Quest: Heart of Darkness (after completing "Tree of Woe")
+Task: Use Candles
+Quest: Chasing Shadows
+Task: Defeat Morganthe
+Quest: Through Glass, Darkly
+Task: Talk to Merle Ambrose
+
+Quest Giver: Lethu Blunthoof
+Quest: Lion Around
+Task: Talk to Koyate Ghostmane
+Quest: Restricted Access (after completing "No Bother")
+Task: Talk to Inyanga Whitestripes in Baobab Crossroads
+Quest: In the Grass
+Task: Talk to Tik-tik Snaketongue in the Savannah
+
+Quest Giver: Koyate Ghostmane
+Quest: Going to Market
+Task: Defeat Inzinzebu Bandits in Baobab Market and Collect 6 Crafting Goods
+Quest: No Bother
+Task: Talk to Lethu Blunthoof
+
+Side Quests
+
+Quest Giver: Koyate Ghostmane
+Quest: To Market, To Market
+Task: Talk to Koyate Ghostmane in Baobab Market
+
+Quest Giver: Inyanga Whitestripes
+Quest: The Staff of Solomon
+Task: Defeat Jackal Bandit and Collect the Staff of Solomon
+Quest: Mane of Terror
+Task: Go to Blackmane's Cave
+Task: Defeat Amra Blackmane
+Task: Go to the Cage
+Quest: Astral Weeks
+Task: Talk to Mandisa Autumnrain in Zamunda
+Quest: Bungle in the Jungle
+Task: Talk to Koko Smokesign
+Quest: Professor Who?
+Task: Defeat Gorilla Spider Witch
+Quest: Relative Dimensions
+Task: Talk to the Professor in Regent's Square, Marleybone
+
+.:Baobab Crown:.
+
+Main Quests
+
+Quest Giver: Rasik Pridefall
+Quest: I Intend To Have Other Plans
+Task: Talk to Kakenya Brokenfang
+
+Quest Giver: Kakenya Brokenfang
+Quest: Lost Your Way
+Task: Go to Dormitory
+Task: Defeat Goliath Bra'kym'tra
+Task: Talk to Simone Brightlance
+Task: Talk to Kakenya Brokenfang
+Quest: Night Running
+Task: Talk to Unathi Nightrunner
+
+Quest Giver: Unathi Nightrunner
+Quest: Lion Taming
+Task: Defeat 4 Spearfang Slashers
+Quest: Wasn't He Just There?
+Task: Talk to Vir Goodheart
+
+Quest Giver: Vir Goodheart
+Quest: Outlaws in the Market
+Task: Defeat Inzinzebu Bandits and Collect Spices
+Task: Defeat Spearfang Slasher and Collect Jewelry
+Quest: Permission Granted
+Task: Talk to Inyanga Whitestripes
+Quest: Tree of Woe (after completing "Tomb Sweet Tomb")
+Task: Talk to Kakenya Brokenfang and Unathi Nightrunner
+Task: Talk to Inyanga Whitestripes
+
+Side Quests
+
+Quest Giver: Kiliman Copperleaf
+Quest: Art History
+Task: Find the Zafaria History books
+Quest: Family Tree
+Task: Defeat Spearfang Slasher and Collect 11 Book Pages
+
+Quest Giver: Prospector Zeke
+Quest: Hey Hey It's the Monkeys
+Task: Find the Monkeys
+Quest: Zantar of the Gorillas
+Task: Talk to Zantar in Drum Jungle
+
+.:Baobab Market:.
+
+Main Quests
+
+Quest Giver: Hannibal Onetusk
+Quest: Savannah Run (after completing "Letter for the Queen")
+Task: Talk to Esop Thornpaw in the Savannah
+Quest: Still Broke
+Task: Talk to Kiliman Copperleaf
+Task: Locate Book
+Task: Go to Zafaria Queen
+Quest: Drum Run
+Task: Locate Zafarian Queen and Talk to Hannibal Onetusk
+Quest: On the Docks
+Task: Talk to Amar Sharptusk
+
+Side Quests
+
+Quest Giver: Koyate Ghostmane
+Quest: Drum a Little Drum
+Task: Craft 2 Spirit Caller Drums (Grandmaster Artisan only)
+
+Quest Giver: Rose Houghton
+Quest: Bad Vacation
+Task: Defeat Inzinzebu Bandit and Collect Purse
+Quest: Treacherous Wilds
+Task: Talk to Ntokozo Truestride
+Task: Defeat Inzinzebu Bandit, Lion Ravager, and Jackal Bandit and Collect Clues
+Quest: T.I.Z.
+Task: Defeat Spearfang Slasher, Thornpaw Hunter and Collect Traveling Papers
+Quest: Out of Zafaria
+Task: Talk to Professor Winthrop in the Altar of Kings, Krokotopia
+
+.:Savannah:.
+
+Main Quests
+
+Quest Giver: Tik-tik Snaketongue
+Quest: Master of Disaster
+Task: Explore Msizi Redband's hut
+Quest: Show of Strength
+Task: Defeat 5 Thornpaw Hunters
+Task: Talk to Olemeeli Thornpaw
+Quest: Dangerous Attraction (after completing "Wild Lion Chase")
+Task: Defeat 6 Darkmane Raiders
+Task: Talk to Kakuta Darkmane
+Quest: Poisoned Well (after completing "Rock of Ages")
+Task: Defeat Fire Lion Ravagers and Collect 8 Guide's Staff
+Quest: Meddling Wizards
+Task: Enter Tik-tik's Hut
+Task: Defeat Certorr
+Task: Talk to Inyanga Whitestripes
+
+Quest Giver: Olemeeli Thornpaw
+Quest: All's Well
+Task: Collect 3 Well Stones
+Task: Repair Well
+Quest: Open Cages
+Task: Open Cage
+Task: Talk to Edwin Trollstrider
+Quest: Wild Lion Chase
+Task: Talk to Tik-tik Snaketongue
+
+Quest Giver: Kakuta Darkmane
+Quest: Living with Lions
+Task: Defeat Iklaw Warrior and Collect 6 Spears
+Quest: Biltong
+Task: Defeat Thornpaw Hunter and Collect 10 biltong
+Quest: Walk on the Wild Side
+Task: Talk to Eden Windforest
+Quest: Rock of Ages (after completing "My Work is Done")
+Task: Talk to Tik-tik Snaketongue
+
+Quest Giver: Eden Windforest
+Quest: Plight of the Lions
+Task: Talk to Captain Bheki Blackhoof
+Quest: Does Your Garden Grow (after completing "Narley Dude")
+Task: Plant seeds in soil
+Quest: My Work is Done
+Task: Talk to Kakuta Darkmane
+
+Quest Giver: Captain Bheki Blackhoof
+Quest: Picket Fences
+Task: Collect 3 Bundle of Sticks
+Task: Repair Camp Fence
+Quest: In the Cold Distance
+Task: Repair Zebra Scout Tower
+Quest: Fight to Survive
+Task: Defeat Fire Lion Ravager
+Task: Scout Waterhole
+Quest: Narley Dude
+Task: Talk to Narley
+Task: Talk to Eden Windforest
+Quest: Out of the Sun (after completing "Top of the Rock")
+Task: Enter Captain Blackhoof's Hut
+Quest: Coming to Zamunda
+Task: Talk to Msizi Redband
+Quest: The Road to Zamunda
+Task: Talk to Idube Firedancer
+Task: Talk to Sizani Sunrunner in Zamunda Outskirts
+
+Quest Giver: Queen Tanei Ghostmane
+Quest: Heal Me
+Task: Talk to Inyanga Whitestripes
+Quest: Beat of a Different Drum (after completing "Off the Boil")
+Task: Collect 3 Bridge Slats
+Task: Repair Broken Bridge
+Task: Talk to Esop Thornpaw
+Quest: Top of the Rock (after completing "Drum Queen")
+Task: Travel to the Tsavo Door
+Task: Play Drum Near King's Cage
+Task: Talk to Mansa
+Task: Talk to Bheki Blackhoof
+
+Quest Giver: Esop Thornpaw
+Quest: Drum Kit
+Task: Defeat Fire Lion Ravager and Collect Lion Drums
+Quest: Drum Queen
+Task: Talk to Tanei Ghostmane
+Quest: Lawn Ornament (after completing "Savannah Run")
+Task: Talk to Kakuta Darkmane
+Task: Collect Evil Magma Peas
+Quest: Give It Away Now
+Task: Collect Boiler
+Task: Talk to Hannibal Onetusk
+
+Side Quests
+
+Quest Giver: Olemeeli Thornpaw
+Quest: Better Mousetrap
+Task: Collect Whistling Thorn Wood
+Task: Place Mousetrap in Savannah
+
+Quest Giver: Kadinzebu Thunderhoof
+Quest: Rite of Passage
+Task: Find Stick
+Task: Find Sharp Blade
+Task: Find Rawhide
+Quest: Spearcraft
+Task: Talk to Koyate Ghostmane
+
+Quest Giver: Esop Thornpaw
+Quest: Spirit and Shadow
+Task: Locate and Defeat Killmore Spiritwalker and Bwana Shadowriver
+
+.:Zamunda Outskirts:.
+
+Main Quests
+
+Quest Giver: Sizani Sunrunner
+Quest: Chaos Rains
+Task: Locate Wagon
+Task: Find Clues
+Task: Defeat Jackal Bandit and Collect Provisions
+Quest: Tower Defense
+Task: Defeat 6 Greyhorn Mercenaries
+Task: Free 4 Igoka Prisoners
+Quest: Through the Zorse Gates
+Task: Talk to Sizani Sunrunner
+Quest: Burning Tower (after completing "Helter Skelter")
+Task: Defeat 7 Greyhorn Mercenaries
+Task: Explore Survey Tower Area
+Quest: Master of the River
+Task: Defeat Longdreamer Shamans and Collect 10 Stone Talismans
+Quest: Water Beats Fire
+Task: Defeat 5 Water Elementals
+Task: Put Out Fire at Tower
+Quest: Back on the Trail
+Task: Explore Magician's Hut
+Task: Pick up Paint Cans and Bring to Sizani Sunrunner in Zamunda
+
+Side Quests
+
+Quest Giver: Mondli Greenhoof
+Quest: Gone Basket Gone (talk to Reginald Baxby in Golem Court first)
+Task: Defeat Jackal Bandit and Collect 3 Red Tea
+Task: Defeat Longdreamer Shaman and Collect 2 Grains of Paradise
+Task: Defeat Greyhorn Mercenary and Collect Woven Basket
+Quest: Gift Basket
+Task: Talk to Sir Reginald Baxby
+
+.:Zamunda:.
+
+Main Quests
+
+Quest Giver: Sizani Sunrunner
+Quest: Back into the Fray
+Task: Defeat Greyhorn Mercenaries and Collect 8 Shields
+Task: Return Shields to Shield Rack
+Quest: Muster the Troops
+Task: Gather 6 Igoka Defenders
+Task: Enter Barracks
+Task: Defeat Igoka Defender
+Quest: The King's Shadow
+Task: Talk to Tse-tse Snaketail
+Quest: Helter Skelter (after completing "Prisoner of Zamunda")
+Task: Find the Hole-In-The-Wall
+Task: Collect 3 Piles of Wood
+Task: Fix the Hole in the Wall
+Quest: Snake in the Grass (after completing "Back on the Trail")
+Task: Open the Moon Gardens Gate
+Task: Talk to Amahle Autumnrain
+
+Quest Giver: Tse-tse Snaketail
+Quest: Don't Impress Me Much
+Task: Defeat 10 Longdreamer Shamans and 10 Greyhorn Mercenaries
+Quest: Prisoner of Zamunda
+Task: Go to the Barracks
+Task: Defeat Painted Rhino Soldier
+Task: Free 5 Igoka Prisoners
+Task: Talk to Sizani Sunrunner
+
+Quest Giver: Amahle Autumnrain
+Quest: Shadow of a King
+Task: Enter the King's Court
+Task: Talk to Shaka Zebu
+Quest: Wild Zorses
+Task: Defeat 8 Imp Raiders
+Quest: The Snake's Footprints
+Task: Talk to Mandisa Autumnrain
+Task: Catch Magician
+Task: Defeat Goliath Chon'dorr'hna
+Task: Talk to Stefan Diresign
+Quest: Tomb Soldiers
+Task: Locate King's Tomb
+Task: Clear Spiderwebs
+Task: Talk to Themba Truestride
+Quest: Lust for Life (after completing "Into the Zebra Tomb")
+Task: Defeat Evil Spirit
+Task: Defeat Shaka Zebu
+Task: Chop down Poisonous Vine, Talk to Shaka Zebu
+Quest: Letter for the Queen (after completing "Long Winded Warrior")
+Task: Talk to Hannibal Onetusk in Baobab Market
+
+Quest Giver: Themba Truestride
+Quest: Into the Zebra Tomb
+Task: Defeat Longdreamer Shamans and Collect 4 Magic Powder
+Task: Locate 2 Black Smoke Braziers
+Task: Use White Smoke Brazier
+Task: Explore King's Tomb
+Task: Talk to Amahle Autumnrain
+
+Quest Giver: Shaka Zebu
+Quest: Long Winded Warrior (after completing "Lust for Life")
+Task: Talk to Amahle Autumnrain
+
+Side Quests
+
+Quest Giver: Mandisa Autumnrain
+Quest: Stars and Stripes (after completing "Astral Weeks")
+Task: Defeat Longdreamer Shaman and Collect 3 Star Ritual Pages
+Task: Go to Star Obelisk
+
+Quest Giver: Amahle Autumnrain
+Quest: Rival Gangs
+Task: Talk to Juma Fasttrack
+Task: Talk to Laduma Thunderhoof
+
+Quest Giver: Themba Truestride
+Quest: Lost Letter
+Task: Talk to Mandisa Autumnrain
+Quest: Sleepless in Zamunda
+Task: Talk to Juma Fasttrack
+Quest: TH is for Themba
+Task: Defeat Jackal Bandit and Collect Letter
+Task: Go to Karl's Cave
+Task: Defeat Karl Thriceborn
+Quest: You've Got Mail
+Task: Talk to Mandisa Autumnrain
+
+Quest Giver: Zebu Blackstripes
+Quest: King of Old Zafaria
+Task: Defeat Jackal Bandit and Collect Sword of the Duelist
+Quest: Scrolls of the Zebu Kings
+Task: Defeat Longdreamer Shaman and Collect 3 Scrolls
+Quest: Number One Fan
+Task: Defeat Greyhorn Mercenary and Collect War Fan
+
+.:Stone Town:.
+
+Main Quests
+
+Quest Giver: Amar Sharptusk
+Quest: Sharp as a Tusk
+Task: Defeat 7 Musuth Berserker
+Quest: Missing Stripes
+Task: Talk to Aryanah Silvertusk
+
+Quest Giver: Aryanah Silvertusk
+Quest: The Silver Queen
+Task: Talk to Hathi Irontrunk
+Quest: Quiet Riot (after completing "Class is Very Entertaining")
+Task: Talk to Hathi Irontrunk
+Quest: Let Him Free (after completing "Do I Look Fat in This?")
+Task: Free Lail Brighteyes
+Quest: Hannibal's Queen
+Task: Talk to Hannibal Onetusk
+
+Quest Giver: Hathi Irontrunk
+Quest: Elephant March
+Task: Talk to Rakstede Steelhorn
+Quest: Orders from the Queen
+Task: Talk to Aryanah Silvertusk
+Quest: My Pen!
+Task: Defeat Musuth Berserker and Collect Pen and Parchment
+Quest: All Access Pass
+Task: Talk to Rakstede Steelhorn
+Task: Talk to Lail Brighteyes
+Quest: Calm Like a Bomb (after completing "Quiet Riot")
+Task: Defeat 7 Greyhorn Mercenaries
+Quest: Bulls on Parade
+Task: Defeat Musuth Berserker and Collect Headdress
+Quest: Know Your Enemy
+Task: Talk to Aziza Roughfoot and Shara Whitetusk
+Task: Talk to Kella Longthought and Tala Snakesquasher
+Quest: Morning Report (after completing "Down by the River")
+Task: Talk to Aryanah Silvertusk
+Quest: Arrest That Man
+Task: Find Councilor's House (Talk to Vir Goodheart)
+
+Quest Giver: Lail Brighteyes
+Quest: Class is Very Entertaining
+Task: Talk to Aryanah Silvertusk
+
+Quest Giver: Tala Snakesquasher
+Quest: Across the Spiral
+Task: Defeat Musuth Berserker and Collect 3 Headdress
+Quest: Welcome to the Jungle
+Task: Talk to Hannibal Onetusk
+
+Quest Giver: Hannibal Onetusk
+Quest: River Rapids
+Task: Defeat 6 Greyhorn Mercenary
+Quest: The Cat Who Could
+Task: Talk to Sobaka
+Quest: Fastest Hunk of Junk (after completing "Down the Crazy River")
+Task: Board Sobaka's Boat
+Task: Talk to Sobaka in Waterfront
+Quest: You Can Drive (after completing "Hannibal's Queen")
+Task: Talk to Mago Onetusk
+
+Quest Giver: Sobaka
+Quest: Down the Crazy River
+Task: Defeat 5 Black Tusk Cultists
+Task: Find Sobaka
+
+Quest Giver: Vir Goodheart
+Quest: Catching Shadows
+Task: Board Sobaka's Boat
+Quest: Mission Impossible
+Task: Defeat Black Tusk Cultist and Collect Password
+Quest: Do I Look Fat in This?
+Task: Talk to Zeddgan Spellfeather
+Task: Locate Cauldron
+Task: Enter Black Palace
+Task: Defeat Source of Corruption
+Task: Talk to Aryanah Silvertusk
+
+Side Quests
+
+Quest Giver: Kella Longthought
+Quest: Mousecapades
+Task: Catch 4 Mice
+Quest: Wind-up Toy
+Task: Look for Sneaky Figure
+Task: Search Tower, Defeat Zandile Wildside
+
+Quest Giver: Aryanah Silvertusk
+Quest: Stone Age
+Task: Talk to Sobaka
+Task: Go to library
+Task: Talk to Zarafa Bayleaf
+
+Quest Giver: Jorton Whoghard
+Quest: Cool Cat
+Task: Talk to Rakstede Steelhorn
+Task: Talk to Aleksi Flowers
+Task: Defeat Aleksi Flowers
+Task: Locate Ice Cat's Pen
+Quest: Savaberries
+Task: Defeat Greyhorn Mercenary and Collect Information
+Task: Defeat Fire Lion Ravagers and Collect 4 Savaberries
+Quest: Playscape
+Task: Defeat Musuth Berserker and Collect Charmer Toy
+
+.:Waterfront:.
+
+Main Quests
+
+Quest Giver: Sobaka
+Quest: Trail of the Trickster
+Task: Defeat 4 Greyhorn Mercenary
+Quest: Under the Big Tent
+Task: Enter Belloq's Tent
+Task: Talk to Belloq
+Task: Defeat Belloq
+Quest: Barge Right In
+Task: Enter Stone Town Barge
+Task: Defeat Black Tusk Cultist, Locate Bill of Lading
+Quest: Down by the River
+Task: Use Sobaka's Boat, Talk to Hathi Irontrunk
+
+Quest Giver: Mago Onetusk
+Quest: Dancing Queen
+Task: Board the Dancing Queen, Talk to Mago Onetusk
+
+Side Quests
+
+Quest Giver: Zeddgan Spellfeather
+Quest: Four Feathers
+Task: Go to Nathi's Clearing
+Task: Collect Flameingo Feather
+Task: Locate and Defeat Jata Brokenspear
+Task: Locate Amedras' Tower, Defeat Amedras Lightstep
+Task: Locate Bolu Bigfist's Hut
+
+Quest Giver: Zarafa Bayleaf
+Quest: Key Largo (after completing "Stone Age")
+Task: Defeat Black Tusk Cultist and Collect Key
+Quest: Long Memory
+Task: Go to Waterfront Library
+Task: Read History of Stone Town
+Quest: Queen's Peace
+Task: Defeat Greyhorn Mercenary and Collect Zarafa's Letter
+Task: Talk to Aryanah Silvertusk
+Quest: Say What?
+Task: Defeat Musuth Berserker and Collect Akkadian Stone Piece
+Quest: Glue Stick
+Task: Talk to Zeddgan Spellfeather
+Quest: Pot of Glue
+Task: Defeat Black Tusk Cultist and Collect Birch-bark Tar Pot
+Quest: Sticky Words
+Task: Locate Akkadian Stone
+
+.:Drum Jungle:.
+
+Main Quests
+
+Quest Giver: Mago Onetusk
+Quest: Lost in the Jungle
+Task: Scout Treetop Village
+Quest: Smoke Signals
+Task: Defeat 9 Blackback Soldier
+Quest: Escape from the Apes
+Task: Locate and Defeat Ogun Daggertooth
+Task: Talk to Koko Smokesign
+
+Quest Giver: Koko Smokesign
+Quest: Tragedy of the Apes
+Task: Go to the Gorilla Throne
+Quest: Fall from Grace
+Task: Defeat Black Tusk Cultist and Collect Map
+Quest: Down in the Hole
+Task: Go to the Pincer Gate
+Quest: For My Next Trick
+Task: Defeat Shadow-web Haunt and Collect Koko Smokesign's Wand
+Quest: Making a Mask
+Task: Defeat Gorilla Spider-witch and Collect 4 Gorilla Spider Witch Hat
+Task: Collect 6 Gazania Flowers
+Quest: the Witch Doctor
+Task: Go to the Pincer Gate
+Quest: Shango's Swords (after completing "Kingdom of the Blind")
+Task: Locate and Defeat Oya Bloodstorm
+Task: Go to Ranzan's Jungle Clearing and Defeat Goliath Ranzan
+Quest: Cutting Through the Mist
+Task: Go to Unusual Looking Rock
+Task: Defeat Ghadir Dreamdrinker
+Quest: Spider Bridge
+Task: Locate Iron Pot, Collect Wooden Spoon, Talk to Umlilo Sunchaser
+Quest: Knockin on Kallah's Door
+Task: Go to the Spider Bridge
+Task: Go to Kallah Silverback's Shack, Defeat Kallah Silverback
+Quest: I Can See Clearly Now
+Task: Locate Elephant Pedestal
+Task: Talk to Queen Elissa in the Elephant Graveyard
+
+Quest Giver: Umlilo Sunchaser
+Quest: Shrimp and Algae
+Task: Defeat 5 Blackback Soldier
+Quest: Caged Follies
+Task: Free 4 Flameingo Prisoners
+Quest: What is This Burning?
+Task: Go to the Overseer's Tower
+Task: Defeat Overseer Zalakir Nightweaver
+Task: Locate Eternal Flame
+Quest: Ship of Tears
+Task: Go to Elephant Barge
+Task: Defeat Aksil Blacktrunk
+Task: Destroy Ship Boiler
+Quest: Kingdom of the Blind
+Task: Talk to Koko Smokesign
+
+Side Quests
+
+Quest Giver: Koko Smokesign
+Quest: Midnight Sun
+Task: Defeat Black Tusk Cultist and Collect 4 Obelisk Piece
+Task: Go to Sun Obelisk
+
+.:Elephant Graveyard:.
+
+Main Quests
+
+Quest Giver: Queen Elissa
+Quest: Drum House
+Task: Clear Spiderwebs, Enter Drum House
+Task: Defeat 2 Grey Ogre Spiders
+Task: Collect 6 Drums
+Quest: Drum Circle
+Task: Place Drums on Gravestones
+Quest: Pure Water
+Task: Defeat Shadow-web Wraith and Collect 4 Kani Pepper
+Task: Collect 3 Blue Calliantha Flowers
+Quest: Pool Cleaning
+Task: Purify Sacred Springs
+Task: Go to Cold Pool, Go to Hot Pool
+Quest: Drum Beat
+Task: Collect 6 Blood Lily Flowers
+Task: Use brazier
+Quest: Opening Beat
+Task: Locate Grave Marker
+Quest: Tomb Raiders
+Task: Find and Defeat Ada Razorwhip
+Task: Find and Defeat Murat Greyeyes
+Task: Find and Defeat Gherruld
+Task: Find and Defeat Dhakir Bloodthorn
+Quest: Tomb Sweet Tomb
+Task: Enter Queen Elissa's Tomb
+Task: Talk to Vir Goodheart

@@ -1,0 +1,140 @@
+Zafaria main quests and their objectives (from the player, 2026-10-05), in story order
+(the order of docs/quests/Zafaria.txt). Source: 'Zafaria - quests by area.txt'.
+
+1. Jambo Means Hello (given by Inyanga Whitestripes) - Talk to Lethu Blunthoof
+2. Going to Market (given by Koyate Ghostmane) - Defeat Inzinzebu Bandits in Baobab Market and Collect 6 Crafting Goods
+3. No Bother (given by Koyate Ghostmane) - Talk to Lethu Blunthoof
+4. Restricted Access (given by Lethu Blunthoof) - Talk to Inyanga Whitestripes in Baobab Crossroads
+5. Meet the Elephants (given by Inyanga Whitestripes) - Talk to Rasik Pridefall in Baobab Crown
+6. I Intend To Have Other Plans (given by Rasik Pridefall) - Talk to Kakenya Brokenfang
+7. Lost Your Way (given by Kakenya Brokenfang) - Go to Dormitory + Defeat Goliath Bra'kym'tra + Talk to Simone Brightlance + Talk to Kakenya Brokenfang
+8. Night Running (given by Kakenya Brokenfang) - Talk to Unathi Nightrunner
+9. Lion Taming (given by Unathi Nightrunner) - Defeat 4 Spearfang Slashers
+10. Wasn't He Just There? (given by Unathi Nightrunner) - Talk to Vir Goodheart
+11. Outlaws in the Market (given by Vir Goodheart) - Defeat Inzinzebu Bandits and Collect Spices + Defeat Spearfang Slasher and Collect Jewelry
+12. Permission Granted (given by Vir Goodheart) - Talk to Inyanga Whitestripes
+13. Into the Lion's Jaws (given by Inyanga Whitestripes) - Talk to Lethu Blunthoof
+14. In the Grass (given by Lethu Blunthoof) - Talk to Tik-tik Snaketongue in the Savannah
+15. Master of Disaster (given by Tik-tik Snaketongue) - Explore Msizi Redband's hut
+16. Show of Strength (given by Tik-tik Snaketongue) - Defeat 5 Thornpaw Hunters + Talk to Olemeeli Thornpaw
+17. All's Well (given by Olemeeli Thornpaw) - Collect 3 Well Stones + Repair Well
+18. Open Cages (given by Olemeeli Thornpaw) - Open Cage + Talk to Edwin Trollstrider
+19. Wild Lion Chase (given by Olemeeli Thornpaw) - Talk to Tik-tik Snaketongue
+20. Dangerous Attraction (given by Tik-tik Snaketongue) - Defeat 6 Darkmane Raiders + Talk to Kakuta Darkmane
+21. Living with Lions (given by Kakuta Darkmane) - Defeat Iklaw Warrior and Collect 6 Spears
+22. Biltong (given by Kakuta Darkmane) - Defeat Thornpaw Hunter and Collect 10 biltong
+23. Walk on the Wild Side (given by Kakuta Darkmane) - Talk to Eden Windforest
+24. Plight of the Lions (given by Eden Windforest) - Talk to Captain Bheki Blackhoof
+25. Picket Fences (given by Captain Bheki Blackhoof) - Collect 3 Bundle of Sticks + Repair Camp Fence
+26. In the Cold Distance (given by Captain Bheki Blackhoof) - Repair Zebra Scout Tower
+27. Fight to Survive (given by Captain Bheki Blackhoof) - Defeat Fire Lion Ravager + Scout Waterhole
+28. Narley Dude (given by Captain Bheki Blackhoof) - Talk to Narley + Talk to Eden Windforest
+29. Does Your Garden Grow (given by Eden Windforest) - Plant seeds in soil
+30. My Work is Done (given by Eden Windforest) - Talk to Kakuta Darkmane
+31. Rock of Ages (given by Kakuta Darkmane) - Talk to Tik-tik Snaketongue
+32. Poisoned Well (given by Tik-tik Snaketongue) - Defeat Fire Lion Ravagers and Collect 8 Guide's Staff
+33. Meddling Wizards (given by Tik-tik Snaketongue) - Enter Tik-tik's Hut + Defeat Certorr + Talk to Inyanga Whitestripes
+34. Fruit of Life (given by Inyanga Whitestripes) - Locate 3 Baobab Fruit + Locate Cauldron
+35. Lioness Sleeps Tonight (given by Inyanga Whitestripes) - Defeat 8 Lion Ravagers + Go to Queen's Cave + Defeat and Talk to Tanei Ghostmane
+36. Heal Me (given by Queen Tanei Ghostmane) - Talk to Inyanga Whitestripes
+37. Book of Babalawo (given by Inyanga Whitestripes) - Talk to Kiliman Copperleaf + Locate Book in Baobab Crown
+38. Local Treasures (given by Inyanga Whitestripes) - Talk to Unathi Nightrunner and Vir Goodheart + Talk to Ntokozo Truestride and Marwa Jadetusk
+39. Off the Boil (given by Inyanga Whitestripes) - Use Cauldron + Locate Watering Hole in Savannah + Talk to Tanei Ghostmane
+40. Beat of a Different Drum (given by Queen Tanei Ghostmane) - Collect 3 Bridge Slats + Repair Broken Bridge + Talk to Esop Thornpaw
+41. Drum Kit (given by Esop Thornpaw) - Defeat Fire Lion Ravager and Collect Lion Drums
+42. Drum Queen (given by Esop Thornpaw) - Talk to Tanei Ghostmane
+43. Top of the Rock (given by Queen Tanei Ghostmane) - Travel to the Tsavo Door + Play Drum Near King's Cage + Talk to Mansa + Talk to Bheki Blackhoof
+44. Out of the Sun (given by Captain Bheki Blackhoof) - Enter Captain Blackhoof's Hut
+45. Coming to Zamunda (given by Captain Bheki Blackhoof) - Talk to Msizi Redband
+46. The Road to Zamunda (given by Captain Bheki Blackhoof) - Talk to Idube Firedancer + Talk to Sizani Sunrunner in Zamunda Outskirts
+47. Chaos Rains (given by Sizani Sunrunner) - Locate Wagon + Find Clues + Defeat Jackal Bandit and Collect Provisions
+48. Tower Defense (given by Sizani Sunrunner) - Defeat 6 Greyhorn Mercenaries + Free 4 Igoka Prisoners
+49. Through the Zorse Gates (given by Sizani Sunrunner) - Talk to Sizani Sunrunner
+50. Back into the Fray (given by Sizani Sunrunner) - Defeat Greyhorn Mercenaries and Collect 8 Shields + Return Shields to Shield Rack
+51. Muster the Troops (given by Sizani Sunrunner) - Gather 6 Igoka Defenders + Enter Barracks + Defeat Igoka Defender
+52. The King's Shadow (given by Sizani Sunrunner) - Talk to Tse-tse Snaketail
+53. Don't Impress Me Much (given by Tse-tse Snaketail) - Defeat 10 Longdreamer Shamans and 10 Greyhorn Mercenaries
+54. Prisoner of Zamunda (given by Tse-tse Snaketail) - Go to the Barracks + Defeat Painted Rhino Soldier + Free 5 Igoka Prisoners + Talk to Sizani Sunrunner
+55. Helter Skelter (given by Sizani Sunrunner) - Find the Hole-In-The-Wall + Collect 3 Piles of Wood + Fix the Hole in the Wall
+56. Burning Tower (given by Sizani Sunrunner) - Defeat 7 Greyhorn Mercenaries + Explore Survey Tower Area
+57. Master of the River (given by Sizani Sunrunner) - Defeat Longdreamer Shamans and Collect 10 Stone Talismans
+58. Water Beats Fire (given by Sizani Sunrunner) - Defeat 5 Water Elementals + Put Out Fire at Tower
+59. Back on the Trail (given by Sizani Sunrunner) - Explore Magician's Hut + Pick up Paint Cans and Bring to Sizani Sunrunner in Zamunda
+60. Snake in the Grass (given by Sizani Sunrunner) - Open the Moon Gardens Gate + Talk to Amahle Autumnrain
+61. Shadow of a King (given by Amahle Autumnrain) - Enter the King's Court + Talk to Shaka Zebu
+62. Wild Zorses (given by Amahle Autumnrain) - Defeat 8 Imp Raiders
+63. The Snake's Footprints (given by Amahle Autumnrain) - Talk to Mandisa Autumnrain + Catch Magician + Defeat Goliath Chon'dorr'hna + Talk to Stefan Diresign
+64. Tomb Soldiers (given by Amahle Autumnrain) - Locate King's Tomb + Clear Spiderwebs + Talk to Themba Truestride
+65. Into the Zebra Tomb (given by Themba Truestride) - Defeat Longdreamer Shamans and Collect 4 Magic Powder + Locate 2 Black Smoke Braziers + Use White Smoke Brazier + Explore King's Tomb + Talk to Amahle Autumnrain
+66. Lust for Life (given by Amahle Autumnrain) - Defeat Evil Spirit + Defeat Shaka Zebu + Chop down Poisonous Vine, Talk to Shaka Zebu
+67. Long Winded Warrior (given by Shaka Zebu) - Talk to Amahle Autumnrain
+68. Letter for the Queen (given by Amahle Autumnrain) - Talk to Hannibal Onetusk in Baobab Market
+69. Savannah Run (given by Hannibal Onetusk) - Talk to Esop Thornpaw in the Savannah
+70. Lawn Ornament (given by Esop Thornpaw) - Talk to Kakuta Darkmane + Collect Evil Magma Peas
+71. Give It Away Now (given by Esop Thornpaw) - Collect Boiler + Talk to Hannibal Onetusk
+72. Still Broke (given by Hannibal Onetusk) - Talk to Kiliman Copperleaf + Locate Book + Go to Zafaria Queen
+73. Drum Run (given by Hannibal Onetusk) - Locate Zafarian Queen and Talk to Hannibal Onetusk
+74. On the Docks (given by Hannibal Onetusk) - Talk to Amar Sharptusk
+75. Sharp as a Tusk (given by Amar Sharptusk) - Defeat 7 Musuth Berserker
+76. Missing Stripes (given by Amar Sharptusk) - Talk to Aryanah Silvertusk
+77. The Silver Queen (given by Aryanah Silvertusk) - Talk to Hathi Irontrunk
+78. Elephant March (given by Hathi Irontrunk) - Talk to Rakstede Steelhorn
+79. Orders from the Queen (given by Hathi Irontrunk) - Talk to Aryanah Silvertusk
+80. My Pen! (given by Hathi Irontrunk) - Defeat Musuth Berserker and Collect Pen and Parchment
+81. All Access Pass (given by Hathi Irontrunk) - Talk to Rakstede Steelhorn + Talk to Lail Brighteyes
+82. Class is Very Entertaining (given by Lail Brighteyes) - Talk to Aryanah Silvertusk
+83. Quiet Riot (given by Aryanah Silvertusk) - Talk to Hathi Irontrunk
+84. Calm Like a Bomb (given by Hathi Irontrunk) - Defeat 7 Greyhorn Mercenaries
+85. Bulls on Parade (given by Hathi Irontrunk) - Defeat Musuth Berserker and Collect Headdress
+86. Know Your Enemy (given by Hathi Irontrunk) - Talk to Aziza Roughfoot and Shara Whitetusk + Talk to Kella Longthought and Tala Snakesquasher
+87. Across the Spiral (given by Tala Snakesquasher) - Defeat Musuth Berserker and Collect 3 Headdress
+88. Welcome to the Jungle (given by Tala Snakesquasher) - Talk to Hannibal Onetusk
+89. River Rapids (given by Hannibal Onetusk) - Defeat 6 Greyhorn Mercenary
+90. The Cat Who Could (given by Hannibal Onetusk) - Talk to Sobaka
+91. Down the Crazy River (given by Sobaka) - Defeat 5 Black Tusk Cultists + Find Sobaka
+92. Fastest Hunk of Junk (given by Hannibal Onetusk) - Board Sobaka's Boat + Talk to Sobaka in Waterfront
+93. Trail of the Trickster (given by Sobaka) - Defeat 4 Greyhorn Mercenary
+94. Under the Big Tent (given by Sobaka) - Enter Belloq's Tent + Talk to Belloq + Defeat Belloq
+95. Barge Right In (given by Sobaka) - Enter Stone Town Barge + Defeat Black Tusk Cultist, Locate Bill of Lading
+96. Down by the River (given by Sobaka) - Use Sobaka's Boat, Talk to Hathi Irontrunk
+97. Morning Report (given by Hathi Irontrunk) - Talk to Aryanah Silvertusk
+98. Arrest That Man (given by Hathi Irontrunk) - Find Councilor's House (Talk to Vir Goodheart)
+99. Catching Shadows (given by Vir Goodheart) - Board Sobaka's Boat
+100. Mission Impossible (given by Vir Goodheart) - Defeat Black Tusk Cultist and Collect Password
+101. Do I Look Fat in This? (given by Vir Goodheart) - Talk to Zeddgan Spellfeather + Locate Cauldron + Enter Black Palace + Defeat Source of Corruption + Talk to Aryanah Silvertusk
+102. Let Him Free (given by Aryanah Silvertusk) - Free Lail Brighteyes
+103. Hannibal's Queen (given by Aryanah Silvertusk) - Talk to Hannibal Onetusk
+104. Dancing Queen (given by Mago Onetusk) - Board the Dancing Queen, Talk to Mago Onetusk
+105. Lost in the Jungle (given by Mago Onetusk) - Scout Treetop Village
+106. Smoke Signals (given by Mago Onetusk) - Defeat 9 Blackback Soldier
+107. Escape from the Apes (given by Mago Onetusk) - Locate and Defeat Ogun Daggertooth + Talk to Koko Smokesign
+108. Tragedy of the Apes (given by Koko Smokesign) - Go to the Gorilla Throne
+109. Fall from Grace (given by Koko Smokesign) - Defeat Black Tusk Cultist and Collect Map
+110. Down in the Hole (given by Koko Smokesign) - Go to the Pincer Gate
+111. For My Next Trick (given by Koko Smokesign) - Defeat Shadow-web Haunt and Collect Koko Smokesign's Wand
+112. Making a Mask (given by Koko Smokesign) - Defeat Gorilla Spider-witch and Collect 4 Gorilla Spider Witch Hat + Collect 6 Gazania Flowers
+113. the Witch Doctor (given by Koko Smokesign) - Go to the Pincer Gate
+114. Shrimp and Algae (given by Umlilo Sunchaser) - Defeat 5 Blackback Soldier
+115. Caged Follies (given by Umlilo Sunchaser) - Free 4 Flameingo Prisoners
+116. What is This Burning? (given by Umlilo Sunchaser) - Go to the Overseer's Tower + Defeat Overseer Zalakir Nightweaver + Locate Eternal Flame
+117. Ship of Tears (given by Umlilo Sunchaser) - Go to Elephant Barge + Defeat Aksil Blacktrunk + Destroy Ship Boiler
+118. Kingdom of the Blind (given by Umlilo Sunchaser) - Talk to Koko Smokesign
+119. Shango's Swords (given by Koko Smokesign) - Locate and Defeat Oya Bloodstorm + Go to Ranzan's Jungle Clearing and Defeat Goliath Ranzan
+120. Cutting Through the Mist (given by Koko Smokesign) - Go to Unusual Looking Rock + Defeat Ghadir Dreamdrinker
+121. Spider Bridge (given by Koko Smokesign) - Locate Iron Pot, Collect Wooden Spoon, Talk to Umlilo Sunchaser
+122. Knockin on Kallah's Door (given by Koko Smokesign) - Go to the Spider Bridge + Go to Kallah Silverback's Shack, Defeat Kallah Silverback
+123. I Can See Clearly Now (given by Koko Smokesign) - Locate Elephant Pedestal + Talk to Queen Elissa in the Elephant Graveyard
+124. Drum House (given by Queen Elissa) - Clear Spiderwebs, Enter Drum House + Defeat 2 Grey Ogre Spiders + Collect 6 Drums
+125. Drum Circle (given by Queen Elissa) - Place Drums on Gravestones
+126. Pure Water (given by Queen Elissa) - Defeat Shadow-web Wraith and Collect 4 Kani Pepper + Collect 3 Blue Calliantha Flowers
+127. Pool Cleaning (given by Queen Elissa) - Purify Sacred Springs + Go to Cold Pool, Go to Hot Pool
+128. Drum Beat (given by Queen Elissa) - Collect 6 Blood Lily Flowers + Use brazier
+129. Opening Beat (given by Queen Elissa) - Locate Grave Marker
+130. Tomb Raiders (given by Queen Elissa) - Find and Defeat Ada Razorwhip + Find and Defeat Murat Greyeyes + Find and Defeat Gherruld + Find and Defeat Dhakir Bloodthorn
+131. Tomb Sweet Tomb (given by Queen Elissa) - Enter Queen Elissa's Tomb + Talk to Vir Goodheart
+132. Tree of Woe (given by Vir Goodheart) - Talk to Kakenya Brokenfang and Unathi Nightrunner + Talk to Inyanga Whitestripes
+133. Heart of Darkness (given by Inyanga Whitestripes) - Use Candles
+134. Chasing Shadows (given by Inyanga Whitestripes) - Defeat Morganthe
+135. Through Glass, Darkly (given by Inyanga Whitestripes) - Talk to Merle Ambrose
+136. Lion Around (given by Lethu Blunthoof) - Talk to Koyate Ghostmane
+137. You Can Drive (given by Hannibal Onetusk) - Talk to Mago Onetusk
