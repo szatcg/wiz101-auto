@@ -123,6 +123,8 @@ def _write_plan(battle, action, strategy, discards: int, gone=None, discarded=No
                         "target": action.target.name if action.target else "", "why": action.reason},
                 "deck": deck_tracker(battle, gone or {}, discarded or {}),
                 "improve": improve_odds(battle, action),
+                "crit": _plan_crits(battle, action),
+                "gamble": _gamble_odds(action),
             })
         PLAN_FILE.write_text(json.dumps(data), encoding="utf-8")
     except Exception as exc:
@@ -164,6 +166,26 @@ def draw_chance(left: int, wanted: int, draws: int) -> float:
         return 0.0
     draws = min(draws, left)
     return 1.0 - comb(left - wanted, draws) / comb(left, draws) if left - wanted >= draws else 1.0
+
+
+def _plan_crits(battle, action) -> dict:
+    """{enemy index: [crit %, block %, damage, damage on a crit]} for the move
+    (or, on a setup round, the next big hit): the plan card's bars."""
+    from .brain import predicted_crits
+
+    try:
+        shown = action if action.card is not None and action.card.is_damage else (_next_hit(battle) or action)
+        return {str(i): list(v) for i, v in predicted_crits(battle, shown).items()}
+    except Exception:
+        return {}
+
+
+def _gamble_odds(action) -> int | None:
+    """The odds when the move is a crit gamble ("ends the fight on a crit: 57%")."""
+    import re
+
+    m = re.search(r"ends the fight on a crit: (\d+)%", action.reason or "")
+    return int(m.group(1)) if m else None
 
 
 def _next_hit(battle):

@@ -141,6 +141,10 @@
   .pbar .keep { left: 0; background: linear-gradient(90deg, #b3263f, #ff5f6d); }
   .pbar .maybe { background: repeating-linear-gradient(45deg, #ffe08a, #ffe08a 5px, #f2c14e 5px, #f2c14e 10px); box-shadow: 0 0 8px rgba(255, 224, 138, 0.8); }
   .pbar .sure { background: rgba(255, 95, 109, 0.28); }
+  .pbar .b-reg { background: rgba(255, 95, 109, 0.55); }
+  .pbar .b-regmax { background: #7a0f1f; }
+  .pbar .b-crit { background: rgba(255, 230, 120, 0.55); }
+  .pbar .b-critmax { background: linear-gradient(90deg, #c99a1e, #ffd54f); box-shadow: 0 0 8px rgba(255, 213, 79, 0.8); }
   .range { color: var(--gold-2); font-weight: 800; margin-left: 6px; }
   .steps { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
   .step { display: grid; grid-template-columns: 30px 66px 1fr; gap: 6px 8px; align-items: center; padding: 7px 9px; border-radius: 10px;
@@ -758,19 +762,34 @@ function renderPlanner(p) {
   const eta = p.rounds ? `<span class="eta">≈ ${p.rounds} round${p.rounds === 1 ? "" : "s"} to win</span>`
             : p.lost ? `<span class="eta bad">on course to lose</span>`
             : `<span class="eta">${p.horizon || 12}+ rounds</span>`;
+  const crits = p.crit || {};
   const foes = (p.enemies || []).map((e, i) => {
     if (e.hp <= 0) return "";
     const after = first && first.after[i] ? first.after[i] : [e.hp, e.hp];
     const dmg = first && first.dmg[i];
-    const pct = (v) => (e.max ? (100 * v) / e.max : 0);
+    const cr = crits[i];  // [crit %, block %, damage, damage on a crit]
+    const pct = (v) => (e.max ? (100 * Math.max(0, Math.min(v, e.hp))) / e.max : 0);
     const label = !dmg ? "" : after[1] === 0 ? '<span class="ko">KO</span>' : after[0] === 0 ? '<span class="range">KO?</span>'
                 : `<span class="range">−${range(dmg[0], dmg[1])}</span>`;
+    // The player's colours, from the end of the health: regular lowest roll
+    // (transparent red), regular highest (dark red), crit lowest (transparent
+    // yellow), crit highest (gold). The plan's roll range, or ±7% of the hit.
+    const lo = dmg ? dmg[0] : cr ? cr[2] * 0.93 : 0, hi = dmg ? dmg[1] : cr ? cr[2] * 1.07 : 0;
+    const mult = cr && cr[0] && cr[2] ? cr[3] / cr[2] : 0;
+    const bands = !hi ? [] : [
+      ...(mult ? [["b-critmax", hi * mult], ["b-crit", lo * mult]] : []),
+      ["b-regmax", hi], ["b-reg", lo],
+    ];
+    const widest = bands.length ? pct(bands[0][1]) : 0;
+    const bandHtml = bands.map(([cls, d]) =>
+      `<span class="${cls}" style="left:${pct(e.hp) - pct(d)}%; width:${pct(d)}%"></span>`).join("");
+    const ko = cr && cr[0] && cr[3] >= e.hp && hi < e.hp ? ' <span class="ko">KO on a crit</span>' : "";
+    const critline = cr && cr[0] ? `<div class="critline">💥 crit ${cr[0]}% · blocks ${cr[1]}% · ${cr[2]} → ${cr[3]} on a crit${ko}</div>` : "";
     return `<div class="pfoe"><div class="fn"><span class="${e.boss ? "boss" : ""}">${e.boss ? "👑 " : ""}${esc(e.name)}</span>
       <span>${e.hp} / ${e.max}${label}</span></div>
-      <div class="pbar"><span class="keep" style="width:${pct(after[0])}%"></span>
-        <span class="maybe" style="left:${pct(after[0])}%; width:${pct(after[1] - after[0])}%"></span>
-        <span class="sure" style="left:${pct(after[1])}%; width:${pct(e.hp - after[1])}%"></span></div></div>`;
+      <div class="pbar"><span class="keep" style="width:${pct(e.hp) - widest}%"></span>${bandHtml}</div>${critline}</div>`;
   }).join("");
+  const gambleLine = p.gamble ? `<div class="gamble">🎲 Crit gamble: ${p.gamble}% to end the fight (gold: damage on a crit)</div>` : "";
   const rows = steps.slice(0, 7).map((s, idx) => {
     const tgt = s.target ? ` <em>→ ${esc(s.target)}</em>` : "";
     const hit = s.dmg.find((d) => d);
@@ -790,7 +809,7 @@ function renderPlanner(p) {
   // the rows' slide-in every couple of seconds.
   const fresh = Date.now() < planFreshUntil ? " fresh" : "";
   const html = `<div class="head"><h3>⚔️ Round ${p.round}${changed}</h3>${eta}</div>
-    ${foes}<div class="steps${fresh}">${rows}</div>`;
+    ${gambleLine}${foes}<div class="steps${fresh}">${rows}</div>`;
   if (html === lastPlannerHtml && $("lower").className === "card grow battle") return;
   lastPlannerHtml = html;
   $("lower").className = "card grow battle";
