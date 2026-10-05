@@ -230,7 +230,9 @@ async def press_modal_button(client, box, name: str, done=None) -> bool:
     return False
 
 
-NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable")
+# (and "You don't have a spell deck equipped", up mid deck-item switch: OK)
+NOTICE_WORDS = ("not allowed", "cannot", "can't", "unable", "spell deck equipped", "don't have a spell deck",
+                "do not have a spell deck")
 
 
 async def dismiss_notice(client) -> bool:
