@@ -89,3 +89,24 @@ def test_the_stream_counts_our_prism():
     plain = predicted_damage(b, Action(ActionKind.CAST, ORTHRUS))[0]
     b.prismed = {"Ildrede"}
     assert predicted_damage(b, Action(ActionKind.CAST, ORTHRUS))[0] > 3 * plain
+
+
+def test_gamble_only_when_the_sure_kill_comes_too_late():
+    from wiz101_auto.combat import brain
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7, castable=False,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 2000)])
+    frog = Card(1, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 900)])
+    enemies = [foe(1400, name="A"), foe(1400, name="B")]
+    healthy = Battle(me=me(100, level=60), allies=[], enemies=enemies, cards=[orthrus, frog],
+                     pips=6, power_pips=0)
+    healthy.me.health = healthy.me.max_health
+    wait = Action(ActionKind.PASS, reason="saving pips")
+    import unittest.mock as um
+    with um.patch.object(brain, "plan_hand_use", return_value=(2, set())), \
+            um.patch.object(brain, "incoming_per_round", return_value=500.0):
+        assert brain._crit_gamble(healthy, wait) is None        # Orthrus next turn, alive by then: no gamble
+        healthy.me.health = 600
+        got = brain._crit_gamble(healthy, wait)                   # 600 < 2 rounds x 500: gamble
+        assert got is not None and got.card is frog

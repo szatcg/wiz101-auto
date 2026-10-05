@@ -284,7 +284,10 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
         sure = plan_hand_use(battle)[0]
     except Exception:
         sure = 99
-    if sure <= CRIT_GAMBLE_PLAN_MAX and battle.me.health > 2 * incoming_per_round(battle):
+    # The safe route when we live to see it: health above what the enemies
+    # deal until the sure kill lands (the player: low health, take the
+    # gamble; there may not be another turn).
+    if sure <= CRIT_GAMBLE_PLAN_MAX and battle.me.health > max(1, sure) * incoming_per_round(battle):
         return None
     if action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage:
         if clear_chance(action.card, battle.me, alive if action.card.is_aoe else
