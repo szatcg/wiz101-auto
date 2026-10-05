@@ -100,6 +100,8 @@ HAND_MAX = 7  # cards a hand refills to each round
 ROLLOUT_BUDGET = 20.0  # seconds into a round after which the brain's move stands (no rollouts)
 ROLLOUT_GRACE = 8.0  # ... and no rollout runs past budget + this (time left for the clicks)
 PLAN_FILE = Path("state") / "battle_plan.json"
+BEST_DRAW_HORIZON = 12  # rounds the Best Draw panel looks ahead (bosses take more than the brain's 6)
+BEST_DRAW_SECONDS = 1.5  # ... within this long (the turn timer)
 
 
 def _write_plan(battle, action, strategy, discards: int, gone=None, discarded=None) -> None:
@@ -164,6 +166,21 @@ def draw_chance(left: int, wanted: int, draws: int) -> float:
     return 1.0 - comb(left - wanted, draws) / comb(left, draws) if left - wanted >= draws else 1.0
 
 
+def _next_hit(battle):
+    """The biggest hit in hand (castable or not) as an attack on the boss or
+    the toughest enemy, for the stream's bars on a setup round. None without one."""
+    from .brain import hit_damage
+    from .model import Action
+
+    hits = [c for c in battle.cards if c.is_damage and not c.is_heal]
+    live = battle.live_enemies
+    if not hits or not live:
+        return None
+    focus = max(live, key=lambda e: (e.is_boss, e.health))
+    card = max(hits, key=lambda c: hit_damage(c, battle.me, focus) * (len(live) if c.is_aoe else 1))
+    return Action(ActionKind.CAST, card, None if card.is_aoe else focus, reason="the next big hit")
+
+
 def improve_odds(battle, action) -> dict:
     """Cards still in the deck that would shorten the win if drawn (the
     stream's deck tracker): {"base": rounds now, "draws": next round's draws,
@@ -171,7 +188,7 @@ def improve_odds(battle, action) -> dict:
     from .brain import improving_draws
 
     try:
-        base, better = improving_draws(battle)
+        base, better = improving_draws(battle, horizon=BEST_DRAW_HORIZON, budget=BEST_DRAW_SECONDS)
     except Exception:
         return {}
     if not better:
@@ -640,12 +657,19 @@ class Fighter(CombatHandler):
                 f"hp={battle.me.health}/{battle.me.max_health}{_minion_text(battle)} vs {foes} -> "
                 f"{action.describe()}"
             )
+            shown = action
             predicted = predicted_damage(battle, action)
+            if not predicted:
+                # A setup round: the bars show the biggest hit in hand, the one
+                # the blades are for (the player: no crit numbers on those rounds).
+                shown = _next_hit(battle) or action
+                predicted = predicted_damage(battle, shown)
             if predicted:  # for the stream page's health bars
-                logger.info("predict: " + ", ".join(f"{i}={d}" for i, d in predicted.items()))
+                tag = "" if shown is action else " (next hit)"
+                logger.info("predict: " + ", ".join(f"{i}={d}" for i, d in predicted.items()) + tag)
                 from .brain import predicted_crits
 
-                crits = predicted_crits(battle, action)
+                crits = predicted_crits(battle, shown)
                 if any(c[0] for c in crits.values()):  # (crit 0%: nothing to show)
                     text = ", ".join(f"{i}={c}/{b}/{n}/{x}" for i, (c, b, n, x) in crits.items())
                     logger.info(f"crit: {text}")

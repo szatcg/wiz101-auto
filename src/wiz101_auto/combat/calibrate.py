@@ -131,6 +131,8 @@ def read_log(paths: list[Path]) -> LogRead:
                 profiles[res["name"].strip()] = {"school": res["school"], "resist": resist}
                 continue
             p = PREDICT.search(line)
+            if p and "(next hit)" in line:
+                p = None  # (a setup round's preview for the stream: not a hit made)
             if p and cur:
                 for kv in p["m"].split(","):
                     if "=" in kv:

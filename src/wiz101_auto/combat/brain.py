@@ -1595,10 +1595,22 @@ def plan_hand_use(battle: Battle, horizon: int = PLAN_ROUNDS,
     return total, used_cards
 
 
-def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
+def improving_draws(battle: Battle, horizon: int = PLAN_ROUNDS,
+                    budget: float | None = None) -> tuple[int, dict[str, int]]:
     """(rounds of the fastest win now, {card still in the deck: rounds with it
-    in hand next round}) for the cards that would shorten the win."""
-    base, _used = plan_hand_use(battle)
+    in hand next round}) for the cards that would shorten the win. `horizon`
+    rounds looked ahead (a boss needs more than PLAN_ROUNDS: with none in
+    reach every card read 99 and the Best Draw panel stayed empty), within
+    `budget` seconds (what's found by then)."""
+    deadline = time.monotonic() + budget if budget else None
+
+    def plan(b: Battle):  # (the horizon and deadline above)
+        return plan_hand_use(b, horizon, deadline)
+
+    try:
+        base, _used = plan(battle)
+    except SearchTimeout:
+        return 99, {}
     better: dict[str, int] = {}
     seen: set[str] = set()
     for i, c in enumerate(battle.upcoming):
@@ -1607,7 +1619,10 @@ def improving_draws(battle: Battle) -> tuple[int, dict[str, int]]:
         seen.add(c.name)
         rest = battle.upcoming[:i] + battle.upcoming[i + 1:]
         arriving = replace(c, index=1000 + i, castable=False)  # (in hand next round)
-        rounds, used = plan_hand_use(replace(battle, cards=[*battle.cards, arriving], upcoming=rest))
+        try:
+            rounds, used = plan(replace(battle, cards=[*battle.cards, arriving], upcoming=rest))
+        except SearchTimeout:
+            break  # (out of time: what's found so far)
         # Only when the shorter plan plays it: a shorter plan without it was
         # just the deck's order shuffled (the overlay credited Pixie and an
         # unused Myth Trap with a round saved).
