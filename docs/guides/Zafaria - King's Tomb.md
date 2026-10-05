@@ -13,6 +13,10 @@ The player's notes (2026-10-05), for 'Into the Zebra Tomb' / 'Tomb of the Zebra 
   does this by itself: after 6 tries at a boss that start nothing, or an
   objective in a dungeon stalled, it leaves and enters a fresh copy
   (`_reenter_for_npc`).
+- **The spawn cutscene**: killing the spider plays a cutscene that spawns
+  Zanga Zebu. Leaving then (the bot's heal trip did) leaves him unspawned. The
+  bot now stays after a dungeon fight until the cutscene ends and the next
+  boss is in view (up to 60 s), then heals.
 - **Instance reset**: teleporting out or losing a fight may reset the copy.
   The bot's heal trips out and back in (dungeon-return button) are when it
   broke here.
