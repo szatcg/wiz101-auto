@@ -424,3 +424,21 @@ def test_last_stand_hits_instead_of_a_blade():
     assert got is not None and got.card is orthrus
     my.health = 2700  # healthy: the blade as chosen
     assert brain._last_stand(b, Action(ActionKind.CAST, blade, my)) is None
+
+
+def test_an_untouched_boss_is_hit_by_round_four():
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Spirit Blade", "blade")
+    my = me(1800, 2736)
+    my.school = "myth"
+    my.blade_count = 1
+    boss = enemy("Tim-tim Snakeeye", 5675, boss=True)
+    b = battle([orthrus, blade], [boss], my=my)
+    b.pips, b.power_pips = 1, 3
+    b.round = 2
+    assert brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my)) is None  # early: set up
+    b.round = 4
+    got = brain._hit_when_set_up(b, Action(ActionKind.CAST, blade, my))
+    assert got is not None and got.card is orthrus

@@ -1665,6 +1665,8 @@ FREE_TRAP_LIMIT = 4  # traps worth stacking for free while waiting (one is used 
 
 
 SETUP_ENOUGH = 2  # blades on us and traps on the target: past this, a castable hit goes
+SETUP_ROUNDS_MAX = 4  # the target untouched by this round: a castable hit goes, set up or not
+UNTOUCHED = 0.95  # "untouched": at this share of max health or more
 
 
 def _dig_for_a_hit(battle: Battle) -> Action | None:
@@ -1711,7 +1713,11 @@ def _hit_when_set_up(battle: Battle, action: Action) -> Action | None:
             {EffectKind.BLADE, EffectKind.TRAP} & set(action.card.kinds)):
         return None  # a shield, a heal-over-time...: as chosen
     focus = max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
-    if battle.me.blade_count < SETUP_ENOUGH or focus.trap_count < SETUP_ENOUGH:
+    # Or set up long enough: untouched at round SETUP_ROUNDS_MAX (Tim-tim
+    # Snakeeye's shield ate the traps; six rounds of blades with Orthrus
+    # castable, never a hit, and the bot died).
+    stalled = (battle.round or 0) >= SETUP_ROUNDS_MAX and focus.health >= UNTOUCHED * focus.max_health
+    if not stalled and (battle.me.blade_count < SETUP_ENOUGH or focus.trap_count < SETUP_ENOUGH):
         return None
     hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
     if not hits:
