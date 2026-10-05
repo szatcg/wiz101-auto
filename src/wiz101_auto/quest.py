@@ -143,6 +143,8 @@ SPIRAL_PAGES = 6  # pages of the Spiral Map's world list looked through for a wo
 MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close the map
 DUNGEON_SETTLE = 15.0  # after a fight in a dungeon: no heal trip out for this long (cutscenes)
 BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to appear before a heal trip
+NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
+NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
@@ -7204,6 +7206,15 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
                 heal_now = False  # only mana a little low: not worth leaving the dungeon
+        if heal_now and not in_dungeon and self.upkeep:
+            # No fight in this step (a talk, a place to go): not worth a heal
+            # trip unless really low (the player: it went zone to zone for
+            # empty wisp spots at 45% before a talk). Healed before the fight.
+            objective_now = await self.objective() or ""
+            if not is_combat_objective(objective_now) and not self._step_is_fight:
+                hp, mana = await health_mana(self.client)
+                if hp >= NO_FIGHT_HEAL_BELOW and mana >= NO_FIGHT_MANA_BELOW:
+                    heal_now = False
         # Never leave a zone Recall can't bring us back into (the Death Realm:
         # "You cannot teleport to that location", a fresh dungeon every time):
         # the next fight comes straight after the last; this room's wisps,
