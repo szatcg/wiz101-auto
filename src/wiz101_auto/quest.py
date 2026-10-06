@@ -1780,6 +1780,13 @@ class Quester:
         """Use a gate by pressing X at it (WizSprinter's xNoWait/xSkipRide
         types). A ride (the Krokotopia boat) goes through a ride zone first,
         where another X skips the ride. True once in `next_zone`."""
+        # The game's own teleporter object there, at its height (Triton
+        # Avenue's "WC-TeleporttoCrabAlley" is down at the riverbed, z -1400;
+        # the learned gate's z 4 landed the wizard on the willow above it).
+        for e in await self._entities_named_like(("teleport",)):
+            if math.dist((e.x, e.y), (pos.x, pos.y)) < 400:
+                pos = e
+                break
         await self.client.teleport(pos)
         await asyncio.sleep(1.5)  # a vendor stands by the boat: let the boat's prompt come up
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
