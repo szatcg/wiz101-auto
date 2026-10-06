@@ -3605,7 +3605,10 @@ class Quester:
                 # 'The Razor's Edge' is on Avalon's, and Gamma was never visited).
                 # (On its list and main story to the game too: 'The Razor's
                 # Edge' is on Avalon's list untagged, a crafting quest.)
-                has = any((norm(q.name) in det[1] and game_main[id(q)]) or (lead_in and game_main[id(q)])
+                # (Any listed quest: a 'SIDE ×1' tag counts its side branches,
+                # 'Steamed Crab' is the story; Sir Pike was visited again and
+                # again with it in the book.)
+                has = any((norm(q.name) in det[2] and game_main[id(q)]) or (lead_in and game_main[id(q)])
                           for _, q in all_quests)
                 self._detour_start(det[0], has)
                 await self._note_detour_gap(has)
