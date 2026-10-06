@@ -137,7 +137,11 @@ class DeckKeeper:
             # The player's own decks (the Karuvian and the Chieftain's): never
             # rebuilt, only the extras asked for (a myth boss's prisms) go in,
             # and out again after.
-            target = {n: c for n, c in current.items() if n not in self._added or n in extra}
+            # (Except cards the player never wants, "never" in the file: the
+            # Basilisks in the boss deck item.)
+            never = {n.lower() for n in general.get("never") or []}
+            target = {n: c for n, c in current.items()
+                      if (n not in self._added or n in extra) and n.lower() not in never}
             for name, copies in extra.items():
                 if name in known:
                     target[name] = max(target.get(name, 0), copies)
