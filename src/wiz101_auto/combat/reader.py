@@ -413,8 +413,16 @@ async def read_combatant(member: CombatMember, my_team: int, curves: Curves | No
                 c.outgoing_flat.append((key, school, param))
             elif et == "modify_incoming_armor_piercing":
                 c.incoming_pierce += param / 100
-            elif et == "modify_incoming_damage_type" and school == "myth":
-                c.myth_prism = True
+            elif et == "modify_incoming_damage_type":
+                # Our prism on it (its school may read as "", not "myth": a
+                # prism cast before a restart wasn't seen and a second one
+                # went on Porrich instead of the finishing Basilisk).
+                logger.debug(f"{c.name}: damage-type effect school={school!r} param={param}")
+                if school in ("myth", ""):
+                    c.myth_prism = True
+            elif et not in _SEEN_EFFECT_TYPES:
+                _SEEN_EFFECT_TYPES.add(et)
+                logger.debug(f"hanging effect type {et!r} on {c.name} (school {school!r}, param {param})")
     except Exception as exc:
         logger.debug(f"hanging effects unreadable for {c.name}: {exc}")
     # One blade spell (Spirit Blade: myth, life and death parts) is one blade,
@@ -425,6 +433,9 @@ async def read_combatant(member: CombatMember, my_team: int, curves: Curves | No
     c.blade_count = len({k for k, s, v in c.outgoing_effects if v > 0 and (not s or not mine or s == mine)})
     _log_effects(c)
     return c
+
+
+_SEEN_EFFECT_TYPES: set[str] = set()  # effect types not handled, logged once each
 
 
 async def _global_effect(handler, everyone: list[Combatant]):

@@ -810,3 +810,24 @@ def test_digs_for_the_prism_past_extra_copies_of_a_big_hit():
                upcoming=[prism, prism, prism])
     got = _dig_for_setup(b, Strategy())
     assert got is not None and got.kind is ActionKind.DISCARD and got.card.name == "Basilisk", got
+
+
+def test_a_second_prism_is_junk_once_the_boss_is_prismed():
+    from wiz101_auto.combat.brain import _prism_useless
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    prism = Card(0, "Myth Prism", school="myth", pip_cost=1,
+                 effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    hit = Card(1, "Orthrus", school="myth", pip_cost=7,
+               effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 900)])
+    me = Combatant("me", 3197, 3197, is_client=True, school="myth")
+    porrich = Combatant("Porrich", 8240, 8240, is_enemy=True, is_boss=True, school="myth",
+                        resist={"myth": 0.8, "storm": -0.35, "death": -0.35})
+    prism2 = Card(2, "Myth Prism", school="myth", pip_cost=1,
+                  effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    b = Battle(me=me, allies=[], enemies=[porrich], cards=[prism, prism2, hit], pips=0, power_pips=2)
+    assert not _prism_useless(prism, b)
+    b.prismed = {"Porrich"}
+    assert _prism_useless(prism, b)  # one waits on him, one more in hand: this one goes
+    b.cards = [prism, hit]
+    assert not _prism_useless(prism, b)  # the last one stays for after the hit

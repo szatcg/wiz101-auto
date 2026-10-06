@@ -1438,7 +1438,18 @@ def _prism_useless(card: Card, battle: Battle) -> bool:
     enemies = [e.unprismed or e for e in battle.live_enemies]
     if not enemies or any(e.resist is None and not e.school for e in enemies):
         return False
-    return all(_prism_gain(card, battle.me, e, battle.cards) < PRISM_GAIN for e in enemies)
+    # One prism per enemy is all it takes (the player: a second and third
+    # Myth Prism held the hand against Porrich, already prismed): those it
+    # would go on are prismed already.
+    worth = [e for e in enemies if _prism_gain(card, battle.me, e, battle.cards) >= PRISM_GAIN]
+    if not worth:
+        return True
+    if all(e.name in battle.prismed for e in worth):
+        # A prism waits on each already: one more stays for after the hit
+        # uses it up (it's single use), the rest are junk.
+        others = [c for c in battle.cards if _is_prism(c) and c is not card and not c.treasure]
+        return bool(others)
+    return False
 
 
 def _stun_action(battle: Battle, strat: Strategy | None = None) -> Action | None:
