@@ -296,7 +296,8 @@ class QuestGivers:
         with the most of them first. (npc, zone) or None: then grinding."""
         best: tuple[int, str, str] | None = None
         for zone, names in zones.items():
-            if not zone.startswith(place + "/") or "/interiors/" in zone.lower():
+            if not (zone == place or zone.startswith(place + "/")) or "/interiors/" in zone.lower():
+                # (The zone itself too: "Zafaria/ZF_Z00_Hub" never matched itself.)
                 continue
             if time.time() - self._zone_checks.get(zone, 0.0) < ZONE_RECHECK_SECONDS:
                 continue

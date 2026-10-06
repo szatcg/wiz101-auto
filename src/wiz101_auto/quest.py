@@ -518,7 +518,13 @@ def same_world(a: str | None, b: str | None) -> bool:
 # Side quests elsewhere when the story's world has none left (the player,
 # 2026-10-06: Avalon's, then Zafaria's; then the Wysteria story).
 FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",),  # Wintertusk
-                        "Avalon": ("Zafaria/ZF_Z00_Hub",)}
+                        "Avalon": ("Zafaria",)}
+
+
+def in_place(zone: str, place: str) -> bool:
+    """`zone` is `place` or inside it ("Zafaria/ZF_Z00_Hub" is in "Zafaria"
+    and in "Zafaria/ZF_Z00_Hub")."""
+    return zone == place or zone.startswith(place + "/")
 
 
 def quest_zone(q: QuestEntry) -> str:
@@ -565,7 +571,7 @@ def choose_quest(
                 break
             # (Nothing left in this world: the player's next places, e.g.
             # Wintertusk's side quests after Celestia's.)
-            here = [q for q in available if quest_zone(q).startswith(place + "/")]
+            here = [q for q in available if in_place(quest_zone(q), place)]
         if not here and anywhere:
             # This world's people all asked (`anywhere`): the side quests left in
             # the book in other worlds beat grinding (the player: experience).
