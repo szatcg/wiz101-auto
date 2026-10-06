@@ -513,7 +513,10 @@ def same_world(a: str | None, b: str | None) -> bool:
 # The player's order when the main story is stuck (2026-10-04): the story,
 # then this world's side quests (in the book, then asked for), then side
 # quests in these places (zone prefixes), and grinding only after all that.
-FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",)}  # Wintertusk
+# Side quests elsewhere when the story's world has none left (the player,
+# 2026-10-06: Avalon's, then Zafaria's; then the Wysteria story).
+FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",),  # Wintertusk
+                        "Avalon": ("Zafaria/ZF_Z00_Hub",)}
 
 
 def quest_zone(q: QuestEntry) -> str:
