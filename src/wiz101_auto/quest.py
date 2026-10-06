@@ -565,6 +565,7 @@ HAND_INS_FILE = Path("state") / "hand_ins.json"
 
 
 RETALK_FILE = Path("state") / "retalk.json"  # NPCs to talk to again, one visit each
+RECENT_TALK_SECONDS = 300.0  # a visit's talk this recent may have been a completion's turn-in
 HAND_IN_KEEP = 4  # the NPCs of a quest's latest "Talk To" objectives remembered
 
 
@@ -4055,6 +4056,15 @@ class Quester:
                     queue.append([npc, where])
             names = ", ".join(n for n, _ in reversed(talked))
             logger.info(f"{name!r} completed: back to {names} for the next quest")
+        for name in sorted(done):
+            # Whoever a visit talked to just before: that talk may have been
+            # the turn-in (no "Talk To" objective was read for it).
+            for npc, where, at in reversed(getattr(self, "_recent_talks", [])):
+                if time.monotonic() - at < RECENT_TALK_SECONDS and [npc, where] not in queue:
+                    queue.append([npc, where])
+                    logger.info(f"{name!r} completed: {npc} was talked to just before; asking them again too")
+        if done:
+            self._recent_talks = []  # (each asked again once)
         save_hand_ins(hand_ins)
         save_retalk(queue)
 
@@ -5522,6 +5532,10 @@ class Quester:
             self._last_rank = -1e9  # a new quest: rank again now
             self._ranked_for = None
             logger.success(f"visit: talked to {npc}" if talked else f"visit: couldn't reach {npc}; giving up")
+            if talked:
+                # A visit's talk can be a turn-in too (Aodh took 'Walk The
+                # Night Alone' on a re-talk visit, and wasn't asked again).
+                self._recent_talks = [*getattr(self, "_recent_talks", [])[-3:], (npc, dest, time.monotonic())]
         else:
             self._visit_tries += 1
         return True
