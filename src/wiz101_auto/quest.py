@@ -2519,6 +2519,14 @@ class Quester:
                 world = ""
             if world:
                 return await self._to_world(world, f"to {world} for the story's next quest")
+        det = self._detour_names()
+        if not self._mainline and det is not None and det[0].get("when_stuck") == "side":
+            # Between the detour world's story quests: its world (the map
+            # ticked Aquila for the tracked 'Into the Sea', Aquila isn't on the
+            # map, and the bot sat at the house's gate opening it again).
+            world = det[0]["world"]
+            if zone_world((await self.client.zone_name() or "").split("/", 1)[0]) != world:
+                return await self._to_world(world, f"to {world} for its side quests meanwhile")
         if self._grinding and not self._mainline and self._main_world:
             # No main quest: back to its world, not on to the tracked side
             # quest's (the map took the bot from Wizard City to Grizzleheim
