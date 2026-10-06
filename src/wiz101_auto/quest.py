@@ -560,6 +560,24 @@ def load_undoable() -> set[str]:
         return set()
 
 
+HAND_INS_FILE = Path("state") / "hand_ins.json"
+
+
+def load_hand_ins() -> dict[str, tuple[str, str]]:
+    """Quest -> (npc, zone) of its last "Talk To" objective (kept over restarts)."""
+    try:
+        return {k: tuple(v) for k, v in json.loads(HAND_INS_FILE.read_text(encoding="utf-8")).items()}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def save_hand_ins(hand_ins: dict[str, tuple[str, str]]):
+    try:
+        HAND_INS_FILE.write_text(json.dumps({k: list(v) for k, v in hand_ins.items()}), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def is_crafting(q: QuestEntry) -> bool:
     """A crafting quest ("Craft Dagger of Absolution in Crafting Station"):
     the bot can't craft (it circled Wysteria's crafting station)."""
@@ -3688,6 +3706,7 @@ class Quester:
                 listed = self.quest_order.get(norm(name))
                 where = f" (#{listed.index} on the quest list)" if listed else ""
                 logger.success(f"quest completed: {name!r}{where}")
+            self._talk_again_after_completion(done)
             self.completions.log(done)
             active = next((q for _, q in all_quests if q.active), None)
             self._active_quest = active.name if active else self._active_quest
@@ -3976,6 +3995,36 @@ class Quester:
             return True
         finally:
             await self._close_quest_book()
+
+    def _note_hand_in(self, objective: str, zone: str):
+        """A "Talk To X" objective of the tracked quest: X is who it's likely
+        handed in to (remembered per quest, with the zone to find them in)."""
+        npc = talk_target(objective)
+        if not npc or not self._active_quest:
+            return
+        where = objective_zone(objective) or zone
+        if "/interiors/" in where.lower() and objective_zone(objective) is None:
+            where = zone  # (they're in this building)
+        hand_ins = load_hand_ins()
+        if hand_ins.get(self._active_quest) != (npc, where):
+            hand_ins[self._active_quest] = (npc, where)
+            save_hand_ins(hand_ins)
+
+    def _talk_again_after_completion(self, done: set[str]):
+        """A quest completed (however late the book shows it): talk to whom it
+        was handed in to once more and take what they offer. The player: a
+        story that stops is nearly always a giver not talked to again
+        ('Head Held Low' to Ceara Ashbury; its completion was read 3 minutes
+        later, past the turn-in window, and 'Greatest of Sports' never came)."""
+        hand_ins = load_hand_ins()
+        for name in sorted(done):
+            target = hand_ins.pop(name, None)
+            if target is None or VISIT_FILE.exists():
+                continue
+            npc, where = target
+            logger.info(f"{name!r} completed: back to {npc} ({where.split('/')[-1]}) for the next quest")
+            VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
+        save_hand_ins(hand_ins)
 
     def _talk_again_after_turn_in(self, gone: set[str], new: set[str] = frozenset()):
         """A quest just left the book right after talking to someone: that was
@@ -7610,8 +7659,11 @@ class Quester:
             # quests taken on the way were never tracked).
             self._ranked_for = None
             self._last_rank = -1e9
-            accepted_new = True  # (no visit this step: the ranking first)
-        if self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new:
+            rerank_due = True  # (no new visit this step: the ranking first)
+        else:
+            rerank_due = False
+        if (self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new
+                and not rerank_due):
             # (Not with a quest just accepted: a ranking first. Sir Guy
             # Gascoigne's quest was taken, then 8 more visits went on before
             # the book was read again.)
@@ -8032,6 +8084,7 @@ class Quester:
         # Walks meant to start a fight only go toward the objective's enemies
         # (safe_teleport reads this): "Defeat Otomo Supply Runners" -> them.
         self.client._target_names = defeat_names(objective) if is_combat_objective(objective or "") else None
+        self._note_hand_in(objective or "", zone or "")
         if time.monotonic() - getattr(self, "_last_status", 0.0) > STATUS_EVERY_SECONDS:
             self._last_status = time.monotonic()
             waited = time.monotonic() - self._last_progress_time
