@@ -831,3 +831,24 @@ def test_a_second_prism_is_junk_once_the_boss_is_prismed():
     assert _prism_useless(prism, b)  # one waits on him, one more in hand: this one goes
     b.cards = [prism, hit]
     assert not _prism_useless(prism, b)  # the last one stays for after the hit
+
+
+def test_a_banned_card_is_never_waited_for():
+    # Matkis Axethief: no single-target traps on him. With 7 pips and Orthrus
+    # in hand the brain waited "pass > Feint > Feint > Orthrus" for Feints it
+    # could never cast.
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 1200)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    feint2 = Card(2, "Feint", school="death", pip_cost=1,
+                  effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    me = Combatant("me", 1000, 3241, is_client=True, school="myth")
+    matkis = Combatant("Matkis Axethief", 6933, 9040, is_enemy=True, is_boss=True, resist={})
+    b = Battle(me=me, allies=[], enemies=[matkis], cards=[orthrus, feint, feint2], pips=0, power_pips=4)
+    a = decide(b)
+    assert not (a.kind is ActionKind.CAST and a.card.name == "Feint")
+    assert a.kind is ActionKind.CAST and a.card is orthrus, a

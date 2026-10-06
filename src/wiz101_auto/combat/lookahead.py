@@ -189,6 +189,8 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                 continue
             if depth == 0 and force is not None and (force == "pass" or c.index != force):
                 continue
+            if c.banned:
+                continue  # (a boss forbids it: never planned)
             if _is_prism(c):
                 kind = "prism"
             elif c.is_damage:

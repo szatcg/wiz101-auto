@@ -2019,6 +2019,8 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                 continue
             if depth == 0 and force is not None and (force == "pass" or c.index != force):
                 continue
+            if c.banned:
+                continue  # (a boss forbids it: never planned)
             # Setup of any cost, paid as the game would (Feint, 1 pip off our
             # school: a power pip counts 1). Only 0-pip setup was searched, so
             # no plan ever had Feint before Orthrus (the player: that should
@@ -2596,9 +2598,14 @@ def _boss_bans(battle: Battle) -> Battle:
     rules = [rule for boss, rule in BOSS_BANS.items() if any(n == boss or n.startswith(boss) for n in names)]
     if not rules:
         return battle
+    # Banned in every round, the deck's cards too: a plan of "pass > Feint >
+    # Feint > Orthrus" against Matkis Axethief (no traps on him) waited four
+    # rounds for Feints it would never cast, and lost.
     return replace(battle, cards=[
-        replace(c, castable=False) if c.castable and any(r(c) for r in rules) else c
-        for c in battle.cards])
+        replace(c, castable=False, banned=True) if any(r(c) for r in rules) else c
+        for c in battle.cards], upcoming=[
+        replace(c, castable=False, banned=True) if any(r(c) for r in rules) else c
+        for c in battle.upcoming])
 
 
 def aims_at_one_enemy(card: Card) -> bool:
@@ -2617,8 +2624,10 @@ def _no_single_target(battle: Battle) -> Battle:
     charms) aren't castable: blades on us and hit-alls are. Then Sylster's."""
     if single_target_banned(battle):
         battle = replace(battle, cards=[
-            replace(c, castable=False) if c.castable and aims_at_one_enemy(c) else c
-            for c in battle.cards])
+            replace(c, castable=False, banned=True) if aims_at_one_enemy(c) else c
+            for c in battle.cards], upcoming=[
+            replace(c, castable=False, banned=True) if aims_at_one_enemy(c) else c
+            for c in battle.upcoming])
     return _sylster_rules(_boss_bans(battle))
 
 
