@@ -639,3 +639,24 @@ def test_a_hit_the_plan_outclasses_and_a_costly_blade_are_spare():
     assert not covered_by_plan(b, frog, {3})  # no hit in the plan: it stays
     assert covered_by_plan(b, spirit, {0})  # a Mythblade's up: Spirit Blade can go
     assert not covered_by_plan(b, feint, {0})  # traps stay
+
+
+def test_hit_all_setup_blades_before_trapping_one_enemy():
+    # 4 Shadow-Web Haunts, all set-up cards 0 pips: Mythblade (boosts the hit
+    # on all four) goes before Myth Trap / Feint (one enemy each).
+    from wiz101_auto.combat.brain import _hit_all_setup
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=5,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 1300)])
+    trap = Card(1, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, "myth")])
+    feint = Card(2, "Feint", school="death", pip_cost=0,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    blade = Card(3, "Mythblade", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, "myth")])
+    foes = [Combatant(f"Never Seen {i}", 2325, 2325, is_enemy=True, resist={}) for i in range(4)]
+    me = Combatant("me", 3201, 3201, is_client=True, school="myth")
+    b = Battle(me=me, allies=[], enemies=foes, cards=[frog, feint, trap, blade], pips=0, power_pips=2)
+    got = _hit_all_setup(b, frog)
+    assert got is not None and got.kind is ActionKind.CAST and got.card is blade, got

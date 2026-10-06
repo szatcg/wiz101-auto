@@ -1021,7 +1021,11 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
         for combo in itertools.combinations(moves, n):
             if len({id(m[0]) for m in combo}) < n:
                 continue  # one card, one use
-            order = sorted(combo, key=lambda m: m[0].pip_cost)
+            # Blades first, then traps on everyone, then one enemy's: a blade
+            # boosts every enemy the hit-all reaches, and whatever is drawn
+            # next (Orthrus) too; a single trap commits to one enemy (Myth
+            # Trap went before Mythblade against 4 Shadow-Web Haunts).
+            order = sorted(combo, key=lambda m: (m[0].pip_cost, m[2] != "blade", -len(m[4])))
             pips, ok = have, True
             for m in order:
                 if m[0].pip_cost > pips:
