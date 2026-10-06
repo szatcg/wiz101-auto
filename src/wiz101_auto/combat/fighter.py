@@ -97,6 +97,10 @@ def _minion_text(battle) -> str:
 
 
 HAND_MAX = 7  # cards a hand refills to each round
+LOOKAHEAD_ON = False  # the whole-deck planner in live fights (on once the simulator says it plays better)
+LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
+POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
+_POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
 ROLLOUT_BUDGET = 20.0  # seconds into a round after which the brain's move stands (no rollouts)
 ROLLOUT_GRACE = 8.0  # ... and no rollout runs past budget + this (time left for the clicks)
 PLAN_FILE = Path("state") / "battle_plan.json"
@@ -239,12 +243,16 @@ def improve_odds(battle, action) -> dict:
     """Cards still in the deck that would shorten the win if drawn (the
     stream's deck tracker): {"base": rounds now, "draws": next round's draws,
     "cards": {name: {"rounds": with it, "odds": % to draw}}, "any": %}."""
-    from .brain import improving_draws
+    from .lookahead import draw_values
 
+    # The whole-deck planner's numbers (sampled draws and power pips): the
+    # expected rounds now, and with each card that would cut them if drawn.
     try:
-        base, better = improving_draws(battle, horizon=BEST_DRAW_HORIZON, budget=BEST_DRAW_SECONDS)
+        exp, better_f = draw_values(battle, _POWER_CHANCE, budget=BEST_DRAW_SECONDS)
     except Exception:
         return {}
+    base = round(exp)
+    better = {n: round(r, 1) for n, r in better_f.items()}
     if not better:
         out = {"base": base}
         if action.kind is ActionKind.DISCARD and action.card is not None:
@@ -324,6 +332,7 @@ class Fighter(CombatHandler):
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
+        self._pp_chance: float | None = None  # power pip chance, read once a fight
         self._gone: Counter[str] = Counter()
         self._enchant_tried: dict[int, set[str]] = {}  # round -> cards an enchant was tried on
         self._discarded: Counter[str] = Counter()  # (of _gone: the discarded ones; the rest were played)
@@ -710,6 +719,8 @@ class Fighter(CombatHandler):
                 # (The simulator knows nothing of Reshuffle: its plays and the
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
+            if not reshuffling and time.monotonic() - round_started < LOOKAHEAD_LATE:
+                action = await self._lookahead(battle, action, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
             from .brain import luska_guard
 
@@ -842,6 +853,58 @@ class Fighter(CombatHandler):
         logger.warning("too many steps this round, passing")
         await self.pass_button()
 
+    async def _lookahead(self, battle, action, discards_left: int):
+        """The whole-deck planner (lookahead.py) on top of the brain's move:
+        the round's discards (digging for a better card) and first move, by
+        their odds over sampled draws. Never over an enchant, a heal or a
+        shield (the brain's urgent moves), nor in fights the boss rules play
+        (Luska, Sylster...)."""
+        from . import lookahead
+        from .brain import _no_single_target, scripted_fight
+
+        if not getattr(self.strategy, "lookahead", LOOKAHEAD_ON):
+            return action
+        card = action.card
+        urgent = card is not None and (card.is_heal or EffectKind.SHIELD in card.kinds)
+        if action.kind is ActionKind.ENCHANT or urgent:
+            return action
+        if scripted_fight(battle) or not battle.deck_known:
+            return action
+        rules = _no_single_target(battle)  # (boss bans and the like: what may be cast)
+        try:
+            chance = await self._power_chance()
+            choice = await asyncio.to_thread(lookahead.choose, rules, action, chance, discards_left)
+        except Exception as exc:
+            logger.debug(f"lookahead failed: {exc!r}")
+            return action
+        if choice is None:
+            return action
+        new = choice.action
+        # The planner's card is the hand's own (the rules' copy has the same index).
+        if new.card is not None:
+            new.card = next((c for c in battle.cards if c.index == new.card.index), new.card)
+        if new.target is not None and new.target not in battle.enemies and new.target is not battle.me:
+            new.target = next((e for e in battle.enemies if e.name == new.target.name), None)
+        logger.info(f"whole-deck plan: {new.describe()} instead of {action.describe()}")
+        return new
+
+    async def _power_chance(self) -> float:
+        """The wizard's power pip chance (0-1), read once a fight."""
+        if self._pp_chance is None:
+            chance = POWER_CHANCE_DEFAULT
+            try:
+                base = await self.client.stats.power_pip_base()
+                bonus = await self.client.stats.power_pip_bonus_percent_all()
+                raw = (base or 0) + (bonus or 0)
+                chance = raw / 100 if raw > 1.5 else raw
+                logger.info(f"power pip chance: {chance:.0%} (base {base}, bonus {bonus})")
+            except Exception as exc:
+                logger.debug(f"power pip chance unreadable: {exc!r}")
+            self._pp_chance = max(0.0, min(1.0, chance))
+            global _POWER_CHANCE
+            _POWER_CHANCE = self._pp_chance
+        return self._pp_chance
+
     def _upcoming(self, battle) -> list[Card]:
         """Deck cards not yet drawn, cast or discarded this fight (the ones
         still able to come), known from cards seen in hand before."""
@@ -865,6 +928,7 @@ class Fighter(CombatHandler):
     async def handle_combat(self):
         self._unusable.clear()
         self._prismed: set[str] = set()
+        self._pp_chance = None  # read once a fight
         self._summons = 0
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
         self._discarded = Counter()

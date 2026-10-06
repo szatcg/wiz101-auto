@@ -1946,7 +1946,8 @@ class SearchTimeout(Exception):
 
 
 def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Card] = (),
-                 deadline: float | None = None):
+                 deadline: float | None = None, *, gains=None, hand_size: int | None = None,
+                 force=None, partial: list | None = None):
     """The quickest line that kills `target` from here: cards in hand, plus
     (with `draws`) one card from the rest of the deck arriving each later
     round. Each round: cast an attack, a 0-pip blade or trap, or pass; one pip
@@ -1954,24 +1955,69 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
     one is used when it comes, as the plan is redone every round); every card
     is used once; blades and traps are spent by the hits they boost. Fewest
     rounds, then fewest pips. Returns (rounds, pips, first action, steps, used)
-    or None if nothing kills within `rounds`."""
+    or None if nothing kills within `rounds`.
+
+    The whole-deck planner (lookahead.py) passes a known draw order with
+    `hand_size` (the hand refills to it each round, so a discard is one more
+    draw next round and a pass with a full hand draws nothing), `gains` (per
+    round, True when the pip that comes is a power pip, from the wizard's
+    power pip chance), `force` (the first move: a Card.index, or "pass") and
+    `partial` ([health]: the least health left at the horizon when nothing
+    kills, for a rough estimate past it)."""
     me = battle.me
     my_school = (me.school or "").lower()
     pool = [c for c in battle.cards if not c.is_enchant] + list(draws)
     in_hand = len(pool) - len(draws)
+    held_other = len(battle.cards) - in_hand  # (enchants in hand take slots too)
     best: list = []
 
-    def arrived(i: int, depth: int) -> bool:
-        return i < in_hand or depth >= i - in_hand + 1
+    def arrived(i: int, depth: int, drawn: int) -> bool:
+        if i < in_hand:
+            return True
+        if hand_size is not None:
+            return i - in_hand < drawn
+        return depth >= i - in_hand + 1
 
-    def search(depth, normal, power, used, out_fx, in_fx, hp, spent, first, steps):
+    def gain(depth: int, normal: int, power: int) -> tuple[int, int]:
+        if gains is not None and depth < len(gains) and gains[depth]:
+            return normal, power + 1
+        return normal + 1, power
+
+    def refill(drawn: int, used_after: int) -> int:
+        if hand_size is None:
+            return drawn
+        held = in_hand + drawn - used_after + held_other
+        return min(len(draws), drawn + max(0, hand_size - held))
+
+    seen_at: dict = {}  # a position reached already, no later: setups in another order (lookahead)
+
+    def search(depth, normal, power, used, out_fx, in_fx, hp, spent, first, steps, drawn=0):
         if deadline is not None and time.monotonic() > deadline:
             raise SearchTimeout
+        if depth >= rounds and partial is not None:
+            # Health left "as the setup up now sees it": blades and traps
+            # waiting count for the hit they'll boost (a Feint laid by the
+            # horizon isn't nothing).
+            boost = ((1 + sum(v for _k, _s, v in out_fx if v > 0))
+                     * (1 + sum(v for _k, _s, v in in_fx if v > 0)))
+            eff = hp / boost
+            if eff < partial[0]:
+                partial[0] = eff
         if depth >= rounds or (best and (depth + 1, spent) > best[0][:2] and depth + 1 >= best[0][0]):
             return
+        if hand_size is not None and depth > 0:
+            # (The whole-deck planner's searches only: Feint then blade and
+            # blade then Feint lead to the same place; the first to get there
+            # is enough.)
+            where = (used, normal, power, round(hp), drawn, len(out_fx), len(in_fx))
+            if seen_at.get(where, 99) <= depth:
+                return
+            seen_at[where] = depth
         seen = set()
         for i, c in enumerate(pool):
-            if i in used or not arrived(i, depth) or (depth == 0 and i < in_hand and not c.castable):
+            if i in used or not arrived(i, depth, drawn) or (depth == 0 and i < in_hand and not c.castable):
+                continue
+            if depth == 0 and force is not None and (force == "pass" or c.index != force):
                 continue
             # Setup of any cost, paid as the game would (Feint, 1 pip off our
             # school: a power pip counts 1). Only 0-pip setup was searched, so
@@ -2020,8 +2066,9 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                     _use_up(out_fx, school) != out_fx or _use_up(in_fx, school) != in_fx
                 ):
                     continue  # a free chip hit would spend our blade/traps (Super Strike): only as the kill
-                search(depth + 1, paid[0] + 1, paid[1], used | {i}, _use_up(out_fx, school),
-                       _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act, steps + [step])
+                search(depth + 1, *gain(depth, paid[0], paid[1]), used | {i}, _use_up(out_fx, school),
+                       _use_up(in_fx, school), hp - dmg, spent + c.pip_cost, act, steps + [step],
+                       refill(drawn, len(used) + 1))
             else:
                 existing = out_fx if kind == "blade" else in_fx
                 ekind = EffectKind.BLADE if kind == "blade" else EffectKind.TRAP
@@ -2040,14 +2087,17 @@ def _kill_search(battle: Battle, target: Combatant, rounds: int, draws: list[Car
                       for e in c.effects if e.kind is ekind]
                 new_out = out_fx + fx if kind == "blade" else out_fx
                 new_in = in_fx + fx if kind == "trap" else in_fx
-                search(depth + 1, paid[0] + 1, paid[1], used | {i}, new_out, new_in, hp, spent + c.pip_cost,
-                       act, steps + [c.name])
+                search(depth + 1, *gain(depth, paid[0], paid[1]), used | {i}, new_out, new_in, hp,
+                       spent + c.pip_cost, act, steps + [c.name], refill(drawn, len(used) + 1))
         # pass: keep the pips
-        search(depth + 1, normal + 1, power, used, out_fx, in_fx, hp, spent,
-               first or Action(ActionKind.PASS, reason=""), steps + ["pass"])
+        if depth == 0 and force is not None and force != "pass":
+            return
+        search(depth + 1, *gain(depth, normal, power), used, out_fx, in_fx, hp, spent,
+               first or Action(ActionKind.PASS, reason=""), steps + ["pass"], refill(drawn, len(used)))
 
     search(0, battle.pips, battle.power_pips, frozenset(), list(me.outgoing_effects),
-           list(target.incoming_effects), target.health, 0, None, [])
+           list(target.incoming_effects), target.health, 0, None, [], 0)
+    # (Nothing comes this round: the hand was dealt; a discard's slot fills next round.)
     if not best:
         return None
     (n, spent), action, steps, used, _dmg = best
@@ -2706,6 +2756,16 @@ MINION_LAST = {"shaka zebu"}
 # - Mirror Lake's Spectral Elephant re-shields (-90%) while the Gorilla, Lion
 #   or Rhino lives: never the single-target hits' target before them.
 SHIELDED_UNTIL_OTHERS_DIE = "spectral elephant"
+
+
+def scripted_fight(battle: Battle) -> bool:
+    """A boss whose cheats the brain's own rules play around (Luska's line,
+    Sylster's cycles, one-shot-only bosses...): the whole-deck planner,
+    which knows nothing of cheats, leaves those fights to them."""
+    names = {e.name.lower() for e in battle.live_enemies}
+    special = (NO_SINGLE_TARGET | SYLSTER_FIGHT | HIT_EVERY_ROUND | MINION_LAST | set(ONE_SHOT_ONLY)
+               | {SHIELDED_UNTIL_OTHERS_DIE})
+    return bool(names & special)
 ONE_SHOT_GIVE_UP_ROUND = 12  # waited this long for a one-shot: hit normally (no endless setup)
 
 

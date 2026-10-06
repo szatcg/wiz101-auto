@@ -188,6 +188,8 @@ MEOWIARTY = [
         _s("Storm Shark", 3, "hit", "storm", 210),
     ], power=0.55),
 ]
+USE_LOOKAHEAD = False  # play with the whole-deck planner too (lookahead.py; comparisons)
+LOOKAHEAD_BUDGET = 3.0
 DAMAGE_SCALE = 1.0  # powers and buff_chance set so fights last like the close one (death ~round 18)
 
 ITEMS = ["Minor Fire Scorch", "Minor Fire Scorch"]  # from gear
@@ -474,6 +476,14 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
             if not b.live_enemies:
                 return True
             action = decide(b, strat, discards_left=discards)
+            if USE_LOOKAHEAD and action.kind is not ActionKind.ENCHANT:
+                # (The whole-deck planner on top, as the live fighter does.)
+                from .lookahead import choose
+
+                chance = getattr(f, "power_chance", POWER_PIP_CHANCE)
+                got = choose(b, action, chance, discards, budget=LOOKAHEAD_BUDGET, seed=rnd)
+                if got is not None:
+                    action = got.action
         if action.kind is ActionKind.DISCARD and discards > 0:
             if record is not None:
                 record.append((rnd, action, [e.health for e in f.enemies], None))
