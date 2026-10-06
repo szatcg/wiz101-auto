@@ -394,12 +394,60 @@ HEAL_FLOOR = 0.30  # below this a heal always goes first
 KILL_SOON_ROUNDS = 2  # the fastest plan kills everyone this soon: no heal above HEAL_FLOOR
 
 
+def hit_size(battle: Battle) -> float:
+    """How hard the next hit on us should be: the hardest hitter's average
+    damage in the rounds it hit us (the logs', the rounds it set up left
+    out), or what this fight has shown when that's more. A boss that sets
+    up for two rounds then hits for 1200 averages 400 a round, but one hit
+    is what a heal has to outlast."""
+    try:
+        from .lookahead import OBSERVED_HIT
+    except Exception:
+        OBSERVED_HIT = 0.0
+    incoming_per_round(battle)  # (reads the logs' stats)
+    biggest = 0.0
+    for e in battle.live_enemies:
+        st = _STATS[1].get(e.name, {})
+        hits = [d for d in (*st.get("alone", []), *st.get("shared", [])) if d > 0]
+        biggest = max(biggest, sum(hits) / len(hits) if hits else UNKNOWN_HIT_SHARE * battle.me.max_health)
+    return max(biggest, OBSERVED_HIT)
+
+
+def heal_falls_short(battle: Battle, card: Card) -> bool:
+    """The heal leaves us under the next hit anyway (a Pixie at 336 health
+    against Catalan's ~1200 hits: 880 healed, still one hit from falling)
+    while a kill is in reach: its pips and round go to the kill instead
+    (that Pixie, 2 power pips, put Orthrus off by two rounds and we lost).
+    A heal that lifts us over the next hit still goes."""
+    me = battle.me
+    if card.target not in (Target.SELF, Target.ALLY_ALL, Target.NONE, Target.ALLY_SINGLE):
+        return False
+    hit = hit_size(battle)
+    if hit <= 0 or min(me.max_health, me.health + card.heal_amount()) > hit:
+        return False
+    try:
+        rounds, _used = plan_hand_use(battle, PLAN_ROUNDS, time.monotonic() + HEAL_PLAN_SECONDS)
+    except SearchTimeout:
+        return False
+    return rounds < 99
+
+
+HEAL_PLAN_SECONDS = 0.5  # the kill search's budget when judging a heal
+
+
 def _heal_can_wait(battle: Battle, card: Card) -> bool:
     """Above HEAL_FLOOR, a heal waits when the win is a round or two away
     (Myth Trap then Orthrus next round: a Pixie at 926 put it off by rounds),
     or when it would be paid with power or class pips: another school's spell
-    spends them at 1 pip each, losing what they're worth to our own (2)."""
+    spends them at 1 pip each, losing what they're worth to our own (2).
+    At any health it waits when it leaves us under the next hit anyway
+    (heal_falls_short)."""
     me = battle.me
+    try:
+        if heal_falls_short(battle, card):
+            return True
+    except Exception:
+        pass
     if me.health_ratio < HEAL_FLOOR:
         return False
     off_school = card.school.lower() != (me.school or "").lower()
@@ -565,6 +613,11 @@ def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
     if not waiting:
         return None
     card = max(waiting, key=lambda c: c.heal_amount())
+    try:
+        if heal_falls_short(battle, card):
+            return None  # (the pips go to the kill: healed, the next hit still kills)
+    except Exception:
+        pass
     if battle.me.health_ratio >= HEAL_FLOOR:
         try:
             if plan_hand_use(battle)[0] <= KILL_SOON_ROUNDS:
