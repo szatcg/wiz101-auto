@@ -3637,7 +3637,7 @@ class Quester:
                 logger.warning(f"ALERT: main quest stuck: no main-story quest in the book{after}; "
                                "its giver wasn't found")
                 self._no_main_reads += 1
-                if self._no_main_reads >= 2:  # two full reads 30 min apart: really none
+                if FARM_WHEN_STUCK and self._no_main_reads >= 2:  # two full reads 30 min apart: really none
                     self._farm_when_stuck(self._last_main or "(none)", "no main-story quest in the book")
             names = {q.name for _, q in all_quests}
             if self._pin_new_from is not None and complete:
