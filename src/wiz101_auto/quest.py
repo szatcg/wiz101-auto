@@ -153,6 +153,7 @@ GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of t
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 ROOM_ALONE_ADVANCE = 10.0  # come into a room with no teammate in it: this long, then on to the next room
+ROOM_MOB_CLEAR = 1500.0  # on to the next room only with no enemy this near us, the landing or the gate
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
@@ -1781,6 +1782,21 @@ class Quester:
         where another X skips the ride. True once in `next_zone`."""
         await self.client.teleport(pos)
         await asyncio.sleep(1.5)  # a vendor stands by the boat: let the boat's prompt come up
+        if not await ui.is_visible(self.client, ui.NPC_RANGE):
+            # No prompt on the gate's own point (Triton Avenue's "To Lower
+            # Triton": it landed on the willow beside it): spots around it.
+            for radius in (150.0, 300.0):
+                for i in range(8):
+                    a = i * math.pi / 4
+                    near = XYZ(pos.x + radius * math.cos(a), pos.y + radius * math.sin(a), pos.z)
+                    await self.client.teleport(near)
+                    await asyncio.sleep(0.8)
+                    if await ui.is_visible(self.client, ui.NPC_RANGE):
+                        logger.info(f"the gate's prompt showed {radius:.0f} beside it")
+                        break
+                else:
+                    continue
+                break
         for _leg in range(2 if ride else 1):
             here = await self.client.zone_name()
             pressed = False
@@ -5425,6 +5441,7 @@ class Quester:
         mates = await teammates(self.client, me)
         now = time.monotonic()
         self._track_room(await self.client.zone_name() or "")
+        await self._final_boss_potion()
         if mates:
             self._team_with_us = True  # seen one in here: we have a team
             self._mate_last_seen = now
@@ -5653,6 +5670,7 @@ class Quester:
         order = room_order(zone)
         if not order:
             self._room_pos = -1
+            self._final_potion = None  # a new run: its own kept potion
             return
         before = self._room_pos
         deaths = self.controller.deaths
@@ -5664,6 +5682,26 @@ class Quester:
         self._room_pos = advance_room(order, before, zone)
         if self._room_pos != before:
             logger.debug(f"room order: {zone.split('/')[-1]} (room {self._room_pos + 1} of {len(order)})")
+
+    async def _final_boss_potion(self):
+        """Back in the last room of the run (the Waterworks' entrance, where
+        the Drain Valve brings Sylster): the potion kept for him, once, if
+        health is short."""
+        from .teamup import room_order
+        from .upkeep import team_potion
+
+        order = room_order(await self.client.zone_name() or "")
+        if not order or self._room_pos != len(order) - 1 or self.__dict__.get("_final_potion") == id(order):
+            return
+        self._final_potion = id(order)
+        if not (self.upkeep and self.upkeep.use_potions):
+            return
+        hp, _mana = await health_mana(self.client)
+        charges = await self.client.stats.potion_charge()
+        if team_potion(hp, charges, before_final=True):
+            logger.info(f"drinking the potion kept for the final boss (hp {hp:.0%}, {charges:.0f} left)")
+            await ui.click(self.client, ui.POTION_BUTTON)
+            await asyncio.sleep(1.5)
 
     async def _to_next_room(self, zone: str, seen: tuple) -> bool:
         """No teammate in this room of a dungeon with a known room order (the
@@ -5687,15 +5725,27 @@ class Quester:
         if hop is None:
             return False
         gate, to = hop
-        logger.info(f"no teammate in {zone.split('/')[-1]}: on to {nxt.split('/')[-1]} "
-                    f"by the gate at ({gate.x:.0f}, {gate.y:.0f})")
         me = await self._position()
         dx, dy = me.x - gate.x, me.y - gate.y
         k = GATE_CATCH_UP / (math.hypot(dx, dy) or 1.0)
+        landing = XYZ(gate.x + dx * k, gate.y + dy * k, gate.z)
+        # Never into a fight of our own (the player: enemies stand where the
+        # bot can walk into them; join only fights a teammate is in): enemies
+        # still up near us, the landing or the gate mean the team isn't
+        # through here; wait for them instead.
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+        if any(distance(m, p) < ROOM_MOB_CLEAR for m in mobs for p in (me, landing, gate)):
+            if self.__dict__.get("_room_mobs_said") != zone:
+                self._room_mobs_said = zone
+                logger.info(f"no teammate in {zone.split('/')[-1]}, but enemies by the way to "
+                            f"{nxt.split('/')[-1]}: waiting for the team")
+            return True  # (and no other way on: the marker's would walk into them)
+        logger.info(f"no teammate in {zone.split('/')[-1]}: on to {nxt.split('/')[-1]} "
+                    f"by the gate at ({gate.x:.0f}, {gate.y:.0f})")
         self.controller.allow_idle(30)
         try:
             allow_teleport(self.client)
-            await self.client.teleport(XYZ(gate.x + dx * k, gate.y + dy * k, gate.z))
+            await self.client.teleport(landing)
             await asyncio.sleep(TELEPORT_SETTLE)
             if not await self._zone_changed(zone):
                 await self.approach_and_walk(gate, zone)
@@ -5756,8 +5806,10 @@ class Quester:
         last = seen[1]
         key = (zone, round(last.x / 300), round(last.y / 300))
         tries = self._track_tries.get(key, 0)
+        from .teamup import room_order
+
         if (walking and self._team_with_us and not (seen[3] and tries < TEAM_TRACK_TRIES)
-                and not self.__dict__.get("_to_marker")):
+                and not self.__dict__.get("_to_marker") and not room_order(zone)):
             # On foot and nobody to follow here (the team left this room before
             # we loaded in, or their tracks led nowhere): on toward the dungeon
             # quest's objective, which is where they're headed (the player).
@@ -7400,7 +7452,7 @@ class Quester:
             heal_now = False
             if self.upkeep and await heal_in_room(self.client, self.upkeep):
                 return
-            if self.upkeep:
+            if self.upkeep and not is_team_up_zone(zone_now):
                 hp, mana = await health_mana(self.client)
                 low = hp < self.upkeep.potion_health_ratio or mana < self.upkeep.potion_mana_ratio
                 if self.upkeep.use_potions and low and await self.client.stats.potion_charge() >= 1.0:

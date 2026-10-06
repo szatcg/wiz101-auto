@@ -34,3 +34,15 @@ def test_back_at_the_entrance_after_a_defeat_keeps_the_place():
     pos = advance_room(order, -1, W + "06")
     assert advance_room(order, pos, W + "05") == pos  # a room passed before
     assert room_order("Zafaria/ZF_Z00_Hub") == []
+
+
+def test_team_potions_keep_one_for_the_final_boss():
+    from wiz101_auto.upkeep import team_potion
+
+    assert not team_potion(0.5, 3)  # above 35%: saved
+    assert team_potion(0.3, 3)
+    assert team_potion(0.3, 2)
+    assert not team_potion(0.2, 1)  # the last one is Sylster's
+    assert team_potion(0.6, 1, before_final=True)
+    assert not team_potion(0.95, 1, before_final=True)
+    assert not team_potion(0.1, 0, before_final=True)

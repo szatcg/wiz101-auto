@@ -135,7 +135,7 @@ CONFIRM_WORDS = ("team up", "join", "join team", "find team", "search", "yes", "
 TEAM_UP_WAIT = 15 * 60  # seconds to wait for a team before giving up for now
 # Players gathering on the sigil to go in: with this many others on it, press
 # X and stand still through the countdown to go in with them.
-PARTY_ON_SIGIL = 2
+PARTY_ON_SIGIL = 3  # (the player: a full party of 4 before a Waterworks run)
 SIGIL_RADIUS = 300.0  # a player this near the sigil's center is standing on it
 SIGIL_FIND_RANGE = 800.0  # the sigil object nearest us within this is ours
 SIGIL_COUNTDOWN_WAIT = 15.0

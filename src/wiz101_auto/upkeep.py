@@ -110,14 +110,46 @@ async def potion_ok(client, tripped: bool = False) -> bool:
     from .teamup import is_team_up_zone
 
     zone = await client.zone_name() or ""
-    if no_return(zone) or is_team_up_zone(zone):
+    if is_team_up_zone(zone):
+        return False  # its own rule (team_potion): after fights, and one kept for the final boss
+    if no_return(zone):
         return True
     in_dungeon = zone in DungeonMemory.load().dungeons or "/interiors/" in zone.lower()
     return tripped and in_dungeon
 
 
+# A team dungeon with no healing between fights (the Waterworks, the
+# player's rule): a potion after a fight only below this much health, and the
+# last one kept for right before the final boss (Sylster Glowstorm).
+TEAM_POTION_BELOW = 0.35
+TEAM_POTIONS_KEPT = 1  # for the final fight
+FINAL_POTION_BELOW = 0.8  # before the final boss: the kept potion goes in below this
+
+
+def team_potion(hp: float, charges: float, before_final: bool = False) -> bool:
+    """Drink now in a team dungeon? After a fight: below TEAM_POTION_BELOW
+    with more than the kept one left; before the final fight: below
+    FINAL_POTION_BELOW with any left."""
+    if charges < 1.0:
+        return False
+    if before_final:
+        return hp < FINAL_POTION_BELOW
+    return hp < TEAM_POTION_BELOW and charges >= TEAM_POTIONS_KEPT + 1
+
+
 async def maintain(client, cfg: UpkeepConfig):
     hp, mana = await health_mana(client)
+    from .teamup import is_team_up_zone
+
+    if is_team_up_zone(await client.zone_name() or ""):
+        # No heal trips or wisp runs in there (the team goes on): the potion rule.
+        charges = await client.stats.potion_charge()
+        if cfg.use_potions and team_potion(hp, charges):
+            logger.info(f"drinking a potion after the fight (hp {hp:.0%}, {charges:.0f} left; "
+                        f"keeping {TEAM_POTIONS_KEPT} for the final boss)")
+            await ui.click(client, ui.POTION_BUTTON)
+            await asyncio.sleep(1.0)
+        return
 
     if cfg.collect_wisps and hp < cfg.wisp_health_ratio:
         sprinter = client  # SprintyClient (bot.new_handler)
