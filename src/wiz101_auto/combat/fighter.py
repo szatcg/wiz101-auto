@@ -382,8 +382,9 @@ class Fighter(CombatHandler):
         logger.warning(f"cast of {action.card.name} did not register; hand: {cards}; {where}")
         logger.warning(f"card windows: {' | '.join(rects)}")
 
-    async def _cast_at(self, live_card, target, fx: float):
-        """Like CombatCard.cast, but clicks the card at `fx` of its width."""
+    async def _cast_at(self, live_card, target, fx: float, target_window=None):
+        """Like CombatCard.cast, but clicks the card at `fx` of its width (and
+        the target at `target_window`, else its usual spot)."""
         try:
             r = await live_card._spell_window.scale_to_client()
             x = int(r.x1 + (r.x2 - r.x1) * fx)
@@ -391,12 +392,26 @@ class Fighter(CombatHandler):
             await self.client.mouse_handler.click(x, y)
             if target is not None:
                 await asyncio.sleep(1.0)
-                await self.client.mouse_handler.click_window(await self._target_window(target))
+                spot = target_window or await self._target_window(target)
+                await self.client.mouse_handler.click_window(spot)
         except (ValueError, AttributeError) as exc:
             # The round ended (or the target died) while we were clicking.
             logger.debug(f"cast click failed: {exc!r}")
             return False
         return True
+
+    async def _target_windows(self, target) -> list:
+        """Every spot that picks `target`: health text, name, whole nameplate."""
+        out = []
+        for get in ("get_health_text_window", "get_name_text_window"):
+            try:
+                out.append(await getattr(target, get)())
+            except (ValueError, AttributeError):
+                pass
+        control = getattr(target, "_combatant_control", None)
+        if control is not None:
+            out.append(control)
+        return out
 
     async def _target_window(self, target):
         """Where to click to pick `target`: its health text, else its name, else
@@ -791,6 +806,21 @@ class Fighter(CombatHandler):
                 await clear_popups(self.client)
             except Exception as exc:
                 logger.debug(f"clearing popups failed: {exc!r}")
+            # A target that didn't take (Sylster's fight: every single-target
+            # cast failed, the hits on all and the enchants went through): its
+            # other spots (name, nameplate), with where each one is.
+            if target is not None:
+                for w in (await self._target_windows(target))[1:]:
+                    try:
+                        logger.info(f"retrying {action.card.name} on {action.target.name} by another spot: "
+                                    f"{await w.scale_to_client()}")
+                    except Exception:
+                        pass
+                    if not await self._cast_at(live_card, target, self._card_click_x, w):
+                        return
+                    if await self._committed(before):
+                        logger.warning("the target took at its other spot")
+                        return
             # Clicks on the leftmost card don't register at its center; probe
             # further left inside the card and keep whatever works.
             for fx in CLICK_PROBES:
