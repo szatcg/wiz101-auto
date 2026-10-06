@@ -51,3 +51,10 @@ team list takes any main-quest dungeon after 5 losses).
 - While her bubble stands: every 4th round a 0-pip Scarecrow (~620-650 Death to all, heals her).
 - Replacing her bubble: she puts hers straight back, but trying once (any global, round 1) stops the Scarecrow cheat for the rest of the fight (until round 30).
 - The bot's decks have no global spell, so it can't break the cheat: fight her with a team or with a global in the deck.
+
+## Atlantea (the player's list, 2026-10-06)
+
+| Boss | Cheats | The bot's rule |
+|---|---|---|
+| Poseidon Earth-Shaker (Storm, 20,000; Ice mastery) | Infallible round 1; a single-target trap, prism or negative charm on him, or a single hit with a side effect (Efreet's weakness, Sabertooth's shield, Dr. Von's infection): Storm attack on the caster and a trap/prism wipe. Mass prisms, Windstorm, mass traps and AoEs with effects are safe | `BOSS_BANS`: none of those on him; clean hits and hit-alls only |
+| Sand Squid Tentacles (2 × Myth boss 28,000, 2 × elite 4,200; Vesper's side quest, Sunken Ship) | any regular heal: an Earthquake from each tentacle (blade wipe); small tentacles respawn after 2 rounds while a big one lives | `BOSS_BANS`: no heals (pet heals are fine); the big ones should go first |

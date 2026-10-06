@@ -762,3 +762,28 @@ def test_avalon_boss_bans():
     assert castable("Young Morganthe") == {"Mythblade", "Orthrus"}
     assert castable("Black Annie") == {"Mythblade", "Orthrus"}
     assert castable("The Pendragon") == {"Mythblade", "Orthrus"}
+
+
+def test_poseidon_and_the_sand_squid():
+    from wiz101_auto.combat.brain import _no_single_target
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    trap = Card(0, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, "myth")])
+    bolt = Card(1, "Minotaur", school="myth", pip_cost=5,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600)])
+    efreet = Card(2, "Efreet", school="fire", pip_cost=6,
+                  effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600),
+                           Effect(EffectKind.WEAKNESS, Target.ENEMY_SINGLE, 45)])
+    heal = Card(3, "Pixie", school="life", pip_cost=2,
+                effects=[Effect(EffectKind.HEAL, Target.ALLY_SINGLE, 600)])
+    me = Combatant("me", 3000, 3000, is_client=True, school="myth")
+
+    def castable(boss):
+        foe = Combatant(boss, 20000, 20000, is_enemy=True, is_boss=True, resist={})
+        b = _no_single_target(Battle(me=me, allies=[], enemies=[foe], cards=[trap, bolt, efreet, heal],
+                                     pips=7, power_pips=0))
+        return {c.name for c in b.cards if c.castable}
+
+    assert castable("Poseidon Earth-Shaker") == {"Minotaur", "Pixie"}
+    assert castable("Sand Squid Tentacle") == {"Myth Trap", "Minotaur", "Efreet"}

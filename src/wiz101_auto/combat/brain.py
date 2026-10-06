@@ -2507,11 +2507,20 @@ BOSS_BANS = {
     "flevur flave": lambda c: _blade(c) or _shield(c),  # steals them
     "ridenhouer delish": _shield,  # steals shields and absorbs
     "young morganthe": lambda c: (EffectKind.TRAP in c.kinds and not c.is_damage) or _shield(c),
+    # Atlantea (the player's list): Poseidon answers a single-target trap,
+    # prism or negative charm on him, or a single hit with a side effect
+    # (Efreet's weakness, a shield), with his Storm attack and a trap wipe.
+    "poseidon earth shaker": lambda c: aims_at_one_enemy(c) and (
+        _single_trap_or_prism(c) or EffectKind.WEAKNESS in c.kinds
+        or (c.is_damage and any(e.kind not in (EffectKind.DAMAGE, EffectKind.DOT) for e in c.effects))),
+    # The Sand Squid's tentacles Earthquake (blade wipe) for every heal.
+    "sand squid tentacle": lambda c: c.is_heal,
 }
 
 
 def _boss_bans(battle: Battle) -> Battle:
-    rules = [BOSS_BANS[e.name.lower()] for e in battle.live_enemies if e.name.lower() in BOSS_BANS]
+    names = {e.name.lower().replace("-", " ") for e in battle.live_enemies}
+    rules = [rule for boss, rule in BOSS_BANS.items() if any(n == boss or n.startswith(boss) for n in names)]
     if not rules:
         return battle
     return replace(battle, cards=[
