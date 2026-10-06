@@ -7732,7 +7732,10 @@ class Quester:
         self._fetch_next_story_quest()
         if accepted_new and self._grinding:
             VISIT_FILE.unlink(missing_ok=True)  # (a side-quest hunt's visit: the new quest first)
-        if not VISIT_FILE.exists() and (queue := load_retalk()):
+        if (not VISIT_FILE.exists() and (queue := load_retalk())
+                and not await self._in_dungeon(zone_here) and not is_team_up_zone(zone_here)):
+            # (Never out of a dungeon for one: a re-talk with Shane MacGobhann
+            # walked the bot out of Ricimer Flavel's cave before the boss.)
             npc, where = queue.pop(0)
             save_retalk(queue)
             VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
