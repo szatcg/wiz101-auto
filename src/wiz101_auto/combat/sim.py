@@ -28,6 +28,8 @@ from .brain import (
     _pay,
     _prism_gain,
     _prism_useless,
+    block_chance,
+    crit_chance,
     decide,
     hit_damage,
     is_reshuffle,
@@ -188,6 +190,7 @@ MEOWIARTY = [
         _s("Storm Shark", 3, "hit", "storm", 210),
     ], power=0.55),
 ]
+ROLL_CRITS = False  # our hits crit by the odds (the wizard's level and critical rating, my_stats.json)
 USE_LOOKAHEAD = False  # play with the whole-deck planner too (lookahead.py; comparisons)
 LOOKAHEAD_BUDGET = 3.0
 DAMAGE_SCALE = 1.0  # powers and buff_chance set so fights last like the close one (death ~round 18)
@@ -258,6 +261,9 @@ def _use_up(effects: list, school: str) -> list:
 
 
 def _apply_hit(f: Fight, c: Card, targets: list[Combatant], rng: random.Random):
+    # ROLL_CRITS: one crit roll per cast (a hit-all crits all at once), each
+    # target blocking on its own; else a crit only when it's near sure.
+    roll = rng.random() if ROLL_CRITS and f.me.crit else None
     for t in targets:
         school = c.school
         spell = c
@@ -266,7 +272,11 @@ def _apply_hit(f: Fight, c: Card, targets: list[Combatant], rng: random.Random):
             # Lands as storm: storm traps/shields and resist; our blades still count.
             seen, used = prism_view(t, "myth"), "storm"
             f.prism_on.discard(t.name)
-        dmg = hit_damage(spell, f.me, seen)
+        crit = None
+        if roll is not None:
+            school_ = c.school.lower()
+            crit = roll < crit_chance(f.me, t, school_) and rng.random() >= block_chance(f.me, t, school_)
+        dmg = hit_damage(spell, f.me, seen, crit=crit)
         t.health = max(0, t.health - int(dmg))
         t.is_dead = t.health <= 0
         t.incoming_effects = _use_up(t.incoming_effects, used)
@@ -561,6 +571,17 @@ def _run(f: Fight, rng: random.Random, strat: Strategy | None, start: int, first
     return False, horizon
 
 
+def _wizard(mine: dict, hp: int) -> Combatant:
+    """Our wizard from my_stats.json (crit ratings and level only with ROLL_CRITS)."""
+    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist=mine.get("resist", {}),
+                   damage_bonus=mine.get("damage_bonus", {}))
+    if ROLL_CRITS:
+        me.level = int(mine.get("level", 0))
+        me.crit = dict(mine.get("crit", {}))
+        me.block = dict(mine.get("block", {}))
+    return me
+
+
 def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = None, seed: int = 0,
              items: list[str] = ITEMS, hp: int = 1843, stats: dict | None = None) -> tuple[bool, int]:
     """One fight from the start. (won, rounds). `stats` (state/enemy_stats.json)
@@ -570,8 +591,7 @@ def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = Non
     rng.shuffle(cards)
     mine = load_my_stats()  # the wizard as last read in a fight: gear's damage bonus and all
     hp = mine.get("max_health", hp)
-    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist=mine.get("resist", {}),
-                   damage_bonus=mine.get("damage_bonus", {}))
+    me = _wizard(mine, hp)
     if stats:
         foes = [with_samples(x, stats) for x in foes]
     enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,
@@ -591,8 +611,7 @@ def replay(deck: dict[str, int], foes: list[Foe], stats: dict | None = None, see
     rng.shuffle(cards)
     mine = load_my_stats()
     hp = mine.get("max_health", 1843)
-    me = Combatant("Me", hp, hp, is_client=True, school="myth", resist=mine.get("resist", {}),
-                   damage_bonus=mine.get("damage_bonus", {}))
+    me = _wizard(mine, hp)
     if stats:
         foes = [with_samples(x, stats) for x in foes]
     enemies = [Combatant(x.name, x.health, x.health, is_enemy=True, is_boss=x.boss, school=x.school,

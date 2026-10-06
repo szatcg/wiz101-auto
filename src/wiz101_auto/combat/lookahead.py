@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import random
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from .model import Action, ActionKind, Battle, Card, Combatant, EffectKind
 
@@ -39,11 +39,26 @@ OVERRIDE_WIN = 0.08  # ... or this much likelier to win
 # A pass instead of the brain's cast: this many rounds faster (the estimates
 # past the horizon favour saving pips).
 PASS_ROUNDS = 1.0
-SPARE_COPIES = True  # a 2nd copy of a big hit may be discarded (the best one stays)
+SPARE_COPIES = False  # a 2nd copy of a big hit may be discarded (off: a miss then left the deck short)
 LOSING = 0.2  # every option below this chance to win: the brain's move stands
 SEEN_ENOUGH = 0.5  # overrides and discards only when this share of futures sees the kill
 DISCARD_ROUNDS = 0.25  # a discard (free: only the deck's cards) when this many rounds faster ...
 DISCARD_WIN = 0.04  # ... or this much likelier to win
+
+
+ENCHANTS = True  # a hit takes the best damage enchant in hand, as the brain plays it
+
+
+def _enchant_value(card: Card) -> float:
+    return sum(e.value for e in card.effects if e.kind is EffectKind.ENCHANT_DAMAGE)
+
+
+def _with_enchant(card: Card, enchant: Card) -> Card:
+    """`card` with `enchant`'s damage on each of its hits (Gargantuan)."""
+    extra = _enchant_value(enchant)
+    effects = [replace(e, value=e.value + extra) if e.kind in (EffectKind.DAMAGE, EffectKind.DOT) else e
+               for e in card.effects]
+    return replace(card, effects=effects, enchanted=True)
 
 
 class OutOfTime(Exception):
@@ -81,14 +96,52 @@ class Score:
         return f"{self.win:.0%} win, ~{self.rounds:.1f} rounds"
 
 
-def _futures(battle: Battle, n: int, power_chance: float, seed: int) -> list[tuple[list[Card], list[bool]]]:
+CRITS = True  # each future rolls our crits (and the enemies' blocks) by the game's odds
+MISSES = True  # each future also says which cards fizzle (their hit rates)
+_RATES: list = [0.0, {}]  # (file time, {spell: hit rate}) of state/enemy_stats.json
+
+
+def hit_rate(card: Card) -> float:
+    """The chance `card` lands: its hit rate in the fight logs
+    (enemy_stats.json, by name or the name before " - ": "Orthrus - T02 - A"),
+    else the card's accuracy."""
+    from pathlib import Path
+
+    path = Path("state") / "enemy_stats.json"
+    try:
+        mtime = path.stat().st_mtime
+        if mtime != _RATES[0]:
+            import json
+
+            _RATES[:] = [mtime, json.loads(path.read_text(encoding="utf-8")).get("hit_rate", {})]
+    except (OSError, ValueError):
+        pass
+    rates = _RATES[1]
+    rate = rates.get(card.name, rates.get(card.name.split(" - ")[0]))
+    if rate is None:
+        rate = card.accuracy / 100.0
+    return max(0.0, min(1.0, float(rate)))
+
+
+@dataclass
+class Future:
+    draws: list[Card]
+    gains: list[bool]
+    misses: frozenset = frozenset()  # id() of the cards that fizzle in this future
+    rolls: dict = field(default_factory=dict)  # id() -> (crit roll, block roll) of each card in this future
+
+
+def _futures(battle: Battle, n: int, power_chance: float, seed: int) -> list[Future]:
     rng = random.Random(seed)
     out = []
+    cards = [*battle.cards, *battle.upcoming]
     for _ in range(n):
         order = list(battle.upcoming)
         rng.shuffle(order)
         gains = [rng.random() < power_chance for _ in range(HORIZON * 3)]
-        out.append((order, gains))
+        misses = frozenset(id(c) for c in cards if rng.random() >= hit_rate(c)) if MISSES else frozenset()
+        rolls = {id(c): (rng.random(), rng.random()) for c in cards} if CRITS and battle.me.crit else {}
+        out.append(Future(order, gains, misses, rolls))
     return out
 
 
@@ -108,9 +161,37 @@ def _survive_rounds(battle: Battle) -> int:
     return max(1, int(battle.me.health // hit) + 1)
 
 
+# Our health along a line: each enemy still up hits us for its damage per
+# round, so a line that kills an add early loses less (a fixed rate for the
+# whole fight made killing an add look worthless). "line": the quickest
+# kill's line is won when we live through it (past the horizon: at the rate
+# the enemies left up then hit); "prune": lines we don't live through are
+# dropped from the search; "": rounds to kill vs our health at today's rate.
+SURVIVAL = ""
+
+
+def _hits_per_round(battle: Battle, enemies: list[Combatant]) -> list[float]:
+    """Each enemy's damage to us per round (the logs', as incoming_per_round
+    counts it), scaled up to what this fight has shown when that's more."""
+    from .brain import _STATS, UNKNOWN_HIT_SHARE, incoming_per_round
+
+    total = incoming_per_round(battle)  # (also reads the logs' stats)
+    out = []
+    for e in enemies:
+        st = _STATS[1].get(e.name, {})
+        rounds = [*st.get("alone", []), *st.get("shared", [])]
+        out.append(sum(rounds) / len(rounds) if rounds else UNKNOWN_HIT_SHARE * battle.me.max_health)
+    if OBSERVED_HIT > total > 0:
+        out = [d * OBSERVED_HIT / total for d in out]
+    return out
+
+
 def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline: float,
-                  force=None, force_target: str | None = None) -> tuple[float, bool]:
-    """(rounds to kill every enemy, exact or an estimate past the horizon)
+                  force=None, force_target: str | None = None,
+                  misses: frozenset = frozenset(),
+                  rolls: dict | None = None) -> tuple[float, bool, bool | None]:
+    """(rounds to kill every enemy, exact or an estimate past the horizon,
+    won: None when it's for the caller to judge from the rounds)
     with this draw order: every enemy's health and traps followed at once,
     so a hit-all spell (Orthrus) lands on each through its own traps, and a
     single hit or trap goes on the enemy chosen. The hand refills to
@@ -118,7 +199,9 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
     blades are spent by the next hit, traps by the next hit on that enemy.
     Past HORIZON: the health left, as the setups up by then see it, at the
     damage rate so far. `force`/`force_target`: the first move (a
-    Card.index or "pass", and the enemy's name)."""
+    Card.index or "pass", and the enemy's name). `misses`: id() of the
+    cards that fizzle (pips and the card spent, nothing done). `rolls`: each
+    card's crit and block rolls (else a crit counts only when near sure)."""
     from .brain import (
         PRISM_GAIN,
         PRISM_SCHOOL,
@@ -127,6 +210,8 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
         _pay,
         _prism_gain,
         _use_up,
+        block_chance,
+        crit_chance,
         hit_damage,
         prism_view,
     )
@@ -136,9 +221,15 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
     mine = (me.school or "").lower()
     enemies = [e for e in battle.live_enemies]
     names = [e.name for e in enemies]
-    pool = [c for c in battle.cards if not c.is_enchant] + list(draws)
+    pool = [c for c in battle.cards if ENCHANTS or not c.is_enchant] + list(draws)
     in_hand = len(pool) - len(draws)
     held_other = len(battle.cards) - in_hand
+    # Damage enchants (Gargantuan): the brain puts one on the hit it casts,
+    # so a hit takes the best one in hand (and frees its slot).
+    enchants = [j for j, c in enumerate(pool)
+                if ENCHANTS and c.is_enchant and EffectKind.ENCHANT_DAMAGE in c.kinds]
+    enchants.sort(key=lambda j: -_enchant_value(pool[j]))
+    boosted: dict = {}
     start_hp = tuple(float(e.health) for e in enemies)
     # A prism on an enemy turns our next myth hit on it into storm (Porrich:
     # 80% myth resist, weak to storm), then it's used up.
@@ -151,6 +242,12 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
     took = [force is None]  # the forced first move was playable (else it can't be scored)
     partial = [total_hp]  # the least effective health left at the horizon
     seen_at: dict = {}
+    hits = _hits_per_round(battle, enemies) if SURVIVAL else None
+    prune = SURVIVAL == "prune"
+    life = float(me.health)
+    at_horizon = [False]  # a line we live through reached the horizon
+    best_taken = [0.0]  # damage to us along the quickest kill's line
+    partial_taken = [0.0, 0.0]  # (damage to us by the horizon, the enemies' rate then) on the partial's line
 
     def gain(depth, n, p):
         return (n, p + 1) if depth < len(gains) and gains[depth] else (n + 1, p)
@@ -159,27 +256,38 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
         held = in_hand + drawn - used_n + held_other
         return min(len(draws), drawn + max(0, HAND_SIZE - held))
 
-    def search(depth, normal, power, used, out_fx, in_fx, hps, drawn, prisms):
+    def search(depth, normal, power, used, out_fx, in_fx, hps, drawn, prisms, taken):
         if time.monotonic() > deadline:
             raise OutOfTime
         if all(h <= 0 for h in hps):
-            best[0] = min(best[0], depth)
+            if depth < best[0] or (depth == best[0] and taken < best_taken[0]):
+                best[0], best_taken[0] = depth, taken
             return
+        if hits is not None and depth > 0:
+            # The enemies still up hit back after our move.
+            taken += sum(d for d, h in zip(hits, hps, strict=True) if h > 0)
+            if prune and taken >= life:
+                return  # (a line we don't live through is no line)
         if depth >= HORIZON:
             boost = 1 + sum(v for _k, _s, v in out_fx if v > 0)
             eff = sum(h / (boost * (1 + sum(v for _k, _s, v in fx if v > 0)))
                       for h, fx in zip(hps, in_fx, strict=True) if h > 0)
+            if eff < partial[0] and hits is not None:
+                partial_taken[:] = [taken, sum(d for d, h in zip(hits, hps, strict=True) if h > 0)]
             partial[0] = min(partial[0], eff)
+            at_horizon[0] = True
             return
         if depth + 1 >= best[0]:
             return
         where = (used, normal, power, tuple(round(h) for h in hps), drawn, len(out_fx),
                  tuple(len(x) for x in in_fx), prisms)
-        if seen_at.get(where, 99) <= depth:
+        prev = seen_at.get(where)
+        if prev is not None and prev[0] <= depth and prev[1] <= taken:
             return
-        seen_at[where] = depth
+        seen_at[where] = (depth, taken)
         live = [k for k, h in enumerate(hps) if h > 0]
         tried = set()
+        named: dict = {}
         for i, c in enumerate(pool):
             if i in used:
                 continue
@@ -204,11 +312,28 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
             paid = _pay(c, mine, normal, power)
             if paid is None:
                 continue
+            if named.setdefault(c.name, i) != i:
+                continue  # (copies alike: the first one is the one cast, whether it lands or not)
             if depth == 0:
                 took[0] = True
             nxt = gain(depth, *paid)
             nused = used | {i}
+            missed = id(c) in misses
+            if enchants and kind == "hit" and not c.enchanted:
+                j = next((j for j in enchants if j not in used and (j < in_hand or j - in_hand < drawn)),
+                         None)
+                if j is not None:
+                    nused = nused | {j}
+                    if (i, j) not in boosted:
+                        boosted[i, j] = _with_enchant(c, pool[j])
+                    c = boosted[i, j]
             ndrawn = refill(drawn, len(nused))
+            roll = rolls.get(id(pool[i])) if rolls else None
+            if missed:
+                if ("miss", c.name) not in tried:
+                    tried.add(("miss", c.name))
+                    search(depth + 1, *nxt, nused, out_fx, in_fx, hps, ndrawn, prisms, taken)
+                continue
             school = c.school.lower()
             everyone = c.target is Target.ENEMY_ALL
             if kind == "blade":
@@ -219,7 +344,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                 tried.add((kind, c.name))
                 fx = [(f"plan:{c.template_id or c.name}", (e.school or "").lower(), e.value / 100)
                       for e in c.effects if e.kind is EffectKind.BLADE]
-                search(depth + 1, *nxt, nused, out_fx + fx, in_fx, hps, ndrawn, prisms)
+                search(depth + 1, *nxt, nused, out_fx + fx, in_fx, hps, ndrawn, prisms, taken)
                 continue
             if kind == "prism":
                 for k in live:
@@ -230,7 +355,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                     tried.add(("prism", k))
                     np = list(prisms)
                     np[k] = True
-                    search(depth + 1, *nxt, nused, out_fx, in_fx, hps, ndrawn, tuple(np))
+                    search(depth + 1, *nxt, nused, out_fx, in_fx, hps, ndrawn, tuple(np), taken)
                 continue
             targets = live if everyone else [k for k in live if depth > 0 or force_target in (None, names[k])]
             for k in ([None] if everyone else targets):
@@ -246,7 +371,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                     for j in hit:
                         if not any(kk == fx[0][0] for kk, _s, _v in in_fx[j]):
                             new_in[j] = in_fx[j] + fx
-                    search(depth + 1, *nxt, nused, out_fx, tuple(new_in), hps, ndrawn, prisms)
+                    search(depth + 1, *nxt, nused, out_fx, tuple(new_in), hps, ndrawn, prisms, taken)
                     continue
                 attacker = Combatant(**{**me.__dict__, "outgoing_effects": out_fx})
                 new_hp, new_in, np = list(hps), list(in_fx), list(prisms)
@@ -256,43 +381,53 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                     if prisms[j] and school == PRISM_SCHOOL:
                         victim = prism_view(victim)
                         np[j] = False
-                    new_hp[j] = hps[j] - hit_damage(c, attacker, victim)
+                    crit = None
+                    if roll is not None:
+                        crit = (roll[0] < crit_chance(attacker, victim, school)
+                                and roll[1] >= block_chance(attacker, victim, school))
+                    new_hp[j] = hps[j] - hit_damage(c, attacker, victim, crit=crit)
                     new_in[j] = _use_up(in_fx[j], school)
                 search(depth + 1, *nxt, nused, _use_up(out_fx, school), tuple(new_in), tuple(new_hp), ndrawn,
-                       tuple(np))
+                       tuple(np), taken)
         if depth == 0 and force is not None and force != "pass":
             return
         if depth == 0:
             took[0] = True
         search(depth + 1, *gain(depth, normal, power), used, out_fx, in_fx, hps, refill(drawn, len(used)),
-               prisms)
+               prisms, taken)
 
     search(0, battle.pips, battle.power_pips, frozenset(), list(me.outgoing_effects),
-           tuple(list(e.incoming_effects) for e in enemies), start_hp, 0, start_prisms)
+           tuple(list(e.incoming_effects) for e in enemies), start_hp, 0, start_prisms, 0.0)
     if not took[0]:
         raise Unplayable  # (a second copy of a blade that's up, a card it doesn't model)
     if best[0] <= HORIZON:
-        return float(best[0]), True
+        return float(best[0]), True, (best_taken[0] < life) if hits is not None and not prune else True
+    if prune and not at_horizon[0]:
+        return float(CAP), True, False  # (every line has us down first)
     done = total_hp - partial[0]
     if done <= 0:
-        return float(CAP), False
-    return min(float(CAP), HORIZON * total_hp / done), False
+        return float(CAP), False, False if hits is not None else None
+    r = min(float(CAP), HORIZON * total_hp / done)
+    if hits is None or prune:
+        return r, False, None
+    return r, False, partial_taken[0] + (r - HORIZON) * partial_taken[1] < life
 
 
 def _score(battle: Battle, futures, deadline: float, force=None, first=None) -> Score | None:
     """None when the forced move can't be played out by the search."""
     alive = _survive_rounds(battle)
     wins, rounds, seen = 0, 0.0, 0
-    for draws, gains in futures:
+    for fut in futures:
         if time.monotonic() > deadline:
             raise OutOfTime
         try:
-            r, exact = _group_search(battle, draws, gains, deadline, force, first.name if first else None)
+            r, exact, won = _group_search(battle, fut.draws, fut.gains, deadline, force,
+                                          first.name if first else None, fut.misses, fut.rolls)
         except Unplayable:
             return None
         seen += exact
         rounds += r
-        wins += r <= alive
+        wins += (r <= alive) if won is None else won
     k = max(1, len(futures))
     return Score(wins / k, rounds / k, seen / k)
 
@@ -325,7 +460,8 @@ def _droppable(battle: Battle) -> list[Card]:
     # early odds binned an Orthrus in round 1; a spare copy may go.)
     return [c for c in battle.cards
             if not c.treasure and not c.item and not is_reshuffle(c) and not c.is_enchant
-            and ((modeled(c) and (not keep_from_discard(c) or (spare_copy(c) and SPARE_COPIES)))
+            and ((modeled(c) and not _is_prism(c)
+                  and (not keep_from_discard(c) or (spare_copy(c) and SPARE_COPIES)))
                  or (_is_prism(c) and _prism_useless(c, battle)))]
 
 
@@ -484,7 +620,7 @@ def draw_values(battle: Battle, power_chance: float, budget: float = 2.0,
         out: dict[str, float] = {}
         for name in sorted({c.name for c in battle.upcoming}):
             card = next(c for c in battle.upcoming if c.name == name)
-            front = [([card] + [c for c in d if c is not card], g) for d, g in futures]
+            front = [replace(f, draws=[card] + [c for c in f.draws if c is not card]) for f in futures]
             r = _score(battle, front, deadline).rounds
             if r < base - 0.4:
                 out[name] = r

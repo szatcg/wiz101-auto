@@ -300,7 +300,8 @@ def _save_my_stats(me) -> None:
     """Our wizard as the game reads it (max health, gear's damage bonus and
     resists), for the simulator's fights from the start (sim.simulate)."""
     try:
-        data = {"max_health": me.max_health, "damage_bonus": dict(me.damage_bonus),
+        data = {"max_health": me.max_health, "damage_bonus": dict(me.damage_bonus), "level": me.level,
+                "crit": dict(me.crit or {}), "block": dict(me.block or {}),
                 "resist": dict(me.resist or {}), "school": me.school}
         MY_STATS.write_text(json.dumps(data), encoding="utf-8")
     except Exception:
