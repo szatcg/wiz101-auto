@@ -1536,6 +1536,8 @@ class Quester:
                 # a ladder or door never says "talk"; don't start her dialogue.
                 continue
             entering = "to enter" in prompt
+            if not entering and is_team_up_zone(zone or ""):
+                continue  # a lever, not a door (the Waterworks' lever room: a wrong one is a fight)
             if entering:
                 # A dungeon sigil (the Hyde Park safehouses): ONE press starts
                 # a countdown that a second press or any step cancels.

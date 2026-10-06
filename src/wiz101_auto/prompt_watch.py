@@ -90,6 +90,18 @@ async def _goal_id(client):
         return None
 
 
+async def _in_team_dungeon(client) -> bool:
+    """No using objects in a team dungeon: they count for the whole team, and
+    in the Waterworks' lever room a wrong lever brings 4 Slithering Eels (the
+    bot pulled one walking through and started that fight)."""
+    from .teamup import is_team_up_zone
+
+    try:
+        return is_team_up_zone(await client.zone_name() or "")
+    except Exception:
+        return True
+
+
 async def prompt_loop(client, quester, controller):
     last_press = 0.0
     last_collect = 0.0  # (its own cooldown: the crystal objective changes as we move, and each
@@ -141,7 +153,7 @@ async def prompt_loop(client, quester, controller):
                 last_press = time.monotonic()
                 logger.info(f"talk prompt for {title} showed: talking at once")
                 await client.send_key(Keycode.X, 0.1)
-            elif should_use(objective, prompt, title):
+            elif should_use(objective, prompt, title) and not await _in_team_dungeon(client):
                 last_press = time.monotonic()
                 logger.info(f"prompt for {title} showed: using it at once")
                 await client.send_key(Keycode.X, 0.1)
