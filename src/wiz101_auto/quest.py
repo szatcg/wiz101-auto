@@ -3849,7 +3849,8 @@ class Quester:
                 # player: the main quest only; 'Tomb of the Zebra Kings' kept the
                 # bot at Zanga Zebu over 'Into the Zebra Tomb'), except farming.
                 # (A story INSTANCE quest is the main story's own step.)
-                side_over_main = (local is not None and not local.mainline and chosen.mainline
+                side_over_main = (local is not None and not local.mainline and chosen is not None
+                                  and chosen.mainline
                                   and norm(local.name) not in instances
                                   and not Farm.load().active)
                 if local and local is not chosen and not side_over_main:
@@ -3865,7 +3866,8 @@ class Quester:
                         logger.info(f"quick errand first: {errand.name!r} ({errand.goal or errand.target}), "
                                     f"then back to {chosen.name!r}")
                     chosen = errand
-            if not self._mainline and not chosen.mainline and self._detour_gap_pending():
+            side_chosen = chosen is not None and not chosen.mainline  # (none at all: nothing to choose)
+            if not self._mainline and side_chosen and self._detour_gap_pending():
                 # On the way to ask for the story's next quest: a quest of the
                 # story's world tracked meanwhile, so the house's world gate
                 # opens the Spiral Map on that world (it opened on The Spiral
