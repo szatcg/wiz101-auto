@@ -390,3 +390,9 @@ def test_fishing_and_crafting_objectives_are_undoable():
     assert undoable_objective("Craft Dagger of Absolution in Crafting Station (0 of 2)")
     assert not undoable_objective("Talk To Sir Guy Gascoigne in Caliburn")
     assert not undoable_objective(None)
+
+
+def test_open_objectives_name_the_object():
+    from wiz101_auto.quest import operate_target
+
+    assert operate_target("Open Pixie Cage in The Wild (0 of 6)").startswith("Pixie Cage")

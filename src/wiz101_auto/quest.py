@@ -910,8 +910,9 @@ def locate_target(objective: str) -> str | None:
 
 
 # ("Learn Mantra 2 in Ancient Burial Grounds": a tablet to read, walked at as a door for 6 minutes.)
+# ("Open Pixie Cage in The Wild (0 of 6)": no marker; 'Far Away Girls' waited and was set aside.)
 _OPERATE = re.compile(
-    r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch)\s+(.+?)"
+    r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch|open)\s+(.+?)"
     r"(?:\s+in\s+.+)?\s*$", re.I)
 
 
@@ -8414,15 +8415,21 @@ class Quester:
                 return
             # A marker we can't reach is usually behind a gate that opens once
             # the enemies in front of it are beaten: go fight them.
+            # (Not on "Use Teleporter": the marker is out of reach while the
+            # jump loads; a fight was pulled, then fled as unneeded, again and
+            # again at the White Owl Tower's teleporter.)
             key = (objective, zone)
             self._unreached[key] = self._unreached.get(key, 0) + 1
             if (
                 self._unreached[key] >= UNREACHED_BEFORE_FIGHT
+                and "teleporter" not in (operate_target(objective) or "").lower()
                 and not is_team_up_zone(zone or "")  # with a team, the team starts fights
                 and await self.sprinter.get_mobs()
             ):
                 logger.info("can't reach the quest marker (a locked gate?); fighting nearby enemies")
                 self._unreached[key] = 0
+                # Started on purpose: fought, not fled as "not the quest's fight".
+                self._wanted_fight_until = time.monotonic() + WANTED_FIGHT_SECONDS
                 await self.pull_mob()
                 return
 
