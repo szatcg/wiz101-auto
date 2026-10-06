@@ -24,7 +24,9 @@ IGNORED = ("[round", "plan (", "predict:", "crit:", "effects:", "resists", "item
            "working on:", "quest priority", "the game is tracking", "read ", "to the objective at",
            "heading for the boss", "the quest moved on",
            # teleport retries and talks: routine noise in some zones
-           "teleport to (", "teleport refused", "teleport was rejected", "interacting:")
+           "teleport to (", "teleport refused", "teleport was rejected", "interacting:",
+           # a heal's wisp rounds (bounded by the heal itself)
+           "health wisp", "wisp spawn point", "wisps here are respawning")
 
 
 def _status_line(message: str) -> bool:

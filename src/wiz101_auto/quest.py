@@ -2642,7 +2642,12 @@ class Quester:
             if recent:
                 logger.info("loop again soon after: Go Home first")
                 await _press(self.client, DORM_BUTTON)
-            if VISIT_FILE.exists():
+            if self._active_quest and self._active_quest in (self._mainline or set()):
+                # The main story is never set aside for a loop: its own rules
+                # (5 defeats, then side quests) decide (a heal search's loop
+                # set Porrich's quest aside and the bot went off to Aquila).
+                pass
+            elif VISIT_FILE.exists():
                 # (An NPC visit going nowhere: the Bazaar loop was one.)
                 logger.info(f"dropping the NPC visit {VISIT_FILE.read_text(encoding='utf-8')[:80]}")
                 VISIT_FILE.unlink(missing_ok=True)
@@ -3637,10 +3642,19 @@ class Quester:
                 # The detour's quest is stuck (set aside after trying every
                 # way): the main story (Celestia) meanwhile, not grinding (the
                 # player); the detour comes back when its quest is retried.
-                logger.info(f"detour quest {detour_mains[0].name!r} set aside as stuck: "
-                            "the main story meanwhile")
-                for _, q in all_quests:
-                    q.mainline = game_main[id(q)] and not in_side_world(q)
+                if det[0].get("when_stuck") == "side":
+                    # (The player's order for Avalon: its side quests, then
+                    # Zafaria's, then the Wysteria story; the game's other
+                    # 'main story', Aquila's, took it to Atlantea instead.)
+                    logger.info(f"detour quest {detour_mains[0].name!r} set aside as stuck: "
+                                f"{det[0]['world']}'s side quests meanwhile")
+                    for _, q in all_quests:
+                        q.mainline = False
+                else:
+                    logger.info(f"detour quest {detour_mains[0].name!r} set aside as stuck: "
+                                "the main story meanwhile")
+                    for _, q in all_quests:
+                        q.mainline = game_main[id(q)] and not in_side_world(q)
             elif det is not None and complete and not detour_mains and not self._detour_gap_pending():
                 # No detour quest at all, its NPCs asked already: the main story
                 # (Celestia) meanwhile, never grinding (the player).
