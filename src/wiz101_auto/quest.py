@@ -153,6 +153,8 @@ GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of t
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 ROOM_ALONE_ADVANCE = 10.0  # come into a room with no teammate in it: this long, then on to the next room
+LOOP_ESCALATE = 1800.0  # a second loop within this: Go Home as well
+LOOP_REPEATS_TEXT = "repeated 8 times in 10 min"
 KNOWN_DOOR_NEAR = 900.0  # a remembered door walk this near the marker is the way to it
 TEAM_MARKER_NEAR = 400.0  # this near the quest marker in a team dungeon: arrived, wait there
 ROOM_MOB_CLEAR = 1500.0  # on to the next room only with no enemy this near us, the landing or the gate
@@ -525,6 +527,11 @@ def quest_zone(q: QuestEntry) -> str:
     return (objective_zone(q.world) if q.world else None) or ""
 
 
+def is_fishing(q: QuestEntry) -> bool:
+    """A fishing quest ("Catch Frost Dekoi in The Commons")."""
+    return (q.goal or "").strip().lower().startswith("catch ")
+
+
 def choose_quest(
     quests: list[QuestEntry],
     set_aside: set[str] = frozenset(),
@@ -539,7 +546,9 @@ def choose_quest(
     level before trying again. Within that pool: spell quests first, then the
     earliest area, easy objectives first, listed quests in list order."""
     order = order or {}
-    available = [q for q in quests if q.name not in set_aside]
+    # (Never fishing quests, "Catch Frost Dekoi": the bot can't fish; it sat
+    # at the Commons' fishing spot instead of the Avalon story.)
+    available = [q for q in quests if q.name not in set_aside and not is_fishing(q)]
     # The main story: flagged in the book, spell/class quests, or on the quest list.
     # (A side world's quest on the list only as the book or a detour says:
     # Wysteria's 'Exchange Student' and 'The Spiral Cup' were followed toward
@@ -2612,6 +2621,38 @@ class Quester:
         # the first outdoor zone there with enemies (before its dungeon) is used.
         return False
 
+    async def break_loop(self, line: str):
+        """The same line logged over and over (loopwatch): ALERT, and out of
+        it. First the quest it's on is set aside and the book ranked again;
+        a second loop within LOOP_ESCALATE: Go Home too (out of whatever
+        place keeps it there)."""
+        from .dungeon_heal import DORM_BUTTON, _press
+
+        now = time.monotonic()
+        recent = now - self.__dict__.get("_last_loop", -1e9) < LOOP_ESCALATE
+        self._last_loop = now
+        objective = await self.objective() or ""
+        if is_team_up_zone(await self.client.zone_name() or ""):
+            # (With a team: never set its quest aside or leave; the player hears.)
+            logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r} (team dungeon)")
+            return
+        logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r}; breaking out of it")
+        self.controller.allow_idle(60)
+        try:
+            if recent:
+                logger.info("loop again soon after: Go Home first")
+                await _press(self.client, DORM_BUTTON)
+            if VISIT_FILE.exists():
+                # (An NPC visit going nowhere: the Bazaar loop was one.)
+                logger.info(f"dropping the NPC visit {VISIT_FILE.read_text(encoding='utf-8')[:80]}")
+                VISIT_FILE.unlink(missing_ok=True)
+            elif objective:
+                await self._set_current_aside(objective)
+            self._ranked_for = None
+            self._last_rank = -1e9
+        finally:
+            self.controller.end_idle()
+
     def _alert_main_stuck(self, quest: str, why: str, *, hard: bool = False):
         """The main quest can't go on for now: an ALERT line (activity.log) that
         the operator's watcher turns into a phone notification. The bot keeps
@@ -3559,7 +3600,10 @@ class Quester:
                 elif q.mainline and in_side_world(q):
                     q.mainline = False  # (a side world's story: a side quest here)
             if det is not None and complete:
-                has = any(norm(q.name) in det[2] or (lead_in and game_main[id(q)]) for _, q in all_quests)
+                # Its story begun: one of its main-story quests in the book (a
+                # side quest on its list doesn't count: Eudora's crafting quest
+                # 'The Razor's Edge' is on Avalon's, and Gamma was never visited).
+                has = any(norm(q.name) in det[1] or (lead_in and game_main[id(q)]) for _, q in all_quests)
                 self._detour_start(det[0], has)
                 await self._note_detour_gap(has)
             activities = {q.name for _, q in all_quests if q.activity}

@@ -364,3 +364,11 @@ def test_dungeon_quest_takes_the_story_instance_quest():
     assert dungeon_quest(quests, zone, zones.get, entered_with="Tomb Sweet Tomb") is None
     assert dungeon_quest(quests, zone, zones.get, entered_with="Tomb Sweet Tomb",
                          story_instances=instances) is drum
+
+
+def test_fishing_quests_are_never_chosen():
+    from wiz101_auto.quest import QuestEntry, choose_quest
+
+    fish = QuestEntry(0, "A River Runs Through It", activity=True, goal="Catch Frost Dekoi in The Commons")
+    side = QuestEntry(1, "Art History", world="Baobab Crown", goal="Talk To Zafaria History")
+    assert choose_quest([fish, side]) is side

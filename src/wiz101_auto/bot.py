@@ -435,10 +435,20 @@ STUCK_TIMEOUTS_BEFORE_RELOG = 3  # quest steps failing in a row on WizWalker's s
 
 
 async def quest_loop(quester: Quester, controller: Controller):
+    from . import loopwatch
+
     stuck = 0  # steps in a row that failed because the game ignored our moves
+    loopwatch.reset()
+    logger.add(loopwatch.sink, level="INFO", format="{message}")
     while not controller.stopped.is_set():
         await controller.checkpoint()
         try:
+            looped = loopwatch.take()
+            if looped and not await quester.client.in_battle():
+                # The same thing over and over (the player: never again an
+                # hour of it): break out of it, then go on.
+                await quester.break_loop(looped)
+                continue
             await quester.run_step()
             stuck = 0
         except BotStopped:

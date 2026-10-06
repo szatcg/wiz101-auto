@@ -83,12 +83,80 @@ async def _click_text(client, words: tuple[str, ...], stage: str, tries: int = 1
 
 async def relog(client) -> bool:
     """Quit to character select and play again. True once back in the world.
-    The watchdog leaves it alone meanwhile (client._relogging_until)."""
+    The watchdog leaves it alone meanwhile (client._relogging_until).
+
+    A loop (the player: an hour of relogs in the Olde Town Bazaar, every one
+    back on the same spot): a second relog in the same zone within
+    RELOG_LOOP_WINDOW doesn't happen; the wizard walks out instead."""
+    try:
+        zone = await client.zone_name() or ""
+    except Exception:
+        zone = ""
+    now = time.monotonic()
+    _RELOGS[:] = [(t, z) for t, z in _RELOGS if now - t < RELOG_LOOP_WINDOW]
+    if zone and relog_loop(_RELOGS, zone, now):
+        return await escape_zone(client, zone)
+    _RELOGS.append((now, zone))
     client._relogging_until = time.monotonic() + RELOG_SECONDS
     try:
         return await _relog(client)
     finally:
         client._relogging_until = 0.0
+
+
+RELOG_LOOP_WINDOW = 600.0  # a relog in the same zone within this of the last: a loop
+_RELOGS: list[tuple[float, str]] = []  # (when, zone) of recent relogs
+
+
+def relog_loop(history: list[tuple[float, str]], zone: str, now: float) -> bool:
+    """A relog in `zone` already happened within RELOG_LOOP_WINDOW: relogging
+    again won't free it."""
+    return any(z == zone and now - t < RELOG_LOOP_WINDOW for t, z in history)
+
+
+async def escape_zone(client, zone: str) -> bool:
+    """Out of a zone a relog loop keeps us in: walk out by a door walk learned
+    there (state/doors.json; walking, the teleports are what time out), else
+    Go Home, else the world hub button. The door walks into this zone are
+    forgotten (it's a trap: teleports fail in there). True if out."""
+    from .dungeon_heal import DORM_BUTTON, HUB_BUTTON, _press
+    from .entitymap import DoorMemory
+
+    logger.warning(f"ALERT: loop: relogged in {zone.split('/')[-1]} already and it's back where it was; "
+                   "walking out instead of relogging again")
+    doors = DoorMemory()
+    for door, start, *rest in doors.doors.get(zone, []):
+        dest = rest[0] if rest else None
+        try:
+            await client.goto(start[0], start[1])
+            await client.goto(door[0], door[1])
+            dx, dy = door[0] - start[0], door[1] - start[1]
+            await client.goto(door[0] + dx * 0.3, door[1] + dy * 0.3)
+        except Exception as exc:
+            logger.debug(f"escape walk failed: {exc!r}")
+        await wait_for_loading(client, appear_timeout=5.0)
+        if await client.zone_name() not in (zone, None, ""):
+            logger.success(f"walked out of the loop into {await client.zone_name()}")
+            _forget_ways_into(doors, zone)
+            return True
+        logger.info(f"the walk out toward {dest} didn't take")
+    for button, what in ((DORM_BUTTON, "Go Home"), (HUB_BUTTON, "the world hub button")):
+        try:
+            if await _press(client, button) and await client.zone_name() != zone:
+                logger.success(f"out of the loop by {what}: now in {await client.zone_name()}")
+                _forget_ways_into(doors, zone)
+                return True
+        except Exception as exc:
+            logger.debug(f"escape by {what} failed: {exc!r}")
+    logger.warning(f"ALERT: loop: couldn't get out of {zone}; the player may need to move the wizard")
+    return False
+
+
+def _forget_ways_into(doors, zone: str):
+    for other in list(doors.doors):
+        n = doors.forget(other, zone)
+        if n:
+            logger.info(f"forgot {n} door walk(s) from {other.split('/')[-1]} into {zone.split('/')[-1]}")
 
 
 async def at_character_select(client) -> bool:
