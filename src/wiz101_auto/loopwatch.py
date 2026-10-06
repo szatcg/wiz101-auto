@@ -40,8 +40,18 @@ def key(message: str) -> str:
     return re.sub(r"-?\d+(\.\d+)?", "#", message.strip())[:160]
 
 
+# Progress: a loop is the same thing with nothing getting done (6 Ail Blanc
+# picked up one by one, each "collecting 'Ail Blanc'", was taken for one and
+# the main quest set aside).
+PROGRESS = ("objective done", "quest completed", "collected ", "talked to", "entered the dungeon",
+            "accepting ")
+
+
 def note(message: str, now: float | None = None) -> str | None:
     """Count a logged line; the line when it has just become a loop."""
+    if any(w in message for w in PROGRESS):
+        _seen.clear()
+        return None
     if any(w in message for w in IGNORED) or _status_line(message):
         return None
     now = time.monotonic() if now is None else now

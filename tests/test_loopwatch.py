@@ -12,3 +12,12 @@ def test_spread_out_or_fight_lines_are_not():
     loopwatch.reset()
     assert all(loopwatch.note("heading to WizardCity/WC_Hub", now=200.0 * i) is None for i in range(8))
     assert all(loopwatch.note(f"[round {i}] pips=1 -> pass", now=float(i)) is None for i in range(20))
+
+
+def test_the_same_line_with_progress_between_is_not_a_loop():
+    loopwatch.reset()
+    found = []
+    for i in range(12):
+        found.append(loopwatch.note(f"collecting 'Ail Blanc' at ({i}, {i})", now=float(i * 10)))
+        loopwatch.note(f"objective done -> now: 'Collect Ail Blanc (of 12)' {i}", now=float(i * 10 + 5))
+    assert found == [None] * 12
