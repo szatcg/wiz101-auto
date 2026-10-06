@@ -445,7 +445,10 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
     try:
         from .dungeons import DungeonMemory
 
-        if (await client.zone_name() or "") in DungeonMemory().dungeons:
+        zone = await client.zone_name() or ""
+        if zone in DungeonMemory().dungeons or "/interiors/" in zone.lower():
+            # (Any building: a first visit isn't a known dungeon yet, and the
+            # Fairy Circle Cave was walked out of twice before the Bane Wyrm.)
             # Never in a dungeon: its door is by where we arrive, and a first
             # visit knows no exits (Catalan's cave was left at once before the
             # boss deck went on). Its fights are all fought anyway.
