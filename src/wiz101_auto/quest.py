@@ -8144,7 +8144,9 @@ class Quester:
                 # Its way in a dungeon sigil (the Drum House): stand on it for
                 # the countdown, no door walk (moving cancels it).
                 for door, _approach in self.doors.leading_to(zone, room):
-                    sigil = await self._sigil_at(XYZ(*door))
+                    # (Doors are (x, y): the height is ours, as _sigil_at's distance is 3-D.)
+                    here_z = (await self.client.body.position()).z
+                    sigil = await self._sigil_at(XYZ(door[0], door[1], here_z))
                     if sigil is not None:
                         await self._enter_by_sigil(sigil, zone)
                         return
