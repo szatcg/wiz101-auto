@@ -71,7 +71,12 @@ def looks_like_person(name: str) -> bool:
 # visited 'Cantrip Ritual Chest' and 'Duel Circle').
 _OBJECT_WORDS = frozenset({"chest", "circle", "sign", "signpost", "statue", "door", "gate", "portal",
                            "table", "cauldron", "barrel", "crate", "banner", "totem", "teleporter",
-                           "fountain", "pedestal", "lever", "brazier", "obelisk", "switch"})
+                           "fountain", "pedestal", "lever", "brazier", "obelisk", "switch",
+                           # Avalon's quest props ('Hay Stack', 'Mill Wheel Piece',
+                           # 'Shrine To Loyalty' were visited for quests)
+                           "stack", "wheel", "piece", "stone", "shrine", "feeder", "cage",
+                           "book", "map", "pot", "pots", "sacks", "shrub", "part", "vine",
+                           "sword", "shield", "grain", "brushes"})
 
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
