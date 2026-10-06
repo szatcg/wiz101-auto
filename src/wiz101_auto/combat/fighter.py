@@ -333,6 +333,7 @@ class Fighter(CombatHandler):
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._pp_chance: float | None = None  # power pip chance, read once a fight
+        self._hp_seen: list[tuple[int, int]] = []
         self._gone: Counter[str] = Counter()
         self._enchant_tried: dict[int, set[str]] = {}  # round -> cards an enchant was tried on
         self._discarded: Counter[str] = Counter()  # (of _gone: the discarded ones; the rest were played)
@@ -871,6 +872,13 @@ class Fighter(CombatHandler):
         if scripted_fight(battle) or not battle.deck_known:
             return action
         rules = _no_single_target(battle)  # (boss bans and the like: what may be cast)
+        # The damage this fight has done to us per round, last 3 rounds.
+        hist = self._hp_seen
+        if not hist or hist[-1][0] != battle.round:
+            hist.append((battle.round, battle.me.health))
+        recent = hist[-4:]
+        lost = [a[1] - b[1] for a, b in zip(recent, recent[1:], strict=False) if a[1] > b[1]]
+        lookahead.OBSERVED_HIT = sum(lost) / len(lost) if lost else 0.0
         try:
             chance = await self._power_chance()
             choice = await asyncio.to_thread(lookahead.choose, rules, action, chance, discards_left)
@@ -929,6 +937,7 @@ class Fighter(CombatHandler):
         self._unusable.clear()
         self._prismed: set[str] = set()
         self._pp_chance = None  # read once a fight
+        self._hp_seen: list[tuple[int, int]] = []  # (round, our health) for the planner's damage estimate
         self._summons = 0
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
         self._discarded = Counter()

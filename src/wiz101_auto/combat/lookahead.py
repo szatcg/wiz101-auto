@@ -85,11 +85,17 @@ def _futures(battle: Battle, n: int, power_chance: float, seed: int) -> list[tup
     return out
 
 
+OBSERVED_HIT = 0.0  # damage we took per round in this fight so far (the fighter sets it each round)
+
+
 def _survive_rounds(battle: Battle) -> int:
-    """Rounds we last at the enemies' logged damage per round."""
+    """Rounds we last at the enemies' damage per round: their logged
+    rounds, or what this fight has shown, whichever is more (Maudit Soulban
+    and his Giant, never logged, hit for ~900 a round while the planner
+    counted on far less and called a near-loss a sure win)."""
     from .brain import incoming_per_round
 
-    hit = incoming_per_round(battle)
+    hit = max(incoming_per_round(battle), OBSERVED_HIT)
     if hit <= 0:
         return CAP
     return max(1, int(battle.me.health // hit) + 1)
