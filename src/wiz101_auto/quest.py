@@ -538,6 +538,25 @@ def is_fishing(q: QuestEntry) -> bool:
     return (q.goal or "").strip().lower().startswith("catch ")
 
 
+UNDOABLE_FILE = Path("state") / "undoable_quests.json"
+
+
+def undoable_objective(objective: str | None) -> bool:
+    """An objective the bot can't do: fishing ("Catch Frost Dekoi") or
+    crafting ("Craft Dagger of Absolution")."""
+    text = (objective or "").strip().lower()
+    return text.startswith(("catch ", "craft ")) or "crafting station" in text
+
+
+def load_undoable() -> set[str]:
+    """Quests seen with a fishing/crafting objective (the book's ranking reads
+    no goals: 'A River Runs Through It' was chosen though fishing is skipped)."""
+    try:
+        return set(json.loads(UNDOABLE_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return set()
+
+
 def is_crafting(q: QuestEntry) -> bool:
     """A crafting quest ("Craft Dagger of Absolution in Crafting Station"):
     the bot can't craft (it circled Wysteria's crafting station)."""
@@ -3670,7 +3689,7 @@ class Quester:
             active = next((q for _, q in all_quests if q.active), None)
             self._active_quest = active.name if active else self._active_quest
             level = await self.client.stats.reference_level()
-            set_aside = self.setbacks.set_aside(level)
+            set_aside = self.setbacks.set_aside(level) | load_undoable()
             detour_mains = [q for _, q in all_quests if q.mainline] if det is not None else []
             if (detour_mains and all(q.name in set_aside for q in detour_mains)
                     and not any(self._detour_stays(q.name) for q in detour_mains)):
@@ -7897,6 +7916,13 @@ class Quester:
                 return
 
         objective = await self.objective()
+        if undoable_objective(objective) and self._active_quest:
+            # Fishing or crafting: never done by the bot; skipped for good.
+            names = load_undoable() | {self._active_quest}
+            UNDOABLE_FILE.write_text(json.dumps(sorted(names)), encoding="utf-8")
+            logger.info(f"{self._active_quest!r} needs fishing or crafting ({objective}): skipped for good")
+            self._ranked_for = None
+            self._last_rank = -1e9
         accepted = self.dialogue.accepted if self.dialogue else 0
         if accepted != self._accepted_seen:
             # A newly accepted quest gets tracked by the game (Harold's side

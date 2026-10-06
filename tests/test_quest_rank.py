@@ -381,3 +381,12 @@ def test_crafting_quests_are_never_chosen():
                        goal="Craft Dagger of Absolution in Crafting Station (0 of 2)")
     side = QuestEntry(1, "Art History", world="Baobab Crown", goal="Talk To Zafaria History")
     assert choose_quest([craft, side]) is side
+
+
+def test_fishing_and_crafting_objectives_are_undoable():
+    from wiz101_auto.quest import undoable_objective
+
+    assert undoable_objective("Catch Frost Dekoi in The Commons")
+    assert undoable_objective("Craft Dagger of Absolution in Crafting Station (0 of 2)")
+    assert not undoable_objective("Talk To Sir Guy Gascoigne in Caliburn")
+    assert not undoable_objective(None)
