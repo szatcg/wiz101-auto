@@ -2484,7 +2484,39 @@ FULL_HEALTH = 0.9  # a heal is never cast at or above this much health
 # Luska Charmbeak answers any single-target spell from a wizard he hasn't
 # inked (all but the first spot) with Skeletal Dragon (1,200) or Power Link
 # (2,100), and cleanses traps; hits on all enemies are safe.
-NO_SINGLE_TARGET = {"luska charmbeak"}
+NO_SINGLE_TARGET = {"luska charmbeak", "the pendragon"}  # (Pendragon: Scarecrow for any)
+
+
+def _single_trap_or_prism(c: Card) -> bool:
+    return aims_at_one_enemy(c) and (EffectKind.TRAP in c.kinds or "prism" in c.name.lower())
+
+
+def _shield(c: Card) -> bool:
+    return EffectKind.SHIELD in c.kinds
+
+
+def _blade(c: Card) -> bool:
+    return EffectKind.BLADE in c.kinds and not c.is_damage
+
+
+# Cards a boss punishes (the player's Avalon list, docs/guides/Boss cheats.md):
+# made uncastable while the boss lives.
+BOSS_BANS = {
+    "matkis axethief": _single_trap_or_prism,  # wipes all his traps and prisms
+    "black annie": lambda c: aims_at_one_enemy(c) and c.pip_cost <= 3,  # Vampire + stun
+    "flevur flave": lambda c: _blade(c) or _shield(c),  # steals them
+    "ridenhouer delish": _shield,  # steals shields and absorbs
+    "young morganthe": lambda c: (EffectKind.TRAP in c.kinds and not c.is_damage) or _shield(c),
+}
+
+
+def _boss_bans(battle: Battle) -> Battle:
+    rules = [BOSS_BANS[e.name.lower()] for e in battle.live_enemies if e.name.lower() in BOSS_BANS]
+    if not rules:
+        return battle
+    return replace(battle, cards=[
+        replace(c, castable=False) if c.castable and any(r(c) for r in rules) else c
+        for c in battle.cards])
 
 
 def aims_at_one_enemy(card: Card) -> bool:
@@ -2505,7 +2537,7 @@ def _no_single_target(battle: Battle) -> Battle:
         battle = replace(battle, cards=[
             replace(c, castable=False) if c.castable and aims_at_one_enemy(c) else c
             for c in battle.cards])
-    return _sylster_rules(battle)
+    return _sylster_rules(_boss_bans(battle))
 
 
 # The player's line at Luska (a trap on him wipes the party): every Mythblade

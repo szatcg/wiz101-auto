@@ -32,3 +32,15 @@ team list takes any main-quest dungeon after 5 losses).
   fight alone for one round: only one minion joins.
 - The bot lost to him 5 times solo: his tent is on the team list
   (`state/team_dungeons.json`); it waits at the sigil and Teams Up.
+
+## Avalon (the player's list, 2026-10-06)
+
+| Boss | Where | Cheats | The bot's rule |
+|---|---|---|---|
+| Matkis Axethief (Fire, 11,300) | Abbey Road, side quest "Coda" | Reshuffle on everyone round 1 and at random; a fizzle gets a Power Link; a single-target trap or prism on him wipes all his traps and prisms (mass traps don't) | `BOSS_BANS`: no single-target trap or prism on him |
+| Black Annie | Dolores Tower | Dark Wind global round 1 (recast if replaced); a single-target spell of 3 pips or less gets a 0-pip Vampire that stuns | `BOSS_BANS`: no single-target spell costing 3 pips or less (no globals either) |
+| Flevur Flave (Death, 13,250) | Castle Courtyard / Mysterious Well | Gnome! on the first player round 1; steals any single blade or shield | `BOSS_BANS`: no blades, no shields |
+| Ridenhouer Delish (Ice, 12,300) | Mysterious Well | steals absorbs/shields, reacts to bubbles and rebirths | `BOSS_BANS`: no shields, no globals |
+| Jabberwock (Fire, 25,000) | The Wild (end of the main line) | Meteor on everyone every 3rd round, then a +200% trap on himself; wipes traps at times | hits wait for his +200% trap (read from his effects like any trap) |
+| Young Morganthe (Death, 15,400) | Ghost Avalon | Woolly Mammoth round 1; a shield or trap gets Power Nova + Earthquake; 8+ pips gets Mana Burn | `BOSS_BANS`: no traps, no shields; `PIP_CAP`: never sit on 8+ pips |
+| The Pendragon (Death, ~16,000) | Keep of Ganelon (final boss) | Entangle on everyone before round 1; Fire Dragon DoT round 1; a single-target spell gets Scarecrow | `NO_SINGLE_TARGET`: hit-alls only, like Luska |

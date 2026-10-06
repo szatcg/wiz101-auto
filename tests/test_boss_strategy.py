@@ -737,3 +737,28 @@ def test_the_luska_guard_turns_any_single_target_cast_into_a_pass():
     assert luska_guard(b, Action(ActionKind.CAST, feint, luska)).kind is ActionKind.PASS
     assert luska_guard(b, Action(ActionKind.CAST, trap, luska)).kind is ActionKind.PASS
     assert luska_guard(b, Action(ActionKind.CAST, orthrus, None)).card is orthrus
+
+
+def test_avalon_boss_bans():
+    from wiz101_auto.combat.brain import _no_single_target
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    trap = Card(0, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, "myth")])
+    blade = Card(1, "Mythblade", school="myth", pip_cost=0,
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, "myth")])
+    orthrus = Card(2, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    me = Combatant("me", 3000, 3000, is_client=True, school="myth")
+
+    def castable(boss):
+        foe = Combatant(boss, 12000, 12000, is_enemy=True, is_boss=True, resist={})
+        b = _no_single_target(Battle(me=me, allies=[], enemies=[foe], cards=[trap, blade, orthrus],
+                                     pips=7, power_pips=0))
+        return {c.name for c in b.cards if c.castable}
+
+    assert castable("Matkis Axethief") == {"Mythblade", "Orthrus"}
+    assert castable("Flevur Flave") == {"Myth Trap", "Orthrus"}
+    assert castable("Young Morganthe") == {"Mythblade", "Orthrus"}
+    assert castable("Black Annie") == {"Mythblade", "Orthrus"}
+    assert castable("The Pendragon") == {"Mythblade", "Orthrus"}
