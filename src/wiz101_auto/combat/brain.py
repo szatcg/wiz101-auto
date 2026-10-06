@@ -893,6 +893,18 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
             if not (c.is_damage and c.pip_cost >= 2)
             and not (EffectKind.SUMMON in c.kinds and minions_ok)
         ]
+        if "prism" in want:
+            # Digging for the prism the boss needs (Porrich, 80% myth resist):
+            # a second or third copy of the same big hit may go, the best one
+            # stays (three Basilisks held the hand while three prisms waited
+            # in the deck, and the bot passed round after round).
+            by_name: dict[str, list[Card]] = {}
+            for c in battle.cards:
+                if c.is_damage and c.pip_cost >= 2 and c is not worth_casting:
+                    by_name.setdefault(c.name, []).append(c)
+            for copies in by_name.values():
+                copies.sort(key=lambda c: expected_damage(c, me, focus), reverse=True)
+                singles += [c for c in copies[1:] if c not in singles]
     if not group:
         if len(singles) < 2:
             singles = []

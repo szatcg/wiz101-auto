@@ -787,3 +787,25 @@ def test_poseidon_and_the_sand_squid():
 
     assert castable("Poseidon Earth-Shaker") == {"Minotaur", "Pixie"}
     assert castable("Sand Squid Tentacle") == {"Myth Trap", "Minotaur", "Efreet"}
+
+
+def test_digs_for_the_prism_past_extra_copies_of_a_big_hit():
+    # Porrich: 80% myth resist, weak to storm; three Basilisks in hand, three
+    # Myth Prisms still in the deck.
+    from wiz101_auto.combat.brain import Strategy, _dig_for_setup
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    def basilisk(i):
+        return Card(i, "Basilisk", school="myth", pip_cost=6,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 800)])
+
+    prism = Card(9, "Myth Prism", school="myth", pip_cost=1,
+                 effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 0)])
+    hand = [basilisk(0), basilisk(1), basilisk(2)]
+    me = Combatant("me", 3197, 3197, is_client=True, school="myth")
+    porrich = Combatant("Porrich", 8240, 8240, is_enemy=True, is_boss=True, school="myth",
+                        resist={"myth": 0.8, "storm": -0.35, "death": -0.35})
+    b = Battle(me=me, allies=[], enemies=[porrich], cards=hand, pips=0, power_pips=2,
+               upcoming=[prism, prism, prism])
+    got = _dig_for_setup(b, Strategy())
+    assert got is not None and got.kind is ActionKind.DISCARD and got.card.name == "Basilisk", got
