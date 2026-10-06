@@ -2966,8 +2966,9 @@ def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action |
     if free is not None and free.card is not card:
         free.reason = f"{free.reason}; {card.name} waits for a regular pip"
         return free
-    why = f"keeping the power pips for {payoff.name}: {card.name} waits for a turn with a regular pip"
-    return Action(ActionKind.PASS, reason=why)
+    # No free one: the setup goes up now, power pip or not (the player: a pass
+    # with a hand of Feints against Porrich wasted turns and drew nothing).
+    return None
 
 
 def _decide_seen_raw(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2) -> Action:

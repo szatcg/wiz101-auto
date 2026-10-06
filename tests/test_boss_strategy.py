@@ -84,7 +84,9 @@ def test_a_small_hit_on_a_boss_waits_for_the_big_one():
     assert a.kind is ActionKind.DISCARD and a.card is frog  # Orthrus in the deck: dig for it
 
 
-def test_a_one_pip_off_school_setup_waits_for_a_regular_pip_when_the_payoff_would_slip():
+def test_a_one_pip_off_school_setup_goes_up_rather_than_a_pass():
+    # (Was: it waited for a regular pip. The player: passing with Feints in
+    # hand against Porrich wasted turns; set up now.)
     from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
 
     feint = Card(0, "Feint", pip_cost=1, school="death",
@@ -95,8 +97,7 @@ def test_a_one_pip_off_school_setup_waits_for_a_regular_pip_when_the_payoff_woul
     foe = enemy("Water Servant", 840)
     b = battle([feint, orthrus], [foe, enemy("Water Servant 2", 840)], my=my)
     b.pips, b.power_pips = 0, 3  # 6 now; Feint by a power pip leaves 4, +1 next round = 5 < 7
-    act = brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy())
-    assert act is not None and act.card is not feint
+    assert brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy()) is None
     b.pips, b.power_pips = 1, 3  # a regular pip pays for it
     assert brain._pip_wise_setup(b, Action(ActionKind.CAST, feint, foe), brain.Strategy()) is None
 
@@ -579,8 +580,8 @@ def test_feint_on_a_tough_boss_is_paid_with_a_power_pip():
     b.pips, b.power_pips = 0, 2
     import unittest.mock as um
     with um.patch.object(brain, "incoming_per_round", return_value=300.0):
-        # 1500 x1.7 = 2550 short of 5910: no kill yet, the Feint waits for a regular pip
-        assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is not None
+        # 1500 x1.7 = 2550 short of 5910: no kill yet, but no pass either: Feint now
+        assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None
         boss.health = 2400  # one Feint and Orthrus kill him: Feint now, on a power pip
         assert _pip_wise_setup(b, Action(ActionKind.CAST, feint, boss), Strategy()) is None
 
