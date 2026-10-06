@@ -44,3 +44,10 @@ team list takes any main-quest dungeon after 5 losses).
 | Jabberwock (Fire, 25,000) | The Wild (end of the main line) | Meteor on everyone every 3rd round, then a +200% trap on himself; wipes traps at times | hits wait for his +200% trap (read from his effects like any trap) |
 | Young Morganthe (Death, 15,400) | Ghost Avalon | Woolly Mammoth round 1; a shield or trap gets Power Nova + Earthquake; 8+ pips gets Mana Burn | `BOSS_BANS`: no traps, no shields; `PIP_CAP`: never sit on 8+ pips |
 | The Pendragon (Death, ~16,000) | Keep of Ganelon (final boss) | Entangle on everyone before round 1; Fire Dragon DoT round 1; a single-target spell gets Scarecrow | `NO_SINGLE_TARGET`: hit-alls only, like Luska |
+
+## Lamia (Aquila, Atlantea: House of Lost Sailors; Death, rank 11) — the player, 2026-10-06
+
+- Round 1: a +35% Death global bubble ("You Are Not The Master Down Here!").
+- While her bubble stands: every 4th round a 0-pip Scarecrow (~620-650 Death to all, heals her).
+- Replacing her bubble: she puts hers straight back, but trying once (any global, round 1) stops the Scarecrow cheat for the rest of the fight (until round 30).
+- The bot's decks have no global spell, so it can't break the cheat: fight her with a team or with a global in the deck.
