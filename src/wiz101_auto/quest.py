@@ -8157,6 +8157,19 @@ class Quester:
                     logger.info(f"{objective!r} is in {where}; going there first")
                     await self.go_to_zone(where)
                     return
+                if (await self._in_dungeon(zone) and self._may_try(objective, zone, "dungeon_out")
+                        and await is_free(self.client)):
+                    # In a dungeon, with nothing to lead out (no marker: the
+                    # second tapestry of 'From Whole Cloth' is in Caer Lyon,
+                    # and the bot waited in the Red Thorn tower): the hub
+                    # button, then the gates.
+                    from .dungeon_heal import go_to_hub
+
+                    logger.info(f"{objective!r} is in {where}, out of this dungeon: the hub button")
+                    self._teleported = True
+                    if await go_to_hub(self.client):
+                        await self.go_to_zone(where)
+                    return
                 # No known route (e.g. inside a building): let the quest marker lead out.
             elif await self.collect(item, objective):
                 return
