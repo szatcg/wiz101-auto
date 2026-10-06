@@ -152,6 +152,7 @@ HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' sid
 GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of their gate, walk in
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
+ROOM_ALONE_ADVANCE = 10.0  # come into a room with no teammate in it: this long, then on to the next room
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
@@ -1124,6 +1125,7 @@ class Quester:
         # (zone, where, when, really seen) a teammate was last seen; False = our arrival spot
         self._mate_seen: tuple[str, XYZ, float, bool] | None = None
         self._team_alone_since: float | None = None  # in a team dungeon since (no teammate seen yet)
+        self._room_pos = -1  # index in the dungeon's room order (teamup.ROOM_ORDER) this run
         self._team_with_us = False  # entered with a team, or saw a teammate in this dungeon
         self._mate_last_seen = 0.0  # when a teammate was last in sight
         self._prev_mates: tuple[float, list] = (0.0, [])  # (when, teammate positions) at the last look
@@ -5422,6 +5424,7 @@ class Quester:
         me = await self._position()
         mates = await teammates(self.client, me)
         now = time.monotonic()
+        self._track_room(await self.client.zone_name() or "")
         if mates:
             self._team_with_us = True  # seen one in here: we have a team
             self._mate_last_seen = now
@@ -5642,6 +5645,69 @@ class Quester:
             self.controller.end_idle()
         return True
 
+    def _track_room(self, zone: str):
+        """Keep the run's place in the dungeon's room order (a new run when
+        outside the dungeon)."""
+        from .teamup import advance_room, room_order
+
+        order = room_order(zone)
+        if not order:
+            self._room_pos = -1
+            return
+        before = self._room_pos
+        deaths = self.controller.deaths
+        if deaths != self.__dict__.get("_room_deaths", deaths):
+            # A defeat sent us somewhere (the entrance): not the run's next room.
+            self._room_deaths = deaths
+            return
+        self._room_deaths = deaths
+        self._room_pos = advance_room(order, before, zone)
+        if self._room_pos != before:
+            logger.debug(f"room order: {zone.split('/')[-1]} (room {self._room_pos + 1} of {len(order)})")
+
+    async def _to_next_room(self, zone: str, seen: tuple) -> bool:
+        """No teammate in this room of a dungeon with a known room order (the
+        Waterworks): the team is ahead; teleport beside the gate to the next
+        room and walk in (the player: keep up with the group by teleporting to
+        the next gate). Come into an empty room: ROOM_ALONE_ADVANCE first, in
+        case they're still on the way. True if it went."""
+        from .safe_teleport import allow_teleport
+        from .teamup import next_room, room_order
+
+        order = room_order(zone)
+        if not order:
+            return False
+        self._track_room(zone)
+        if not seen[3] and time.monotonic() - seen[2] < ROOM_ALONE_ADVANCE:
+            return False
+        nxt = next_room(order, self._room_pos)
+        if nxt is None or nxt == zone:
+            return False
+        hop = gate_toward(zone, nxt, self._bad_gates)
+        if hop is None:
+            return False
+        gate, to = hop
+        logger.info(f"no teammate in {zone.split('/')[-1]}: on to {nxt.split('/')[-1]} "
+                    f"by the gate at ({gate.x:.0f}, {gate.y:.0f})")
+        me = await self._position()
+        dx, dy = me.x - gate.x, me.y - gate.y
+        k = GATE_CATCH_UP / (math.hypot(dx, dy) or 1.0)
+        self.controller.allow_idle(30)
+        try:
+            allow_teleport(self.client)
+            await self.client.teleport(XYZ(gate.x + dx * k, gate.y + dy * k, gate.z))
+            await asyncio.sleep(TELEPORT_SETTLE)
+            if not await self._zone_changed(zone):
+                await self.approach_and_walk(gate, zone)
+            await wait_for_loading(self.client)
+        finally:
+            self.controller.end_idle()
+        now = await self.client.zone_name() or ""
+        if now != zone:
+            logger.success(f"on to {now.split('/')[-1]} after the team")
+            self._mate_seen = (now, await self._position(), time.monotonic(), False)
+        return True
+
     async def _walk_to_boss_room(self) -> bool:
         """The fight step's boss has a known room and a known chain of doors
         leads there: walk the first door. True if it went (or tried)."""
@@ -5682,6 +5748,8 @@ class Quester:
             return False
         if not seen or seen[0] != zone or time.monotonic() - seen[2] < lost_after:
             return False
+        if walking and await self._to_next_room(zone, seen):
+            return True
         # seen[3] False: nobody seen in this room, seen[1] is where we arrived:
         # search its doors from there (it waited in one room while the team
         # was elsewhere).

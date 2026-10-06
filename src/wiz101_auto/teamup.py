@@ -41,6 +41,48 @@ REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after it
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
 
+# The rooms of a team dungeon in the order a run goes through them (the
+# player's guide, docs/guides/Wizard City - Waterworks.md): with no teammate
+# in the room, the bot goes on to the next one by its gate (teleported beside
+# it, the last bit walked) instead of following tracks on foot.
+_WW = "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_"
+ROOM_ORDER = {
+    "WizardCity/Gauntlets/WC_Triton_Gauntlet1/": [
+        _WW + "01",  # entrance chamber (Sylster at the end)
+        _WW + "01a", _WW + "02",  # first passageway, first lever
+        _WW + "01",
+        _WW + "03", _WW + "04",  # second: the clams, Luska Charmbeak
+        _WW + "01",
+        _WW + "05", _WW + "06",  # third
+        _WW + "01",
+        _WW + "07", _WW + "08",  # fourth: the eel's levers
+        _WW + "01",  # close the Drain Valve: Sylster Glowstorm
+    ],
+}
+
+
+def room_order(zone: str) -> list[str]:
+    """The run's room order for the dungeon `zone` is in ([] if none known)."""
+    return next((order for prefix, order in ROOM_ORDER.items() if zone.startswith(prefix)), [])
+
+
+def advance_room(order: list[str], pos: int, zone: str) -> int:
+    """Where the run is after reaching `zone` (pos: index in `order`, -1
+    before the first room, i.e. a new run or a restart: the zone's first
+    place). Only one room on at a time; anywhere else (a room passed before)
+    stays put."""
+    if pos < 0:
+        return order.index(zone) if zone in order else pos
+    if pos + 1 < len(order) and order[pos + 1] == zone:
+        return pos + 1
+    return pos
+
+
+def next_room(order: list[str], pos: int) -> str | None:
+    """The room after `pos` in the run (None at the end)."""
+    return order[pos + 1] if pos + 1 < len(order) else None
+
+
 TEAM_LIST_FILE = Path("state") / "team_dungeons.json"  # {dungeon: quest}: added after 5 losses
 
 
