@@ -2330,6 +2330,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
     action = _decide_hand(battle, strat, discards_left=discards_left, plan_discards=plan_discards,
                           odds_discards=odds_discards)
+    action = luska_guard(battle, action)
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
         weakest = min(copies, key=card_strength)
@@ -2486,14 +2487,55 @@ FULL_HEALTH = 0.9  # a heal is never cast at or above this much health
 NO_SINGLE_TARGET = {"luska charmbeak"}
 
 
+def aims_at_one_enemy(card: Card) -> bool:
+    """Any effect of the card lands on a single enemy (a trap, a hit, a
+    negative charm), whatever its first effect is (Feint's other effect is
+    on us)."""
+    return any(e.target is Target.ENEMY_SINGLE for e in card.effects)
+
+
+def single_target_banned(battle: Battle) -> bool:
+    return any(e.name.lower() in NO_SINGLE_TARGET for e in battle.live_enemies)
+
+
 def _no_single_target(battle: Battle) -> Battle:
     """With such a boss alive, single-target spells at enemies (traps, hits,
     charms) aren't castable: blades on us and hit-alls are. Then Sylster's."""
-    if any(e.name.lower() in NO_SINGLE_TARGET for e in battle.live_enemies):
+    if single_target_banned(battle):
         battle = replace(battle, cards=[
-            replace(c, castable=False) if c.castable and c.target is Target.ENEMY_SINGLE else c
+            replace(c, castable=False) if c.castable and aims_at_one_enemy(c) else c
             for c in battle.cards])
     return _sylster_rules(battle)
+
+
+# The player's line at Luska (a trap on him wipes the party): every Mythblade
+# in hand, then Spirit Blade, then Orthrus. Nothing aimed at one enemy, ever.
+LUSKA_LINE = ("mythblade", "spirit blade", "orthrus")
+
+
+def _luska_line(battle: Battle) -> Action | None:
+    if not single_target_banned(battle):
+        return None
+    for name in LUSKA_LINE:
+        cards = [c for c in battle.cards
+                 if c.castable and c.name.lower() == name and not aims_at_one_enemy(c)]
+        if cards:
+            card = max(cards, key=card_strength)
+            return Action(ActionKind.CAST, card, battle.me if card.target is Target.ALLY_SINGLE else None,
+                          reason=f"Luska: {card.name} (blades, then Spirit Blade, then Orthrus; "
+                                 "no single-target spell at him)")
+    return None
+
+
+def luska_guard(battle: Battle, action: Action) -> Action:
+    """Last check before any cast at Luska: a card aimed at one enemy (or any
+    cast at one enemy) never goes out; passing is safe."""
+    if not single_target_banned(battle) or action.kind is not ActionKind.CAST or action.card is None:
+        return action
+    at_enemy = action.target is not None and action.target in battle.enemies
+    if aims_at_one_enemy(action.card) or at_enemy:
+        return Action(ActionKind.PASS, reason=f"Luska: {action.card.name} is single-target; never at him")
+    return action
 
 
 # Sylster Glowstorm's fight (the player's Waterworks notes): Doom and Gloom
@@ -2754,6 +2796,9 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     early = _enchant_early(battle) or _stun_block_first(battle)
     if early is not None:
         return early
+    luska = _luska_line(battle)
+    if luska is not None:
+        return luska
     action = _decide_seen_raw(battle, strat, **kw)
     try:
         action = _keep_hitting(battle, action) or action

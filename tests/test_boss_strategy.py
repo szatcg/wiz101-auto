@@ -684,3 +684,56 @@ def test_the_stronger_copy_of_a_spell_is_played_and_the_weaker_discarded():
         assert a.card is weak
     else:
         raise AssertionError(a)
+
+
+def _luska_hand():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    def blade(i, name, v, school="myth"):
+        return Card(i, name, school="balance" if name == "Spirit Blade" else "myth", pip_cost=0,
+                    effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, v, school)])
+
+    feint = Card(0, "Feint", school="death", pip_cost=0,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70),
+                          Effect(EffectKind.TRAP, Target.ALLY_SINGLE, 30)])
+    trap = Card(1, "Myth Trap", school="myth", pip_cost=0,
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 40, "myth")])
+    orthrus = Card(2, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    blades = blade(3, "Mythblade", 35), blade(4, "Mythblade", 40), blade(5, "Spirit Blade", 25)
+    return (feint, trap, orthrus, *blades)
+
+
+def _luska_battle(cards, pips=0, power=5):
+    from wiz101_auto.combat.model import Battle, Combatant
+
+    me = Combatant("me", 3223, 3223, is_client=True, school="myth")
+    luska = Combatant("Luska Charmbeak", 16920, 16920, is_enemy=True, is_boss=True, resist={})
+    return Battle(me=me, allies=[], enemies=[luska], cards=list(cards), pips=pips, power_pips=power)
+
+
+def test_luska_blades_first_then_spirit_blade_then_orthrus_never_a_trap():
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind
+
+    feint, trap, orthrus, mb35, mb40, spirit = _luska_hand()
+    a = decide(_luska_battle([feint, trap, orthrus, mb35, mb40, spirit]))
+    assert a.kind is ActionKind.CAST and a.card is mb40  # the strongest Mythblade first
+    a = decide(_luska_battle([feint, trap, orthrus, spirit]))
+    assert a.kind is ActionKind.CAST and a.card is spirit
+    a = decide(_luska_battle([feint, trap, orthrus]))
+    assert a.kind is ActionKind.CAST and a.card is orthrus
+    a = decide(_luska_battle([feint, trap], pips=3, power=0))
+    assert not (a.kind is ActionKind.CAST and a.card in (feint, trap))
+
+
+def test_the_luska_guard_turns_any_single_target_cast_into_a_pass():
+    from wiz101_auto.combat.brain import luska_guard
+    from wiz101_auto.combat.model import Action, ActionKind
+
+    feint, trap, orthrus, *_ = _luska_hand()
+    b = _luska_battle([feint, trap, orthrus])
+    luska = b.enemies[0]
+    assert luska_guard(b, Action(ActionKind.CAST, feint, luska)).kind is ActionKind.PASS
+    assert luska_guard(b, Action(ActionKind.CAST, trap, luska)).kind is ActionKind.PASS
+    assert luska_guard(b, Action(ActionKind.CAST, orthrus, None)).card is orthrus
