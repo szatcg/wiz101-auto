@@ -3672,10 +3672,17 @@ class Quester:
             elif det is not None and complete and not detour_mains and not self._detour_gap_pending():
                 # No detour quest at all, its NPCs asked already: the main story
                 # (Celestia) meanwhile, never grinding (the player).
-                logger.info("no detour quest to follow: the main story meanwhile")
+                if det[0].get("when_stuck") == "side":
+                    # (Avalon between story quests: its side quests, not the
+                    # game's other "main story", Aquila's 'Into the Sea'.)
+                    logger.info(f"no {det[0]['world']} story quest in the book: its side quests meanwhile")
+                    for _, q in all_quests:
+                        q.mainline = False
+                else:
+                    logger.info("no detour quest to follow: the main story meanwhile")
+                    for _, q in all_quests:
+                        q.mainline = game_main[id(q)] and not in_side_world(q)
                 self._detour_fallback = True
-                for _, q in all_quests:
-                    q.mainline = game_main[id(q)] and not in_side_world(q)
             if any(q.active and q.mainline and not in_side_world(q) for _, q in all_quests):
                 here_now = await self.client.zone_name() or ""
                 if here_now and not here_now.startswith(("Grizzleheim", "WizardCity/Interiors")):
@@ -5303,7 +5310,14 @@ class Quester:
         from . import detour
         from .questlist import load_completed
 
-        want = detour.needs_start(entry, started, set(load_completed()))
+        completed = set(load_completed())
+        names = self._detour_names()
+        if names is not None and {norm(n) for n in completed} & names[2]:
+            # Begun already (its quests completed): between story quests, the
+            # start NPC has nothing (Sir Pike was visited again after 'Head
+            # Held Low').
+            return
+        want = detour.needs_start(entry, started, completed)
         if want is None or VISIT_FILE.exists():
             return
         logger.info(f"detour to {entry['world']}: visiting {want['npc']} for its first quest")
