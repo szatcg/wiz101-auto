@@ -443,6 +443,13 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
     from .collect import floor_points, path_points
 
     try:
+        from .dungeons import DungeonMemory
+
+        if (await client.zone_name() or "") in DungeonMemory().dungeons:
+            # Never in a dungeon: its door is by where we arrive, and a first
+            # visit knows no exits (Catalan's cave was left at once before the
+            # boss deck went on). Its fights are all fought anyway.
+            return False
         me = await client.body.position()
         hazards = await mob_positions(client)
         if all(math.dist(p, _pt(me)) > safe_distance for p in hazards):
