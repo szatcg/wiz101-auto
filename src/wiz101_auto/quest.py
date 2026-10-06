@@ -1915,6 +1915,20 @@ class Quester:
 
             await self._mark_here()
             outcome = await team_up(self, dungeon)
+            if outcome == "queued":
+                # The main quest waits for the team (side quests meanwhile);
+                # back here after QUEUE_RECHECK if the queue lapsed.
+                from .teamup import QUEUE_RECHECK, team_list
+
+                quest = team_list().get(dungeon or "", "") or self._active_quest or ""
+                if quest:
+                    level = await self.client.stats.reference_level()
+                    self.setbacks.set_quest_aside(quest, await self.objective() or "", level, main=True,
+                                                  retry_after=QUEUE_RECHECK)
+                    self.setbacks.save()
+                self._ranked_for = None
+                self._last_rank = -1e9
+                return True
             if outcome == "in":
                 self._dungeon = (zone or "", await self.client.zone_name() or "")
                 self._sigil_failed_at = None
@@ -5511,6 +5525,22 @@ class Quester:
         await self._enter_by_sigil(XYZ(*entry.sigil), zone)
         return True
 
+    def _team_arrived(self, zone: str):
+        """In the dungeon we queued for (the team came): its quest is the
+        main quest again, the queue is done."""
+        from .teamup import clear_queue, load_queue
+
+        queue = load_queue()
+        if not queue or zone != queue.get("dungeon"):
+            return
+        quest = queue.get("quest", "")
+        clear_queue()
+        if quest and self.setbacks.deferred.pop(quest, None) is not None:
+            self.setbacks.save()
+        logger.success(f"team up: in {zone.split('/')[-1]} with a team: back on {quest!r}")
+        self._ranked_for = None
+        self._last_rank = -1e9
+
     async def _team_step(self) -> bool:
         """With a team (a Team Up dungeon): never start a fight. Join the ones
         teammates start (walk into their circle); on a fight step, stay with
@@ -5522,6 +5552,7 @@ class Quester:
         me = await self._position()
         mates = await teammates(self.client, me)
         now = time.monotonic()
+        self._team_arrived(await self.client.zone_name() or "")
         self._track_room(await self.client.zone_name() or "")
         await self._final_boss_potion()
         if mates:

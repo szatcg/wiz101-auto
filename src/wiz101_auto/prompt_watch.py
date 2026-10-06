@@ -104,6 +104,7 @@ async def _in_team_dungeon(client) -> bool:
 
 async def prompt_loop(client, quester, controller):
     last_press = 0.0
+    last_ready = 0.0  # last look for a team-ready prompt (queued for a team)
     last_collect = 0.0  # (its own cooldown: the crystal objective changes as we move, and each
     # change held back the press, so the bot stood on a sample's prompt without pressing X)
     last_goal = await _goal_id(client)
@@ -111,6 +112,17 @@ async def prompt_loop(client, quester, controller):
         await asyncio.sleep(CHECK_EVERY)
         if controller.paused:
             continue
+        try:
+            # Queued for a team (a main-quest boss too hard alone): its ready
+            # prompt is accepted wherever we are, not in a fight.
+            from .teamup import accept_team_ready, load_queue
+
+            if load_queue() and time.monotonic() - last_ready >= 2.0 and not await client.in_battle():
+                last_ready = time.monotonic()
+                if await accept_team_ready(client):
+                    quester.cancel_step()
+        except Exception as exc:
+            logger.debug(f"team ready watch: {exc!r}")
         goal = await _goal_id(client)
         if goal is not None and last_goal is not None and goal != last_goal:
             # The quest moved on: no more talking to the last person, and the

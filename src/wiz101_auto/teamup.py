@@ -83,6 +83,56 @@ def next_room(order: list[str], pos: int) -> str | None:
     return order[pos + 1] if pos + 1 < len(order) else None
 
 
+QUEUE_FILE = Path("state") / "team_queue.json"  # {"dungeon", "quest", "at"}: queued, questing meanwhile
+QUEUE_RECHECK = 15 * 60  # queued: the main quest waits this long, then the sigil again (queue still on?)
+
+
+def save_queue(dungeon: str, quest: str) -> None:
+    QUEUE_FILE.parent.mkdir(exist_ok=True)
+    data = {"dungeon": dungeon, "quest": quest, "at": time.time()}
+    QUEUE_FILE.write_text(json.dumps(data), encoding="utf-8")
+
+
+def load_queue() -> dict:
+    try:
+        return json.loads(QUEUE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def clear_queue() -> None:
+    QUEUE_FILE.unlink(missing_ok=True)
+
+
+READY_WORDS = ("ready", "accept", "join", "teleport", "go", "yes", "enter")
+
+
+async def accept_team_ready(client) -> bool:
+    """Queued and the team is ready (the prompt comes wherever we are): say
+    yes. Its window tree is saved the first time (state/teamup_ready_*.txt)
+    to learn the exact prompt. True if it pressed something."""
+    box = await ui.modal_box(client)
+    if box is not None:
+        text = (await ui.modal_text(box)).lower()
+        if "team" in text or "dungeon" in text or "group" in text:
+            await _dump(client, f"ready_{int(time.time())}")
+            logger.success(f"team up: the team is ready ({text[:100]!r}); accepting")
+            await ui.press_modal_button(client, box, "centerButton")
+            return True
+        return False
+    for name in ("TeamUpReadyWindow", "TeamUpWindow", "TeamUpInviteWindow", "TeamUpConfirmWindow"):
+        w = await ui._visible_named(client.root_window, name)
+        if w is None:
+            continue
+        await _dump(client, f"ready_{int(time.time())}")
+        button = await _find_button(w, READY_WORDS)
+        if button is not None:
+            logger.success(f"team up: the team is ready ({name}); pressing {await button.name()!r}")
+            await ui.click_center(client, button)
+            return True
+    return False
+
+
 TEAM_LIST_FILE = Path("state") / "team_dungeons.json"  # {dungeon: quest}: added after 5 losses
 
 
@@ -224,7 +274,8 @@ async def step_onto_sigil(client, center, far_spot=None) -> bool:
     return False
 
 
-async def _join_party_on_sigil(client, zone: str, center, last_press: list[float], far_spot=None) -> bool:
+async def _join_party_on_sigil(client, zone: str, center, last_press: list[float], far_spot=None,
+                               need: int = PARTY_ON_SIGIL) -> bool:
     """Two or more players on the sigil: press X once and stand still through
     the countdown so we go in with them. True once in the dungeon."""
     from wizwalker import Keycode
@@ -233,7 +284,7 @@ async def _join_party_on_sigil(client, zone: str, center, last_press: list[float
         return False
     me = await client.body.position()
     on = players_on_sigil(center, await teammates(client, me))
-    if on < PARTY_ON_SIGIL:
+    if on < need:
         return False
     last_press[0] = time.monotonic()
     if not await step_onto_sigil(client, center, far_spot):
@@ -447,6 +498,17 @@ async def team_up(quester, dungeon: str) -> str:
         logger.info("team up: no TEAM UP! button on the sigil (already queued?); waiting on")
         form_done = True
     await _dump(client, "window")
+    if dungeon in team_list():
+        # A main-quest boss too hard alone (the player): queued, don't stand
+        # at the sigil; side quests fill the wait and the team-ready prompt
+        # is accepted wherever we are (team_ready_watch). 2+ players.
+        for _ in range(0 if form_done or await _fill_form(client, choices) else 3):
+            if not await _click(client, CONFIRM_WORDS, "window"):
+                break
+        save_queue(dungeon, team_list()[dungeon])
+        logger.info(f"team up: queued for {dungeon.split('/')[-1]} (questing, 2+); "
+                    "side quests meanwhile, the main quest comes back when the team is ready")
+        return "queued"
     quester.controller.allow_idle(TEAM_UP_WAIT + 60)
     try:
         # Whatever the Team Up window asks (join / search / confirm): accept.
@@ -467,7 +529,8 @@ async def team_up(quester, dungeon: str) -> str:
         last_sigil_check = 0.0
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
-            if await _join_party_on_sigil(client, zone, center, last_press, quester._far_spot):
+            if await _join_party_on_sigil(client, zone, center, last_press, quester._far_spot,
+                                          need=1 if dungeon in team_list() else PARTY_ON_SIGIL):
                 return "in"
             if time.monotonic() - last_sigil_check > SIGIL_CHECK_EVERY:
                 last_sigil_check = time.monotonic()
