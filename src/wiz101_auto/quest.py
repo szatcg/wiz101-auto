@@ -5728,14 +5728,26 @@ class Quester:
         nxt = next_room(order, self._room_pos)
         if nxt is None or nxt == zone:
             return False
+        # A door walk that worked before (state/doors.json: where we stood,
+        # where we walked) beats a learned gate point: that one is only where
+        # we stood on coming in the other way (room 03's "gate" to Luska's
+        # room was in the wrong corner; it walked about there for 20 s).
+        hops = self.doors.route(zone, nxt)
+        walked = hops[0] if hops else None
         hop = gate_toward(zone, nxt, self._bad_gates)
-        if hop is None:
+        if walked is not None:
+            _z, door, spot, _to = walked
+            gate = XYZ(door[0], door[1], spot[2])
+        elif hop is not None:
+            gate = hop[0]
+        else:
             return False
-        gate, to = hop
         me = await self._position()
         dx, dy = me.x - gate.x, me.y - gate.y
         k = GATE_CATCH_UP / (math.hypot(dx, dy) or 1.0)
         landing = XYZ(gate.x + dx * k, gate.y + dy * k, gate.z)
+        if walked is not None:
+            landing = XYZ(*walked[2])  # its own start spot (checked for enemies below too)
         # Never into a fight of our own (the player: enemies stand where the
         # bot can walk into them; join only fights a teammate is in): enemies
         # still up near us, the landing or the gate mean the team isn't
@@ -5754,6 +5766,8 @@ class Quester:
             allow_teleport(self.client)
             await self.client.teleport(landing)
             await asyncio.sleep(TELEPORT_SETTLE)
+            if walked is not None and not await self._zone_changed(zone):
+                await self.walk_through(gate, zone)
             if not await self._zone_changed(zone):
                 await self.approach_and_walk(gate, zone)
             await self._answer_dungeon_exit()
