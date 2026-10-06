@@ -38,7 +38,15 @@ def yaw_to(src: XYZ, dst: XYZ) -> float:
     calculate_perfect_yaw: 0 along +y... as the game counts it)."""
     from wizwalker.utils import calculate_perfect_yaw
 
-    return calculate_perfect_yaw(src, dst)
+    try:
+        return calculate_perfect_yaw(src, dst)
+    except (ValueError, ZeroDivisionError):
+        # acos of a hair over 1 when the points line up (a crashed step in
+        # the Waterworks): a nudge off that line.
+        try:
+            return calculate_perfect_yaw(src, XYZ(dst.x + 0.5, dst.y + 0.5, dst.z))
+        except (ValueError, ZeroDivisionError):
+            return 0.0
 
 
 def turn_toward(current: float, desired: float, most: float = MAX_TURN) -> float:

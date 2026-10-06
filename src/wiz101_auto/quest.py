@@ -153,6 +153,7 @@ GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of t
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 ROOM_ALONE_ADVANCE = 10.0  # come into a room with no teammate in it: this long, then on to the next room
+KNOWN_DOOR_NEAR = 900.0  # a remembered door walk this near the marker is the way to it
 TEAM_MARKER_NEAR = 400.0  # this near the quest marker in a team dungeon: arrived, wait there
 ROOM_MOB_CLEAR = 1500.0  # on to the next room only with no enemy this near us, the landing or the gate
 TEAM_BEHIND = 250.0  # ... landing this far behind them
@@ -5723,12 +5724,65 @@ class Quester:
                     f"{distance(me, marker):.0f} away (not trailing the team)")
         self.controller.allow_idle(40)
         try:
-            await self._team_travel(marker)
+            if not await self._known_door_walk(zone, marker):
+                await self._team_travel(marker)
+                if await self.client.zone_name() == zone and distance(await self._position(), me) < 300:
+                    # The walk got nowhere ("no way on foot"): beside the
+                    # marker by teleport (clear of enemies), and walk in now
+                    # rather than at the next step.
+                    await self._teleport_walk_in(zone, marker)
         finally:
             self.controller.end_idle()
         await self._answer_dungeon_exit()
         self._last_progress_time = time.monotonic()
         return True
+
+    async def _known_door_walk(self, zone: str, marker: XYZ) -> bool:
+        """A door walk remembered in this zone (state/doors.json, the
+        player's own walks included) at the marker: teleport to where it
+        started and walk it. True if it went through."""
+        from .safe_teleport import allow_teleport
+
+        near = [e for e in self.doors.doors.get(zone, [])
+                if len(e) > 2 and e[2] and is_team_up_zone(e[2])
+                and math.dist(e[0], (marker.x, marker.y)) < KNOWN_DOOR_NEAR]
+        if not near:
+            return False
+        door, start, dest = min(near, key=lambda e: math.dist(e[0], (marker.x, marker.y)))
+        landing = XYZ(*start)
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+        if any(distance(m, landing) < ROOM_MOB_CLEAR for m in mobs):
+            return False
+        logger.info(f"through the door into {dest.split('/')[-1]} the way it was walked before")
+        for _ in range(2):
+            allow_teleport(self.client)
+            await self.client.teleport(landing)
+            await asyncio.sleep(TELEPORT_SETTLE)
+            if not await self._zone_changed(zone):
+                await self.walk_through(XYZ(door[0], door[1], landing.z), zone)
+            await self._answer_dungeon_exit()
+            if await self._zone_changed(zone):
+                return True
+        return False
+
+    async def _teleport_walk_in(self, zone: str, marker: XYZ) -> bool:
+        from .safe_teleport import allow_teleport
+
+        me = await self._position()
+        dx, dy = me.x - marker.x, me.y - marker.y
+        k = GATE_CATCH_UP / (math.hypot(dx, dy) or 1.0)
+        landing = XYZ(marker.x + dx * k, marker.y + dy * k, marker.z)
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+        if any(distance(m, landing) < ROOM_MOB_CLEAR for m in mobs):
+            return False
+        logger.info("the walk there got nowhere: teleporting beside the marker and walking in")
+        allow_teleport(self.client)
+        await self.client.teleport(landing)
+        await asyncio.sleep(TELEPORT_SETTLE)
+        if not await self._zone_changed(zone):
+            await self.walk_through(marker, zone)
+        await self._answer_dungeon_exit()
+        return await self._zone_changed(zone)
 
     def _track_room(self, zone: str):
         """Keep the run's place in the dungeon's room order (a new run when

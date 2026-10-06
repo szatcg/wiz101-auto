@@ -576,6 +576,10 @@ async def run(cfg: Config):
 
             # The right person's talk prompt: X at once, not at the step's next look.
             tasks.append(asyncio.create_task(prompt_loop(client, quester, controller), name="prompt"))
+            from .gatewatch import gate_watch
+
+            # Every gate walked through, the player's too (paused), into doors.json.
+            tasks.append(asyncio.create_task(gate_watch(client, quester.doors, controller), name="gates"))
         watchdog = None
         if s.stall_seconds > 0 and cfg.mode in ("quest", "farm"):
             watchdog = Watchdog(
