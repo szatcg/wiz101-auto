@@ -16,6 +16,12 @@ enemies' damage per round from the fight logs) and then its expected
 rounds. Options: each discard set worth trying (0-2 cards the plans don't
 use), then each first move (a card on an enemy, or pass).
 
+A future also rolls each card's miss (the logs' hit rates) and crit (the
+game's odds), and a hit takes the best damage enchant in hand, as the brain
+plays it. (Known rolls are a little clairvoyant: a line can wait for the
+cast that crits. Rolling only this round's cast, ROLL_DEPTH 1, lost the
+planner's whole edge in the simulator, so every round rolls.)
+
 The same futures give the overlay's "draws that cut rounds": for each card
 still in the deck, the expected rounds if it came next.
 """
@@ -97,6 +103,11 @@ class Score:
 
 
 CRITS = True  # each future rolls our crits (and the enemies' blocks) by the game's odds
+# Rounds whose casts take the future's miss and crit rolls; later ones land
+# and crit only when sure. (Rolls known in advance let a line wait for the
+# cast that crits: a pass outscored the brain's 75% Humongofrog crit to end
+# the fight.)
+ROLL_DEPTH = 99
 MISSES = True  # each future also says which cards fizzle (their hit rates)
 _RATES: list = [0.0, {}]  # (file time, {spell: hit rate}) of state/enemy_stats.json
 
@@ -167,6 +178,10 @@ def _survive_rounds(battle: Battle) -> int:
 # kill's line is won when we live through it (past the horizon: at the rate
 # the enemies left up then hit); "prune": lines we don't live through are
 # dropped from the search; "": rounds to kill vs our health at today's rate.
+# Off: in the simulator "prune" was slower (p95 7.5 s on Porrich) and no
+# better; "line" was even without crits and worse with them (2 mobs +0.8
+# rounds, 4 mobs -7 wins: a lost-looking future after a cast that didn't
+# crit makes waiting look safer, the rolls being known in advance).
 SURVIVAL = ""
 
 
@@ -227,7 +242,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
     # Damage enchants (Gargantuan): the brain puts one on the hit it casts,
     # so a hit takes the best one in hand (and frees its slot).
     enchants = [j for j, c in enumerate(pool)
-                if ENCHANTS and c.is_enchant and EffectKind.ENCHANT_DAMAGE in c.kinds]
+                if ENCHANTS and c.is_enchant and EffectKind.ENCHANT_DAMAGE in c.kinds and not c.banned]
     enchants.sort(key=lambda j: -_enchant_value(pool[j]))
     boosted: dict = {}
     start_hp = tuple(float(e.health) for e in enemies)
@@ -318,7 +333,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                 took[0] = True
             nxt = gain(depth, *paid)
             nused = used | {i}
-            missed = id(c) in misses
+            missed = depth < ROLL_DEPTH and id(c) in misses
             if enchants and kind == "hit" and not c.enchanted:
                 j = next((j for j in enchants if j not in used and (j < in_hand or j - in_hand < drawn)),
                          None)
@@ -328,7 +343,7 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
                         boosted[i, j] = _with_enchant(c, pool[j])
                     c = boosted[i, j]
             ndrawn = refill(drawn, len(nused))
-            roll = rolls.get(id(pool[i])) if rolls else None
+            roll = rolls.get(id(pool[i])) if rolls and depth < ROLL_DEPTH else None
             if missed:
                 if ("miss", c.name) not in tried:
                     tried.add(("miss", c.name))
