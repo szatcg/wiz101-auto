@@ -214,6 +214,11 @@ class DungeonMemory:
         self.path.write_text(json.dumps(data, indent=1), encoding="utf-8")
 
     def record_entry(self, interior: str, entry: DungeonEntry):
+        if "/interiors/" not in interior.lower() and "/interiors/" in entry.outside.lower():
+            # An outdoor zone "entered" from a building (the White Owl Tower's
+            # teleporter put us out in The Wild): not a dungeon. Learned as
+            # one, every objective in The Wild walked back into the tower.
+            return
         self.dungeons[interior] = entry
         self.save()
 
