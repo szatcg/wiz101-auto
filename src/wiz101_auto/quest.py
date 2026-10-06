@@ -677,6 +677,7 @@ def room_of(zone: str, where: str) -> bool:
 def dungeon_quest(
     quests: list[QuestEntry], zone: str, zone_of, set_aside: set[str] = frozenset(),
     skipped: set[str] = frozenset(), entered_with: str | None = None,
+    story_instances: set[str] = frozenset(),
 ) -> QuestEntry | None:
     """Inside a dungeon, a side quest set there (its book area is this dungeon,
     e.g. one handed out on entering) comes before the main quest: the main
@@ -684,6 +685,7 @@ def dungeon_quest(
     # A book area we can't map ("Counterweight East") still counts when the
     # main quest's area is the same one: that's the dungeon we're in.
     main_areas = {q.world for q in quests if q.mainline and q.world and zone_of(q.world) is None}
+    story_areas = {q.world for q in quests if q.mainline and q.world}
 
     def named_here(area: str) -> bool:  # "Mount Olympus" in "Aquila/AQ_Z01_MountOlympus"
         key = area.replace(" ", "").replace("'", "").lower()
@@ -706,7 +708,12 @@ def dungeon_quest(
              # Only that one: a quest the bot itself tracked later ('The
              # Secret History', after setting 'Fire Shield' aside in
              # Pyromancer's Tomb) isn't this dungeon's.
-             or (q.active and (entered_with is None or q.name == entered_with)))
+             or (q.active and (entered_with is None or q.name == entered_with))
+             # A story quest the world's list marks INSTANCE (Queen Elissa's
+             # Tomb: 'You Think You Can Drum' tracked inside, while the main
+             # 'Tomb Sweet Tomb' waits on it to 'Save Prince Tziri'): the
+             # tracked one, or one in the main quest's area.
+             or (norm(q.name) in story_instances and (q.active or q.world in story_areas)))
     ]
     local.sort(key=lambda q: q.name in set_aside)  # ones not set aside first
     if not local:
@@ -720,6 +727,23 @@ def dungeon_quest(
     if len(local) > 1 and any(not late(q) for q in local):
         local = [q for q in local if not late(q)]
     return next((q for q in local if q.active), local[0])
+
+
+def instance_names(listed: list) -> set[str]:
+    """Normalized names of the story quests a world's list tags INSTANCE."""
+    return {norm(q.name) for q in listed if "INSTANCE" in (t.split()[0].upper() for t in q.tags if t)}
+
+
+def story_instance_quests(zone: str) -> set[str]:
+    """The INSTANCE quests of the story list of the world we're in."""
+    from .questlist import load_world_lists, world_of_zone
+
+    try:
+        lists = load_world_lists()
+    except Exception:
+        return set()
+    world = world_of_zone(zone) or zone.split("/", 1)[0]
+    return instance_names(lists.get(world, []))
 
 
 EVADE_DISTANCE = 600.0  # an enemy this close to where we landed: move before it engages
@@ -3682,13 +3706,17 @@ class Quester:
                 # Bone', just accepted from Cyrus Drake, won over the class
                 # quest picked).
                 real = is_team_up_zone(here) or await self._in_dungeon(here)
+                instances = story_instance_quests(here) if real else set()
                 local = dungeon_quest([q for _, q in all_quests], here, objective_zone, set_aside,
                                       self.setbacks.skipped,
-                                      entered_with=self._entry_quest[1] if real else "")
+                                      entered_with=self._entry_quest[1] if real else "",
+                                      story_instances=instances)
                 # A side quest of the dungeon's doesn't beat the main story (the
                 # player: the main quest only; 'Tomb of the Zebra Kings' kept the
                 # bot at Zanga Zebu over 'Into the Zebra Tomb'), except farming.
+                # (A story INSTANCE quest is the main story's own step.)
                 side_over_main = (local is not None and not local.mainline and chosen.mainline
+                                  and norm(local.name) not in instances
                                   and not Farm.load().active)
                 if local and local is not chosen and not side_over_main:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")

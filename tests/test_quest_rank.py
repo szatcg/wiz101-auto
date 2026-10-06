@@ -343,3 +343,24 @@ def test_waterworks_rooms_are_dungeon_rooms():
     assert not in_known_dungeon_folder("WizardCity/WC_Streets/WC_Triton", known)
     assert fight_needed("Use Lever in Waterworks", ["Rivershell Guard"],
                         "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_03", False)
+
+
+def test_dungeon_quest_takes_the_story_instance_quest():
+    # Queen Elissa's Tomb: the main 'Tomb Sweet Tomb' (Save Prince Tziri) waits
+    # on the tomb's 'You Think You Can Drum', which the story list tags INSTANCE.
+    from wiz101_auto.quest import QuestEntry, dungeon_quest, instance_names
+    from wiz101_auto.questlist import ListedQuest
+
+    listed = [ListedQuest(140, "Tomb Sweet Tomb", "Elephant Graveyard", ["INTERACT"]),
+              ListedQuest(141, "You Think You Can Drum", "Elephant Graveyard", ["INSTANCE", "TALK"])]
+    instances = instance_names(listed)
+    assert instances == {"youthinkyoucandrum"}
+    zone = "Zafaria/Interiors/ZF_Z10_I02_Didos_Mausoleum"
+    zones = {"Elephant Graveyard": "Zafaria/ZF_Z10_Elephant_Graveyard"}
+    main = QuestEntry(0, "Tomb Sweet Tomb", mainline=True, world="Elephant Graveyard", active=True)
+    drum = QuestEntry(1, "You Think You Can Drum", world="Elephant Graveyard")
+    other = QuestEntry(2, "Art History", world="Baobab Crown")
+    quests = [main, drum, other]
+    assert dungeon_quest(quests, zone, zones.get, entered_with="Tomb Sweet Tomb") is None
+    assert dungeon_quest(quests, zone, zones.get, entered_with="Tomb Sweet Tomb",
+                         story_instances=instances) is drum
