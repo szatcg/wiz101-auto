@@ -833,22 +833,20 @@ def test_a_second_prism_is_junk_once_the_boss_is_prismed():
     assert not _prism_useless(prism, b)  # the last one stays for after the hit
 
 
-def test_a_banned_card_is_never_waited_for():
-    # Matkis Axethief: no single-target traps on him. With 7 pips and Orthrus
-    # in hand the brain waited "pass > Feint > Feint > Orthrus" for Feints it
-    # could never cast.
-    from wiz101_auto.combat.brain import decide
-    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+def test_a_banned_card_is_never_planned_in_a_later_round():
+    # Matkis Axethief: no single-target traps on him. The search checked
+    # castability for this round only, so it planned "pass > Feint > Feint >
+    # Orthrus" and the brain passed four rounds waiting for those Feints.
+    from wiz101_auto.combat.brain import _kill_search, _no_single_target
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
 
     orthrus = Card(0, "Orthrus", school="myth", pip_cost=7,
-                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 1200)])
-    feint = Card(1, "Feint", school="death", pip_cost=1,
-                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
-    feint2 = Card(2, "Feint", school="death", pip_cost=1,
-                  effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 3000)])
+    feints = [Card(i, "Feint", school="death", pip_cost=1, template_id=10 + i,
+                   effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)]) for i in (1, 2)]
     me = Combatant("me", 1000, 3241, is_client=True, school="myth")
     matkis = Combatant("Matkis Axethief", 6933, 9040, is_enemy=True, is_boss=True, resist={})
-    b = Battle(me=me, allies=[], enemies=[matkis], cards=[orthrus, feint, feint2], pips=0, power_pips=4)
-    a = decide(b)
-    assert not (a.kind is ActionKind.CAST and a.card.name == "Feint")
-    assert a.kind is ActionKind.CAST and a.card is orthrus, a
+    b = _no_single_target(Battle(me=me, allies=[], enemies=[matkis], cards=[orthrus, *feints],
+                                 pips=0, power_pips=3))
+    found = _kill_search(b, b.enemies[0], 10)
+    assert found is None or "Feint" not in " ".join(found[3])
