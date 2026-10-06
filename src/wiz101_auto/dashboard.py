@@ -189,7 +189,11 @@ def build_data(docs: Path = Path("docs")) -> dict:
     book = _read_json(QUEST_BOOK)
     completed = load_completed(docs / "CompletedQuests.txt")
     lists = load_world_lists(docs)
-    book_names = [q.get("name", "") for q in book.get("quests", [])]
+    # Only the main-story quests in the book place us on a world's list: a
+    # side quest of the same name (Eudora's crafting quest 'The Razor's
+    # Edge' is also Avalon's #132) put Avalon done up to 'Step Down' while
+    # the story was on #14, 'Dread of Knight'.
+    book_names = [q.get("name", "") for q in book.get("quests", []) if q.get("main")]
     # Where the wizard is: the live zone; while stopped, the world at the last
     # quest-book reading; else the furthest world with a completed quest.
     here = world_of_zone(status.get("zone", "")) or world_of_zone(book.get("world", ""))
