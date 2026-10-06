@@ -5399,7 +5399,18 @@ class Quester:
                 await home_to_ravenwood(self)
                 return True
             logger.info(f"visit {npc}: going to {dest}")
-            if not await self.go_to_zone(dest):
+            arrived = await self.go_to_zone(dest)
+            if not arrived and not await is_free(self.client):
+                return True  # (a fight on the way, not a missing route: the visit stands)
+            if not arrived and (await self.client.zone_name() or "").split("/", 1)[0] == world:
+                # No gate route from here (Abbey Road to The Wild; Sir Robin
+                # Bravely's visit was dropped): the hub button, then the gates.
+                from .dungeon_heal import go_to_hub
+
+                logger.info(f"visit {npc}: the hub button, then the gates to {dest}")
+                self._teleported = True
+                arrived = await go_to_hub(self.client) and await self.go_to_zone(dest)
+            if not arrived:
                 # Not reachable yet (Village of Sorrow before the story opens
                 # it): drop the visit (the giver waits an hour) rather than
                 # asking for a route every second.
