@@ -145,7 +145,8 @@ def _item_art(card) -> str | None:
     tname = (card.template_name or "").lower()
     if tname and tname not in _ITEM_NAMES_SEEN:
         _ITEM_NAMES_SEEN.add(tname)
-        logger.info(f"item card {card.name!r}: template {card.template_name!r}")
+        values = ", ".join(f"{e.kind.name.lower()} {e.value:+g}%" for e in card.effects)
+        logger.info(f"item card {card.name!r}: template {card.template_name!r} ({values})")
     if not any(w in tname for w in PET_WORDS):
         return None
     f = PET_ART / f"{card.name.lower().replace(' ', '_')}_spell.png"

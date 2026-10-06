@@ -2301,8 +2301,45 @@ def _dig_for_sure_kill(battle: Battle) -> Action | None:
                          f"({len(battle.upcoming)} left, room for {room})")
 
 
+def card_strength(card: Card) -> float:
+    """How strong a card's effects are, to rank copies of one spell (the
+    Amulet's Mythblade at +40% over the trained one's +35%)."""
+    return sum(abs(e.value) for e in card.effects)
+
+
+def strongest_copies_first(cards: list[Card]) -> list[Card]:
+    """The hand with each spell's copies reordered strongest first, in the
+    places the copies held (every rule that takes the first fitting card then
+    plays the best copy); other cards keep their places."""
+    out = list(cards)
+    groups: dict[str, list[int]] = {}
+    for i, c in enumerate(cards):
+        groups.setdefault(c.name, []).append(i)
+    for slots in groups.values():
+        if len(slots) > 1:
+            ranked = sorted((cards[i] for i in slots), key=card_strength, reverse=True)
+            for i, c in zip(slots, ranked, strict=True):
+                out[i] = c
+    return out
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
            plan_discards: bool = False, odds_discards: bool | None = None) -> Action:
+    """The action for this step: of two copies of a spell the stronger is
+    played (the rules take the first fitting card) and the weaker discarded."""
+    battle = replace(battle, cards=strongest_copies_first(battle.cards))
+    action = _decide_hand(battle, strat, discards_left=discards_left, plan_discards=plan_discards,
+                          odds_discards=odds_discards)
+    if action.kind is ActionKind.DISCARD and action.card is not None:
+        copies = [c for c in battle.cards if c.name == action.card.name]
+        weakest = min(copies, key=card_strength)
+        if card_strength(weakest) < card_strength(action.card):
+            action = replace(action, card=weakest)
+    return action
+
+
+def _decide_hand(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
+                 plan_discards: bool = False, odds_discards: bool | None = None) -> Action:
     """The action for this step. Reshuffle (the player's: never discarded)
     is kept out of every other rule; it's cast instead of passing when the
     deck is all but drawn (the cards played come back to draw from)."""

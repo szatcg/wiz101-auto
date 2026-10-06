@@ -660,3 +660,27 @@ def test_hit_all_setup_blades_before_trapping_one_enemy():
     b = Battle(me=me, allies=[], enemies=foes, cards=[frog, feint, trap, blade], pips=0, power_pips=2)
     got = _hit_all_setup(b, frog)
     assert got is not None and got.kind is ActionKind.CAST and got.card is blade, got
+
+
+def test_the_stronger_copy_of_a_spell_is_played_and_the_weaker_discarded():
+    # The Amulet's Mythblade gives +40%, the trained one +35%.
+    from wiz101_auto.combat.brain import decide, strongest_copies_first
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    def blade(i, v):
+        return Card(i, "Mythblade", school="myth", pip_cost=0,
+                    effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, v, "myth")])
+
+    weak, strong = blade(0, 35), blade(1, 40)
+    orthrus = Card(2, "Orthrus", school="myth", pip_cost=7,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 700)])
+    assert strongest_copies_first([weak, orthrus, strong]) == [strong, orthrus, weak]
+    me = Combatant("me", 3000, 3000, is_client=True, school="myth")
+    foe = Combatant("Never Seen", 5000, 5000, is_enemy=True, resist={})
+    a = decide(Battle(me=me, allies=[], enemies=[foe], cards=[weak, orthrus, strong], pips=1, power_pips=0))
+    if a.kind is ActionKind.CAST and a.card is not None and a.card.name == "Mythblade":
+        assert a.card is strong
+    elif a.kind is ActionKind.DISCARD and a.card is not None and a.card.name == "Mythblade":
+        assert a.card is weak
+    else:
+        raise AssertionError(a)
