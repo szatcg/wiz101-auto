@@ -790,7 +790,7 @@ function renderPlanner(p) {
       <span>${e.hp} / ${e.max}${label}</span></div>
       <div class="pbar"><span class="keep" style="width:${pct(e.hp) - widest}%"></span>${bandHtml}</div>${critline}</div>`;
   }).join("");
-  const gambleLine = p.gamble ? `<div class="gamble">🎲 Crit gamble: ${p.gamble}% to end the fight (gold: damage on a crit)</div>` : "";
+  const gambleLine = p.gamble ? `<div class="gamble">🎲 Crit gamble: ${p.gamble}% to end the fight</div>` : "";
   const rows = steps.slice(0, 7).map((s, idx) => {
     const tgt = s.target ? ` <em>→ ${esc(s.target)}</em>` : "";
     const hit = s.dmg.find((d) => d);
@@ -881,7 +881,7 @@ function renderLower() {
     const what = `${b.tag ? `<span class="tag t-${b.tag}">${b.tag}</span>` : ""}${esc(b.say || b.card)}`;
     // A crit gamble: the odds it pays off, plainly (the player couldn't tell).
     const gm = /ends the fight on a crit: (\d+)%/.exec(b.text || "");
-    const gamble = gm ? `<div class="gamble">🎲 Crit gamble: ${gm[1]}% to end the fight (gold: damage on a crit)</div>` : "";
+    const gamble = gm ? `<div class="gamble">🎲 Crit gamble: ${gm[1]}% to end the fight</div>` : "";
     $("lower").className = "card grow battle";
     $("lower").innerHTML = `<div class="head"><h3>⚔️ Round ${b.round}</h3></div>
       ${gamble}${foes}
