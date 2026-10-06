@@ -76,7 +76,10 @@ _OBJECT_WORDS = frozenset({"chest", "circle", "sign", "signpost", "statue", "doo
                            # 'Shrine To Loyalty' were visited for quests)
                            "stack", "wheel", "piece", "stone", "shrine", "feeder", "cage",
                            "book", "map", "pot", "pots", "sacks", "shrub", "part", "vine",
-                           "sword", "shield", "grain", "brushes"})
+                           "sword", "shield", "grain", "brushes",
+                           # Zafaria's ('Well Stones', 'Pile of Wood', 'Gold Wisp')
+                           "stones", "fruit", "wood", "pile", "sticks", "bundle", "wisp",
+                           "lotus", "tree", "tower"})
 
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose

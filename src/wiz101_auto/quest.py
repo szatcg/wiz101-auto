@@ -169,7 +169,10 @@ MAIN_STORY_ZONE_FILE = Path("state") / "main_story_zone.json"
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
                       "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia",
-                      "Grizzleheim": "grizzleheim"}
+                      "Grizzleheim": "grizzleheim",
+                      # (Not listed, Zafaria wasn't reached from Avalon: "no route",
+                      # and 'Art History' was set aside.)
+                      "Zafaria": "zafaria", "Avalon": "avalon", "Wysteria": "wysteria"}
 CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
 AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
@@ -7590,6 +7593,13 @@ class Quester:
             await self.pet.trip(0)
             return
         accepted_new = (self.dialogue.accepted if self.dialogue else 0) != self._accepted_seen
+        if self._grinding and time.monotonic() - self._last_rank > GRIND_RERANK_SECONDS:
+            # Hunting side quests NPC after NPC: the book read again now and
+            # then (an hour of Zafaria visits went by without one, and the
+            # quests taken on the way were never tracked).
+            self._ranked_for = None
+            self._last_rank = -1e9
+            accepted_new = True  # (no visit this step: the ranking first)
         if self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new:
             # (Not with a quest just accepted: a ranking first. Sir Guy
             # Gascoigne's quest was taken, then 8 more visits went on before
