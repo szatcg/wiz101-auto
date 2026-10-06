@@ -563,17 +563,37 @@ def load_undoable() -> set[str]:
 HAND_INS_FILE = Path("state") / "hand_ins.json"
 
 
-def load_hand_ins() -> dict[str, tuple[str, str]]:
-    """Quest -> (npc, zone) of its last "Talk To" objective (kept over restarts)."""
+RETALK_FILE = Path("state") / "retalk.json"  # NPCs to talk to again, one visit each
+HAND_IN_KEEP = 4  # the NPCs of a quest's latest "Talk To" objectives remembered
+
+
+def load_hand_ins() -> dict[str, list[list[str]]]:
+    """Quest -> [[npc, zone], ...] of its "Talk To" objectives, latest last
+    (kept over restarts)."""
     try:
-        return {k: tuple(v) for k, v in json.loads(HAND_INS_FILE.read_text(encoding="utf-8")).items()}
+        data = json.loads(HAND_INS_FILE.read_text(encoding="utf-8"))
+        return {k: [list(x) for x in v] for k, v in data.items() if isinstance(v, list)}
     except (OSError, ValueError, TypeError):
         return {}
 
 
-def save_hand_ins(hand_ins: dict[str, tuple[str, str]]):
+def save_hand_ins(hand_ins: dict[str, list[list[str]]]):
     try:
-        HAND_INS_FILE.write_text(json.dumps({k: list(v) for k, v in hand_ins.items()}), encoding="utf-8")
+        HAND_INS_FILE.write_text(json.dumps(hand_ins), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def load_retalk() -> list[list[str]]:
+    try:
+        return [list(x) for x in json.loads(RETALK_FILE.read_text(encoding="utf-8"))]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def save_retalk(queue: list[list[str]]):
+    try:
+        RETALK_FILE.write_text(json.dumps(queue), encoding="utf-8")
     except OSError:
         pass
 
@@ -4006,9 +4026,12 @@ class Quester:
         if "/interiors/" in where.lower() and objective_zone(objective) is None:
             where = zone  # (they're in this building)
         hand_ins = load_hand_ins()
-        if hand_ins.get(self._active_quest) != (npc, where):
-            hand_ins[self._active_quest] = (npc, where)
-            save_hand_ins(hand_ins)
+        seen = hand_ins.get(self._active_quest, [])
+        if seen and seen[-1] == [npc, where]:
+            return
+        seen = [x for x in seen if x[0] != npc] + [[npc, where]]
+        hand_ins[self._active_quest] = seen[-HAND_IN_KEEP:]
+        save_hand_ins(hand_ins)
 
     def _talk_again_after_completion(self, done: set[str]):
         """A quest completed (however late the book shows it): talk to whom it
@@ -4017,14 +4040,21 @@ class Quester:
         ('Head Held Low' to Ceara Ashbury; its completion was read 3 minutes
         later, past the turn-in window, and 'Greatest of Sports' never came)."""
         hand_ins = load_hand_ins()
+        queue = load_retalk()
         for name in sorted(done):
-            target = hand_ins.pop(name, None)
-            if target is None or VISIT_FILE.exists():
+            talked = hand_ins.pop(name, None)
+            if not talked:
                 continue
-            npc, where = target
-            logger.info(f"{name!r} completed: back to {npc} ({where.split('/')[-1]}) for the next quest")
-            VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
+            # Everyone its "Talk To" steps named, the latest first (the hand-in
+            # isn't always the last one read: 'Head Held Low' went to Sir
+            # Jean-Paul Jouster, and Ceara Ashbury was asked instead).
+            for npc, where in reversed(talked):
+                if [npc, where] not in queue:
+                    queue.append([npc, where])
+            names = ", ".join(n for n, _ in reversed(talked))
+            logger.info(f"{name!r} completed: back to {names} for the next quest")
         save_hand_ins(hand_ins)
+        save_retalk(queue)
 
     def _talk_again_after_turn_in(self, gone: set[str], new: set[str] = frozenset()):
         """A quest just left the book right after talking to someone: that was
@@ -7702,6 +7732,10 @@ class Quester:
         self._fetch_next_story_quest()
         if accepted_new and self._grinding:
             VISIT_FILE.unlink(missing_ok=True)  # (a side-quest hunt's visit: the new quest first)
+        if not VISIT_FILE.exists() and (queue := load_retalk()):
+            npc, where = queue.pop(0)
+            save_retalk(queue)
+            VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
         if VISIT_FILE.exists() and await self._visit_npc():
             logger.debug("step: visited an NPC")
             return
