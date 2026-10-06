@@ -153,6 +153,7 @@ GATE_CATCH_UP = 250.0  # catching up with the team: teleport this far short of t
 TEAM_GATE_NEAR = 1500.0  # on foot: a known gate this near where the team vanished is where they went
 TEAM_LOST_WALKING = 3.0  # on foot: the lead out of sight this long went through a door: after them
 ROOM_ALONE_ADVANCE = 10.0  # come into a room with no teammate in it: this long, then on to the next room
+TEAM_MARKER_NEAR = 400.0  # this near the quest marker in a team dungeon: arrived, wait there
 ROOM_MOB_CLEAR = 1500.0  # on to the next room only with no enemy this near us, the landing or the gate
 TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
@@ -5601,6 +5602,8 @@ class Quester:
             if not at_fight:
                 return await self._team_travel(marker)  # a door or passage on the way
             logger.debug("near the boss's circle; waiting for a teammate to start the fight")
+        elif here and not fight_step and await self._to_objective(marker):
+            return True
         elif mates:
             here_zone = await self.client.zone_name() or ""
             walking = walk_zone(self.client, here_zone)
@@ -5667,6 +5670,38 @@ class Quester:
                 await self.travel(marker)
         finally:
             self.controller.end_idle()
+        return True
+
+    async def _to_objective(self, marker: XYZ) -> bool:
+        """A dungeon with a known room order (the Waterworks): straight for
+        the quest's objective rather than trailing the team (the player: it
+        lagged far behind). Enemies still standing near us: hold for the team
+        to start that fight (we join it), never one of our own. True if it
+        acted (went, or held)."""
+        from .teamup import room_order
+
+        zone = await self.client.zone_name() or ""
+        if not room_order(zone) or distance(marker, XYZ(0, 0, 0)) <= 1:
+            return False
+        me = await self._position()
+        if distance(me, marker) < TEAM_MARKER_NEAR:
+            return False  # there: the usual wait (and joining fights)
+        mobs = [XYZ(*m) for m in await mob_positions(self.client)]
+        if any(distance(m, me) < ROOM_MOB_CLEAR for m in mobs):
+            if self.__dict__.get("_held_for_mobs") != zone:
+                self._held_for_mobs = zone
+                logger.info("enemies near: holding here for the team to start that fight")
+            return False
+        self._held_for_mobs = None
+        logger.info(f"to the objective at ({marker.x:.0f}, {marker.y:.0f}), "
+                    f"{distance(me, marker):.0f} away (not trailing the team)")
+        self.controller.allow_idle(40)
+        try:
+            await self._team_travel(marker)
+        finally:
+            self.controller.end_idle()
+        await self._answer_dungeon_exit()
+        self._last_progress_time = time.monotonic()
         return True
 
     def _track_room(self, zone: str):
