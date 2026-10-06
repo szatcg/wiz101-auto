@@ -29,6 +29,7 @@ from .upkeep import is_free, wait_for_loading
 
 PET_REQUEST = Path("state") / "pet.request"  # `pet`: games to play ("0": until the energy runs out)
 PET_PARK = "WizardCity/WC_Streets/Interiors/WC_PET_Park"
+GAME_IDLE_SECONDS = 180.0  # a dance game and its rewards: no watchdog recovery meanwhile
 DANCE_SIGIL = XYZ(-4450.58, -994.90, -8.04)  # the dance game's sigil in the Pet Pavilion
 DANCE_TITLE = "Dance Game"  # the sigil's prompt title
 NPC_TITLE = ["WorldView", "NPCRangeWin", "wndTitleBackground", "NPCRangeTxtTitle"]
@@ -354,6 +355,9 @@ class PetDancer:
         try:
             limit = wanted or MAX_GAMES
             while games < limit:
+                # A game stands still for the watchdog (no quest progress): it
+                # cancelled one mid-dance and hopped the wizard away.
+                self.q.controller.allow_idle(GAME_IDLE_SECONDS)
                 result = await self.play_one()
                 if result != "won":
                     why = result
@@ -366,6 +370,7 @@ class PetDancer:
                     logger.success(f"pet: {why}")
                     break
         finally:
+            self.q.controller.end_idle()
             await self._close_all()
             await deactivate_dance_hook(self.client.hook_handler)
         logger.info(f"pet: {games} game(s) played; stopped: {why}")
