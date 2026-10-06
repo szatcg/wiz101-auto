@@ -72,8 +72,11 @@ def test_a_forced_first_move_is_the_line_scored():
 def test_a_clogged_hand_digs_for_the_big_hit():
     hand = [frog(0), bolt(1), bolt(2), bolt(3), feint(4), blade(5), mtrap(6)]
     deck = [orthrus(100), orthrus(101), blade(102), feint(103), *[bolt(110 + i) for i in range(4)], frog(120)]
-    b = _battle(hand, deck)
-    choice = lookahead.choose(b, brain.decide(b), power_chance=0.8, budget=60)
+    b = _battle(hand, deck, hp=5000)  # (a kill the planner can see within its horizon)
+    # (against the brain passing: a brain discard of its own is left alone)
+    from wiz101_auto.combat.model import Action
+
+    choice = lookahead.choose(b, Action(ActionKind.PASS), power_chance=0.8, budget=60)
     assert choice is not None and choice.action.kind is ActionKind.DISCARD
     assert choice.action.card.name == "Myth Bolt"
 

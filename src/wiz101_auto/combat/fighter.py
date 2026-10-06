@@ -97,7 +97,7 @@ def _minion_text(battle) -> str:
 
 
 HAND_MAX = 7  # cards a hand refills to each round
-LOOKAHEAD_ON = False  # the whole-deck planner in live fights (on once the simulator says it plays better)
+LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as good or better everywhere)
 LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
 POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
 _POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
