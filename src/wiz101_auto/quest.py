@@ -7557,7 +7557,11 @@ class Quester:
             self._pet_resumed_at = time.monotonic()
             await self.pet.trip(0)
             return
-        if self._grinding and not VISIT_FILE.exists() and self._main_world:
+        accepted_new = (self.dialogue.accepted if self.dialogue else 0) != self._accepted_seen
+        if self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new:
+            # (Not with a quest just accepted: a ranking first. Sir Guy
+            # Gascoigne's quest was taken, then 8 more visits went on before
+            # the book was read again.)
             # Nothing left to do here: a giver from the player's list with a
             # quest for us (MooShu: Ken Shui in the Village of Sorrow) beats
             # grinding, or walking back into the stuck main quest.
@@ -7591,6 +7595,8 @@ class Quester:
                 logger.info(f"nothing left to do: visiting {npc} ({where.split('/')[-1]}) {source}")
                 VISIT_FILE.write_text(json.dumps({"npc": npc, "zone": where}), encoding="utf-8")
         self._fetch_next_story_quest()
+        if accepted_new and self._grinding:
+            VISIT_FILE.unlink(missing_ok=True)  # (a side-quest hunt's visit: the new quest first)
         if VISIT_FILE.exists() and await self._visit_npc():
             logger.debug("step: visited an NPC")
             return
