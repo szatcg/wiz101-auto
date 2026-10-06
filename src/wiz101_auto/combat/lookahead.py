@@ -40,6 +40,7 @@ OVERRIDE_WIN = 0.08  # ... or this much likelier to win
 # past the horizon favour saving pips).
 PASS_ROUNDS = 1.0
 SPARE_COPIES = True  # a 2nd copy of a big hit may be discarded (the best one stays)
+LOSING = 0.2  # every option below this chance to win: the brain's move stands
 SEEN_ENOUGH = 0.5  # overrides and discards only when this share of futures sees the kill
 DISCARD_ROUNDS = 0.25  # a discard (free: only the deck's cards) when this many rounds faster ...
 DISCARD_WIN = 0.04  # ... or this much likelier to win
@@ -66,6 +67,12 @@ class Score:
         # Trusted only where the kill is seen (the estimates past the horizon
         # played big bosses slower than the brain in the simulator).
         if min(self.seen, other.seen) < SEEN_ENOUGH:
+            return False
+        if max(self.win, other.win) < LOSING:
+            # Every option looks lost: its rounds aren't worth trusting, and the
+            # brain's habits (kill the adds: less damage to take) are the
+            # better bet (it passed instead of an Orthrus that killed a Storm
+            # Elemental, at 0% win either way).
             return False
         return (self.win > other.win + win
                 or (self.win >= other.win - 1e-9 and self.rounds < other.rounds - rounds))
