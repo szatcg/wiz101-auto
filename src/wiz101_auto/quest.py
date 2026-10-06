@@ -3603,7 +3603,10 @@ class Quester:
                 # Its story begun: one of its main-story quests in the book (a
                 # side quest on its list doesn't count: Eudora's crafting quest
                 # 'The Razor's Edge' is on Avalon's, and Gamma was never visited).
-                has = any(norm(q.name) in det[1] or (lead_in and game_main[id(q)]) for _, q in all_quests)
+                # (On its list and main story to the game too: 'The Razor's
+                # Edge' is on Avalon's list untagged, a crafting quest.)
+                has = any((norm(q.name) in det[1] and game_main[id(q)]) or (lead_in and game_main[id(q)])
+                          for _, q in all_quests)
                 self._detour_start(det[0], has)
                 await self._note_detour_gap(has)
             activities = {q.name for _, q in all_quests if q.activity}
