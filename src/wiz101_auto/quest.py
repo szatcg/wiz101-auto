@@ -5756,6 +5756,7 @@ class Quester:
             await asyncio.sleep(TELEPORT_SETTLE)
             if not await self._zone_changed(zone):
                 await self.approach_and_walk(gate, zone)
+            await self._answer_dungeon_exit()
             await wait_for_loading(self.client)
         finally:
             self.controller.end_idle()
@@ -5807,6 +5808,13 @@ class Quester:
             return False
         if walking and await self._to_next_room(zone, seen):
             return True
+        from .teamup import room_order as _room_order
+
+        if _room_order(zone):
+            # A dungeon with a known room order (the Waterworks): only that
+            # moves us on. The door search walked into the exit at the start
+            # of a run and sat on "leave the dungeon?" (the player).
+            return False
         # seen[3] False: nobody seen in this room, seen[1] is where we arrived:
         # search its doors from there (it waited in one room while the team
         # was elsewhere).
@@ -5885,6 +5893,9 @@ class Quester:
         # Never a way out of the dungeon (the Throne Room's teleporter took it
         # out mid-search): doors known to lead elsewhere, or by a teleporter.
         exits = await self._entities_named_like(("teleporter",))
+        from .travel_data import _data as _gates
+
+        exits += [pos for pos, to in _gates()[0].get(zone, []) if not is_team_up_zone(to)]
         for e in self.doors.doors.get(zone, []):
             if len(e) > 2 and e[2] and not is_team_up_zone(e[2]):
                 exits.append(XYZ(e[0][0], e[0][1], 0))
@@ -5896,6 +5907,7 @@ class Quester:
                 self._mate_doors.add(dkey)  # the main area's doors: each once (a room's way out: always)
             logger.info(f"looking for the team: through the door at ({door.x:.0f}, {door.y:.0f})")
             await self.approach_and_walk(door, zone)
+            await self._answer_dungeon_exit()  # (an exit after all: stay, at once)
             return True
         return False
 
