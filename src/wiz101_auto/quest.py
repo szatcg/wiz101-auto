@@ -320,6 +320,7 @@ GATE_STAND = 150.0  # land this far from the World Tree's gate: its "Press X" pr
 PORTAL_NEAR_MARKER = 3000.0  # a spirit portal this close to a Defeat marker leads to the fight
 CANDLE_RANGE = 3000.0  # ritual candles around the portal
 COLLECT_MARKER_RANGE = 2500.0  # an item to collect not in view, the marker farther: go to the marker
+COLLECT_DOOR_NEAR = 1200.0  # an item this close to the marker: the marker is the item, not a door
 def use_spots() -> list[tuple[float, float]]:
     """Where to stand to use an object, as offsets from it: on it, a few
     feet off, then rings of 8 at 120, 200 and 300."""
@@ -1105,6 +1106,7 @@ class Quester:
         self.quest_order = load_quest_list()  # docs/QuestList.txt
         self.completions = CompletionTracker()  # -> docs/CompletedQuests.txt
         self._active_quest: str | None = None  # tracked quest's name, from the quest book
+        self._door_rooms: dict[str, str] = {}  # collect objective -> building entered by its marker's door
         self._seen_deaths = 0
         # A defeat happened since we marked a dungeon entrance / fight spot: kept
         # in state/recall_pending.json (a restart mid-Recall forgot it, and the
@@ -4136,6 +4138,34 @@ class Quester:
         logger.info(f"no {item!r} anywhere in {zone.split('/')[-1]} right now")
         return False
 
+    async def _collect_through_door(self, item: str, objective: str, marker: XYZ, zone: str) -> bool:
+        """Go to the quest marker; with no `item` near it, take it for a door
+        and walk through. True if it did something (the zone changed: the
+        building is remembered as where this objective's items are)."""
+        if not self._may_try(objective, zone, "collect_door"):
+            return False
+        near = [e for e in await self.collector._candidates(item)
+                if distance(await e.location(), marker) < COLLECT_DOOR_NEAR]
+        if near:
+            return False  # the marker is on the item itself
+        if distance(await self._position(), marker) > INTERACT_RANGE:
+            await self.travel(marker)
+            if not await wait_until_free(self.client, timeout=5) or await self._zone_changed(zone):
+                return True
+            self.collector._cache = None
+            if any(distance(await e.location(), marker) < COLLECT_DOOR_NEAR
+                   for e in await self.collector._candidates(item)):
+                return True  # there after all: collected on the next step
+        logger.info(f"no {item!r} by the quest marker: it must be a door; walking through it")
+        if await self.walk_through(marker, zone) or await self._walk_in_from_around(marker, zone):
+            inside = await self.client.zone_name() or ""
+            if inside and inside != zone:
+                self._door_rooms[objective] = inside
+                logger.info(f"through the marker's door into {inside.split('/')[-1]}: "
+                            f"looking for {item!r} here")
+            return True
+        return False
+
     def _room_with(self, item: str, area: str) -> str | None:
         """A building of `area` where an entity named exactly `item` was seen,
         when none by that name was seen in `area` itself."""
@@ -4186,6 +4216,14 @@ class Quester:
                 logger.info(f"no {item!r} in view; the quest marker is a dungeon sigil: going in")
                 await self._enter_by_sigil(sigil, zone)
                 return True
+        # The marker on a building's door (Light Candles in Baobab
+        # Crossroads: the candles are inside, the marker points at the door;
+        # the bot swept the zone and the next ones for minutes): nothing by
+        # that name near it, so walk through it.
+        if (distance(marker, XYZ(0, 0, 0)) > 1 and "/interiors/" not in zone.lower()
+                and distance(await self._position(), marker) <= COLLECT_MARKER_RANGE
+                and await self._collect_through_door(item, objective, marker, zone)):
+            return True
         if (distance(marker, XYZ(0, 0, 0)) > 1
                 and distance(await self._position(), marker) > COLLECT_MARKER_RANGE
                 and self._may_try(objective, zone, "collect_marker")):
@@ -7640,7 +7678,8 @@ class Quester:
             where = objective_zone(objective)
             # Not while searching the zones around it (see _search_next_zone).
             searching_here = zone in self._zones_searched.get(objective, ())
-            if where and where != zone and room_of(zone or "", where):
+            if where and where != zone and (room_of(zone or "", where)
+                                            or self._door_rooms.get(objective) == zone):
                 # A building of that area (the Drum House in Elephant Graveyard:
                 # "Collect Drum in Elephant Graveyard" has its drums inside, no
                 # marker, and the bot waited 3 min and set the main quest aside).
