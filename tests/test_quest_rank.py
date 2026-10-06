@@ -372,3 +372,12 @@ def test_fishing_quests_are_never_chosen():
     fish = QuestEntry(0, "A River Runs Through It", activity=True, goal="Catch Frost Dekoi in The Commons")
     side = QuestEntry(1, "Art History", world="Baobab Crown", goal="Talk To Zafaria History")
     assert choose_quest([fish, side]) is side
+
+
+def test_crafting_quests_are_never_chosen():
+    from wiz101_auto.quest import QuestEntry, choose_quest
+
+    craft = QuestEntry(0, "The Razor's Edge", activity=True,
+                       goal="Craft Dagger of Absolution in Crafting Station (0 of 2)")
+    side = QuestEntry(1, "Art History", world="Baobab Crown", goal="Talk To Zafaria History")
+    assert choose_quest([craft, side]) is side

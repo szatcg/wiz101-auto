@@ -538,6 +538,13 @@ def is_fishing(q: QuestEntry) -> bool:
     return (q.goal or "").strip().lower().startswith("catch ")
 
 
+def is_crafting(q: QuestEntry) -> bool:
+    """A crafting quest ("Craft Dagger of Absolution in Crafting Station"):
+    the bot can't craft (it circled Wysteria's crafting station)."""
+    goal = (q.goal or "").strip().lower()
+    return goal.startswith("craft ") or "crafting station" in goal
+
+
 def choose_quest(
     quests: list[QuestEntry],
     set_aside: set[str] = frozenset(),
@@ -554,7 +561,7 @@ def choose_quest(
     order = order or {}
     # (Never fishing quests, "Catch Frost Dekoi": the bot can't fish; it sat
     # at the Commons' fishing spot instead of the Avalon story.)
-    available = [q for q in quests if q.name not in set_aside and not is_fishing(q)]
+    available = [q for q in quests if q.name not in set_aside and not is_fishing(q) and not is_crafting(q)]
     # The main story: flagged in the book, spell/class quests, or on the quest list.
     # (A side world's quest on the list only as the book or a detour says:
     # Wysteria's 'Exchange Student' and 'The Spiral Cup' were followed toward
