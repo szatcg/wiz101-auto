@@ -255,7 +255,8 @@ TALK_QUIET_SECONDS = 1.5  # a conversation is over after this long with no dialo
 DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone change: its door's way in
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
-STILL_WINDOW = 4.0  # ... looks this close together count
+STILL_WINDOW = 12.0  # ... looks this close together count (a whole step takes ~5 s: at 4 s none ever did)
+BOSS_WATCH = 20.0  # by the boss's circle: watching this long, every second, for a teammate to start it
 DOOR_NEAR = 900.0  # this close to a door marker: walk through it (travel stops short)
 DOOR_TRIES = 3  # a team door walk that changes nothing this often: look elsewhere
 TEAM_LOST_AFTER = 8.0  # no teammate in sight this long: go after them
@@ -5442,7 +5443,6 @@ class Quester:
         the nearest teammate meanwhile. Other steps (talks, pick-ups) go on
         as usual. True if it acted."""
         from .collect import duel_circles
-        from .safe_teleport import allow_engage
         from .teamup import team_fight_at, teammates
 
         me = await self._position()
@@ -5527,18 +5527,7 @@ class Quester:
             fight = team_fight_at(sorted(mobs, key=lambda m: distance(m, me)), mates_for_mobs)
         logger.debug(f"team: {len(mates)} teammate(s), {len(circles)} circle(s), fight at {fight}")
         if fight is not None:
-            logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
-            if distance(me, fight) > TEAM_JOIN_FROM * 1.5:
-                dx, dy = me.x - fight.x, me.y - fight.y
-                length = math.hypot(dx, dy) or 1.0
-                await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,
-                                               fight.y + dy / length * TEAM_JOIN_FROM, fight.z))
-                await asyncio.sleep(0.8)
-            allow_engage(self.client)
-            await self.client.goto(fight.x, fight.y)
-            await self._hold_for_fight()
-            self._last_progress_time = time.monotonic()
-            return True
+            return await self._join_team_fight(fight, me)
         objective = await self.objective()
         # Only this dungeon's own non-fight steps are done as usual (talks,
         # pick-ups); a quest from elsewhere would walk away from the team.
@@ -5601,7 +5590,27 @@ class Quester:
                 return True
             if not at_fight:
                 return await self._team_travel(marker)  # a door or passage on the way
-            logger.debug("near the boss's circle; waiting for a teammate to start the fight")
+            logger.debug("near the boss's circle; watching for a teammate to start the fight")
+            # Every second, not once a step (a step takes ~5 s; Sylster's
+            # fight started without us and the player moved the bot in).
+            near = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR] or at_fight
+            prev = mates
+            end = time.monotonic() + BOSS_WATCH
+            self.controller.allow_idle(BOSS_WATCH + 10)
+            try:
+                while time.monotonic() < end:
+                    await asyncio.sleep(1.0)
+                    if not await is_free(self.client):
+                        return True  # pulled in already
+                    now_mates = await teammates(self.client, await self._position())
+                    still = [m for m in now_mates if any(distance(m, q) < STILL_RANGE for q in prev)]
+                    prev = now_mates
+                    fight = team_fight_at(near, still)
+                    if fight is not None:
+                        return await self._join_team_fight(fight, await self._position())
+            finally:
+                self.controller.end_idle()
+            return True
         elif here and not fight_step and await self._to_objective(marker):
             return True
         elif mates:
@@ -5670,6 +5679,23 @@ class Quester:
                 await self.travel(marker)
         finally:
             self.controller.end_idle()
+        return True
+
+    async def _join_team_fight(self, fight: XYZ, me: XYZ) -> bool:
+        """Walk into the fight a teammate is in (teleported near it first)."""
+        from .safe_teleport import allow_engage
+
+        logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
+        if distance(me, fight) > TEAM_JOIN_FROM * 1.5:
+            dx, dy = me.x - fight.x, me.y - fight.y
+            length = math.hypot(dx, dy) or 1.0
+            await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,
+                                           fight.y + dy / length * TEAM_JOIN_FROM, fight.z))
+            await asyncio.sleep(0.8)
+        allow_engage(self.client)
+        await self.client.goto(fight.x, fight.y)
+        await self._hold_for_fight()
+        self._last_progress_time = time.monotonic()
         return True
 
     async def _to_objective(self, marker: XYZ) -> bool:

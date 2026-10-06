@@ -696,14 +696,19 @@ class Fighter(CombatHandler):
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
+            from .brain import luska_guard
+
+            action = luska_guard(battle, action)
             if action.kind is ActionKind.PASS and not action.plan_cards:
                 # Waiting never wastes the turn when a 0-pip trap or blade is in
                 # hand: it costs nothing and the pips build all the same (the
                 # rollouts passed against Gurtok holding Myth Trap; the brain's
                 # wait for Reshuffle did too).
-                from .brain import Strategy, _free_setup
+                from .brain import Strategy, _free_setup, _no_single_target
 
-                free = _free_setup(battle, self.strategy or Strategy())
+                # Under the boss rules too (a blade in Sylster's light round
+                # went out this way, past the rule that had made it a pass).
+                free = _free_setup(_no_single_target(battle), self.strategy or Strategy())
                 if free is not None:
                     free.reason = f"{free.reason}, instead of a plain pass ({action.reason})"
                     action = free
@@ -797,8 +802,12 @@ class Fighter(CombatHandler):
                     logger.warning(f"cast registered clicking at {fx:.0%} of the card width; using that now")
                     self._card_click_x = fx
                     return
-            logger.warning(f"giving up on {action.card.name} this round")
+            logger.warning(f"giving up on {action.card.name} this round; passing (not waiting out the timer)")
             self._unusable.add(action.card.name)
+            # (The player: Pass rather than sit out the clock; a second card
+            # tried after a failed one took the rest of Sylster's first round.)
+            await self.pass_button()
+            return
 
         logger.warning("too many steps this round, passing")
         await self.pass_button()
