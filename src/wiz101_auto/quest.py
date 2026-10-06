@@ -146,6 +146,7 @@ BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to a
 PET_RESUME_SECONDS = 600.0  # in the Pet Pavilion: the trip resumed at most this often
 NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
+DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
@@ -7888,6 +7889,19 @@ class Quester:
                 low = hp < self.upkeep.potion_health_ratio or mana < self.upkeep.potion_mana_ratio
                 if self.upkeep.use_potions and low and await self.client.stats.potion_charge() >= 1.0:
                     logger.info(f"drinking a potion (hp {hp:.0%}, mana {mana:.0%}); staying in the dungeon")
+                    await ui.click(self.client, ui.POTION_BUTTON)
+                    await asyncio.sleep(1.5)
+        if not heal_now and in_dungeon and self.upkeep and not is_team_up_zone(zone_now):
+            # No fight ahead that we know of, but a dungeon's step can start
+            # one ("Read Tapestry Plaque" brought out the Nameless Knight at
+            # 73% health: lost by a sliver): topped up from the room's wisps,
+            # else a potion, without leaving.
+            hp, mana = await health_mana(self.client)
+            if hp < DUNGEON_TOP_UP:
+                if await heal_in_room(self.client, self.upkeep):
+                    return
+                if self.upkeep.use_potions and await self.client.stats.potion_charge() >= 1.0:
+                    logger.info(f"drinking a potion before going on in the dungeon (hp {hp:.0%})")
                     await ui.click(self.client, ui.POTION_BUTTON)
                     await asyncio.sleep(1.5)
         if not heal_now:
