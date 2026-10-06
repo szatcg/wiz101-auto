@@ -3751,6 +3751,12 @@ class Quester:
                 zones = [objective_zone(q.goal) for q in main_quests if q.goal]
                 main_world = next((z.split("/", 1)[0] for z in zones if z), None)
             world = main_world or self._main_world or (here.split("/", 1)[0] if here else None)
+            det_now = self._detour_names()
+            if main_world is None and det_now is not None and det_now[0].get("when_stuck") == "side":
+                # Between the detour world's story quests: its side quests, in
+                # its world (the last "main" seen was Aquila's 'Into the Sea',
+                # and the bot set off to visit Aquila's NPCs).
+                world = det_now[0]["world"]
             if main_world is None and self._detour_names() is None and _side_world(world):
                 # A side-world detour over (Wintertusk): the story goes on in
                 # its own world (Celestia), side quests there rather than
