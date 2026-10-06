@@ -3972,6 +3972,10 @@ class Quester:
                 logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {new[0].name!r}")
                 self._pin = new[0].name
                 save_pin(self._pin)
+                # A new pick starts with no misses (the old count, 2, made one
+                # misread of 'Signs and Portents' count as done, and the bot
+                # went off visiting Wizard City for side quests).
+                self._pin_missing = 0
                 pinned = new[0]  # (a class quest still comes first: below)
         if pinned is None or pinned.name in set_aside:
             why = "done" if pinned is None else "set aside"
