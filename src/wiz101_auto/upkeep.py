@@ -420,6 +420,22 @@ async def _relog_out(client) -> bool:
     return True
 
 
+EXIT_CLEARANCE = 800.0  # a safe spot stays this far from the zone's known doors and exits
+
+
+async def _ways_out(client) -> list[tuple[float, float, float]]:
+    """This zone's learned door walks (state/doors.json) and dungeon exits."""
+    from .dungeons import dungeon_exits
+    from .entitymap import DoorMemory
+
+    zone = await client.zone_name() or ""
+    out = [(e[0], e[1], 0.0) for e in dungeon_exits(zone)]
+    for door, approach, *_ in DoorMemory().doors.get(zone, []):
+        out.append((door[0], door[1], 0.0))
+        out.append((approach[0], approach[1], 0.0))
+    return out
+
+
 async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to rest") -> bool:
     """If an enemy (or a fight going on) is close, teleport to the nearest
     spot with none around: landmarks, or walkway points at floor height
@@ -433,6 +449,10 @@ async def move_to_safety(client, safe_distance: float = 1500.0, why: str = "to r
             return False
         spots = await landmarks(client) + floor_points(await path_points(client), me.z)
         candidates = away_from(spots, hazards, safe_distance)
+        # Not by a way out: in Ricimer Flavel's cave the clear spot before the
+        # deck change was the cave's door, and the bot left the boss's
+        # instance at once, again and again.
+        candidates = away_from(candidates, await _ways_out(client), EXIT_CLEARANCE)
         if not candidates:
             return False
         spot = min(candidates, key=lambda p: math.dist(p, _pt(me)))
