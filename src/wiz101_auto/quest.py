@@ -4284,7 +4284,7 @@ class Quester:
                 self._pin_before = set(before)
                 pin_world = getattr(self, "_pin_world", "")
                 fresh = [q for q in quests if before and q.name not in before and q.name not in set_aside]
-                if pin_world and any(q.world == pin_world for q in fresh):
+                if pin_world and any(q.zone == pin_world for q in fresh):
                     # Gone, and a quest of its world came at the same time (the
                     # hand-in gave the next one, 'Peg-A-Portal'): the line goes
                     # on now, not after a trip to another world's side quest.
@@ -4298,7 +4298,7 @@ class Quester:
         else:
             self._pin_missing = 0
             self._pin_before = None
-            self._pin_world = pinned.world
+            self._pin_world = pinned.zone  # (the book's world; .world is its area)
         before = getattr(self, "_pin_before", None) or before
         if pinned is None and before:
             # Done: follow the quest line to the quest it handed us ('Quest For

@@ -40,9 +40,9 @@ def test_the_line_goes_on_when_the_next_quest_came_with_the_hand_in(monkeypatch)
 
 def test_the_line_goes_on_at_once_when_its_world_has_a_new_quest(monkeypatch):
     me = _quester(monkeypatch, "Hobble Gobble")
-    pick = QuestEntry(0, "Hobble Gobble", world="Wysteria")
-    nxt = QuestEntry(1, "Peg-A-Portal", world="Wysteria")
-    side = QuestEntry(2, "Art History", world="Zafaria")
+    pick = QuestEntry(0, "Hobble Gobble", world="Pegasus Place", zone="Wysteria")
+    nxt = QuestEntry(1, "Peg-A-Portal", world="Pigswick Academy", zone="Wysteria")
+    side = QuestEntry(2, "Art History", world="Baobab Crown", zone="Zafaria")
     me._apply_pin([pick, side], None, set(), before={"Hobble Gobble", "Art History"})
     got = me._apply_pin([nxt, side], None, set(), before={"Hobble Gobble", "Art History"})
     assert me._pin == "Peg-A-Portal" and got is nxt
