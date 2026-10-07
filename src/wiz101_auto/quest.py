@@ -523,7 +523,10 @@ def same_world(a: str | None, b: str | None) -> bool:
 # Side quests elsewhere when the story's world has none left (the player,
 # 2026-10-06: Avalon's, then Zafaria's; then the Wysteria story).
 FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",),  # Wintertusk
-                        "Avalon": ("Zafaria",)}
+                        "Avalon": ("Zafaria",),
+                        # (Azteca's story waiting for its first quest: Avalon's
+                        # side quests, then Zafaria's, not Wizard City's.)
+                        "Azteca": ("Avalon", "Zafaria")}
 
 
 def in_place(zone: str, place: str) -> bool:
