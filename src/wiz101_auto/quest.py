@@ -4271,7 +4271,25 @@ class Quester:
             return chosen
         pinned = next((q for q in quests if q.name == self._pin), None)
         if pinned is None and not complete:
-            return chosen  # a read cut short: it may just be further in the book
+            # A read cut short (inside a dungeon): the pick may be further in
+            # the book. But a new quest on its world's story list that wasn't
+            # there before is the line going on ('Portal Remains' after 'Return
+            # to Verne', read in the Crystal Tower: it went off to The Wild).
+            from .questlist import load_world_lists
+
+            try:
+                story_list = load_world_lists().get(getattr(self, "_pin_world", "") or "", [])
+                story = {norm(x.name) for x in story_list}
+            except Exception:
+                story = set()
+            nxt = [q for q in quests if before and q.name not in before and norm(q.name) in story
+                   and q.name not in set_aside]
+            if nxt:
+                logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {nxt[0].name!r}")
+                self._pin = nxt[0].name
+                save_pin(self._pin)
+                return nxt[0]
+            return chosen
         if pinned is None:
             # Missing from one "complete" reading isn't enough ('Through This
             # Door...' was dropped by a read that also lost two other quests):
