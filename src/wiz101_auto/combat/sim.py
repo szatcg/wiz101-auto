@@ -220,6 +220,7 @@ class Fight:
     hit_rate: dict[str, float] = field(default_factory=dict)  # per spell, from the logs (else ACCURACY)
     minion_share: float = 0.2  # share of enemy hits our minion takes (measured: stats["minion"])
     log: list | None = None  # a replay's steps (the visualizer); None: not recorded
+    hp_seen: list = field(default_factory=list)  # (round, our health): the planner's damage this fight
 
 
 def _note(f: Fight, **step):
@@ -467,6 +468,19 @@ def _expected_hits(f: Fight, action: Action) -> list[float] | None:
     return out
 
 
+def _observed_hit(f: Fight, rnd: int) -> None:
+    """The damage this fight has done to us, as the live fighter tells the
+    planner (lookahead.OBSERVED_HIT: the rounds we lost health in, of the
+    last 3)."""
+    from . import lookahead
+
+    if not f.hp_seen or f.hp_seen[-1][0] != rnd:
+        f.hp_seen.append((rnd, f.me.health))
+    recent = f.hp_seen[-4:]
+    lost = [a[1] - b[1] for a, b in zip(recent, recent[1:], strict=False) if a[1] > b[1]]
+    lookahead.OBSERVED_HIT = sum(lost) / len(lost) if lost else 0.0
+
+
 def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first: Action | None = None,
            discards: int = 2, record: list | None = None) -> bool:
     """Our turn of round `rnd` (the hand already drawn): the brain decides
@@ -485,6 +499,8 @@ def _round(f: Fight, rng: random.Random, strat: Strategy | None, rnd: int, first
                        upcoming=list(f.deck), deck_known=True)
             if not b.live_enemies:
                 return True
+            if USE_LOOKAHEAD:
+                _observed_hit(f, rnd)
             action = decide(b, strat, discards_left=discards)
             if USE_LOOKAHEAD and action.kind is not ActionKind.ENCHANT:
                 # (The whole-deck planner on top, as the live fighter does.)
