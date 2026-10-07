@@ -93,8 +93,8 @@ def test_blades_before_hitting_a_boss():
 def test_stops_blading_at_limit():
     cards = [dmg_card(0, "Fire Cat", 100), blade_card(1), trap_card(2)]
     b = battle(cards, [enemy("Boss", 2000, boss=True, trap_count=2)], my=me(blade_count=2))
-    a = decide(b)
-    assert a.card.name == "Fire Cat"
+    a = decide(b, Strategy(boss_traps_first=False))
+    assert a.card.name == "Fire Cat"  # (the player's boss rule: every blade and trap first, see below)
 
 
 def test_sets_up_while_waiting_for_pips():

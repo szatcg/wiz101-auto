@@ -1451,7 +1451,13 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
     ]
     # (Not a hit that also blades: the pet's Basilisk, "blade +25%", was cast
     # on ourselves as "blade up" and failed every round.)
-    if blades and me.blade_count < strat.max_blades:
+    # A boss fight: every blade (they boost the hit on the boss too, a trap on
+    # an add doesn't: a Feint went on the Crazed Thunder Horn with Spirit
+    # Blade, a third blade, in hand against Teuch Hungry Lizard).
+    max_blades = strat.max_blades
+    if strat.boss_traps_first and any(e.is_boss for e in battle.live_enemies):
+        max_blades = max(max_blades, strat.boss_blades_max)
+    if blades and me.blade_count < max_blades:
         card = max(blades, key=_power)
         target = me if card.target in (Target.ALLY_SINGLE,) else None
         return Action(ActionKind.CAST, card, target, reason="blade up")
