@@ -7213,6 +7213,12 @@ class Quester:
         """Where to fight for experience: the highest-level world we've been
         to (the player: Celestia's enemies give far more than Grizzleheim's,
         where 50 fights moved the bar 8%), else the main world."""
+        from .teamup import load_queue
+
+        if load_queue() and self._main_world:
+            # Queued for a team: stay in the story's world, near its sigil
+            # (it set off for Celestia while waiting for the Pendragon's team).
+            return self._main_world
         known = set(self.__dict__.get("_win_zones", {}))
         for w in GRIND_WORLDS:
             if w in known or w in GRIND_FALLBACK:
