@@ -6073,6 +6073,10 @@ class Quester:
                     self._mate_last_seen = time.monotonic()
                     logger.info("team dungeon: another player is here after all; staying")
                     return False
+            try:  # what the bot saw when it left (the player saw another player there)
+                await self._dump_entities(f"state/team_alone_{int(time.time())}.txt")
+            except Exception as exc:
+                logger.debug(f"team alone dump failed: {exc!r}")
             if gone:
                 why = f"no teammate seen for {TEAM_GONE_AFTER / 60:.0f} min"
             else:
