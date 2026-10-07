@@ -1082,6 +1082,34 @@ async def clear_popups(client):
         await ui.click(client, ui.MINIGAME_EXIT)
     if await ui.is_visible(client, ui.MISSING_AREA_RETRY):
         await ui.click(client, ui.MISSING_AREA_RETRY)
+    await _close_dungeon_exit(client)
+
+
+async def _close_dungeon_exit(client):
+    """A relog started in a dungeon left "If you leave a Dungeon you will lose
+    all your progress... Yes / No" over the game's settings page (Ghost
+    Avalon): No, then the settings page's OK. The bot sat behind it."""
+    from .relog import _find_button
+
+    try:
+        found = await ui.find_named(client.root_window, {"MessageBoxModalWindow", "SettingPage"})
+        box, page = found.get("MessageBoxModalWindow"), found.get("SettingPage")
+        if box is not None and await box.is_visible():
+            cap = (await ui.find_named(box, {"CaptionText"})).get("CaptionText")
+            text = ((await cap.maybe_text()) or "").lower() if cap is not None else ""
+            no = await _find_button(box, ("no",))
+            if no is not None and "leave a dungeon" in text:
+                logger.info("closing the \"leave the dungeon?\" box: No")
+                await ui.click_center(client, no)
+                await asyncio.sleep(0.5)
+        if page is not None and await page.is_visible():
+            ok = await _find_button(page, ("ok",))
+            if ok is not None:
+                logger.info("closing the game's settings page")
+                await ui.click_center(client, ok)
+                await asyncio.sleep(0.5)
+    except Exception as exc:
+        logger.debug(f"dungeon exit box: {exc!r}")
 
 
 class DialoguePolicy:

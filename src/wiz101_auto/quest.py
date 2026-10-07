@@ -5388,11 +5388,13 @@ class Quester:
         """The detour world's quest just left the book with none after it
         ('News of the North' ended in Hrundle Fjord; 'Cold Day in Hrundle'
         waits with someone there): remember where, to ask its NPCs."""
+        zone = await self.client.zone_name() or ""
+        if not has and await self._in_dungeon(zone):
+            return  # (a read inside an instance leaves quests out: not a gap)
         had = getattr(self, "_detour_had", None)
         self._detour_had = has
         if has or not had:
             return
-        zone = await self.client.zone_name() or ""
         if zone:
             DETOUR_GAP_FILE.write_text(json.dumps({"zone": zone, "asked": 0}), encoding="utf-8")
             logger.info(f"the detour's quest ended in {zone.split('/')[-1]}: its NPCs have the next one")
@@ -5412,6 +5414,12 @@ class Quester:
         main story, its next quest not in the book): the NPCs where the main
         story was last worked on. True if it acted."""
         if self._mainline or self._detour_names() is None:
+            return False
+        here = await self.client.zone_name() or ""
+        if await self._in_dungeon(here) or is_team_up_zone(here):
+            # Inside an instance the book leaves quests out ('Take Me to the
+            # Other Side' in Ghost Avalon): never walk out to ask for a "next"
+            # quest from there; it reset the instance's progress.
             return False
         gap_file = DETOUR_GAP_FILE if self._detour_gap_pending() else MAIN_STORY_ZONE_FILE
         try:
