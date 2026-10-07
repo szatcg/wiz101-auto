@@ -864,6 +864,8 @@ class Fighter(CombatHandler):
             target = snap.members.get(id(action.target)) if action.target else None
             if "prism" in action.card.name.lower() and action.target:
                 self._prismed.add(action.target.name)  # waits on them for our next myth hit
+            elif "prism" in action.card.name.lower() and not action.card.is_damage:
+                self._prismed.update(e.name for e in battle.live_enemies)  # (a mass prism: on all of them)
             elif action.card.is_damage and action.card.school.lower() == "myth":
                 # That hit uses the prism (a hit-all: on every enemy it lands on).
                 if action.card.is_aoe:

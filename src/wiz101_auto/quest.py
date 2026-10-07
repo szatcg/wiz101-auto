@@ -2186,6 +2186,22 @@ class Quester:
             logger.info(f"{target} is a {school} boss: {', '.join(prisms)} into the deck for the fight")
         return {**extra, **prisms}
 
+    async def _group_prism(self, target: str) -> dict[str, int]:
+        """Regular enemies of our school to fight ("Defeat Goliath Mauler (0
+        of 4)", myth): our Mass Prism in for the fight, out after."""
+        from .deck_keeper import PROGRESS_FILE, _load, group_prism, school_on_file
+
+        mine = (getattr(self.progression, "school", "") or "") if self.progression else ""
+        if not mine:
+            return {}
+        school = school_on_file(target) or await self._school_in_view(target)
+        got = group_prism(school, mine, set(_load(PROGRESS_FILE).get("known_spells") or []))
+        said = self.__dict__.setdefault("_prism_said", set())
+        if got and f"group:{target}" not in said:
+            said.add(f"group:{target}")
+            logger.info(f"{target} is {school}: {', '.join(got)} into the deck for the fight")
+        return got
+
     async def _school_in_view(self, name: str) -> str:
         """The school of an enemy named `name` in view, read before engaging
         ("" if none is loaded)."""
@@ -8338,6 +8354,8 @@ class Quester:
                                 and await self._count_named(target) < 2))
                     if target and boss:
                         extra = await self._boss_prisms(target)
+                    elif target:
+                        extra = await self._group_prism(target)
                 else:
                     boss = getattr(keeper, "last_boss", False)
                     if boss and self.fighter is not None and not getattr(self.fighter, "last_had_boss", True):

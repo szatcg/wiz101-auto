@@ -58,6 +58,21 @@ def boss_prism(enemy_school: str, my_school: str, known: set[str]) -> dict[str, 
     return {name: PRISM_COPIES} if name else {}
 
 
+MASS_PRISM_COPIES = 1  # a group of our school: one mass prism (the player)
+
+
+def group_prism(enemy_school: str, my_school: str, known: set[str]) -> dict[str, int]:
+    """The player's: enemies mostly of our school (four myth Goliath
+    Maulers): a copy of our Mass Prism in the deck for the fight, as the
+    Myth Prisms for a myth boss. {} when they aren't, or it isn't known."""
+    if not enemy_school or not my_school or enemy_school.lower() != my_school.lower():
+        return {}
+    mine = my_school.strip().lower()
+    names = [k for k in sorted(known) if "mass" in k.lower() and "prism" in k.lower() and mine in k.lower()]
+    name = names[0] if names else None
+    return {name: MASS_PRISM_COPIES} if name else {}
+
+
 def target_deck(general: dict, known: set[str], boss: bool = False,
                 extra: dict[str, int] | None = None) -> dict[str, int]:
     """The deck to keep: the file's deck (its "boss_deck" in dungeons and

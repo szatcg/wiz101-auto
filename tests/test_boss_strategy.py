@@ -950,3 +950,27 @@ def test_traps_go_on_the_boss_before_the_first_hit_all_that_kills_the_adds():
     b.pips, b.power_pips = 1, 2
     act = brain.decide(b)
     assert act.card is feint and act.target is boss
+
+
+def test_a_mass_prism_goes_before_a_hit_all_into_a_group_of_our_school():
+    # (The player: four myth Goliath Maulers, myth 40% resist: Mass Myth Prism.)
+    from wiz101_auto.combat.model import Action, Card, Effect, EffectKind, Target
+    from wiz101_auto.deck_keeper import group_prism
+
+    orthrus = _myth(0, "Orthrus", 1500, 7, aoe=True)
+    mass = Card(1, "Mass Myth Prism", pip_cost=1, school="myth",
+                effects=[Effect(EffectKind.OTHER, Target.ENEMY_ALL, 0)])
+    my = me(3500, 3500)
+    my.school = "myth"
+    maulers = []
+    for i in range(4):
+        m = enemy(f"Goliath Mauler {i}", 3120)
+        m.school = "myth"
+        m.resist = {"myth": 0.4, "storm": -0.4}
+        maulers.append(m)
+    b = battle([orthrus, mass], maulers, my=my)
+    b.pips, b.power_pips = 1, 4
+    got = brain.prism_first(b, Action(ActionKind.CAST, orthrus, None))
+    assert got.card is mass
+    assert group_prism("myth", "myth", {"Mass Myth Prism", "Myth Prism"}) == {"Mass Myth Prism": 1}
+    assert group_prism("death", "myth", {"Mass Myth Prism"}) == {}

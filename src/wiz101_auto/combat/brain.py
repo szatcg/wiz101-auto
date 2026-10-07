@@ -1599,11 +1599,40 @@ PRISM_FIRST_GAIN = 1.5  # a prism doubling-ish our big hit on the target comes b
 PRISM_FIRST_PIPS = 4  # 'big hit': at least this many pips
 
 
+def is_mass_prism(card: Card) -> bool:
+    """A prism on every enemy at once (Mass Myth Prism)."""
+    return _is_prism(card) and ("mass" in card.name.lower() or any(
+        e.target is Target.ENEMY_ALL for e in card.effects))
+
+
+def _mass_prism_first(battle: Battle, action: Action) -> Action | None:
+    """The player's: a hit-all into a group mostly of our school (four myth
+    Goliath Maulers, myth 40% resist): the mass prism first, when the hit
+    lands much harder converted on more than half of them."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or not card.is_damage or not card.is_aoe:
+        return None
+    masses = [c for c in _castable(battle.cards)
+              if is_mass_prism(c) and c.school.lower() == card.school.lower()]
+    live = battle.live_enemies
+    if not masses or len(live) < 2:
+        return None
+    gaining = [e for e in live if e.name not in battle.prismed
+               and _prism_gain(masses[0], battle.me, e, [card]) >= PRISM_FIRST_GAIN]
+    if 2 * len(gaining) <= len(live):
+        return None
+    why = f"mass prism before {card.name}: {len(gaining)} of {len(live)} take it much harder converted"
+    return Action(ActionKind.CAST, masses[0], None, reason=why)
+
+
 def prism_first(battle: Battle, action: Action) -> Action:
     """A big hit about to land on an enemy that resists it (Cyrus Drake:
     myth 80%, storm -50%), not prismed yet, a prism castable in hand: the
     prism first (the hit next round lands as storm). The player: 'the deck
     needs to use prisms before big hits in order to win'."""
+    mass = _mass_prism_first(battle, action)
+    if mass is not None:
+        return mass
     card, target = action.card, action.target
     if (action.kind is not ActionKind.CAST or card is None or target is None or not card.is_damage
             or card.is_aoe or card.pip_cost < PRISM_FIRST_PIPS or target.name in battle.prismed):
