@@ -274,7 +274,7 @@ TEAM_TRACK_AHEAD = 900.0  # following their tracks: walk this far on past where 
 TEAM_TRACK_TRIES = 2  # ... this many times per spot, then the known doors
 TEAM_GONE_AFTER = 240.0  # had a team but none seen for this long (searching the rooms): they left; leave
 TEAM_TALK_TRIES = 3  # a talk step in a team dungeon: tries before it's taken as waiting on the team
-TEAM_ALONE_QUEST = 20.0  # a quest dungeon on the team list, no teammate in sight this long: out, Team Up
+TEAM_ALONE_QUEST = 60.0  # a quest dungeon on the team list, no teammate in sight this long: out, Team Up
 TEAM_ALONE_AFTER = 180.0  # no teammate seen at all since entering, this long: alone (leave, wait for a team)
 TEAM_DOOR_NEAR = 2000.0  # a door this near where they were last seen is the way they went
 FLOOR_BELOW_MAX = 1500.0  # how far under a raised fight to look for the floor to walk up from
@@ -6040,6 +6040,12 @@ class Quester:
             self._team_with_us = True
             self._mate_last_seen = now
         gone = self._team_with_us and now - self._mate_last_seen > TEAM_GONE_AFTER
+        here_now = await self.client.zone_name() or ""
+        if getattr(self, "_team_alone_zone", None) != here_now and not self._team_with_us:
+            # A new dungeon entered: its own clock (one started on an earlier
+            # visit left 37 s after entering, "alone for 180s", a player in there).
+            self._team_alone_zone = here_now
+            self._team_alone_since = None
         if self._team_alone_since is None:
             self._team_alone_since = now
         from .teamup import team_list
@@ -6060,7 +6066,7 @@ class Quester:
             if gone:
                 why = f"no teammate seen for {TEAM_GONE_AFTER / 60:.0f} min"
             else:
-                why = f"alone for {TEAM_ALONE_AFTER:.0f}s"
+                why = f"alone for {now - self._team_alone_since:.0f}s"
             logger.warning(f"{why} in the team dungeon; leaving to wait for a new team")
             self._team_with_us = False
             self._team_alone_since = None
