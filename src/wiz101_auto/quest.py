@@ -5562,8 +5562,8 @@ class Quester:
         Once an hour. Then, with no main quest either (the fallback to the
         main story, its next quest not in the book): the NPCs where the main
         story was last worked on. True if it acted."""
-        if self._mainline or self._detour_names() is None:
-            return False
+        if self._mainline or self._detour_names() is None or self._pin:
+            return False  # (a pinned quest is followed first: Wysteria's story)
         here = await self.client.zone_name() or ""
         if await self._in_dungeon(here) or is_team_up_zone(here):
             # Inside an instance the book leaves quests out ('Take Me to the
