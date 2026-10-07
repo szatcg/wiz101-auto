@@ -120,7 +120,20 @@ class DungeonHealer:
         if is_world_hub(zone) or is_world_hub(await self.client.zone_name() or ""):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
         from .dungeons import no_return
+        from .teamup import is_team_up_zone
 
+        if is_team_up_zone(await self.client.zone_name() or ""):
+            # With a team: never off to the hub (it left its teammate in the
+            # Keep of Ganelon at 40% after the Pendragon); a potion, else on.
+            from . import ui
+            from .upkeep import health_mana
+
+            hp, _mana = await health_mana(self.client)
+            if hp < 0.5 and await self.client.stats.potion_charge() >= 1.0:
+                logger.info(f"with a team at {hp:.0%} health: a potion, not a trip to the hub")
+                await ui.click(self.client, ui.POTION_BUTTON)
+                await asyncio.sleep(1.5)
+            return False
         if no_return(await self.client.zone_name() or ""):
             # Recall can't bring us back here (the Death Realm): fight on.
             return False

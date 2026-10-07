@@ -3107,7 +3107,11 @@ class Quester:
 
     async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
         """Press Recall and wait to arrive in `marked_zone`. True if we did."""
-        if is_team_up_zone(marked_zone) and not is_team_up_zone(await self.client.zone_name() or ""):
+        from .teamup import in_team_run
+
+        if (is_team_up_zone(marked_zone) and not is_team_up_zone(await self.client.zone_name() or "")
+                and not in_team_run(marked_zone)):
+            # (A room of our team's run: back to the team is fine.)
             # Recalling into a team-only dungeon means going in alone.
             logger.info(f"not recalling into {marked_zone} alone (team-only dungeon)")
             return False
@@ -6379,6 +6383,9 @@ class Quester:
                     now = await self.client.zone_name() or ""
                     if now != zone:
                         logger.success(f"followed the team into {now}")
+                        from .teamup import note_team_run
+
+                        note_team_run(await self.client.zone_name() or "", new_run=False)
                     return True
             logger.info(f"the team went on; following their tracks from ({last.x:.0f}, {last.y:.0f}) "
                         f"toward ({ahead.x:.0f}, {ahead.y:.0f})")
@@ -6392,6 +6399,9 @@ class Quester:
             if now != zone:
                 logger.success(f"followed the team into {now}")
                 self.doors.record(zone, (ahead.x, ahead.y, ahead.z), (start.x, start.y, start.z), now)
+                from .teamup import note_team_run
+
+                note_team_run(now or "", new_run=False)
             return True
         doors = await self._doors_here(zone)
         doors += [XYZ(e[0][0], e[0][1], last.z) for e in self.doors.doors.get(zone, [])]

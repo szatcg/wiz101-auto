@@ -174,6 +174,8 @@ def is_team_up_zone(zone: str) -> bool:
     teams = team_list()
     if zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or zone in teams:
         return True
+    if zone and teams and in_team_run(zone):
+        return True  # (a later room of a run on the team list: the team's still on)
     return any("@" in key and _sigil_key_is(key, zone) for key in teams)
 
 
@@ -530,21 +532,30 @@ TEAM_RUN_FILE = Path("state") / "team_run.json"  # the dungeon a team took us in
 TEAM_RUN_HOURS = 2.0
 
 
-def note_team_run(zone: str) -> None:
-    """In `zone` with a team (it formed and took us in)."""
+def note_team_run(zone: str, new_run: bool = True) -> None:
+    """In `zone` with a team: the run's first room (`new_run`), or a later
+    room we followed the team into (the Keep of Ganelon's Crystal Cave)."""
     try:
-        TEAM_RUN_FILE.write_text(json.dumps({"zone": zone, "at": time.time()}), encoding="utf-8")
+        run = {} if new_run else json.loads(TEAM_RUN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        run = {}
+    zones = [z for z in run.get("zones", [run.get("zone", "")]) if z]
+    if zone not in zones:
+        zones.append(zone)
+    try:
+        TEAM_RUN_FILE.write_text(json.dumps({"zones": zones, "at": time.time()}), encoding="utf-8")
     except OSError:
         pass
 
 
 def in_team_run(zone: str) -> bool:
-    """A team took us into `zone` in the last TEAM_RUN_HOURS."""
+    """`zone` is a room of the team run of the last TEAM_RUN_HOURS."""
     try:
         run = json.loads(TEAM_RUN_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
-    return run.get("zone") == zone and time.time() - run.get("at", 0) < TEAM_RUN_HOURS * 3600
+    zones = run.get("zones", [run.get("zone", "")])
+    return zone in zones and time.time() - run.get("at", 0) < TEAM_RUN_HOURS * 3600
 
 
 async def _resume_after_defeat(quester, zone: str) -> bool:
