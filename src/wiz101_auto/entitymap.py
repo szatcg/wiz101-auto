@@ -102,6 +102,8 @@ class DoorMemory:
             self.doors = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             pass
+        for zone in list(self.doors):  # (no "door" at (0, 0): a marker that wasn't read)
+            self.doors[zone] = [e for e in self.doors[zone] if abs(e[0][0]) >= 1 or abs(e[0][1]) >= 1]
         for zone, entries in KNOWN_DOORS.items():
             for door, spot, dest in entries:
                 mine = next((e for e in self.doors.get(zone, []) if _dist(e[0], door) < DOOR_MATCH), None)
@@ -118,7 +120,8 @@ class DoorMemory:
 
     def leading_to(self, zone: str, dest: str) -> list[tuple[Point, Point]]:
         """(door, approach) of this zone's known doors into `dest`."""
-        return [(tuple(e[0]), tuple(e[1])) for e in self.doors.get(zone, []) if len(e) > 2 and e[2] == dest]
+        return [(tuple(e[0]), tuple(e[1])) for e in self.doors.get(zone, [])
+                if len(e) > 2 and e[2] == dest and (abs(e[0][0]) >= 1 or abs(e[0][1]) >= 1)]
 
     def route(self, start: str, dest: str) -> list[tuple[str, Point, Point, str]]:
         """The shortest chain of known doors from `start` to `dest`: (zone,
@@ -139,6 +142,8 @@ class DoorMemory:
         return []
 
     def record(self, zone: str, door: Point, start: Point, dest: str | None = None):
+        if abs(door[0]) < 1 and abs(door[1]) < 1:
+            return  # no marker read (0, 0): not a door ('into WC_SchoolMyth' from the World Tree looped)
         old = next((e for e in self.doors.get(zone, []) if _dist(e[0], door) < DOOR_MATCH), None)
         dest = dest or (old[2] if old and len(old) > 2 else None)
         entries = [e for e in self.doors.get(zone, []) if _dist(e[0], door) >= DOOR_MATCH]

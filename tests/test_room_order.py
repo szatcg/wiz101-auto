@@ -61,3 +61,12 @@ def test_a_sigil_key_marks_its_dungeon_as_a_team_zone(tmp_path, monkeypatch):
     monkeypatch.setattr(dungeons.DungeonMemory, "load", classmethod(lambda cls, *a, **k: mem))
     assert teamup.is_team_up_zone("Avalon/Interiors/AV_Z13_Keep")
     assert not teamup.is_team_up_zone("Avalon/AV_Z07_OuterYard")
+
+
+def test_no_door_at_the_origin(tmp_path):
+    from wiz101_auto.entitymap import DoorMemory
+
+    mem = DoorMemory(tmp_path / "doors.json")
+    tree, school = "WizardCity/WC_Ravenwood_Teleporter", "WizardCity/Interiors/WC_SchoolMyth"
+    mem.record(tree, (0, 0), (648, 14, 73), school)
+    assert mem.leading_to(tree, school) == []
