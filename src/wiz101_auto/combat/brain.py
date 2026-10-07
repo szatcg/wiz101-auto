@@ -297,12 +297,9 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     for card in _castable(battle.cards):
         if not card.is_damage or card.treasure and card.item:
             continue
-        # (Landing: the card's hit rate in the fight logs, else its accuracy;
-        # the player asked why 79% crit, 3% block came out 59%: the fizzle
-        # chance, now shown in the reason.)
-        from .lookahead import hit_rate
-
-        p = clear_chance(card, battle.me, alive) * hit_rate(card)
+        # (Landing: the card's accuracy with our gear's bonus, as read; the
+        # player: 79% crit, 3% block came out 59% from the spell's bare 80%.)
+        p = clear_chance(card, battle.me, alive) * (card.accuracy / 100.0)
         if p >= CRIT_GAMBLE and p < 1.0 and (best is None or p > best[0]):
             best = (p, card)
     if best is None:
@@ -316,11 +313,9 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     if lives and sure < 99 and 1 + (1 - p) * sure > sure - 1:
         return None
     pc, pb, normal, crit = crit_odds(card, battle.me, alive[0])
-    from .lookahead import hit_rate
-
     return Action(ActionKind.CAST, card, None if card.is_aoe else alive[0],
-                  reason=f"{card.name} ends the fight on a crit: {p:.0%} (hits {hit_rate(card):.0%}, "
-                         f"crit {pc:.0%} for all, block {pb:.0%} each; ~{normal:.0f} / ~{crit:.0f} crit)")
+                  reason=f"{card.name} ends the fight on a crit: {p:.0%} (crit {pc:.0%}, "
+                         f"block {pb:.0%}; ~{normal:.0f} / ~{crit:.0f} on a crit)")
 
 
 def damage_breakdown(attacker: Combatant, target: Combatant, card: Card) -> str:

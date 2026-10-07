@@ -128,6 +128,7 @@ class Combatant:
     pierce: dict[str, float] = field(default_factory=dict)
     crit: dict[str, float] = field(default_factory=dict)
     block: dict[str, float] = field(default_factory=dict)
+    accuracy: dict[str, float] = field(default_factory=dict)  # gear's accuracy bonus (fraction) per school
     level: int = 0
     # Lasting boosts for the rest of the fight (Vermin Virtuoso: +25% myth;
     # auras; the battle's global effect), never used up by a hit, unlike

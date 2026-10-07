@@ -305,6 +305,7 @@ async def _read_school_stats(c: Combatant, participant, curves: Curves | None = 
         crit = await stats.critical_hit_rating_by_school()
         c.crit = raw_per_school(crit, await stats.critical_hit_rating_all())
         c.block = raw_per_school(await stats.block_rating_by_school(), await stats.block_rating_all())
+        c.accuracy = per_school(await stats.acc_bonus_percent(), await stats.acc_bonus_percent_all())
         c.level = await stats.reference_level()
         if curves and await participant.is_player():  # players' stats are soft-capped
             if curves.damage:
@@ -317,7 +318,9 @@ async def _read_school_stats(c: Combatant, participant, curves: Curves | None = 
         _logged_stats.add(c.name)
         shown = {s: round(v, 2) for s, v in c.resist.items() if v}
         raw = [round(v, 3) for v in reduce]
-        logger.info(f"{c.name} ({c.school or '?'}): resists {shown or 'nothing'}; raw {raw}")
+        acc = {s: round(v, 2) for s, v in (c.accuracy or {}).items() if v}
+        logger.info(f"{c.name} ({c.school or '?'}): resists {shown or 'nothing'}; raw {raw}"
+                    + (f"; accuracy {acc}" if acc else ""))
 
 
 _ALL_SCHOOLS = {"", "all", "universal", "none"}
@@ -491,6 +494,12 @@ async def read_battle(handler: CombatHandler) -> BattleSnapshot:
         if card:
             cards.append(card)
             card_map[i] = lc
+    # The card's accuracy is the spell's own: our gear's accuracy adds to it
+    # (the player: a Humongofrog read 80% while it lands more often).
+    for card in cards:
+        bonus = (me.accuracy or {}).get(card.school.lower(), 0.0)
+        if bonus and card.accuracy < 100:
+            card.accuracy = min(100, round(card.accuracy + 100 * bonus))
 
     await _global_effect(handler, [me, *allies, *enemies])
     # Class pips count double only for their own school's spells: ours are

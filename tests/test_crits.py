@@ -138,3 +138,9 @@ def test_an_aoe_crit_is_one_roll_then_a_block_per_enemy():
     p = clear_chance(ORTHRUS, m, two)
     assert abs(p - pc * (1 - pb) ** 2) < 1e-9
     assert p > (pc * (1 - pb)) ** 2
+
+
+def test_gear_accuracy_adds_to_the_cards_accuracy():
+    from wiz101_auto.combat import reader
+
+    assert reader.per_school([0, 0, 0, 7], 0)["myth"] == 7 / 100  # (percents read as fractions)
