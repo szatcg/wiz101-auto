@@ -3806,7 +3806,20 @@ class Quester:
                 # (Any listed quest: a 'SIDE ×1' tag counts its side branches,
                 # 'Steamed Crab' is the story; Sir Pike was visited again and
                 # again with it in the book.)
-                has = any((norm(q.name) in det[2] and game_main[id(q)]) or (lead_in and game_main[id(q)])
+                # (A lead-in, but not another world's story quest: Aquila's
+                # 'Into the Sea' counted as Azteca begun, and Cyrus Drake was
+                # never visited for 'First Star I See Tonight'.)
+                from .questlist import load_world_lists
+
+                try:
+                    others = {norm(x.name) for w, lst in load_world_lists().items()
+                              if not same_world(w, det[0].get("world")) for x in lst}
+                except Exception:
+                    others = set()
+                has = any((norm(q.name) in det[2] and game_main[id(q)])
+                          or (lead_in and game_main[id(q)] and norm(q.name) not in others
+                              and (not q.zone or same_world(q.zone, det[0].get("world"))
+                                   or same_world(q.zone, "Wizard City")))
                           for _, q in all_quests)
                 self._detour_start(det[0], has)
                 await self._note_detour_gap(has)
