@@ -2598,7 +2598,7 @@ class Quester:
         zone = await self.client.zone_name() or ""
         if not is_house(zone):
             return False
-        if not self._mainline and self._detour_gap_pending():
+        if not self._mainline and not self._pin and self._detour_gap_pending():
             return False  # (the story's next quest first: _detour_ask goes to its world)
         target = objective_zone(await self.objective())
         if target is None and self._chosen_entry is not None and self._chosen_entry.zone:
@@ -2645,7 +2645,7 @@ class Quester:
             self._ranked_for = None
             self._last_rank = -1e9
             return True
-        if not self._mainline and self._detour_gap_pending():
+        if not self._mainline and not self._pin and self._detour_gap_pending():
             # On the way to ask for the story's next quest: its world, not the
             # tracked side quest's (the map ticked Wysteria for The Spiral Cup
             # and the bot bounced between the house and Wysteria).
