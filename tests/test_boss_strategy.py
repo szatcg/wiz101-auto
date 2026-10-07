@@ -974,3 +974,19 @@ def test_a_mass_prism_goes_before_a_hit_all_into_a_group_of_our_school():
     assert got.card is mass
     assert group_prism("myth", "myth", {"Mass Myth Prism", "Myth Prism"}) == {"Mass Myth Prism": 1}
     assert group_prism("death", "myth", {"Mass Myth Prism"}) == {}
+
+
+def test_a_hit_all_that_kills_the_adds_goes_now_when_they_hit_hard():
+    from unittest import mock
+
+    orthrus = _myth(0, "Orthrus", 2500, 7, aoe=True)
+    blade = blade_card(1, 35)
+    blade.pip_cost = 0
+    my = me(1316, 3417)
+    my.school = "myth"
+    foes = [enemy("Blue Agnes", 14600, boss=True), *[enemy(f"Night Weaver {i}", 2240) for i in range(3)]]
+    b = battle([orthrus, blade], foes, my=my)
+    b.pips, b.power_pips = 0, 4
+    with mock.patch.object(brain, "incoming_per_round", return_value=650.0):
+        act = brain.decide(b)
+    assert act.card is orthrus

@@ -1227,6 +1227,15 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         total = sum(e.health for e in enemies)
         why = f"{card.name} kills all {len(enemies)} (~{total:.0f})"
         return Action(ActionKind.CAST, card, None, reason=why)
+    adds = [e for e in enemies if not e.is_boss]
+    if (card.castable and adds and len(adds) < len(enemies)
+            and all(hit_damage(card, battle.me, e) >= e.health for e in adds)
+            and battle.me.health <= 3 * incoming_per_round(battle)):
+        # Losing fast to a boss and its adds, and the hit-all kills every add
+        # now: cast it, no more blades first (three Mythblades against Blue
+        # Agnes's Night Weavers at 1316 health with Orthrus ready; dead).
+        why = f"{card.name} now: it kills the {len(adds)} adds, and they hit hard"
+        return Action(ActionKind.CAST, card, None, reason=why)
     boss_first = _boss_traps_first(battle, card, strat)
     if boss_first is not None:
         return boss_first
