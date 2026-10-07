@@ -159,3 +159,15 @@ def test_the_pets_and_the_trained_feint_stack_in_the_simulator():
     hanging = [(sim._fx_key(trained), "", 0.7)]
     assert trained.template_id and _is_duplicate(sim.CARDS["Feint"](), EffectKind.TRAP, hanging, "myth")
     assert not _is_duplicate(pets, EffectKind.TRAP, hanging, "myth")
+
+
+def test_no_crit_gamble_with_the_last_attack_card():
+    m = me(100, level=60)
+    target = foe(1500)
+    b = Battle(me=m, allies=[], enemies=[target], cards=[BOLT], pips=3, power_pips=0, deck_known=True)
+    import unittest.mock as um
+
+    from wiz101_auto.combat import brain
+
+    with um.patch.object(brain, "incoming_per_round", return_value=100.0):
+        assert _crit_gamble(b, Action(ActionKind.PASS, reason="saving pips")) is None  # (no attack after)

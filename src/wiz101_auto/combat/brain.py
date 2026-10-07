@@ -311,6 +311,12 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     if best is None:
         return None
     p, card = best
+    # The last attack card there is: a miss leaves nothing to win with (a
+    # Goliath Mauler at 1288: Humongofrog on a 77% crit, short, then out of
+    # cards; the sure line set it up first). Only when we may not live.
+    others = [c for c in [*battle.cards, *battle.upcoming] if c.is_damage and c is not card]
+    if lives and battle.deck_known and not others:
+        return None
     # The player: gamble only when it saves more rounds than it costs. Now:
     # 1 round on a crit; a miss leaves (about) the sure plan still to play.
     # Sure: `sure` rounds. With no sure kill in reach, any CRIT_GAMBLE odds go.
