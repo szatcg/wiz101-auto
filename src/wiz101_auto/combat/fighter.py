@@ -314,7 +314,7 @@ def _save_my_stats(me) -> None:
 
 
 class Fighter(CombatHandler):
-    def __init__(self, client, strategy: Strategy, *, max_discards: int = 2, flee_below: float = 0.0,
+    def __init__(self, client, strategy: Strategy, *, max_discards: int = 99, flee_below: float = 0.0,
                  rollouts: bool = True):
         super().__init__(client)
         self.strategy = strategy

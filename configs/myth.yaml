@@ -28,7 +28,7 @@ safety:
   max_hours: 0             # 0 = no limit: run until stopped
 
 combat:
-  max_discards: 4
+  max_discards: 99  # no limit: every card the plan does not need may go (the player, 2026-10-07)
   flee_below: 0.0
   strategy:
     heal_threshold: 0.5       # only matters once you have a heal (e.g. a Life secondary)

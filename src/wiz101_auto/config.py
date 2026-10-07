@@ -68,7 +68,7 @@ class SafetyConfig:
 @dataclass
 class CombatConfig:
     strategy: Strategy = field(default_factory=Strategy)
-    max_discards: int = 4  # per round; the hand refills at the next round, so discards draw new cards
+    max_discards: int = 99  # per round: no limit (the player); discards draw new cards next round
     flee_below: float = 0.0  # 0 disables fleeing
     rollouts: bool = True  # play each move out in the simulator and take the best (not a fight-ending move)
     adapt_deck: bool = True  # a lost fight: search a deck for those enemies, switch; the general deck after
