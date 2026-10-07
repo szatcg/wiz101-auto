@@ -1814,6 +1814,11 @@ class Quester:
             return False  # (the objective is in this dungeon: leaving resets it)
         if not await is_free(self.client) or not self._may_try(objective, zone, "hub_button"):
             return False
+        if "/interiors/" in zone.lower() and dest.split("/")[0] == zone.split("/")[0] and via == 0:
+            # Inside a building of the hub's own world with the objective "in
+            # the hub" by name (the Spiral Cup's entry hall): the button took
+            # it out and it walked back in, over and over. The marker leads on.
+            return False
         try:
             marker = await self.client.quest_position.position()
             near = distance(marker, await self._position()) < HUB_SKIP_NEAR
