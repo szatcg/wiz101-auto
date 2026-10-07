@@ -3697,6 +3697,12 @@ class Quester:
         pages = 0
         complete = False  # read through to the last page
         try:
+            # From the first page: the book can open on a later one (a read
+            # began on page 2, missed 'In-Flight Meals' and the pin's line was
+            # dropped; quests "completed" that weren't).
+            for _ in range(MAX_BOOK_PAGES):
+                if not await self._turn_page(back_button):
+                    break
             # Every page: with 5 pages at most, 'Fetch Bones!' (main) sat past
             # the end, and quests pushed off the read counted as completed.
             for page in range(MAX_BOOK_PAGES):
