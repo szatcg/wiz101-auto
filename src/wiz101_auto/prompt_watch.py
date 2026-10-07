@@ -165,6 +165,11 @@ async def prompt_loop(client, quester, controller):
                 last_press = time.monotonic()
                 logger.info(f"talk prompt for {title} showed: talking at once")
                 await client.send_key(Keycode.X, 0.1)
+                # Possibly a turn-in no step saw ('Straight Edge' to Abbot
+                # Ewan): asked again if a quest completes soon after.
+                zone = await client.zone_name() or ""
+                quester._recent_talks = [*getattr(quester, "_recent_talks", [])[-3:],
+                                         (title, zone, time.monotonic())]
             elif should_use(objective, prompt, title) and not await _in_team_dungeon(client):
                 last_press = time.monotonic()
                 logger.info(f"prompt for {title} showed: using it at once")
