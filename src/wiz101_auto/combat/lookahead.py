@@ -178,24 +178,32 @@ OBSERVED_HIT = 0.0  # damage we took per round in this fight so far (the fighter
 
 def _incoming_rounds(battle: Battle) -> list[list[float]]:
     """Each live enemy's logged rounds of damage to us (enemy_stats.json,
-    0 for a round it set up), the hits scaled up to what this fight has shown
-    when that's more (OBSERVED_HIT: the rounds we lost health in; Maudit
-    Soulban and his Giant, never logged, hit for ~900 a round while the
-    planner counted on far less). An enemy never logged: UNKNOWN_HIT_SHARE
-    of our max health every round.
+    0 for a round it set up; too few of its own: those of enemies like it,
+    as the simulator's enemies hit), the hits scaled up to what this fight
+    has shown when that's more (OBSERVED_HIT: the rounds we lost health in;
+    Maudit Soulban and his Giant, never logged, hit for ~900 a round while
+    the planner counted on far less). No logs at all: UNKNOWN_HIT_SHARE of
+    our max health every round.
 
-    The futures fall by these, a round at a time: an average per round (a
-    boss setting up two rounds and then hitting 1200 averages 400) had the
-    planner count 3 rounds left at 865 health, so a Feint over the Orthrus
-    that could end it now looked like a sure win (Malgrin, Kerr Knucklebones,
-    the Bog Witch: 2026-10-06)."""
+    The futures fall by these, a round at a time, not by an average per
+    round: a boss that sets up two rounds and then hits 1200 averages 400,
+    but one hit is what 865 health has to outlast."""
     from .brain import _STATS, UNKNOWN_HIT_SHARE, incoming_per_round
 
     incoming_per_round(battle)  # (reads the logs' stats)
+    logged = _STATS[1]
     out = []
     for e in battle.live_enemies:
-        st = _STATS[1].get(e.name, {})
-        rounds = [max(0.0, float(d)) for d in (*st.get("alone", []), *st.get("shared", []))]
+        rounds: list = []
+        if logged:
+            from .sim import samples_for
+
+            try:
+                rounds = samples_for(e.name, e.max_health, e.is_boss, {"enemies": logged})
+            except (KeyError, TypeError):  # (an entry without its health or boss flag)
+                st = logged.get(e.name, {})
+                rounds = [*st.get("alone", []), *st.get("shared", [])]
+        rounds = [max(0.0, float(d)) for d in rounds]
         out.append(rounds or [UNKNOWN_HIT_SHARE * battle.me.max_health])
     hits = [sum(p) / len(p) for p in ([d for d in rounds if d > 0] for rounds in out) if p]
     biggest = max(hits, default=0.0)

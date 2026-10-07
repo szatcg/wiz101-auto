@@ -247,8 +247,15 @@ def test_we_fall_by_the_enemies_logged_rounds(monkeypatch):
     assert lookahead._falls(865, [[1200.0]], random.Random(1)) == 1
     assert lookahead._falls(2000, [[300.0], [300.0]], random.Random(1)) == 4
     assert lookahead._falls(865, [], random.Random(1)) == lookahead.CAP + 1
-    monkeypatch.setattr(brain, "_STATS", [0.0, {"Malgrin": {"alone": [0, 0, 600], "shared": []}}])
+    monkeypatch.setattr(brain, "_STATS", [0.0, {"Malgrin": {"alone": [0, 0, 600] * 3, "shared": [],
+                                                          "boss": True, "max_health": 9960}}])
     monkeypatch.setattr(lookahead, "OBSERVED_HIT", 1200.0)
     b = _battle([bolt(0)], [], hp=9960)
     b.enemies[0].name = "Malgrin"
-    assert lookahead._incoming_rounds(b) == [[0.0, 0.0, 1200.0]]
+    assert lookahead._incoming_rounds(b) == [[0.0, 0.0, 1200.0] * 3]
+    # (An enemy never logged hits like those of its kind: the add.)
+    add = Combatant("Bog Imp", 2000, 2000, is_enemy=True, school="fire", resist={})
+    monkeypatch.setattr(lookahead, "OBSERVED_HIT", 0.0)
+    monkeypatch.setattr(brain, "_STATS", [0.0, {"Imp": {"alone": [100.0] * 8, "shared": [],
+                                                       "boss": False, "max_health": 1900}}])
+    assert lookahead._incoming_rounds(Battle(**{**b.__dict__, "enemies": [add]})) == [[100.0] * 8]
