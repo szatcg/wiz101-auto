@@ -3991,7 +3991,9 @@ class Quester:
                 pin_first = bool(chosen and self._pin and chosen.name == self._pin)
                 if (busy is not None and busy is not chosen and busy.name not in set_aside
                         and not in_side_world(busy) and not spell_first and not main_first
-                        and not pin_first):
+                        and not pin_first and busy.name != getattr(self, "_gap_vehicle", None)):
+                    # (Not one tracked only to ride the Spiral Map to the asking:
+                    # 'A Scrap of Trouble' kept over the player's fallback order.)
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
@@ -4068,6 +4070,7 @@ class Quester:
                     logger.info(f"tracking {there[0].name!r} meanwhile: the Spiral Map then opens on "
                                 f"{there[0].zone} (the story's next quest is asked for there)")
                     chosen = there[0]
+                    self._gap_vehicle = chosen.name
             self._last_quests = [q for _, q in all_quests]
             _write_quest_book([q for _, q in all_quests], chosen, world)
             self._chosen_entry = chosen
