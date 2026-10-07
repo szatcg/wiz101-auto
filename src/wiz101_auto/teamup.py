@@ -461,11 +461,36 @@ def defeated_inside_recently(last_death, hub_zone: str, now: float) -> bool:
             and now - at < RESUME_AFTER_DEFEAT)
 
 
+TEAM_RUN_FILE = Path("state") / "team_run.json"  # the dungeon a team took us into, and when
+TEAM_RUN_HOURS = 2.0
+
+
+def note_team_run(zone: str) -> None:
+    """In `zone` with a team (it formed and took us in)."""
+    try:
+        TEAM_RUN_FILE.write_text(json.dumps({"zone": zone, "at": time.time()}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def in_team_run(zone: str) -> bool:
+    """A team took us into `zone` in the last TEAM_RUN_HOURS."""
+    try:
+        run = json.loads(TEAM_RUN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return run.get("zone") == zone and time.time() - run.get("at", 0) < TEAM_RUN_HOURS * 3600
+
+
 async def _resume_after_defeat(quester, zone: str) -> bool:
     """Defeated in the dungeon, the team fights on inside: the sigil's RESUME
     takes us back into that run (waiting for new players left it for good)."""
     client = quester.client
     if not defeated_inside_recently(quester.controller.last_death, zone or "", time.monotonic()):
+        return False
+    if not in_team_run(quester.controller.last_death[1]):
+        # A solo loss (no team ever came): RESUME put us back in our own copy
+        # of the Keep of Ganelon alone, where team mode never starts a fight.
         return False
     quester.controller.last_death = None  # one try per defeat
     if not await _click(client, ("resume",), "sigil"):

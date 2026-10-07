@@ -5767,6 +5767,9 @@ class Quester:
             return
         quest = queue.get("quest", "")
         clear_queue()
+        from .teamup import note_team_run
+
+        note_team_run(zone)
         if quest and self.setbacks.deferred.pop(quest, None) is not None:
             self.setbacks.save()
         logger.success(f"team up: in {zone.split('/')[-1]} with a team: back on {quest!r}")
