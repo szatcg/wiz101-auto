@@ -46,3 +46,18 @@ def test_team_potions_keep_one_for_the_final_boss():
     assert team_potion(0.6, 1, before_final=True)
     assert not team_potion(0.95, 1, before_final=True)
     assert not team_potion(0.1, 0, before_final=True)
+
+
+def test_a_sigil_key_marks_its_dungeon_as_a_team_zone(tmp_path, monkeypatch):
+    # The Pendragon's keep put on the team list by its sigil before it was
+    # ever entered ("zone@x,y"): once learned, its rooms are team play.
+    from wiz101_auto import dungeons, teamup
+
+    monkeypatch.setattr(teamup, "TEAM_LIST_FILE", tmp_path / "team_dungeons.json")
+    teamup.add_team_dungeon("Avalon/AV_Z07_OuterYard@1200,-300", "The Guns of Avalon")
+    mem = dungeons.DungeonMemory(tmp_path / "dungeons.json")
+    mem.record_entry("Avalon/Interiors/AV_Z13_Keep", dungeons.DungeonEntry(
+        outside="Avalon/AV_Z07_OuterYard", sigil=(1210, -290, 0), spawn=(0, 0, 0), yaw=0.0))
+    monkeypatch.setattr(dungeons.DungeonMemory, "load", classmethod(lambda cls, *a, **k: mem))
+    assert teamup.is_team_up_zone("Avalon/Interiors/AV_Z13_Keep")
+    assert not teamup.is_team_up_zone("Avalon/AV_Z07_OuterYard")

@@ -1422,6 +1422,13 @@ class Quester:
                 self._stall_switched_for = None
                 self._last_progress_time = time.monotonic()
                 return
+            if quest and quest in self._mainline and await self._team_for_stuck(quest, objective, here):
+                # The player: stuck on the main quest, a team does it (Team Up
+                # at its sigil, side quests while queued, the bot joins the
+                # team's fights); the queue sets the quest aside meanwhile.
+                self._stall_switched_for = None
+                self._last_progress_time = time.monotonic()
+                return
             if quest:
                 level = await self.client.stats.reference_level()
                 self.setbacks.set_quest_aside(quest, objective, level, main=quest in self._mainline,
@@ -1936,11 +1943,51 @@ class Quester:
         return None
 
     def _dungeon_at(self, outside: str, sigil: XYZ) -> str | None:
-        """The dungeon (its first room's zone) whose sigil this is, if learned."""
+        """The dungeon (its first room's zone) whose sigil this is, if learned;
+        else a sigil put on the team list while unlearned ("zone@x,y")."""
         for inside, entry in DungeonMemory.load().dungeons.items():
             if entry.outside == outside and distance(XYZ(*entry.sigil), sigil) < SIGIL_NEAR_RANGE:
                 return inside
+        from .teamup import team_list
+
+        for key in team_list():
+            place, _, xy = key.partition("@")
+            if place == outside and xy:
+                try:
+                    x, y = (float(v) for v in xy.split(","))
+                except ValueError:
+                    continue
+                if math.hypot(x - sigil.x, y - sigil.y) < SIGIL_NEAR_RANGE:
+                    return key
         return None
+
+    async def _team_for_stuck(self, quest: str, objective: str, zone: str) -> bool:
+        """The main quest stuck with its marker on a dungeon sigil in this zone
+        (the Pendragon's keep: minutes of Stag Chargers, never inside): that
+        dungeon goes on the team list. True if it did."""
+        from .teamup import add_team_dungeon, is_team_dungeon
+
+        if not zone or await self._in_dungeon(zone) or is_team_up_zone(zone):
+            return False
+        try:
+            marker = await self.client.quest_position.position()
+        except Exception:
+            return False
+        if distance(marker, XYZ(0, 0, 0)) < 1:
+            return False
+        sigil = await self._sigil_at(marker, SIGIL_RANGE * 3)
+        if sigil is None:
+            return False
+        dungeon = self._dungeon_at(zone, sigil) or f"{zone}@{sigil.x:.0f},{sigil.y:.0f}"
+        if is_team_dungeon(dungeon):
+            return False
+        add_team_dungeon(dungeon, quest)
+        logger.warning(f"stuck on {objective!r}: its dungeon with a team (Team Up at its sigil, "
+                       f"side quests while queued) until {quest!r} is done")
+        self._alert_main_stuck(quest, f"stuck on {objective!r}; waiting for a team")
+        self._ranked_for = None
+        self._last_rank = -1e9
+        return True
 
     async def _enter_by_sigil(self, sigil: XYZ, zone: str | None) -> bool:
         """Dungeons start with ONE press of X on the sigil, then a ~10s countdown

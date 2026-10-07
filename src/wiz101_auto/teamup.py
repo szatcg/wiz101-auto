@@ -171,7 +171,26 @@ def is_team_dungeon(dungeon: str) -> bool:
 
 def is_team_up_zone(zone: str) -> bool:
     """A room of a dungeon that is only entered with a team."""
-    return zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or zone in team_list()
+    teams = team_list()
+    if zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or zone in teams:
+        return True
+    return any("@" in key and _sigil_key_is(key, zone) for key in teams)
+
+
+def _sigil_key_is(key: str, zone: str) -> bool:
+    """A team-list key "outside@x,y" (a sigil put on the list before its
+    dungeon was learned) for the dungeon `zone`, as learned since."""
+    from .dungeons import DungeonMemory
+
+    entry = DungeonMemory.load().dungeons.get(zone)
+    place, _, xy = key.partition("@")
+    if entry is None or entry.outside != place or not entry.sigil:
+        return False
+    try:
+        x, y = (float(v) for v in xy.split(","))
+    except ValueError:
+        return False
+    return abs(entry.sigil[0] - x) < 400 and abs(entry.sigil[1] - y) < 400
 
 
 # The form TEAM UP! opens (mapped from state/teamup_window.txt): farming
