@@ -681,7 +681,11 @@ class Fighter(CombatHandler):
                 # the fight anyway; fleeing keeps our health for the retry.
                 self._flee_tried_this_round = True
                 logger.warning("no attack cards left in hand or deck: fleeing to try again")
-                if await self.flee():
+                # (Even in a dungeon with no mark: passing until we die gains
+                # nothing, the player's rule; fleeing keeps us in the room.)
+                fled = await self._flee()
+                self.fled = self.fled or fled
+                if fled:
                     return
 
             if not self._judged_fight:
