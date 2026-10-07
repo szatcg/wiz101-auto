@@ -886,8 +886,14 @@ def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
         dmg = hit_damage(card, me, e)
         return min(dmg * boost, e.health) - min(dmg, e.health)
 
+    pool = battle.live_enemies
+    if any(e.is_boss for e in pool):
+        # A boss here: no trap on an add the hit kills anyway (a Feint on the
+        # Crazed Thunder Horn that Orthrus finished with ~2948 into 2145, not on
+        # Teuch Hungry Lizard: the player's rule, every trap on the boss).
+        pool = [e for e in pool if e.is_boss or hit_damage(card, me, e) < e.health] or pool
     return min(
-        battle.live_enemies,
+        pool,
         key=lambda e: (not tipped(e), e.trap_count, -gain(e)),
     )
 
@@ -1163,7 +1169,7 @@ def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | N
         return None  # he shrugs the hit off (Meowiarty resists myth 80%): traps go where it hurts
     if any(hit_damage(card, me, e) < e.health for e in adds):
         return None  # an add needs the setup too: the usual rules
-    if me.health <= 3 * incoming_per_round(battle):
+    if me.health <= 2 * incoming_per_round(battle):
         return None  # no time for it
     castable = _castable(battle.cards)
     blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage

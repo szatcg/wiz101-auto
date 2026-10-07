@@ -990,3 +990,15 @@ def test_a_hit_all_that_kills_the_adds_goes_now_when_they_hit_hard():
     with mock.patch.object(brain, "incoming_per_round", return_value=650.0):
         act = brain.decide(b)
     assert act.card is orthrus
+
+
+def test_no_trap_on_an_add_the_hit_all_kills_anyway():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 2900, 7, aoe=True)
+    feint = Card(1, "Feint", pip_cost=1, school="death",
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    lizard = enemy("Teuch Hungry Lizard", 11800, boss=True)
+    horn = enemy("Crazed Thunder Horn", 2145)
+    b = battle([orthrus, feint], [lizard, horn], my=me(2891, 3417))
+    assert brain._aoe_trap_target(b, orthrus) is lizard
