@@ -122,6 +122,7 @@ async def potion_ok(client, tripped: bool = False) -> bool:
 # player's rule): a potion after a fight only below this much health, and the
 # last one kept for right before the final boss (Sylster Glowstorm).
 TEAM_POTION_BELOW = 0.35
+LAST_RESORT_POTION_BELOW = 0.3  # no wisps anywhere to go to: a potion below this health
 TEAM_POTIONS_KEPT = 1  # for the final fight
 FINAL_POTION_BELOW = 0.8  # before the final boss: the kept potion goes in below this
 
@@ -879,6 +880,14 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 tripped = True
                 if await trip(marked=marked):
                     return True
+            if (hp < LAST_RESORT_POTION_BELOW and cfg.use_potions
+                    and await client.stats.potion_charge() >= 1.0):
+                # Nothing heals here and we're nearly down (7% after the
+                # dragons, Caliburn's wisps gone): the potion is for this.
+                logger.info(f"no wisps to heal with at {hp:.0%} health: drinking a potion")
+                await ui.click(client, ui.POTION_BUTTON)
+                await asyncio.sleep(1.5)
+                return True
             logger.info(f"no wisps to heal with ({hp:.0%} health, {mana:.0%} mana); carrying on")
             await back_to_start()
             return True
