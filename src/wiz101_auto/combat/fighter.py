@@ -99,6 +99,7 @@ def _minion_text(battle) -> str:
 HAND_MAX = 7  # cards a hand refills to each round
 LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as good or better everywhere)
 LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
+CAST_FAILS_MAX = 2  # a card whose cast failed this often in a fight isn't tried again in it
 LOW_HP_HIT_MARGIN = 1.2  # our health this close to the next hit: the brain's hit isn't overridden
 POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
 _POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
@@ -335,6 +336,7 @@ class Fighter(CombatHandler):
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
+        self._fails: dict[str, int] = {}  # failed casts per card this fight
         self._prismed: set[str] = set()  # enemies prismed this fight
         self._summons = 0  # minions summoned this fight
         self._pp_chance: float | None = None  # power pip chance, read once a fight
@@ -600,7 +602,10 @@ class Fighter(CombatHandler):
         # No minions at all (the player: slow, and their worth is hard to
         # judge): never summoned, and a minion card drawn is discarded.
         self.strategy.no_minions = True
-        self._unusable.clear()  # a card that failed last round may sit in a working slot now
+        # A card that failed last round may sit in a working slot now; one that
+        # failed twice this fight stays out (Basilisk "blade up" on ourselves
+        # failed eight rounds running against Young Morganthe, Orthrus unused).
+        self._unusable = {n for n, k in getattr(self, "_fails", {}).items() if k >= CAST_FAILS_MAX}
         self._flee_tried_this_round = False
         round_started = time.monotonic()
         discards_left = self.max_discards
@@ -851,6 +856,7 @@ class Fighter(CombatHandler):
                     return
             logger.warning(f"giving up on {action.card.name} this round; passing (not waiting out the timer)")
             self._unusable.add(action.card.name)
+            self._fails[action.card.name] = self._fails.get(action.card.name, 0) + 1
             # (The player: Pass rather than sit out the clock; a second card
             # tried after a failed one took the rest of Sylster's first round.)
             await self.pass_button()
@@ -948,6 +954,7 @@ class Fighter(CombatHandler):
 
     async def handle_combat(self):
         self._unusable.clear()
+        self._fails: dict[str, int] = {}  # failed casts per card this fight
         self._prismed: set[str] = set()
         self._pp_chance = None  # read once a fight
         self._hp_seen: list[tuple[int, int]] = []  # (round, our health) for the planner's damage estimate

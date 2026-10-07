@@ -884,3 +884,19 @@ def test_no_feint_when_the_hit_all_already_kills_everyone():
     b = Battle(me=me, allies=[], enemies=dogs, cards=[orthrus, feint], pips=0, power_pips=2)
     a = decide(b)
     assert not (a.kind is ActionKind.CAST and a.card is feint), a
+
+
+def test_a_hit_that_also_blades_is_not_a_blade_setup():
+    # The pet's 7-pip Basilisk ("damage, dot, blade +25%") was cast on
+    # ourselves as "blade up" and failed every round against Young Morganthe.
+    from wiz101_auto.combat.brain import Strategy, _setup_action
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    basilisk = Card(0, "Basilisk", school="myth", pip_cost=7, item=True,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 600),
+                             Effect(EffectKind.BLADE, Target.SELF, 25)])
+    me = Combatant("me", 914, 3329, is_client=True, school="myth")
+    boss = Combatant("Young Morganthe", 4249, 9240, is_enemy=True, is_boss=True, resist={})
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[basilisk], pips=1, power_pips=6)
+    a = _setup_action(b, Strategy(), boss)
+    assert a is None or a.card is not basilisk

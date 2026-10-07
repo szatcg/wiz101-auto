@@ -1369,9 +1369,11 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
 
     blades = [
         c for c in castable
-        if EffectKind.BLADE in c.kinds and not c.is_enchant and setup_fits(c, battle)
+        if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage and setup_fits(c, battle)
         and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, battle.me.school.lower())
     ]
+    # (Not a hit that also blades: the pet's Basilisk, "blade +25%", was cast
+    # on ourselves as "blade up" and failed every round.)
     if blades and me.blade_count < strat.max_blades:
         card = max(blades, key=_power)
         target = me if card.target in (Target.ALLY_SINGLE,) else None
