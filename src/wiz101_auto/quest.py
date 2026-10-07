@@ -2624,6 +2624,26 @@ class Quester:
                 return name
         return ""
 
+    def queue_lapsed(self):
+        """The game no longer has us in the Team Up queue: the main quest comes
+        back now (to its sigil, Team Up again) instead of waiting out its 15
+        minutes set aside."""
+        from .teamup import clear_queue, load_queue
+
+        q = load_queue()
+        if not q:
+            return
+        clear_queue()
+        quest = q.get("quest", "")
+        if quest and quest in self.setbacks.deferred:
+            self.setbacks.deferred.pop(quest, None)
+            self.setbacks.save()
+        logger.warning(f"team up: no longer queued for {q.get('dungeon', '?').split('/')[-1]}; "
+                       f"back to {quest!r} to Team Up again")
+        self._ranked_for = None
+        self._last_rank = -1e9
+        self.cancel_step()
+
     def _note_boss_win(self):
         """A boss fight was just won: the farm's boss ends a farm run."""
         if not self.fighter or self.fighter.boss_fights == self._boss_fights_seen:

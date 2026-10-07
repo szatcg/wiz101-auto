@@ -133,6 +133,33 @@ async def accept_team_ready(client) -> bool:
     return False
 
 
+START_EARLY_WORDS = ("start early", "start early!", "start now", "start")
+
+
+async def start_early(client) -> bool:
+    """Queued and another player has joined: the Waiting window's START EARLY
+    (the player: go with whoever is found, don't wait for a full team). True
+    if pressed."""
+    found = await _path_to_text(client.root_window, START_EARLY_WORDS[:3], [])
+    if not found:
+        return False
+    # The text may sit on the button itself or on a label inside it.
+    target = found[-1]
+    for w in reversed(found):
+        try:
+            kind = ((await w.maybe_read_type_name()) or "").lower()
+            if "button" in kind or "btn" in (await w.name()).lower():
+                target = w
+                break
+        except Exception:
+            continue
+    await _dump(client, f"start_early_{int(time.time())}")
+    logger.success("team up: a player joined; pressing START EARLY")
+    await ui.click_center(client, target)
+    await asyncio.sleep(1.0)
+    return True
+
+
 TEAM_LIST_FILE = Path("state") / "team_dungeons.json"  # {dungeon: quest}: added after 5 losses
 
 

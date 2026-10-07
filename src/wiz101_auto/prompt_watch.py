@@ -29,6 +29,7 @@ NPC_RANGE_TITLE = ["WorldView", "NPCRangeWin", "wndTitleBackground", "NPCRangeTx
 CHECK_EVERY = 0.2  # seconds between looks at the prompt
 PRESS_COOLDOWN = 3.0  # after a press, let the dialogue come up before pressing again
 COLLECT_COOLDOWN = 1.0  # between presses on pick-up prompts
+QUEUE_CHECK_EVERY = 60.0  # queued for a team: this often, make sure the game still has us queued
 
 
 def _norm(s: str) -> str:
@@ -105,6 +106,7 @@ async def _in_team_dungeon(client) -> bool:
 async def prompt_loop(client, quester, controller):
     last_press = 0.0
     last_ready = 0.0  # last look for a team-ready prompt (queued for a team)
+    last_queue_check = time.monotonic()  # last look whether the game still has us queued
     last_collect = 0.0  # (its own cooldown: the crystal objective changes as we move, and each
     # change held back the press, so the bot stood on a sample's prompt without pressing X)
     last_goal = await _goal_id(client)
@@ -115,12 +117,19 @@ async def prompt_loop(client, quester, controller):
         try:
             # Queued for a team (a main-quest boss too hard alone): its ready
             # prompt is accepted wherever we are, not in a fight.
-            from .teamup import accept_team_ready, load_queue
+            from .teamup import accept_team_ready, load_queue, queued, start_early
 
             if load_queue() and time.monotonic() - last_ready >= 2.0 and not await client.in_battle():
                 last_ready = time.monotonic()
-                if await accept_team_ready(client):
+                if await start_early(client) or await accept_team_ready(client):
                     quester.cancel_step()
+                elif time.monotonic() - last_queue_check >= QUEUE_CHECK_EVERY:
+                    # The game drops the queue (a dungeon entered for a side
+                    # quest, a timeout) while the bot thought it waited: the
+                    # player saw no Team Up running. Back to the sigil now.
+                    last_queue_check = time.monotonic()
+                    if not await queued(client):
+                        quester.queue_lapsed()
         except Exception as exc:
             logger.debug(f"team ready watch: {exc!r}")
         goal = await _goal_id(client)
