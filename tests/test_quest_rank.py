@@ -405,3 +405,9 @@ def test_an_outdoor_zone_is_never_learned_as_a_dungeon(tmp_path):
     mem.record_entry("Avalon/AV_Z04_TheWild", DungeonEntry(
         outside="Avalon/Interiors/AV_Z04_WhiteOwlTower", sigil=(0, 0, 0), spawn=(0, 0, 0), yaw=0.0))
     assert "Avalon/AV_Z04_TheWild" not in mem.dungeons
+
+
+def test_repair_objectives_name_their_object():
+    from wiz101_auto.quest import operate_target
+
+    assert operate_target("Repair Broken Column in Saltmeadow Swamp (0 of 6)") == "Broken Column"

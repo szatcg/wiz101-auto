@@ -920,7 +920,8 @@ def locate_target(objective: str) -> str | None:
 # ("Learn Mantra 2 in Ancient Burial Grounds": a tablet to read, walked at as a door for 6 minutes.)
 # ("Open Pixie Cage in The Wild (0 of 6)": no marker; 'Far Away Girls' waited and was set aside.)
 _OPERATE = re.compile(
-    r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch|open)\s+(.+?)"
+    r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch|open|repair|light"
+    r"|ring|unlock|lock|charge|smash|destroy|burn|place)\s+(.+?)"
     r"(?:\s+in\s+.+)?\s*$", re.I)
 
 
@@ -8640,6 +8641,12 @@ class Quester:
             await self.client.send_key(Keycode.Z, 0.1)
 
         if distance(target, XYZ(0, 0, 0)) < 1:
+            # "Repair Broken Column (0 of 6)": the objects by their name first
+            # (seen spots, else a sweep): the nearby-object round kept trying
+            # a quest light with no prompt, over and over.
+            if (operate_target(objective) and objective_zone(objective) in (None, zone)
+                    and await self._use_named_object(objective)):
+                return
             if await self._investigate(objective, zone or ""):
                 return
             if getattr(self, "_fallback_tried_for", None) != (objective, zone):
