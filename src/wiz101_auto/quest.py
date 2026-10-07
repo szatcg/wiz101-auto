@@ -5338,6 +5338,18 @@ class Quester:
     async def _to_world_stage(self, world: str, why: str) -> bool:
         """One stage of _to_world. True if it acted."""
         zone = await self.client.zone_name() or ""
+        if (await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT)
+                and zone_world(zone.split("/", 1)[0]) == zone_world(world)):
+            # Already in that world with the map open: the map won't take us
+            # there (a visit in Wysteria chose Wysteria again and again).
+            logger.info(f"{why}: already in {world}; closing the Spiral Map")
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
+            if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+                world = "WizardCity" if zone_world(world) != "WizardCity" else "Krokotopia"
+                logger.info(f"{why}: the map's Cancel is covered: off to {world} by the map instead")
+            else:
+                return True
         if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             from .relog import _find_button
 
