@@ -850,3 +850,20 @@ def test_a_banned_card_is_never_planned_in_a_later_round():
                                  pips=0, power_pips=3))
     found = _kill_search(b, b.enemies[0], 10)
     assert found is None or "Feint" not in " ".join(found[3])
+
+
+def test_never_waits_for_a_trap_the_boss_forbids():
+    # Black Annie: no single-target spell of 3 pips or less (Feint is one).
+    # The bot passed "holding Humongofrog until Black Annie is trapped".
+    from wiz101_auto.combat.brain import _no_single_target, _trap_coming
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    frog = Card(0, "Humongofrog", school="myth", pip_cost=4,
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 700)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    me = Combatant("me", 613, 3307, is_client=True, school="myth")
+    annie = Combatant("Black Annie", 7446, 11400, is_enemy=True, is_boss=True, resist={})
+    b = _no_single_target(Battle(me=me, allies=[], enemies=[annie], cards=[frog, feint],
+                                 pips=1, power_pips=2))
+    assert not _trap_coming(b)

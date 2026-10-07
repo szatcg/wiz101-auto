@@ -628,8 +628,10 @@ def _save_for_heal(battle: Battle, strat: Strategy) -> Action | None:
 
 
 def _trap_coming(battle: Battle) -> bool:
-    """Could a trap land on an enemy soon: one in our hand, or our minion alive?"""
-    if any(EffectKind.TRAP in c.kinds and not c.is_enchant for c in battle.cards):
+    """Could a trap land on an enemy soon: one in our hand, or our minion alive?
+    (Not a banned one: Black Annie forbids small single-target spells, and the
+    bot passed "holding Humongofrog until Black Annie is trapped".)"""
+    if any(EffectKind.TRAP in c.kinds and not c.is_enchant and not c.banned for c in battle.cards):
         return True
     return any(a.is_minion and not a.is_dead for a in battle.allies)
 
