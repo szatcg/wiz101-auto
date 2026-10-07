@@ -206,7 +206,7 @@ def _near_death(hp, boss_hp, monkeypatch, hit=1000.0):
                   upcoming=[bolt(10), bolt(11)], deck_known=True)
 
 
-@pytest.mark.parametrize("hp", [376, 865])
+@pytest.mark.parametrize("hp", [376, 865, 975])
 def test_one_hit_from_falling_the_kill_now_is_not_put_off(monkeypatch, hp):
     # Orthrus now ends it on a crit (55%); a blade first ends it surely, but
     # a round later: a round we don't live through.
