@@ -900,3 +900,20 @@ def test_a_hit_that_also_blades_is_not_a_blade_setup():
     b = Battle(me=me, allies=[], enemies=[boss], cards=[basilisk], pips=1, power_pips=6)
     a = _setup_action(b, Strategy(), boss)
     assert a is None or a.card is not basilisk
+
+
+def test_no_feint_on_an_add_when_the_hit_all_clears_them_and_no_boss():
+    # Two Stag Chargers (1910 each), Orthrus ~3500 each but 1 pip short:
+    # the bot Feinted one ("set-up toward Stag Charger for Orthrus").
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7, castable=False,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 3500)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    me = Combatant("me", 2794, 3351, is_client=True, school="myth")
+    stags = [Combatant("Stag Charger", 1910, 1910, is_enemy=True, resist={}) for _ in range(2)]
+    b = Battle(me=me, allies=[], enemies=stags, cards=[orthrus, feint], pips=2, power_pips=2)
+    a = decide(b)
+    assert not (a.kind is ActionKind.CAST and a.card is feint), a

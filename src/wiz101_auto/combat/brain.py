@@ -1353,6 +1353,11 @@ def _build_for_big_aoe(battle: Battle, strat: Strategy, discards_left: int) -> A
                           reason=f"digging for {big.name}: {BIG_AOE_REASON} {len(adds)} adds by itself")
     focus = max(bosses, key=lambda e: e.health) if bosses else max(enemies, key=lambda e: e.health)
     setup = _setup_action(battle, strat, focus)
+    if setup is not None and not bosses and setup.card is not None and setup.card.pip_cost > 0:
+        # No boss: the hit-all kills everyone already; a pip on a trap only
+        # delays it (a Feint on one of two Stag Chargers, Orthrus ~3500 each
+        # into 1910).
+        setup = None
     if setup is not None and (setup.target is None or setup.target is me or setup.target is focus):
         setup.reason = f"set-up toward {focus.name} for {big.name} (it clears the adds by itself)"
         return setup
