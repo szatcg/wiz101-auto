@@ -101,6 +101,7 @@ LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as 
 LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
 CAST_FAILS_MAX = 2  # a card whose cast failed this often in a fight isn't tried again in it
 LOW_HP_HIT_MARGIN = 1.2  # our health this close to the next hit: the brain's hit isn't overridden
+KILL_KEEP_ROUNDS = 3.0  # health under this many rounds of the damage we take: a hit that kills stands
 POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
 _POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
 ROLLOUT_BUDGET = 20.0  # seconds into a round after which the brain's move stands (no rollouts)
@@ -958,6 +959,17 @@ class Fighter(CombatHandler):
         recent = hist[-4:]
         lost = [a[1] - b[1] for a, b in zip(recent, recent[1:], strict=False) if a[1] > b[1]]
         lookahead.OBSERVED_HIT = sum(lost) / len(lost) if lost else 0.0
+        if action.kind is ActionKind.CAST and card is not None and card.is_damage and lost:
+            from .brain import hit_damage
+
+            struck = battle.live_enemies if card.is_aoe else [action.target] if action.target else []
+            kills = sum(1 for e in struck if e is not None and hit_damage(card, battle.me, e) >= e.health)
+            if kills and battle.me.health <= KILL_KEEP_ROUNDS * max(lost):
+                # Taking a lot each round, and the brain's hit takes attackers
+                # out: it stands (Blue Agnes and three Night Weavers: the planner
+                # put Feints on her at 1739 health instead of the Orthrus that
+                # killed the three, "69% win", and lost).
+                return action
         try:
             chance = await self._power_chance()
             choice = await asyncio.to_thread(lookahead.choose, rules, action, chance, discards_left)

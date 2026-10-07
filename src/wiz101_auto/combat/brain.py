@@ -1163,7 +1163,7 @@ def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | N
         return None  # he shrugs the hit off (Meowiarty resists myth 80%): traps go where it hurts
     if any(hit_damage(card, me, e) < e.health for e in adds):
         return None  # an add needs the setup too: the usual rules
-    if me.health <= 2 * incoming_per_round(battle):
+    if me.health <= 3 * incoming_per_round(battle):
         return None  # no time for it
     castable = _castable(battle.cards)
     blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage
