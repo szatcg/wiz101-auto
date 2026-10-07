@@ -5822,6 +5822,26 @@ class Quester:
                 continue
         return out
 
+    async def _count_named(self, name: str) -> int:
+        """How many entities around have this display name (enemies of one
+        kind come in twos and threes; a boss is one)."""
+        from .names import lang_name
+
+        want, n = norm(name), 0
+        try:
+            entities = await self.client.get_base_entity_list()
+        except Exception:
+            return 0
+        for e in entities:
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else ""
+                if code and norm(await lang_name(self.client, code) or "") == want:
+                    n += 1
+            except Exception:
+                continue
+        return n
+
     async def _entity_named_like(self, words: tuple[str, ...]) -> XYZ | None:
         found = await self._entities_named_like(words)
         return found[0] if found else None
@@ -8278,11 +8298,17 @@ class Quester:
                     boss = (any(bosses.get(n) for n in defeat_names(obj))
                             or bool(target and is_known_boss(target))
                             or (not known and not counted
-                                and (await self._in_any_dungeon(here) or "/interiors/" in here.lower())))
+                                and (await self._in_any_dungeon(here) or "/interiors/" in here.lower())
+                                # (Two of it around: a regular enemy. The boss deck
+                                # went on for Thunder Horn Zombies in the Black Sun
+                                # Pyramid and stayed on for the room's other fights.)
+                                and await self._count_named(target) < 2))
                     if target and boss:
                         extra = await self._boss_prisms(target)
                 else:
                     boss = getattr(keeper, "last_boss", False)
+                    if boss and self.fighter is not None and not getattr(self.fighter, "last_had_boss", True):
+                        boss = False  # (the last fight had no boss: the everyday deck again)
                 # (No prisms asked for once the boss fight is over: they come out.)
                 if await keeper.tick(self.client, boss=boss, extra=extra):
                     return

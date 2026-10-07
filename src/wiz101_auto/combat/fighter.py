@@ -985,6 +985,7 @@ class Fighter(CombatHandler):
         await super().handle_combat()
         self.fights += 1
         self.combat_ended_at = time.monotonic()
+        self.last_had_boss = self._had_boss  # (the deck keeper: no boss, the everyday deck again)
         if self._had_boss:
             self.boss_fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")

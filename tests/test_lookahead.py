@@ -259,3 +259,17 @@ def test_we_fall_by_the_enemies_logged_rounds(monkeypatch):
     monkeypatch.setattr(brain, "_STATS", [0.0, {"Imp": {"alone": [100.0] * 8, "shared": [],
                                                        "boss": False, "max_health": 1900}}])
     assert lookahead._incoming_rounds(Battle(**{**b.__dict__, "enemies": [add]})) == [[100.0] * 8]
+
+
+def test_feints_in_the_way_of_the_finishing_draw_are_binned_together():
+    # (The player: Humongofrog at 40% would end it a round sooner, and the
+    # Feints held did nothing for that fight: bin them, the draw is near sure.)
+    hand = [feint(0), feint(1), feint(2), mtrap(3), mtrap(4), blade(5), blade(6)]
+    deck = [frog(100), *[mtrap(110 + i) for i in range(4)], *[feint(120 + i) for i in range(4)]]
+    b = _battle(hand, deck, hp=900, pips=3, power=2)
+    assert any(c.name == "Feint" for c in lookahead._droppable(b))
+    got = lookahead.plan_round(b, 0.8, discards_left=4, budget=60)
+    assert got is not None
+    drops, with_drops, base = got
+    assert len(drops) >= 2 and any(c.name == "Feint" for c in drops)
+    assert with_drops.rounds < base.rounds

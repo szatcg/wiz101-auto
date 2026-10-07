@@ -519,12 +519,18 @@ def _droppable(battle: Battle) -> list[Card]:
         return c.is_damage and any(o is not c and o.name == c.name and card_strength(o) >= card_strength(c)
                                    for o in battle.cards)
 
+    def setup(c: Card) -> bool:
+        # A blade or trap: binned only when the fight scores better without it
+        # (the player: Feints held while a Humongofrog draw would end the
+        # fight a round sooner; they did nothing for that fight).
+        return not c.is_damage and bool({EffectKind.BLADE, EffectKind.TRAP} & set(c.kinds))
+
     # (Big hits, blades and traps are kept as the brain keeps them: noisy
     # early odds binned an Orthrus in round 1; a spare copy may go.)
     return [c for c in battle.cards
             if not c.treasure and not c.item and not is_reshuffle(c) and not c.is_enchant
             and ((modeled(c) and not _is_prism(c)
-                  and (not keep_from_discard(c) or (spare_copy(c) and SPARE_COPIES)))
+                  and (not keep_from_discard(c) or (spare_copy(c) and SPARE_COPIES) or setup(c)))
                  or (_is_prism(c) and _prism_useless(c, battle)))]
 
 
@@ -589,6 +595,29 @@ def plan_round(battle: Battle, power_chance: float, discards_left: int, budget: 
             current_score, card = best
             drops.append(card)
             current = _without(current, [card])
+        # Together: one discard alone may not be worth it, while all the cards
+        # in the way are (each one more draw at the card that ends it sooner:
+        # 40% -> sure). The spare cards, least missed first, as a group.
+        room = discards_left - len(drops)
+        if room >= 2 and len(current.upcoming) >= DISCARD_RESERVE:
+            singles = []
+            for c in _droppable(current):
+                singles.append((_score(_without(current, [c]), futures, deadline).key(), c))
+            singles.sort(key=lambda t: t[0])
+            group: list[Card] = []
+            best_group = None
+            for _k, c in singles[:room]:
+                group.append(c)
+                if len(group) < 2:
+                    continue
+                s = _score(_without(current, group), futures, deadline)
+                if (s.better_than(current_score, DISCARD_ROUNDS, DISCARD_WIN)
+                        and (best_group is None or s.key() < best_group[0].key())):
+                    best_group = (s, list(group))
+            if best_group is not None:
+                current_score, more = best_group
+                drops.extend(more)
+                current = _without(current, more)
     except OutOfTime:
         return None
     return drops, current_score, base
