@@ -2630,7 +2630,7 @@ FULL_HEALTH = 0.9  # a heal is never cast at or above this much health
 # Luska Charmbeak answers any single-target spell from a wizard he hasn't
 # inked (all but the first spot) with Skeletal Dragon (1,200) or Power Link
 # (2,100), and cleanses traps; hits on all enemies are safe.
-NO_SINGLE_TARGET = {"luska charmbeak", "the pendragon"}  # (Pendragon: Scarecrow for any)
+NO_SINGLE_TARGET = {"luska charmbeak"}  # (the Pendragon: only rank 6+ hits, BOSS_BANS)
 
 
 def _single_trap_or_prism(c: Card) -> bool:
@@ -2652,7 +2652,13 @@ BOSS_BANS = {
     "black annie": lambda c: aims_at_one_enemy(c) and c.pip_cost <= 3,  # Vampire + stun
     "flevur flave": lambda c: _blade(c) or _shield(c),  # steals them
     "ridenhouer delish": _shield,  # steals shields and absorbs
-    "young morganthe": lambda c: (EffectKind.TRAP in c.kinds and not c.is_damage) or _shield(c),
+    # (The player's list: a blade, a trap or a heal (or a fizzle) can bring her
+    # Woolly Mammoth / Earthquake / Supernova; shields too.)
+    "young morganthe": lambda c: ((EffectKind.TRAP in c.kinds and not c.is_damage) or _shield(c)
+                                  or (_blade(c) and not c.is_damage) or (c.is_heal and not c.is_damage)),
+    # Scarecrow answers a single-target attack of rank 6 or more (wand hits,
+    # traps, smaller spells don't set it off): the player's list.
+    "the pendragon": lambda c: c.is_damage and aims_at_one_enemy(c) and c.pip_cost >= 6,
     # Atlantea (the player's list): Poseidon answers a single-target trap,
     # prism or negative charm on him, or a single hit with a side effect
     # (Efreet's weakness, a shield), with his Storm attack and a trap wipe.

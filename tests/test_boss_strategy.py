@@ -760,9 +760,10 @@ def test_avalon_boss_bans():
 
     assert castable("Matkis Axethief") == {"Mythblade", "Orthrus"}
     assert castable("Flevur Flave") == {"Myth Trap", "Orthrus"}
-    assert castable("Young Morganthe") == {"Mythblade", "Orthrus"}
+    assert castable("Young Morganthe") == {"Orthrus"}  # (blades, traps and heals bring her combo)
     assert castable("Black Annie") == {"Mythblade", "Orthrus"}
-    assert castable("The Pendragon") == {"Mythblade", "Orthrus"}
+    # (Only single-target attacks of rank 6+ get the Scarecrow: traps are fine.)
+    assert castable("The Pendragon") == {"Myth Trap", "Mythblade", "Orthrus"}
 
 
 def test_poseidon_and_the_sand_squid():
@@ -917,3 +918,17 @@ def test_no_feint_on_an_add_when_the_hit_all_clears_them_and_no_boss():
     b = Battle(me=me, allies=[], enemies=stags, cards=[orthrus, feint], pips=2, power_pips=2)
     a = decide(b)
     assert not (a.kind is ActionKind.CAST and a.card is feint), a
+
+
+def test_pendragon_bans_only_big_single_target_hits():
+    from wiz101_auto.combat.brain import _no_single_target
+    from wiz101_auto.combat.model import Battle, Card, Combatant, Effect, EffectKind, Target
+
+    basilisk = Card(0, "Basilisk", school="myth", pip_cost=7,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 900)])
+    troll = Card(1, "Troll", school="myth", pip_cost=3,
+                 effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 350)])
+    me = Combatant("me", 3000, 3000, is_client=True, school="myth")
+    foe = Combatant("The Pendragon", 16000, 16000, is_enemy=True, is_boss=True, resist={})
+    b = _no_single_target(Battle(me=me, allies=[], enemies=[foe], cards=[basilisk, troll], pips=7))
+    assert {c.name for c in b.cards if c.castable} == {"Troll"}
