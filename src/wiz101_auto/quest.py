@@ -6047,10 +6047,20 @@ class Quester:
 
     async def _join_team_fight(self, fight: XYZ, me: XYZ) -> bool:
         """Walk into the fight a teammate is in (teleported near it first)."""
-        from .safe_teleport import allow_engage
+        from .safe_teleport import allow_engage, allow_teleport
 
         logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
-        if distance(me, fight) > TEAM_JOIN_FROM * 1.5:
+        key = (round(fight.x / 200), round(fight.y / 200))
+        fails = self.__dict__.setdefault("_join_fails", {})
+        if fails.get(key, 0) >= 1 or abs(fight.z - me.z) > 300:
+            # Walking in didn't get us there (the fight on another floor of
+            # the Keep of Ganelon: 8 tries, never in): straight beside it.
+            logger.info("teleporting beside the team's fight (walking in didn't reach it)")
+            allow_teleport(self.client, 8.0)
+            allow_engage(self.client)  # (enemies by the landing: they're the fight we join)
+            await self.client.teleport(XYZ(fight.x + 150, fight.y, fight.z))
+            await asyncio.sleep(0.8)
+        elif distance(me, fight) > TEAM_JOIN_FROM * 1.5:
             dx, dy = me.x - fight.x, me.y - fight.y
             length = math.hypot(dx, dy) or 1.0
             await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,
@@ -6059,6 +6069,10 @@ class Quester:
         allow_engage(self.client)
         await self.client.goto(fight.x, fight.y)
         await self._hold_for_fight()
+        if await self.client.in_battle():
+            fails.pop(key, None)
+        else:
+            fails[key] = fails.get(key, 0) + 1
         self._last_progress_time = time.monotonic()
         return True
 
