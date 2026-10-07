@@ -126,3 +126,15 @@ def test_gamble_saves_a_round_on_average():
             assert brain._crit_gamble(b, wait) is None       # 60% vs 3 rounds: saves 0.8 of a round
         with um.patch.object(brain, "plan_hand_use", return_value=(5, set())):
             assert brain._crit_gamble(b, wait) is not None   # vs 5 rounds: saves 2
+
+
+def test_an_aoe_crit_is_one_roll_then_a_block_per_enemy():
+    # (The player: the cast crits every enemy at once; each then blocks on
+    # its own. Two that die only on a crit: crit x (1-block)^2, not crit^2.)
+    m = me(40, level=100)
+    two = [foe(1000, 10, name="A"), foe(1000, 10, name="B")]
+    pc, pb = crit_chance(m, two[0], "myth"), block_chance(m, two[0], "myth")
+    assert 0.2 < pc < 0.95 and 0 < pb < 0.2
+    p = clear_chance(ORTHRUS, m, two)
+    assert abs(p - pc * (1 - pb) ** 2) < 1e-9
+    assert p > (pc * (1 - pb)) ** 2
