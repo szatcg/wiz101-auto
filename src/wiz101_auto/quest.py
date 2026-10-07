@@ -4128,7 +4128,10 @@ class Quester:
         # people sent the bot across worlds (Captain O'Hare in Wysteria, Cyrus
         # Drake in the Myth School, where it looped for 20 minutes) while the
         # main quest waited.
-        story = {name for name in done if norm(name) in self.quest_order}
+        # (And the player's pick: Wysteria's story, pinned, isn't on the list;
+        # 'In-Flight Meals' ended with nobody asked for 'Hobble Gobble'.)
+        pin = getattr(self, "_pin", "") or ""
+        story = {name for name in done if norm(name) in self.quest_order or name == pin}
         for name in sorted(done):
             talked = hand_ins.pop(name, None)
             if not talked or name not in story:
