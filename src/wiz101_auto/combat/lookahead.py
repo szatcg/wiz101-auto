@@ -31,6 +31,7 @@ from __future__ import annotations
 import random
 import time
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 
 from .model import Action, ActionKind, Battle, Card, Combatant, EffectKind
 
@@ -113,13 +114,14 @@ MISSES = True  # each future also says which cards fizzle (their hit rates)
 _RATES: list = [0.0, {}]  # (file time, {spell: hit rate}) of state/enemy_stats.json
 
 
+RATES_FILE = Path("state") / "enemy_stats.json"  # the fight logs' hit rates (combat/calibrate.py)
+
+
 def hit_rate(card: Card) -> float:
     """The chance `card` lands: its hit rate in the fight logs
     (enemy_stats.json, by name or the name before " - ": "Orthrus - T02 - A"),
     else the card's accuracy."""
-    from pathlib import Path
-
-    path = Path("state") / "enemy_stats.json"
+    path = RATES_FILE
     try:
         mtime = path.stat().st_mtime
         if mtime != _RATES[0]:
