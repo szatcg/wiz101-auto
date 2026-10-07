@@ -24,6 +24,8 @@ from .upkeep import health_mana, is_free, recover, wait_for_loading, wait_until_
 DUNGEON_MANA_TRIP = 0.3  # inside a dungeon, leave to refill mana only below this
 DEFEAT_SETTLE_SECONDS = 5.0  # after a fight, before deciding on a heal trip
 HEAL_TRIES = 4  # recover() rounds on a heal trip (a fight can cut one short)
+FUTILE_TRIP_SECONDS = 600.0  # a trip that healed nothing isn't repeated from the same room for this long
+HUB_SETTLE_SECONDS = 3.0  # after arriving to heal, before reading health
 TRIP_MINUTES = 20  # the watchdog allowance for a trip; well within the game's 30 minutes
 # The compass's teleport buttons: "GoHomeButton" goes to the current world's
 # hub (the Oasis in Krokotopia); "GotoDormButton" goes to the dorm.
@@ -137,6 +139,25 @@ class DungeonHealer:
         if no_return(await self.client.zone_name() or ""):
             # Recall can't bring us back here (the Death Realm): fight on.
             return False
+        hp0, _m0 = await health_mana(self.client)
+        last = getattr(self, "_last_trip", None)
+        recent = bool(last) and time.monotonic() - last[2] < FUTILE_TRIP_SECONDS
+        if recent and last[0] == zone and hp0 <= last[1] + 0.02:
+            # The last trip from here healed nothing (the Black Sun Pyramid:
+            # the hub button failed or the health read 100% on arrival, and it
+            # went 8 times in 10 minutes at 82%, losing mana to each Mark): a
+            # potion if low, else on to the fight.
+            from . import ui
+
+            if hp0 < self.cfg.potion_health_ratio and await self.client.stats.potion_charge() >= 1.0:
+                logger.info(f"the last heal trip from here healed nothing: a potion ({hp0:.0%} health)")
+                await ui.click(self.client, ui.POTION_BUTTON)
+                await asyncio.sleep(1.5)
+            else:
+                logger.info(f"the last heal trip from here healed nothing: going on at {hp0:.0%} health")
+            self.futile_until = time.monotonic() + FUTILE_TRIP_SECONDS
+            return False
+        self._last_trip = (zone, hp0, time.monotonic())
         if self.q._active_quest:
             # Back from the trip, the quest we left stays the one (its
             # 'mid-way' time starts again): a ranking after the Recall picked
@@ -181,6 +202,7 @@ class DungeonHealer:
                 heal_zone = None
             if heal_zone is None and not await go_to_hub(self.client):
                 logger.warning("the hub button didn't move us; healing where we are")
+            await asyncio.sleep(HUB_SETTLE_SECONDS)  # (health read on arrival: 100%, before the stats load)
             for _ in range(HEAL_TRIES):
                 # A fight that starts while healing (Hyde Park's patrols) ends
                 # recover() early: wait it out and go on healing, then Recall.

@@ -8144,6 +8144,8 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
                 heal_now = False  # only mana a little low: not worth leaving the dungeon
+            elif self.healer and time.monotonic() < getattr(self.healer, "futile_until", 0.0):
+                heal_now = False  # (a trip from here healed nothing just now: on to the fight)
         if heal_now and not in_dungeon and self.upkeep:
             # No fight in this step (a talk, a place to go): not worth a heal
             # trip unless really low (the player: it went zone to zone for
