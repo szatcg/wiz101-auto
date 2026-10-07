@@ -867,3 +867,20 @@ def test_never_waits_for_a_trap_the_boss_forbids():
     b = _no_single_target(Battle(me=me, allies=[], enemies=[annie], cards=[frog, feint],
                                  pips=1, power_pips=2))
     assert not _trap_coming(b)
+
+
+def test_no_feint_when_the_hit_all_already_kills_everyone():
+    # Three Dog Knights (2570 each), Orthrus already ~2714 into each: a Feint
+    # (off school: a power pip) on one of them only delays the Orthrus.
+    from wiz101_auto.combat.brain import decide
+    from wiz101_auto.combat.model import ActionKind, Battle, Card, Combatant, Effect, EffectKind, Target
+
+    orthrus = Card(0, "Orthrus", school="myth", pip_cost=7, castable=False,
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 3000)])
+    feint = Card(1, "Feint", school="death", pip_cost=1,
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    me = Combatant("me", 3329, 3329, is_client=True, school="myth")
+    dogs = [Combatant("Dog Knight", 2570, 2570, is_enemy=True, resist={}) for _ in range(3)]
+    b = Battle(me=me, allies=[], enemies=dogs, cards=[orthrus, feint], pips=0, power_pips=2)
+    a = decide(b)
+    assert not (a.kind is ActionKind.CAST and a.card is feint), a

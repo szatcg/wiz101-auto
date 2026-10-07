@@ -1122,6 +1122,10 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
     c, target, kind, _fx, _hits = first
     if not c.castable:
         return None
+    if c.pip_cost > 0 and kills < len(enemies) and kills - now_kills < 2:
+        # A pip (a round) for one more kill: not worth it (a Feint on one of
+        # three Dog Knights so Humongofrog killed 1 of 4, the boss untouched).
+        return None
     why = f"{kind} so {card.name} kills {kills} of {len(enemies)} (now {now_kills}; {-n} set-up card(s))"
     return Action(ActionKind.CAST, c, target, reason=why)
 
@@ -1175,6 +1179,11 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         if tipping:
             return tipping
     setup = _break_shield(battle) or _setup_action(battle, strat, _aoe_trap_target(battle, card))
+    kills_all = all(hit_damage(card, battle.me, e) >= e.health for e in enemies)
+    if setup and setup.card is not None and setup.card.pip_cost > 0 and kills_all:
+        # The hit-all kills them all already: a pip on a trap only delays it
+        # (Feint on one of three Dog Knights, Orthrus already ~2714 into 2570).
+        setup = None
     if setup and (not card.castable or setup.card is None or setup.card.pip_cost == 0):
         return setup
     if setup and setup.card is not None and battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH:
