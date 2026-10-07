@@ -6063,6 +6063,16 @@ class Quester:
             # Nobody with us: leave by the world hub button and queue for a new team.
             from .dungeon_heal import go_to_hub
 
+            # One more careful look before leaving (the player: it left the
+            # Lizard's dungeon "alone" with another player in there): any
+            # player in the zone at all, after a moment for the entity list.
+            for _ in range(3):
+                await asyncio.sleep(2.0)
+                if await teammates(self.client, await self._position()):
+                    self._team_with_us = True
+                    self._mate_last_seen = time.monotonic()
+                    logger.info("team dungeon: another player is here after all; staying")
+                    return False
             if gone:
                 why = f"no teammate seen for {TEAM_GONE_AFTER / 60:.0f} min"
             else:
