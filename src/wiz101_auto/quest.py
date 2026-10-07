@@ -7830,7 +7830,9 @@ class Quester:
         else:
             rerank_due = False
         if (self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new
-                and not rerank_due):
+                and not rerank_due and not self._pin):
+            # (Not with a quest picked: the pinned 'Goblin Up' waited while it
+            # went visiting Caliburn's people "instead of grinding".)
             # (Not with a quest just accepted: a ranking first. Sir Guy
             # Gascoigne's quest was taken, then 8 more visits went on before
             # the book was read again.)
