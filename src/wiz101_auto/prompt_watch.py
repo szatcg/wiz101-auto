@@ -107,6 +107,7 @@ async def prompt_loop(client, quester, controller):
     last_press = 0.0
     last_ready = 0.0  # last look for a team-ready prompt (queued for a team)
     last_queue_check = time.monotonic()  # last look whether the game still has us queued
+    misses = 0  # looks in a row that found us not queued
     last_collect = 0.0  # (its own cooldown: the crystal objective changes as we move, and each
     # change held back the press, so the bot stood on a sample's prompt without pressing X)
     last_goal = await _goal_id(client)
@@ -128,7 +129,12 @@ async def prompt_loop(client, quester, controller):
                     # quest, a timeout) while the bot thought it waited: the
                     # player saw no Team Up running. Back to the sigil now.
                     last_queue_check = time.monotonic()
-                    if not await queued(client):
+                    fresh = time.time() - float(load_queue().get("at", 0)) < QUEUE_CHECK_EVERY * 1.5
+                    # (Two looks in a row, never right after queuing: the
+                    # badge shows a moment late, and a lapse was read 1 s in.)
+                    misses = 0 if fresh or await queued(client) else misses + 1
+                    if misses >= 2:
+                        misses = 0
                         quester.queue_lapsed()
         except Exception as exc:
             logger.debug(f"team ready watch: {exc!r}")
