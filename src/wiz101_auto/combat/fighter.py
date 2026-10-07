@@ -253,7 +253,10 @@ def improve_odds(battle, action) -> dict:
     except Exception:
         return {}
     base = round(exp)
-    better = {n: round(r, 1) for n, r in better_f.items()}
+    # Whole rounds saved, from the unrounded expectations (the overlay showed
+    # "-0.0999999 rounds": a rounded base minus a card's 0.1-rounded figure);
+    # only cards that save a full round.
+    better = {n: base - saved for n, r in better_f.items() if (saved := round(exp - r)) >= 1}
     if not better:
         out = {"base": base}
         if action.kind is ActionKind.DISCARD and action.card is not None:

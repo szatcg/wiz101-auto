@@ -171,3 +171,21 @@ def test_killing_the_add_first_is_what_keeps_us_up(monkeypatch):
     on_add = lookahead._group_search(b, [], gains, 1e18, force=0, force_target="Pantera")
     assert on_boss[0] == on_add[0] == 4
     assert on_boss[2] is False and on_add[2] is True
+
+
+def test_overlay_saves_whole_rounds(monkeypatch):
+    # 4.4 rounds now, 4.1 with a Feint: not "-0.0999999 rounds" but nothing;
+    # 3.2 with an Orthrus: one whole round saved.
+    from wiz101_auto.combat import fighter, lookahead
+    from wiz101_auto.combat.model import Action, ActionKind, Battle, Card, Combatant
+
+    monkeypatch.setattr(lookahead, "draw_values",
+                        lambda *a, **k: (4.4, {"Feint": 4.1, "Orthrus": 3.2}))
+    me = Combatant("me", 3000, 3300, is_client=True, school="myth")
+    boss = Combatant("Boss", 9000, 9000, is_enemy=True, is_boss=True, resist={})
+    deck = [Card(i, n) for i, n in enumerate(["Feint", "Orthrus", "Mythblade"])]
+    b = Battle(me=me, allies=[], enemies=[boss], cards=[], upcoming=deck)
+    out = fighter.improve_odds(b, Action(ActionKind.PASS))
+    assert out["base"] == 4
+    assert set(out["cards"]) == {"Orthrus"}
+    assert out["base"] - out["cards"]["Orthrus"]["rounds"] == 1
