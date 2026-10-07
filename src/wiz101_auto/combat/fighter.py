@@ -99,6 +99,7 @@ def _minion_text(battle) -> str:
 HAND_MAX = 7  # cards a hand refills to each round
 LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as good or better everywhere)
 LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
+LOW_HP_HIT_MARGIN = 1.2  # our health this close to the next hit: the brain's hit isn't overridden
 POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
 _POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
 ROLLOUT_BUDGET = 20.0  # seconds into a round after which the brain's move stands (no rollouts)
@@ -871,6 +872,14 @@ class Fighter(CombatHandler):
         if action.kind is ActionKind.ENCHANT or urgent:
             return action
         if scripted_fight(battle) or not battle.deck_known:
+            return action
+        from .brain import hit_size
+
+        if (action.kind is ActionKind.CAST and card is not None and card.is_damage
+                and battle.me.health <= LOW_HP_HIT_MARGIN * hit_size(battle)):
+            # The next hit may well end us: the brain's hit stands (the planner
+            # added Feints at 975 health against the Bog Witch, "100% win",
+            # with Orthrus ready, and lost).
             return action
         rules = _no_single_target(battle)  # (boss bans and the like: what may be cast)
         # The damage this fight has done to us per round, last 3 rounds.
