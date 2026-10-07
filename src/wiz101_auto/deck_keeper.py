@@ -106,6 +106,8 @@ def _load(path: Path) -> dict:
         return {}
 
 
+ADDED_FILE = Path("state") / "deck_added.json"  # extras the keeper put in (taken out after)
+
 class DeckKeeper:
     def __init__(self):
         self._checked = 0.0
@@ -115,7 +117,13 @@ class DeckKeeper:
         self.last_boss = False
         self._worn: str | None = None  # deck item role worn ("aoe" everyday, "single" boss)
         self._wear_failed_at = -1e9
-        self._added: set[str] = set()  # extras put in the player's deck (to take out again)
+        # Extras put in the player's deck, to take out again: on disk, since a
+        # restart forgot them and a myth boss's Myth Prisms stayed in for the
+        # ice Unsung Knight.
+        try:
+            self._added: set[str] = set(json.loads(ADDED_FILE.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            self._added = set()
 
     def due(self, boss: bool = False,
             extra: dict[str, int] | None = None) -> tuple[dict[str, int], dict] | None:
@@ -146,6 +154,10 @@ class DeckKeeper:
                 if name in known:
                     target[name] = max(target.get(name, 0), copies)
                     self._added.add(name)
+            try:
+                ADDED_FILE.write_text(json.dumps(sorted(self._added)), encoding="utf-8")
+            except OSError:
+                pass
         else:
             target = target_deck(general, known, boss, extra)
         # Cards that aren't learned spells (treasure cards: the player's Giant
