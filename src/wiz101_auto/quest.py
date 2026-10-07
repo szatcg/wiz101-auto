@@ -165,6 +165,7 @@ TEAM_BEHIND = 250.0  # ... landing this far behind them
 TEAM_WAIT_TICK = 1.0  # seconds between looks for a teammate's fight
 RAVENWOOD = "WizardCity/WC_Ravenwood"
 WORLD_TREE = "WizardCity/WC_Ravenwood_Teleporter"  # inside Bartleby: the Spiral Map's world gate
+BOSS_EXTRA_FILE = Path("state") / "boss_extra_cards.json"  # boss -> {spell: copies} added for that fight
 DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where the detour's quest ended
 DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
 # {"zone", "asked"}: where the main story was last worked on (its NPCs asked for its next quest)
@@ -2157,17 +2158,32 @@ class Quester:
         fights, else read from the game before engaging."""
         from .deck_keeper import PROGRESS_FILE, _load, boss_prism, school_on_file
 
+        known = set(_load(PROGRESS_FILE).get("known_spells") or [])
+        said = self.__dict__.setdefault("_prism_said", set())
+        # Cards for one boss (state/boss_extra_cards.json, boss -> {spell:
+        # copies}): Belloq must be hit every round, and the 9-card boss deck
+        # ran dry with him at 1563 health.
+        extra: dict[str, int] = {}
+        try:
+            per_boss = json.loads(BOSS_EXTRA_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            per_boss = {}
+        for boss, cards in per_boss.items():
+            if _norm_name(boss) == _norm_name(target) and isinstance(cards, dict):
+                extra = {n: int(c) for n, c in cards.items() if n in known}
+        if extra and f"extra:{target}" not in said:
+            said.add(f"extra:{target}")
+            cards = ", ".join(f"{n} x{c}" for n, c in extra.items())
+            logger.info(f"{target}: {cards} into the deck for the fight")
         mine = (getattr(self.progression, "school", "") or "") if self.progression else ""
         if not mine:
-            return {}
+            return extra
         school = school_on_file(target) or await self._school_in_view(target)
-        known = set(_load(PROGRESS_FILE).get("known_spells") or [])
         prisms = boss_prism(school, mine, known)
-        said = self.__dict__.setdefault("_prism_said", set())
         if prisms and target not in said:
             said.add(target)
             logger.info(f"{target} is a {school} boss: {', '.join(prisms)} into the deck for the fight")
-        return prisms
+        return {**extra, **prisms}
 
     async def _school_in_view(self, name: str) -> str:
         """The school of an enemy named `name` in view, read before engaging
