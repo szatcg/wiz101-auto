@@ -4326,7 +4326,17 @@ class Quester:
                 self._pin_before = set(before)
                 pin_world = getattr(self, "_pin_world", "")
                 fresh = [q for q in quests if before and q.name not in before and q.name not in set_aside]
-                if pin_world and any(q.zone == pin_world for q in fresh):
+                try:
+                    from .questlist import load_world_lists
+
+                    story_list = load_world_lists().get(pin_world, []) if pin_world else []
+                    story = {norm(x.name) for x in story_list}
+                except Exception:
+                    story = set()
+                # (Its world's quest, or the story list's next one booked under
+                # another world: Wysteria's last, 'We Are the Champions', is
+                # a Wizard City quest.)
+                if pin_world and any(q.zone == pin_world or norm(q.name) in story for q in fresh):
                     # Gone, and a quest of its world came at the same time (the
                     # hand-in gave the next one, 'Peg-A-Portal'): the line goes
                     # on now, not after a trip to another world's side quest.

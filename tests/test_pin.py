@@ -46,3 +46,17 @@ def test_the_line_goes_on_at_once_when_its_world_has_a_new_quest(monkeypatch):
     me._apply_pin([pick, side], None, set(), before={"Hobble Gobble", "Art History"})
     got = me._apply_pin([nxt, side], None, set(), before={"Hobble Gobble", "Art History"})
     assert me._pin == "Peg-A-Portal" and got is nxt
+
+
+def test_the_line_goes_on_to_its_story_list_quest_in_another_world(monkeypatch):
+    from wiz101_auto import questlist
+
+    champs = questlist.ListedQuest(38, "We Are the Champions", "Ravenwood")
+    monkeypatch.setattr(questlist, "load_world_lists", lambda *a, **k: {"Wysteria": [champs]})
+    me = _quester(monkeypatch, "Last Round")
+    pick = QuestEntry(0, "Last Round", world="Pigswick Academy", zone="Wysteria")
+    nxt = QuestEntry(1, "We Are the Champions", world="Ravenwood", zone="Wizard City")
+    side = QuestEntry(2, "The Way of Wyrd", world="The Wild", zone="Avalon")
+    me._apply_pin([pick, side], None, set(), before={"Last Round", "The Way of Wyrd"})
+    got = me._apply_pin([nxt, side], None, set(), before={"Last Round", "The Way of Wyrd"})
+    assert me._pin == "We Are the Champions" and got is nxt
