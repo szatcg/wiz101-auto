@@ -4282,6 +4282,13 @@ class Quester:
                 # reading the quest it handed us ('Hey Verne!' after 'Goblin
                 # Up') is already "known" and the line went unfollowed.
                 self._pin_before = set(before)
+                pin_world = getattr(self, "_pin_world", "")
+                fresh = [q for q in quests if before and q.name not in before and q.name not in set_aside]
+                if pin_world and any(q.world == pin_world for q in fresh):
+                    # Gone, and a quest of its world came at the same time (the
+                    # hand-in gave the next one, 'Peg-A-Portal'): the line goes
+                    # on now, not after a trip to another world's side quest.
+                    self._pin_missing = 2
             if self._pin_missing < 2:
                 logger.info(f"your pick {self._pin!r} isn't in this reading of the book; checking again")
                 # Read again at the next step, not minutes later on another quest
@@ -4291,6 +4298,7 @@ class Quester:
         else:
             self._pin_missing = 0
             self._pin_before = None
+            self._pin_world = pinned.world
         before = getattr(self, "_pin_before", None) or before
         if pinned is None and before:
             # Done: follow the quest line to the quest it handed us ('Quest For

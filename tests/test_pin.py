@@ -36,3 +36,13 @@ def test_the_line_goes_on_when_the_next_quest_came_with_the_hand_in(monkeypatch)
     me._apply_pin([nxt, side], None, set(), before={"Goblin Up", "Art History"})  # missed once
     me._apply_pin([nxt, side], None, set(), before={"Hey Verne!", "Art History"})  # twice
     assert me._pin == "Hey Verne!"
+
+
+def test_the_line_goes_on_at_once_when_its_world_has_a_new_quest(monkeypatch):
+    me = _quester(monkeypatch, "Hobble Gobble")
+    pick = QuestEntry(0, "Hobble Gobble", world="Wysteria")
+    nxt = QuestEntry(1, "Peg-A-Portal", world="Wysteria")
+    side = QuestEntry(2, "Art History", world="Zafaria")
+    me._apply_pin([pick, side], None, set(), before={"Hobble Gobble", "Art History"})
+    got = me._apply_pin([nxt, side], None, set(), before={"Hobble Gobble", "Art History"})
+    assert me._pin == "Peg-A-Portal" and got is nxt
