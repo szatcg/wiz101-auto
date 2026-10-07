@@ -3918,6 +3918,15 @@ class Quester:
                 chosen = main_quests[0]
             chosen = self._apply_pin([q for _, q in all_quests], chosen, set_aside, prev_names, complete)
             chosen = self._later_story_first(chosen, [q for _, q in all_quests], set_aside)
+            if is_team_up_zone(here):
+                # In a Team Up run: the quest the team came for, whatever else
+                # ranks first (a class quest walked it out of the keep).
+                from .teamup import team_list
+
+                team_quest = team_list().get(here) or ""
+                team_q = next((q for _, q in all_quests if q.name == team_quest), None)
+                if team_q is not None:
+                    chosen = team_q
             # Mid-way through a quest (its objective moved on minutes ago): keep
             # it. 'Left Behind' was at Nomoonaga's Tower when a ranking outside
             # the dungeon switched to the pinned 'Oni No Death'.
@@ -4266,7 +4275,12 @@ class Quester:
         # A class/spell quest comes before the pin (the player's rule: the new
         # spell first; 'Two Heads Are Better...' waited behind Wizard Tours'
         # trip around the Spiral). The pin stays for afterwards.
-        spell = next((q for q in quests if q.activity and q.name not in set_aside and q is not pinned), None)
+        # (Not one in a world we've never been to: 'Celestial Reasonings' in
+        # Azteca took the bot out of a Team Up run at the Pendragon.)
+        emap = getattr(self, "entity_map", None)
+        visited = {z.split("/", 1)[0] for z in emap.zones} if emap is not None else None
+        spell = next((q for q in quests if q.activity and q.name not in set_aside and q is not pinned
+                      and (visited is None or not q.zone or zone_world(q.zone) in visited)), None)
         if spell is not None and not pinned.activity:
             if self._spell_first_logged != spell.name:
                 self._spell_first_logged = spell.name
