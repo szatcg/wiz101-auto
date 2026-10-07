@@ -2625,11 +2625,13 @@ class Quester:
             if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
                 # Its Cancel hidden under the gate's "Press X" prompt (Caliburn's
                 # world gate): Go To World for the world we're in instead.
+                # (Not the world we're in: the map won't take us there. Wizard
+                # City is always on its first page; the quest leads back.)
                 here = zone_world((await self.client.zone_name() or "").split("/", 1)[0]) or ""
-                if here:
-                    logger.info(f"the Spiral Map's Cancel is covered: going to {here} by the map instead")
-                    await self._to_world_stage(here, "out of the Spiral Map")
-                    await asyncio.sleep(1.0)
+                away = "WizardCity" if here != "WizardCity" else "Krokotopia"
+                logger.info(f"the Spiral Map's Cancel is covered: going to {away} by the map instead")
+                await self._to_world_stage(away, "out of the Spiral Map")
+                await asyncio.sleep(1.0)
             if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
                 # Clicks don't reach it (the game window 97% off screen): Escape.
                 await self.client.send_key(Keycode.ESC, 0.1)
