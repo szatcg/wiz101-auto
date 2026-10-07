@@ -126,9 +126,9 @@ class DungeonHealer:
             # With a team: never off to the hub (it left its teammate in the
             # Keep of Ganelon at 40% after the Pendragon); a potion, else on.
             from . import ui
-            from .upkeep import health_mana
+            from .upkeep import health_mana as _hm
 
-            hp, _mana = await health_mana(self.client)
+            hp, _mana = await _hm(self.client)
             if hp < 0.5 and await self.client.stats.potion_charge() >= 1.0:
                 logger.info(f"with a team at {hp:.0%} health: a potion, not a trip to the hub")
                 await ui.click(self.client, ui.POTION_BUTTON)
