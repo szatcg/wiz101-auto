@@ -22,3 +22,17 @@ def test_a_new_pick_needs_two_misreads_before_it_counts_as_done(monkeypatch):
     assert me._pin == "Signs and Portents"  # ... twice: done, on to the next in its line
     got = me._apply_pin([side], None, set())  # one misread of the new pick
     assert me._pin == "Signs and Portents" and got is None
+
+
+def test_the_line_goes_on_when_the_next_quest_came_with_the_hand_in(monkeypatch):
+    # 'Goblin Up' handed in and 'Hey Verne!' given at once: by the second
+    # reading without the pick, 'Hey Verne!' was already in the previous book
+    # and the pin was dropped instead of following the line.
+    me = _quester(monkeypatch, "Goblin Up")
+    pick = QuestEntry(0, "Goblin Up")
+    nxt = QuestEntry(1, "Hey Verne!")
+    side = QuestEntry(2, "Art History")
+    me._apply_pin([pick, side], None, set(), before={"Goblin Up", "Art History"})
+    me._apply_pin([nxt, side], None, set(), before={"Goblin Up", "Art History"})  # missed once
+    me._apply_pin([nxt, side], None, set(), before={"Hey Verne!", "Art History"})  # twice
+    assert me._pin == "Hey Verne!"

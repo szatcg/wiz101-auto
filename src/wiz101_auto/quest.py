@@ -4264,11 +4264,18 @@ class Quester:
             # Door...' was dropped by a read that also lost two other quests):
             # done only when the next reading misses it too.
             self._pin_missing = getattr(self, "_pin_missing", 0) + 1
+            if self._pin_missing == 1:
+                # The book as it was before the pick left it: by the second
+                # reading the quest it handed us ('Hey Verne!' after 'Goblin
+                # Up') is already "known" and the line went unfollowed.
+                self._pin_before = set(before)
             if self._pin_missing < 2:
                 logger.info(f"your pick {self._pin!r} isn't in this reading of the book; checking again")
                 return chosen
         else:
             self._pin_missing = 0
+            self._pin_before = None
+        before = getattr(self, "_pin_before", None) or before
         if pinned is None and before:
             # Done: follow the quest line to the quest it handed us ('Quest For
             # Glory' finished at Romulus and the next one began).
@@ -4278,6 +4285,7 @@ class Quester:
                 logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {new[0].name!r}")
                 self._pin = new[0].name
                 save_pin(self._pin)
+                self._pin_before = None
                 # A new pick starts with no misses (the old count, 2, made one
                 # misread of 'Signs and Portents' count as done, and the bot
                 # went off visiting Wizard City for side quests).
