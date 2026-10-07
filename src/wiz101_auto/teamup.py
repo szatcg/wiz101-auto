@@ -413,6 +413,71 @@ async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     return True
 
 
+async def close_waiting_window(client) -> bool:
+    """The "<Dungeon> - Waiting for players to join.. / CANCEL TEAM UP!"
+    window over a fight hid the cards: every cast missed for rounds (Fomori
+    Giants while queued for the Keep of Ganelon). Close it by its X, never
+    the cancel button (the queue stays: the Waiting badge). True if closed."""
+    found = await _path_to_text(client.root_window, ("cancel team up!", "cancel team up"), [])
+    if not found:
+        return False
+    cancel = found[-1]
+    for holder in reversed(found[:-1]):
+        close = await _named_like(holder, "close", skip=cancel)
+        if close is not None:
+            logger.info("team up: closing the Waiting-for-players window (still queued)")
+            await ui.click_center(client, close)
+            await asyncio.sleep(0.5)
+            return True
+    return False
+
+
+async def _path_to_text(window, words: tuple[str, ...], path: list, depth: int = 0) -> list | None:
+    """Root-to-window path of a visible window whose text is one of `words`."""
+    try:
+        if depth and not await window.is_visible():
+            return None
+        text = ui._TAGS.sub("", await window.maybe_text() or "").strip().lower()
+    except Exception:
+        text = ""
+    here = path + [window]
+    if text in words:
+        return here
+    if depth > 12:
+        return None
+    try:
+        kids = await window.children()
+    except Exception:
+        return None
+    for kid in kids:
+        got = await _path_to_text(kid, words, here, depth + 1)
+        if got:
+            return got
+    return None
+
+
+async def _named_like(window, part: str, skip=None, depth: int = 0):
+    """A visible window under `window` whose name contains `part`."""
+    if depth > 6:
+        return None
+    try:
+        kids = await window.children()
+    except Exception:
+        return None
+    for kid in kids:
+        try:
+            if kid is skip or not await kid.is_visible():
+                continue
+            if part in (await kid.name() or "").lower():
+                return kid
+        except Exception:
+            continue
+        got = await _named_like(kid, part, skip, depth + 1)
+        if got is not None:
+            return got
+    return None
+
+
 async def close_stray_forms(client) -> int:
     """Close Team Up forms left open once ours is sent (one opened by the run
     before a restart stayed on screen over the queue). How many it closed."""

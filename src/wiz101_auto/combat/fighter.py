@@ -606,6 +606,15 @@ class Fighter(CombatHandler):
         # failed twice this fight stays out (Basilisk "blade up" on ourselves
         # failed eight rounds running against Young Morganthe, Orthrus unused).
         self._unusable = {n for n, k in getattr(self, "_fails", {}).items() if k >= CAST_FAILS_MAX}
+        from ..teamup import close_waiting_window, load_queue
+
+        if load_queue():
+            # Queued for a team: its Waiting-for-players window can sit over
+            # the cards (every cast missed against two Fomori Giants).
+            try:
+                await close_waiting_window(self.client)
+            except Exception as exc:
+                logger.debug(f"waiting window: {exc!r}")
         self._flee_tried_this_round = False
         round_started = time.monotonic()
         discards_left = self.max_discards
