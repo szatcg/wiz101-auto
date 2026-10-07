@@ -2595,12 +2595,26 @@ class Quester:
             logger.debug(f"loot pickup failed: {exc!r}")
             return False
 
+    def _boss_ahead_in_dungeon(self, zone: str, bosses: dict) -> str:
+        """A boss recorded in a room of this dungeon (its rooms share a name:
+        AZ_Z01_BlackSunPyramid_RoomNN) and not beaten since the bot started."""
+        if "_" not in zone:
+            return ""
+        prefix = zone.rsplit("_", 1)[0]
+        beaten = getattr(self, "_bosses_beaten", set())
+        for name, where in bosses.items():
+            if where and where.startswith(prefix) and name not in beaten:
+                return name
+        return ""
+
     def _note_boss_win(self):
         """A boss fight was just won: the farm's boss ends a farm run."""
         if not self.fighter or self.fighter.boss_fights == self._boss_fights_seen:
             return
         won = self.controller.deaths == self._boss_deaths_seen
         self._boss_fights_seen, self._boss_deaths_seen = self.fighter.boss_fights, self.controller.deaths
+        if won:
+            self.__dict__.setdefault("_bosses_beaten", set()).update(self.fighter.last_boss_names or [])
         farm = Farm.load()
         if won and farm.active and farm.ends_run(self.fighter.last_boss_names):
             self._farm_run_done = True
@@ -8327,6 +8341,13 @@ class Quester:
                     boss = getattr(keeper, "last_boss", False)
                     if boss and self.fighter is not None and not getattr(self.fighter, "last_had_boss", True):
                         boss = False  # (the last fight had no boss: the everyday deck again)
+                    # A known boss of this dungeon not beaten yet ('Explore Black
+                    # Sun Chamber' walks into Belloq: the everyday deck went in
+                    # after the room's regular fights, and ran dry against him).
+                    ahead = self._boss_ahead_in_dungeon(here, bosses)
+                    if ahead and await self._in_any_dungeon(here):
+                        boss = True
+                        extra = await self._boss_prisms(ahead)
                 # (No prisms asked for once the boss fight is over: they come out.)
                 if await keeper.tick(self.client, boss=boss, extra=extra):
                     return
