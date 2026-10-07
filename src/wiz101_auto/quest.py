@@ -146,6 +146,7 @@ BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to a
 PET_RESUME_SECONDS = 600.0  # in the Pet Pavilion: the trip resumed at most this often
 NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
+NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
@@ -8389,7 +8390,13 @@ class Quester:
         name = talk_target(objective) if npc_here else None
         if name:
             seen = await self._npc_named(name, near=await self._position())
-            if seen is not None and distance(seen, target) > INTERACT_RANGE:
+            key = (objective, zone)
+            tries = self.__dict__.setdefault("_named_talks", {}).get(key, 0)
+            # (Twice without the objective moving on: the wrong one of that
+            # name, the marker's is elsewhere: "Talk To Sir Patrick in Crystal
+            # Caves" talked to the Catacombs' Sir Patrick until the loop watch.)
+            if seen is not None and distance(seen, target) > INTERACT_RANGE and tries < NAMED_TALK_TRIES:
+                self._named_talks[key] = tries + 1
                 logger.info(f"{name} is here, away from the marker: going to them")
                 if await self._talk_to_named(objective):
                     return
