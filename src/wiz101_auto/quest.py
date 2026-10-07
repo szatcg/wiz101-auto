@@ -4044,9 +4044,14 @@ class Quester:
         later, past the turn-in window, and 'Greatest of Sports' never came)."""
         hand_ins = load_hand_ins()
         queue = load_retalk()
+        # Story quests only (on a world's story list): class and side quests'
+        # people sent the bot across worlds (Captain O'Hare in Wysteria, Cyrus
+        # Drake in the Myth School, where it looped for 20 minutes) while the
+        # main quest waited.
+        story = {name for name in done if norm(name) in self.quest_order}
         for name in sorted(done):
             talked = hand_ins.pop(name, None)
-            if not talked:
+            if not talked or name not in story:
                 continue
             # Everyone its "Talk To" steps named, the latest first (the hand-in
             # isn't always the last one read: 'Head Held Low' went to Sir
@@ -4056,7 +4061,7 @@ class Quester:
                     queue.append([npc, where])
             names = ", ".join(n for n, _ in reversed(talked))
             logger.info(f"{name!r} completed: back to {names} for the next quest")
-        for name in sorted(done):
+        for name in sorted(story):
             # Whoever a visit talked to just before: that talk may have been
             # the turn-in (no "Talk To" objective was read for it).
             for npc, where, at in reversed(getattr(self, "_recent_talks", [])):
