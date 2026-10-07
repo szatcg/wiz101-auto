@@ -77,6 +77,7 @@ class Strategy:
     # one hit takes the boss as far as it can.
     boss_traps_first: bool = True
     boss_traps_max: int = 4  # traps stacked on the boss that way
+    boss_blades_max: int = 4  # ... and blades on us (the player: every blade, all three Feints)
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -1162,7 +1163,7 @@ def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | N
     blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage
               and setup_fits(c, battle)
               and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, me.school.lower())]
-    if blades and me.blade_count < strat.max_blades:
+    if blades and me.blade_count < max(strat.max_blades, strat.boss_blades_max):
         free = [c for c in blades if c.pip_cost == 0] or blades
         b = max(free, key=_power)
         return Action(ActionKind.CAST, b, me if b.target is Target.ALLY_SINGLE else None,

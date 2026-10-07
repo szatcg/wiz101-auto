@@ -218,6 +218,23 @@ def _plan_crits(battle, action) -> dict:
         return {}
 
 
+def _save_item_cards(seen: dict) -> None:
+    """The item cards a fight showed (state/item_cards.pkl): the simulator's
+    decks get them as they are, each its own spell (the player: the pet's,
+    the amulet's and the trained Feint all stack)."""
+    if not seen:
+        return
+    try:
+        import pickle
+
+        from .sim import ITEM_CARDS
+
+        cards = [dataclasses.replace(c, index=-1, castable=True, enchanted=False) for c in seen.values()]
+        ITEM_CARDS.write_bytes(pickle.dumps(cards))
+    except Exception as exc:
+        logger.debug(f"item cards not saved: {exc!r}")
+
+
 def _gamble_odds(action) -> int | None:
     """The odds when the move is a crit gamble ("ends the fight on a crit: 57%")."""
     import re
@@ -335,6 +352,7 @@ class Fighter(CombatHandler):
         self.last_bosses: set[str] = set()  # which of them the game marks as bosses
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
+        self._items_seen: dict = {}  # template name -> an item card seen in this fight
         self._no_discard: set[str] = set()  # cards whose discard didn't take this fight
         self._discard_pending = None
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
@@ -690,6 +708,9 @@ class Fighter(CombatHandler):
 
             if not self._judged_fight:
                 self._had_boss = self._had_boss or any(e.is_boss for e in battle.enemies)
+            for c in battle.cards:  # (the item cards of this deck item, pet and amulet: for the simulator)
+                if c.item and not c.treasure and c.template_name:
+                    self._items_seen.setdefault(c.template_name, c)
                 await self._remember_bosses(battle)
 
             # Decide once, on the first round, whether this fight is worth having;
@@ -1016,6 +1037,8 @@ class Fighter(CombatHandler):
         self.fights += 1
         self.combat_ended_at = time.monotonic()
         self.last_had_boss = self._had_boss  # (the deck keeper: no boss, the everyday deck again)
+        _save_item_cards(self._items_seen)
+        self._items_seen = {}
         if self._had_boss:
             self.boss_fights += 1
         logger.success(f"combat over (fights so far: {self.fights})")

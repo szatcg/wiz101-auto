@@ -144,3 +144,18 @@ def test_gear_accuracy_adds_to_the_cards_accuracy():
     from wiz101_auto.combat import reader
 
     assert reader.per_school([0, 0, 0, 7], 0)["myth"] == 7 / 100  # (percents read as fractions)
+
+
+def test_the_pets_and_the_trained_feint_stack_in_the_simulator():
+    # (The player: the simulator treated every Feint as one spell, so only one
+    # ever went on; in the game the trained, the pet's and the amulet's stack.)
+    from dataclasses import replace
+
+    from wiz101_auto.combat import sim
+    from wiz101_auto.combat.brain import _is_duplicate
+
+    trained = sim.CARDS["Feint"]()
+    pets = replace(sim.CARDS["Feint"](), template_id=777, template_name="Pet - Feint", item=True)
+    hanging = [(sim._fx_key(trained), "", 0.7)]
+    assert trained.template_id and _is_duplicate(sim.CARDS["Feint"](), EffectKind.TRAP, hanging, "myth")
+    assert not _is_duplicate(pets, EffectKind.TRAP, hanging, "myth")

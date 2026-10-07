@@ -128,6 +128,21 @@ GAME_CARDS = _game_cards()
 CARDS.update(GAME_CARDS)
 
 
+def _with_spell_id(name: str, make):
+    """Each spell in the table its own spell id (as the game's): copies of one
+    don't stack, while the pet's or amulet's Feint (another id) stacks with
+    the trained one (the player: all three Feints and every blade go on)."""
+    sid = -(1 + sorted(CARDS).index(name))
+
+    def made():
+        c = make()
+        return c if c.template_id else dataclasses.replace(c, template_id=sid)
+    return made
+
+
+CARDS.update({n: _with_spell_id(n, f) for n, f in list(CARDS.items())})
+
+
 @dataclass
 class Spell:
     """An enemy's spell: kind is hit, aoe, drain, dot (hit + damage over 3
@@ -195,7 +210,26 @@ USE_LOOKAHEAD = False  # play with the whole-deck planner too (lookahead.py; com
 LOOKAHEAD_BUDGET = 3.0
 DAMAGE_SCALE = 1.0  # powers and buff_chance set so fights last like the close one (death ~round 18)
 
-ITEMS = ["Minor Fire Scorch", "Minor Fire Scorch"]  # from gear
+ITEMS = ["Minor Fire Scorch", "Minor Fire Scorch"]  # from gear (when no fight has shown the real ones)
+ITEM_CARDS = Path("state") / "item_cards.pkl"  # the gear's and pet's cards as last seen in a fight
+
+
+def item_cards(names: list[str] | None = None) -> list[Card]:
+    """The item cards a fight adds to the deck: the ones the game showed in the
+    last fight (the pet's Mythblade and Feint, the amulet's Feint: each its
+    own spell, so they stack with the trained ones, as in the game), else
+    `names` (ITEMS) from the card table."""
+    if names is None:
+        try:
+            import pickle
+
+            seen = pickle.loads(ITEM_CARDS.read_bytes())
+            if seen:
+                return [copy.copy(c) for c in seen]
+        except Exception:
+            pass
+        names = ITEMS
+    return [CARDS[n]() for n in names]
 DECKS = {  # the player's deck (they choose it: Feint is the only death spell)
     "current": {"Pixie": 3, "Cyclops": 1, "Humongofrog": 2, "Troll Minion": 1, "Minotaur": 1, "Myth Prism": 1,
                 "Myth Trap": 2, "Mythblade": 2, "Stun": 3, "Feint": 2, "Spirit Blade": 2},
@@ -599,11 +633,11 @@ def _wizard(mine: dict, hp: int) -> Combatant:
 
 
 def simulate(deck: dict[str, int], foes: list[Foe], strat: Strategy | None = None, seed: int = 0,
-             items: list[str] = ITEMS, hp: int = 1843, stats: dict | None = None) -> tuple[bool, int]:
+             items: list[str] | None = None, hp: int = 1843, stats: dict | None = None) -> tuple[bool, int]:
     """One fight from the start. (won, rounds). `stats` (state/enemy_stats.json)
     gives the enemies their logged damage and our spells their hit rates."""
     rng = random.Random(seed)
-    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in items]
+    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + item_cards(items)
     rng.shuffle(cards)
     mine = load_my_stats()  # the wizard as last read in a fight: gear's damage bonus and all
     hp = mine.get("max_health", hp)
@@ -623,7 +657,7 @@ def replay(deck: dict[str, int], foes: list[Foe], stats: dict | None = None, see
     """One fight with every step recorded (the visualizer's battle board):
     {"won", "rounds", "seed", "steps": [...]}."""
     rng = random.Random(seed)
-    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + [CARDS[n]() for n in ITEMS]
+    cards = [CARDS[n]() for n, k in deck.items() for _ in range(k)] + item_cards()
     rng.shuffle(cards)
     mine = load_my_stats()
     hp = mine.get("max_health", 1843)
