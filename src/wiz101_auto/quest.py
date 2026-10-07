@@ -2012,6 +2012,14 @@ class Quester:
         """Dungeons start with ONE press of X on the sigil, then a ~10s countdown
         that any movement or another X press cancels. After a failed try the
         prompt won't restart until we step off the sigil and back on."""
+        # The objective the sigil was taken for: in there it isn't left again
+        # by the hub button for being "in <area>" by name ('Collect Spiral Cup
+        # in Pigswick Academy': the marker led into Lord Bramble's Tower and
+        # the bot walked straight back out).
+        try:
+            self._sigil_for = await self.objective() or ""
+        except Exception:
+            self._sigil_for = ""
         # An open menu (e.g. the spellbook) hides the "press X" prompt.
         await close_spellbook(self.client)
         await ui.close_menus(self.client)
@@ -8511,6 +8519,7 @@ class Quester:
                     await self.go_to_zone(where)
                     return
                 if (await self._in_dungeon(zone) and self._may_try(objective, zone, "dungeon_out")
+                        and objective != getattr(self, "_sigil_for", "")
                         and await is_free(self.client)):
                     # In a dungeon, with nothing to lead out (no marker: the
                     # second tapestry of 'From Whole Cloth' is in Caer Lyon,
