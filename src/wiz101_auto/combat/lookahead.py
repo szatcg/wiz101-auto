@@ -42,6 +42,7 @@ BUDGET = 5.0  # seconds for the round's plan (the turn timer is ~30 s; later ste
 DISCARD_RESERVE = 6  # fewer cards than this left to draw: no discards for a draw
 OVERRIDE_ROUNDS = 0.5  # the brain's move is replaced when this many rounds faster ...
 OVERRIDE_WIN = 0.08  # ... or this much likelier to win
+OVERRIDE_FUTURES = 1.5  # ... and that by more than one future's worth of the sampled ones
 # A pass instead of the brain's cast: this many rounds faster (the estimates
 # past the horizon favour saving pips).
 PASS_ROUNDS = 1.0
@@ -653,7 +654,10 @@ def choose(battle: Battle, brain_action: Action | None, power_chance: float, dis
         return None
     s, force, tgt, card = top
     margin = PASS_ROUNDS if force == "pass" else OVERRIDE_ROUNDS
-    if brain_score is not None and not s.better_than(brain_score, margin):
+    # (One future more isn't evidence: with our health counted, the wins
+    # differ, and a single sampled fall had a pass put off a faster Orthrus.)
+    win = max(OVERRIDE_WIN, OVERRIDE_FUTURES / max(1, SAMPLES))
+    if brain_score is not None and not s.better_than(brain_score, margin, win):
         return None
     if force == "pass":
         action = Action(ActionKind.PASS, reason=f"lookahead: pass ({s})")
