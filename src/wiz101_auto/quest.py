@@ -4304,7 +4304,16 @@ class Quester:
             # Done: follow the quest line to the quest it handed us ('Quest For
             # Glory' finished at Romulus and the next one began).
             new = [q for q in quests if q.name not in before and q.name not in set_aside]
-            new.sort(key=lambda q: (not q.activity, not q.mainline))
+            # A quest on its world's story list first (Wysteria's next story
+            # quest came with two side quests picked up on the way).
+            from .questlist import load_world_lists
+
+            try:
+                pin_list = load_world_lists().get(getattr(self, "_pin_world", "") or "", [])
+                listed = {norm(x.name) for x in pin_list}
+            except Exception:
+                listed = set()
+            new.sort(key=lambda q: (not q.activity, not q.mainline, norm(q.name) not in listed))
             if new:
                 logger.success(f"your pick {self._pin!r} is done; its quest line goes on: {new[0].name!r}")
                 self._pin = new[0].name
