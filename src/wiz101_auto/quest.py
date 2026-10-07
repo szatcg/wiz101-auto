@@ -3962,8 +3962,12 @@ class Quester:
                 # quest first; 'Bad Vacation' kept 'Ship of Tears' waiting.)
                 busy_counts = bool(busy and (busy.mainline or busy.activity))
                 main_first = bool(chosen and chosen.mainline) and not busy_counts
+                # (Nor over the player's pick: 'Hobble Gobble', the pinned line's
+                # next quest, waited behind a mid-way 'Art History'.)
+                pin_first = bool(chosen and self._pin and chosen.name == self._pin)
                 if (busy is not None and busy is not chosen and busy.name not in set_aside
-                        and not in_side_world(busy) and not spell_first and not main_first):
+                        and not in_side_world(busy) and not spell_first and not main_first
+                        and not pin_first):
                     logger.info(f"keeping {busy.name!r}: mid-way through it "
                                 f"({time.monotonic() - self._momentum[1]:.0f}s since its last step)")
                     chosen, self._grinding = busy, False
