@@ -120,10 +120,14 @@ class DeckKeeper:
         # Extras put in the player's deck, to take out again: on disk, since a
         # restart forgot them and a myth boss's Myth Prisms stayed in for the
         # ice Unsung Knight.
+        # "<deck role>:<spell>" -> the copies the player's deck had before
+        # (Belloq's extra Humongofrogs came out with the deck's own one, and
+        # the boss deck was left with no attack card at all).
         try:
-            self._added: set[str] = set(json.loads(ADDED_FILE.read_text(encoding="utf-8")))
+            raw = json.loads(ADDED_FILE.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            self._added = set()
+            raw = {}
+        self._added: dict[str, int] = raw if isinstance(raw, dict) else {}
 
     def due(self, boss: bool = False,
             extra: dict[str, int] | None = None) -> tuple[dict[str, int], dict] | None:
@@ -148,14 +152,27 @@ class DeckKeeper:
             # (Except cards the player never wants, "never" in the file: the
             # Basilisks in the boss deck item.)
             never = {n.lower() for n in general.get("never") or []}
-            target = {n: c for n, c in current.items()
-                      if (n not in self._added or n in extra) and n.lower() not in never}
+            role = self._worn or ("single" if boss else "aoe")
+            target = {n: c for n, c in current.items() if n.lower() not in never}
+            for key, base in list(self._added.items()):
+                r, _, name = key.partition(":")
+                if r != role or name in extra:
+                    continue
+                # Back to the player's own count, not out altogether.
+                if base > 0:
+                    target[name] = base
+                else:
+                    target.pop(name, None)
+                if current.get(name, 0) == base:
+                    del self._added[key]  # (restored)
             for name, copies in extra.items():
                 if name in known:
-                    target[name] = max(target.get(name, 0), copies)
-                    self._added.add(name)
+                    key = f"{role}:{name}"
+                    if key not in self._added:
+                        self._added[key] = current.get(name, 0)
+                    target[name] = max(current.get(name, 0), copies)
             try:
-                ADDED_FILE.write_text(json.dumps(sorted(self._added)), encoding="utf-8")
+                ADDED_FILE.write_text(json.dumps(self._added), encoding="utf-8")
             except OSError:
                 pass
         else:
