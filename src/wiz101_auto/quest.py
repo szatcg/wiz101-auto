@@ -4271,6 +4271,9 @@ class Quester:
                 self._pin_before = set(before)
             if self._pin_missing < 2:
                 logger.info(f"your pick {self._pin!r} isn't in this reading of the book; checking again")
+                # Read again at the next step, not minutes later on another quest
+                # ('Of Unknown Origin' -> 'Lapin It Up' waited 5 min on Art History).
+                self._pin_recheck = True
                 return chosen
         else:
             self._pin_missing = 0
@@ -8214,10 +8217,12 @@ class Quester:
         except Exception:
             quest_id = None
         switched = quest_id is not None and quest_id != getattr(self, "_ranked_quest", quest_id)
-        if objective != getattr(self, "_ranked_for", None) and (
+        recheck = getattr(self, "_pin_recheck", False)
+        if recheck or objective != getattr(self, "_ranked_for", None) and (
             on_set_aside or switched
             or time.monotonic() - getattr(self, "_last_rank", -1e9) > RANK_QUESTS_EVERY
         ):
+            self._pin_recheck = False
             self._last_rank = time.monotonic()
             if switched:
                 logger.info("the game is tracking another quest: ranking the quest book again")
