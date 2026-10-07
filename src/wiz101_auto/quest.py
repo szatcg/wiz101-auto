@@ -147,6 +147,7 @@ PET_RESUME_SECONDS = 600.0  # in the Pet Pavilion: the trip resumed at most this
 NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
+HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
@@ -1813,6 +1814,16 @@ class Quester:
             return False  # (the objective is in this dungeon: leaving resets it)
         if not await is_free(self.client) or not self._may_try(objective, zone, "hub_button"):
             return False
+        try:
+            marker = await self.client.quest_position.position()
+            near = distance(marker, await self._position()) < HUB_SKIP_NEAR
+            if distance(marker, XYZ(0, 0, 0)) > 1 and near:
+                # The marker is right here (the Spiral Cup's entry hall counts as
+                # "in the hub" by name, and the button took it back out, again
+                # and again): walk to it.
+                return False
+        except Exception:
+            pass
         where = "in the hub" if via == 0 and target == dest else (
             "in another world" if target != dest else f"{via} gate(s) from the hub")
         logger.info(f"{objective!r} is {where}: the hub button instead of walking"
