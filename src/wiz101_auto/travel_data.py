@@ -34,11 +34,11 @@ def gate_behind(pos: XYZ, yaw: float, dist: float = GATE_BEHIND) -> XYZ:
     """A point `dist` behind a wizard standing at `pos` facing `yaw`. The facing
     direction is found with WizWalker's own yaw function (the one `goto` uses),
     so no assumption about the game's angle convention is needed."""
-    from wizwalker.utils import calculate_perfect_yaw
+    from .smoothwalk import yaw_to
 
     def off(a: float) -> float:
         target = XYZ(pos.x + math.cos(a) * 1000, pos.y + math.sin(a) * 1000, pos.z)
-        d = (calculate_perfect_yaw(pos, target) - yaw) % (2 * math.pi)
+        d = (yaw_to(pos, target) - yaw) % (2 * math.pi)
         return min(d, 2 * math.pi - d)
 
     facing = min((math.radians(deg) for deg in range(0, 360, 2)), key=off)

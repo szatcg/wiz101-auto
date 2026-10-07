@@ -1501,9 +1501,9 @@ class Quester:
         # Walk in short steps and stop the moment the zone changes: one long
         # key press kept walking on the far side of the door, straight into the
         # Desert Golems at the Palace of Fire's entrance.
-        from wizwalker.utils import calculate_perfect_yaw
+        from .smoothwalk import yaw_to
 
-        await self.client.body.write_yaw(calculate_perfect_yaw(pos, beyond))
+        await self.client.body.write_yaw(yaw_to(pos, beyond))
         last = pos
         for _ in range(WALK_MAX_STEPS):
             await self.client.send_key(Keycode.W, WALK_STEP_SECONDS)
@@ -3158,13 +3158,13 @@ class Quester:
         # In a small room every spot 300 away is behind a wall (the Post
         # Office's exit): back up a step on foot in each direction and walk
         # through the marker from there.
-        from wizwalker.utils import calculate_perfect_yaw
+        from .smoothwalk import yaw_to
 
         logger.info("backing off the door marker on foot to walk through it")
         for i in range(8):
             ang = i * math.pi / 4
             away = XYZ(target.x + 100 * math.cos(ang), target.y + 100 * math.sin(ang), target.z)
-            await self.client.body.write_yaw(calculate_perfect_yaw(target, away))
+            await self.client.body.write_yaw(yaw_to(target, away))
             await self.client.send_key(Keycode.W, 0.5)  # a step away from the marker
             if await self._zone_changed(zone):
                 return True
