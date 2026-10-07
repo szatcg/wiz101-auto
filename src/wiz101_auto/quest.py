@@ -4018,7 +4018,7 @@ class Quester:
                                     f"then back to {chosen.name!r}")
                     chosen = errand
             side_chosen = chosen is not None and not chosen.mainline  # (none at all: nothing to choose)
-            if not self._mainline and side_chosen and self._detour_gap_pending():
+            if not self._mainline and side_chosen and self._detour_gap_pending() and not self._pin:
                 # On the way to ask for the story's next quest: a quest of the
                 # story's world tracked meanwhile, so the house's world gate
                 # opens the Spiral Map on that world (it opened on The Spiral
@@ -7898,7 +7898,7 @@ class Quester:
         if await self._house_to_world():
             logger.debug("step: house's world gate")
             return
-        if not self._mainline and self._detour_gap_pending() and await self._detour_ask():
+        if not self._mainline and not self._pin and self._detour_gap_pending() and await self._detour_ask():
             # The story's quest ended with none after it: its NPCs before any
             # side quest (the player's order; it went off to 'The Spiral Cup'
             # after 'Meddling Wizards' with Zafaria's next quest at the hub).
