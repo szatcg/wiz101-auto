@@ -189,3 +189,66 @@ def test_overlay_saves_whole_rounds(monkeypatch):
     assert out["base"] == 4
     assert set(out["cards"]) == {"Orthrus"}
     assert out["base"] - out["cards"]["Orthrus"]["rounds"] == 1
+
+
+def _near_death(hp, boss_hp, monkeypatch, hit=1000.0):
+    """Live, 2026-10-06: at a few hundred health against ~1000 hits, with
+    Orthrus to cast and Feints on the boss, the planner put a blade or a
+    Feint over it, '100% win' (a kill seen within the horizon counted as
+    won at any health)."""
+    monkeypatch.setattr(lookahead, "OBSERVED_HIT", hit)
+    monkeypatch.setattr(lookahead, "_incoming_rounds", lambda battle: [[hit]], raising=False)
+    me = Combatant("Marcello", hp, 3329, is_client=True, school="myth", level=55, crit={"myth": 300.0})
+    boss = Combatant("Kerr Knucklebones", boss_hp, 11880, is_enemy=True, is_boss=True, school="fire",
+                     resist={}, incoming_effects=[("Feint", "", 0.7), ("Feint", "", 0.7)])
+    hand = [orthrus(0), orthrus(1), blade(2), feint(3), bolt(4)]
+    return Battle(me=me, allies=[], enemies=[boss], cards=hand, pips=0, power_pips=5,
+                  upcoming=[bolt(10), bolt(11)], deck_known=True)
+
+
+@pytest.mark.parametrize("hp", [376, 865])
+def test_one_hit_from_falling_the_kill_now_is_not_put_off(monkeypatch, hp):
+    # Orthrus now ends it on a crit (55%); a blade first ends it surely, but
+    # a round later: a round we don't live through.
+    from wiz101_auto.combat.model import Action
+
+    b = _near_death(hp, 5300, monkeypatch)
+    choice = lookahead.choose(b, Action(ActionKind.CAST, b.cards[0], None), power_chance=0.8, budget=60)
+    assert choice is None
+
+
+def test_with_health_to_spare_the_setup_still_wins_out(monkeypatch):
+    # (The same hand with health to spare: the blade, then a sure kill.)
+    from wiz101_auto.combat.model import Action
+
+    b = _near_death(3329, 5300, monkeypatch, hit=300.0)
+    choice = lookahead.choose(b, Action(ActionKind.CAST, b.cards[0], None), power_chance=0.8, budget=60)
+    assert choice is not None and choice.action.card.name in ("Mythblade", "Feint")
+
+
+def test_a_kill_after_we_fall_is_no_win(monkeypatch):
+    # The Bog Witch: 209 health, nothing kills this round. Every line is
+    # lost (it called a Myth Prism a 100% win); the brain's move stands.
+    from wiz101_auto.combat.model import Action
+
+    b = _near_death(209, 5300, monkeypatch)
+    b.power_pips = 3  # (no Orthrus this round)
+    b.cards[0].castable = b.cards[1].castable = False
+    s = lookahead._score(b, lookahead._futures(b, 12, 0.8, 0), 1e18, "pass")
+    assert s.win == 0.0
+    assert lookahead.choose(b, Action(ActionKind.PASS), power_chance=0.8, budget=60) is None
+
+
+def test_we_fall_by_the_enemies_logged_rounds(monkeypatch):
+    # Two setup rounds, then 1200: at 865 health one hit takes us down, not
+    # an average of 400 a round over three.
+    import random
+
+    assert lookahead._falls(865, [[1200.0]], random.Random(1)) == 1
+    assert lookahead._falls(2000, [[300.0], [300.0]], random.Random(1)) == 4
+    assert lookahead._falls(865, [], random.Random(1)) == lookahead.CAP + 1
+    monkeypatch.setattr(brain, "_STATS", [0.0, {"Malgrin": {"alone": [0, 0, 600], "shared": []}}])
+    monkeypatch.setattr(lookahead, "OBSERVED_HIT", 1200.0)
+    b = _battle([bolt(0)], [], hp=9960)
+    b.enemies[0].name = "Malgrin"
+    assert lookahead._incoming_rounds(b) == [[0.0, 0.0, 1200.0]]

@@ -140,10 +140,13 @@ class Future:
     gains: list[bool]
     misses: frozenset = frozenset()  # id() of the cards that fizzle in this future
     rolls: dict = field(default_factory=dict)  # id() -> (crit roll, block roll) of each card in this future
+    falls: float = CAP + 1  # the round whose enemy turn takes us down in this future (our last cast)
 
 
 def _futures(battle: Battle, n: int, power_chance: float, seed: int) -> list[Future]:
     rng = random.Random(seed)
+    hurt = random.Random(seed * 7919 + 1)  # (its own stream: the draws stay as they were)
+    incoming = _incoming_rounds(battle)
     out = []
     cards = [*battle.cards, *battle.upcoming]
     for _ in range(n):
@@ -152,24 +155,56 @@ def _futures(battle: Battle, n: int, power_chance: float, seed: int) -> list[Fut
         gains = [rng.random() < power_chance for _ in range(HORIZON * 3)]
         misses = frozenset(id(c) for c in cards if rng.random() >= hit_rate(c)) if MISSES else frozenset()
         rolls = {id(c): (rng.random(), rng.random()) for c in cards} if CRITS and battle.me.crit else {}
-        out.append(Future(order, gains, misses, rolls))
+        out.append(Future(order, gains, misses, rolls, _falls(battle.me.health, incoming, hurt)))
     return out
+
+
+def _falls(health: float, incoming: list[list[float]], rng: random.Random) -> float:
+    """The round we fall in: each round every enemy hits us for one of its
+    logged rounds (a boss's setup rounds are the 0s), until they add up to
+    our health. CAP + 1: we last the whole fight."""
+    if not incoming:
+        return CAP + 1
+    taken = 0.0
+    for r in range(1, CAP + 1):
+        taken += sum(rng.choice(rounds) for rounds in incoming)
+        if taken >= health:
+            return r
+    return CAP + 1
 
 
 OBSERVED_HIT = 0.0  # damage we took per round in this fight so far (the fighter sets it each round)
 
 
-def _survive_rounds(battle: Battle) -> int:
-    """Rounds we last at the enemies' damage per round: their logged
-    rounds, or what this fight has shown, whichever is more (Maudit Soulban
-    and his Giant, never logged, hit for ~900 a round while the planner
-    counted on far less and called a near-loss a sure win)."""
-    from .brain import incoming_per_round
+def _incoming_rounds(battle: Battle) -> list[list[float]]:
+    """Each live enemy's logged rounds of damage to us (enemy_stats.json,
+    0 for a round it set up), the hits scaled up to what this fight has shown
+    when that's more (OBSERVED_HIT: the rounds we lost health in; Maudit
+    Soulban and his Giant, never logged, hit for ~900 a round while the
+    planner counted on far less). An enemy never logged: UNKNOWN_HIT_SHARE
+    of our max health every round.
 
-    hit = max(incoming_per_round(battle), OBSERVED_HIT)
-    if hit <= 0:
-        return CAP
-    return max(1, int(battle.me.health // hit) + 1)
+    The futures fall by these, a round at a time: an average per round (a
+    boss setting up two rounds and then hitting 1200 averages 400) had the
+    planner count 3 rounds left at 865 health, so a Feint over the Orthrus
+    that could end it now looked like a sure win (Malgrin, Kerr Knucklebones,
+    the Bog Witch: 2026-10-06)."""
+    from .brain import _STATS, UNKNOWN_HIT_SHARE, incoming_per_round
+
+    incoming_per_round(battle)  # (reads the logs' stats)
+    out = []
+    for e in battle.live_enemies:
+        st = _STATS[1].get(e.name, {})
+        rounds = [max(0.0, float(d)) for d in (*st.get("alone", []), *st.get("shared", []))]
+        out.append(rounds or [UNKNOWN_HIT_SHARE * battle.me.max_health])
+    hits = [sum(p) / len(p) for p in ([d for d in rounds if d > 0] for rounds in out) if p]
+    biggest = max(hits, default=0.0)
+    if OBSERVED_HIT > biggest:
+        if biggest <= 0:
+            return [[OBSERVED_HIT]]
+        k = OBSERVED_HIT / biggest
+        out = [[d * k for d in rounds] for rounds in out]
+    return out
 
 
 # Our health along a line: each enemy still up hits us for its damage per
@@ -177,7 +212,8 @@ def _survive_rounds(battle: Battle) -> int:
 # whole fight made killing an add look worthless). "line": the quickest
 # kill's line is won when we live through it (past the horizon: at the rate
 # the enemies left up then hit); "prune": lines we don't live through are
-# dropped from the search; "": rounds to kill vs our health at today's rate.
+# dropped from the search; "": rounds to kill vs the round the future has us
+# fall in (Future.falls: the enemies' logged rounds drawn one by one).
 # Off: in the simulator "prune" was slower (p95 7.5 s on Porrich) and no
 # better; "line" was even without crits and worse with them (2 mobs +0.8
 # rounds, 4 mobs -7 wins: a lost-looking future after a cast that didn't
@@ -416,7 +452,11 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
     if not took[0]:
         raise Unplayable  # (a second copy of a blade that's up, a card it doesn't model)
     if best[0] <= HORIZON:
-        return float(best[0]), True, (best_taken[0] < life) if hits is not None and not prune else True
+        if hits is None:
+            # (The caller judges it by when we fall: a kill seen in the
+            # horizon counted as won at any health, 100% at 209 health.)
+            return float(best[0]), True, None
+        return float(best[0]), True, (best_taken[0] < life) if not prune else True
     if prune and not at_horizon[0]:
         return float(CAP), True, False  # (every line has us down first)
     done = total_hp - partial[0]
@@ -430,7 +470,6 @@ def _group_search(battle: Battle, draws: list[Card], gains: list[bool], deadline
 
 def _score(battle: Battle, futures, deadline: float, force=None, first=None) -> Score | None:
     """None when the forced move can't be played out by the search."""
-    alive = _survive_rounds(battle)
     wins, rounds, seen = 0, 0.0, 0
     for fut in futures:
         if time.monotonic() > deadline:
@@ -442,7 +481,7 @@ def _score(battle: Battle, futures, deadline: float, force=None, first=None) -> 
             return None
         seen += exact
         rounds += r
-        wins += (r <= alive) if won is None else won
+        wins += (r <= fut.falls) if won is None else won
     k = max(1, len(futures))
     return Score(wins / k, rounds / k, seen / k)
 
