@@ -111,7 +111,7 @@ def test_discards_make_room_to_draw_the_whole_deck_when_a_card_left_ends_it():
     b.upcoming = [_myth(10, "Pixie-ish", 10, 2), _myth(11, "Orthrus", 1300, 7, aoe=True),
                   _myth(12, "Junk", 10, 1)]
     b.deck_known = True
-    a = brain.decide(b, discards_left=0)
+    a = brain.decide(b, discards_left=1)  # (0: none at all, e.g. after a discard that did not take)
     assert a.kind is ActionKind.DISCARD and "draw the whole deck" in a.reason
     b.cards = filler[:4]  # room for 3: every card left comes anyway
     assert brain._dig_for_sure_kill(b) is None
@@ -562,7 +562,7 @@ def test_the_bigger_hit_is_cast_when_castable_not_saved_for():
     my.school = "myth"
     b = battle([frog, orthrus], [enemy("Kallah Silverback", 2035, boss=True)], my=my)
     b.pips, b.power_pips = 0, 7
-    a = brain.decide(b, discards_left=0)
+    a = brain.decide(b, discards_left=1)  # (0: none at all, e.g. after a discard that did not take)
     assert a.kind is ActionKind.CAST and a.card is orthrus
 
 

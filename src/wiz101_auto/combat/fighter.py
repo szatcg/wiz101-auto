@@ -17,7 +17,7 @@ from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
 from .brain import Strategy, decide, out_of_attacks, plan_fight, predicted_damage, prism_first
-from .model import ActionKind, Card, EffectKind
+from .model import Action, ActionKind, Card, EffectKind
 from .reader import read_battle
 
 MAX_STEPS_PER_ROUND = 8
@@ -335,6 +335,8 @@ class Fighter(CombatHandler):
         self.last_bosses: set[str] = set()  # which of them the game marks as bosses
         self.may_flee = None  # async () -> bool: whether fleeing is allowed here
         self._had_boss = False
+        self._no_discard: set[str] = set()  # cards whose discard didn't take this fight
+        self._discard_pending = None
         self._unusable: set[str] = set()  # cards whose cast didn't register this round
         self._fails: dict[str, int] = {}  # failed casts per card this fight
         self._prismed: set[str] = set()  # enemies prismed this fight
@@ -701,6 +703,18 @@ class Fighter(CombatHandler):
                 logger.warning("flee didn't go through; playing this round and trying again next round")
                 self._fleeing = False  # let a stray confirmation be cancelled while we play
 
+            pending = getattr(self, "_discard_pending", None)
+            if pending is not None:
+                self._discard_pending = None
+                rnd, name, had = pending
+                if rnd == battle.round and sum(1 for c in battle.cards if c.name == name) >= had:
+                    # The discard didn't take (an enchanted Humongofrog against
+                    # Belloq: "discarded" 40 times over five rounds, nothing cast).
+                    self._no_discard.add(name)
+                    discards_left = 0
+                    logger.warning(f"discarding {name} didn't work; no more discards this round, "
+                                   f"and never {name} again this fight")
+
             _note_unknown_cards(battle)
             hand = ", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
             logger.debug(f"hand: {hand}; deck left: {len(battle.upcoming)}")
@@ -758,6 +772,14 @@ class Fighter(CombatHandler):
                 if free is not None:
                     free.reason = f"{free.reason}, instead of a plain pass ({action.reason})"
                     action = free
+            if action.kind is ActionKind.DISCARD and action.card is not None and (
+                    discards_left <= 0 or action.card.name in self._no_discard or action.card.enchanted):
+                # (No discards left, a card that wouldn't go, or an enchanted
+                # one: the move is decided again without discarding.)
+                action = decide(battle, self.strategy, discards_left=0,
+                                plan_discards=False, odds_discards=False)
+                if action.kind is ActionKind.DISCARD:
+                    action = Action(ActionKind.PASS, reason=f"no discard ({action.reason})")
             _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
@@ -803,6 +825,8 @@ class Fighter(CombatHandler):
                 continue
 
             if action.kind is ActionKind.DISCARD:
+                self._discard_pending = (battle.round, action.card.name,
+                                         sum(1 for c in battle.cards if c.name == action.card.name))
                 self._gone[_deck_name(action.card)] += 1
                 self._discarded[_deck_name(action.card)] += 1
                 r = await live_card._spell_window.scale_to_client()
@@ -976,6 +1000,8 @@ class Fighter(CombatHandler):
         self._want_flee = False
         self._last_plan = ""
         self._had_boss = False
+        self._no_discard = set()
+        self._discard_pending = None
         self.fled = False
         with contextlib.suppress(Exception):  # where we fought (a boss's walk-in starts there)
             from ..dungeons import note_last_fight

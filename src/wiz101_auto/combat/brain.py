@@ -2492,7 +2492,7 @@ def _decide_hand(battle: Battle, strat: Strategy | None = None, *, discards_left
     """The action for this step. Reshuffle (the player's: never discarded)
     is kept out of every other rule; it's cast instead of passing when the
     deck is all but drawn (the cards played come back to draw from)."""
-    sure = _dig_for_sure_kill(battle)
+    sure = _dig_for_sure_kill(battle) if discards_left > 0 else None
     if sure is not None:
         return sure
     if plan_discards if odds_discards is None else odds_discards:
