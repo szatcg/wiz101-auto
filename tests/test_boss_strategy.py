@@ -932,3 +932,21 @@ def test_pendragon_bans_only_big_single_target_hits():
     foe = Combatant("The Pendragon", 16000, 16000, is_enemy=True, is_boss=True, resist={})
     b = _no_single_target(Battle(me=me, allies=[], enemies=[foe], cards=[basilisk, troll], pips=7))
     assert {c.name for c in b.cards if c.castable} == {"Troll"}
+
+
+def test_traps_go_on_the_boss_before_the_first_hit_all_that_kills_the_adds():
+    # (The player: Feints on the boss before the first Orthrus, not on the
+    # add it kills anyway, then one hit takes the boss as far as it can.)
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 3000, 7, aoe=True, castable=False)
+    feint = Card(1, "Feint", pip_cost=1, school="death",
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    my = me(3300, 3400)
+    my.school = "myth"
+    boss = enemy("Anacaona Black Snake", 12560, boss=True)
+    beak = enemy("Obsidian Beak", 2720)
+    b = battle([orthrus, feint], [boss, beak], my=my)
+    b.pips, b.power_pips = 1, 2
+    act = brain.decide(b)
+    assert act.card is feint and act.target is boss

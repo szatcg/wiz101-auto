@@ -72,6 +72,11 @@ class Strategy:
     aoe_max_setups: int = 4  # blades/traps played before the hit-all (tipping it into kills)
     stun_health: float = 0.7  # stun the worst hitter once our health is below this
     prism_early_gain: float = 2.0  # a prism multiplying our hit this much is played first
+    # The player's (2026-10-07): in a boss fight, every trap on the boss before
+    # the first hit-all (it kills the adds anyway), not on the adds, so the
+    # one hit takes the boss as far as it can.
+    boss_traps_first: bool = True
+    boss_traps_max: int = 4  # traps stacked on the boss that way
 
 
 # Without readable stats, assume the usual pattern: a monster resists its own
@@ -1132,6 +1137,46 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
     return Action(ActionKind.CAST, c, target, reason=why)
 
 
+def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | None:
+    """strat.boss_traps_first: a boss fight where the hit-all kills the adds
+    as it is: a blade, then traps on the boss, until the stack is full or we
+    can't afford the wait (two rounds of hits left in us)."""
+    if not strat.boss_traps_first:
+        return None
+    live = battle.live_enemies
+    bosses = [e for e in live if e.is_boss]
+    if not bosses:
+        return None
+    boss = max(bosses, key=lambda e: e.health)
+    adds = [e for e in live if not e.is_boss]
+    me = battle.me
+    if hit_damage(card, me, boss) >= boss.health:
+        return None  # it kills him already
+    if (boss.resist or {}).get(card.school.lower(), 0.0) >= 0.5:
+        return None  # he shrugs the hit off (Meowiarty resists myth 80%): traps go where it hurts
+    if any(hit_damage(card, me, e) < e.health for e in adds):
+        return None  # an add needs the setup too: the usual rules
+    if me.health <= 2 * incoming_per_round(battle):
+        return None  # no time for it
+    castable = _castable(battle.cards)
+    blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage
+              and setup_fits(c, battle)
+              and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, me.school.lower())]
+    if blades and me.blade_count < strat.max_blades:
+        free = [c for c in blades if c.pip_cost == 0] or blades
+        b = max(free, key=_power)
+        return Action(ActionKind.CAST, b, me if b.target is Target.ALLY_SINGLE else None,
+                      reason=f"blade up before {card.name} (boss first)")
+    traps = [c for c in castable if EffectKind.TRAP in c.kinds and not c.is_enchant and not c.is_damage
+             and c.target is not Target.ENEMY_ALL and setup_fits(c, battle)
+             and not _is_duplicate(c, EffectKind.TRAP, boss.incoming_effects, me.school.lower())]
+    if traps and boss.trap_count < strat.boss_traps_max:
+        t = max(traps, key=_power)
+        return Action(ActionKind.CAST, t, boss,
+                      reason=f"trap {boss.name} before {card.name}: it kills the adds anyway")
+    return None
+
+
 def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
     """Several enemies and a hit-all spell in hand (Humongofrog): blade
     ourselves, trap the enemies, then one hit clears the board. Pips are
@@ -1175,6 +1220,9 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         total = sum(e.health for e in enemies)
         why = f"{card.name} kills all {len(enemies)} (~{total:.0f})"
         return Action(ActionKind.CAST, card, None, reason=why)
+    boss_first = _boss_traps_first(battle, card, strat)
+    if boss_first is not None:
+        return boss_first
     # Blades/traps that make the hit-all kill enemies it wouldn't now: those first.
     if battle.me.health_ratio >= AOE_BLADE_WAIT_HEALTH or not card.castable:
         tipping = _hit_all_setup(battle, card, strat)
