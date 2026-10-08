@@ -6050,6 +6050,7 @@ class Quester:
         if mates:
             self._team_with_us = True  # seen one in here: we have a team
             self._mate_last_seen = now
+            self.client._players_seen_at = now  # (walk-only while they're around)
             _save_team_state(await self.client.zone_name() or "", now)
         elif not self._team_with_us and _team_state_recent(await self.client.zone_name() or ""):
             # A restart inside the dungeon forgot the team (it then left after

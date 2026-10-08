@@ -110,9 +110,15 @@ def walk_zone(client, zone: str) -> bool:
         return True
     from .teamup import team_list
 
-    return zone in team_list()
+    if zone not in team_list():
+        return False
+    # Alone in there (the teammate left): teleports again, like questing solo
+    # (the player: it struggled to walk to the objective with nobody around).
+    seen = getattr(client, "_players_seen_at", None)
+    return seen is not None and time.monotonic() - seen < ALONE_TELEPORT_AFTER
 
 
+ALONE_TELEPORT_AFTER = 30.0  # no other player seen in a team dungeon this long: teleports allowed again
 LANDED = 200.0  # a teleport that ends this near its target worked
 
 
