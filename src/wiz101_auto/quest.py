@@ -8786,6 +8786,7 @@ class Quester:
         logger.info(f"[{zone}] {objective}")
         await self.controller.checkpoint()
         if (FISHING_PROBE and objective.lower().startswith("catch ")
+                and objective_zone(objective) in (None, zone)
                 and distance(await self._position(), target) < FISH_PROBE_NEAR):
             # At the fishing spot: record the fish and the screen (read-only),
             # then wait; the player and I learn the fishing window from it.
