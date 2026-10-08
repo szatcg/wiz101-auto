@@ -428,3 +428,15 @@ def test_catch_objectives_are_collects():
     from wiz101_auto.collect import collect_item_name
 
     assert collect_item_name("Catch Vonda Fish in Pitch Black Lake (1 of 4)") == "Vonda Fish"
+
+
+def test_a_later_rooms_boss_teams_up_at_the_first_rooms_sigil():
+    from types import SimpleNamespace
+
+    from wiz101_auto.quest import first_room_with_sigil
+
+    rooms = {"Azteca/Interiors/AZ_Z08_PyramidMotherMoon_Room01": SimpleNamespace(sigil=[1, 2, 3]),
+             "Azteca/Interiors/AZ_Z08_UnderwaterCat": SimpleNamespace(sigil=[4, 5, 6])}
+    assert (first_room_with_sigil("Azteca/Interiors/AZ_Z08_PyramidMotherMoon_Room03", rooms)
+            == "Azteca/Interiors/AZ_Z08_PyramidMotherMoon_Room01")
+    assert first_room_with_sigil("Azteca/Interiors/AZ_Z08_Other_Room02", rooms) is None

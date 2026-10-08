@@ -623,6 +623,15 @@ def is_crafting(q: QuestEntry) -> bool:
     return goal.startswith("craft ") or "crafting station" in goal
 
 
+def first_room_with_sigil(zone: str, dungeons: dict) -> str | None:
+    """The room of `zone`'s dungeon that has a learned sigil, first room first
+    ("AZ_Z08_PyramidMotherMoon_Room03" -> "..._Room01")."""
+    base = re.sub(r"_Room\d+$", "", zone)
+    rooms = sorted(k for k, e in dungeons.items() if getattr(e, "sigil", None)
+                   and (k == base or re.fullmatch(re.escape(base) + r"_Room\d+", k)))
+    return rooms[0] if rooms else None
+
+
 def choose_quest(
     quests: list[QuestEntry],
     set_aside: set[str] = frozenset(),
@@ -2989,6 +2998,11 @@ class Quester:
         dungeon = next((memory.bosses[n] for n in fought if n in memory.bosses), None) or (
             zone if zone in memory.dungeons else None)
         entry = memory.dungeons.get(dungeon or "")
+        if dungeon and (entry is None or not entry.sigil):
+            # A later room (Neza the Poet in PyramidMotherMoon_Room03): the
+            # dungeon is entered by its first room's sigil.
+            dungeon = first_room_with_sigil(dungeon, memory.dungeons)
+            entry = memory.dungeons.get(dungeon or "")
         if not dungeon or entry is None or not entry.sigil or is_team_dungeon(dungeon):
             return False
         add_team_dungeon(dungeon, quest)
