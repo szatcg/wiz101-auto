@@ -1175,19 +1175,21 @@ def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | N
     blades = [c for c in castable if EffectKind.BLADE in c.kinds and not c.is_enchant and not c.is_damage
               and setup_fits(c, battle)
               and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, me.school.lower())]
-    if blades and me.blade_count < max(strat.max_blades, strat.boss_blades_max):
-        free = [c for c in blades if c.pip_cost == 0] or blades
-        b = max(free, key=_power)
-        return Action(ActionKind.CAST, b, me if b.target is Target.ALLY_SINGLE else None,
-                      reason=f"blade up before {card.name} (boss first)")
+    if not (blades and me.blade_count < max(strat.max_blades, strat.boss_blades_max)):
+        blades = []
     traps = [c for c in castable if EffectKind.TRAP in c.kinds and not c.is_enchant and not c.is_damage
              and c.target is not Target.ENEMY_ALL and setup_fits(c, battle)
              and not _is_duplicate(c, EffectKind.TRAP, boss.incoming_effects, me.school.lower())]
-    if traps and boss.trap_count < strat.boss_traps_max:
-        t = max(traps, key=_power)
-        return Action(ActionKind.CAST, t, boss,
-                      reason=f"trap {boss.name} before {card.name}: it kills the adds anyway")
-    return None
+    if boss.trap_count >= strat.boss_traps_max:
+        traps = []
+    best = _best_setup(blades, traps, me.school.lower())
+    if best is None:
+        return None
+    if best in blades:
+        return Action(ActionKind.CAST, best, me if best.target is Target.ALLY_SINGLE else None,
+                      reason=f"blade up before {card.name} (boss first)")
+    return Action(ActionKind.CAST, best, boss,
+                  reason=f"trap {boss.name} before {card.name}: it kills the adds anyway")
 
 
 def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
@@ -1331,6 +1333,24 @@ def _power(card: Card) -> float:
     return sum(e.value for e in card.effects)
 
 
+def setup_value(card: Card, school: str) -> float:
+    """What a blade or trap adds to OUR hit: only the parts for our school or
+    every school (Spirit Blade's life and death blades do nothing for a myth
+    wizard: it rated +105% and went before a +70% Feint; Tzapotec survived at
+    216)."""
+    mine = (school or "").lower()
+    return sum(e.value for e in card.effects if e.kind in (EffectKind.BLADE, EffectKind.TRAP)
+               and (not e.school or e.school.lower() == mine))
+
+
+def _best_setup(blades: list[Card], traps: list[Card], school: str) -> Card | None:
+    """The blade or trap that adds the most to our hit; a cheaper one on a tie."""
+    pool = [*blades, *traps]
+    if not pool:
+        return None
+    return max(pool, key=lambda c: (setup_value(c, school), -c.pip_cost))
+
+
 def _hit_schools(battle: Battle, besides: str = "") -> set[str]:
     """Schools of the damage spells in hand and still in the deck (other
     than `besides`: a card's own hit doesn't make its trap useful)."""
@@ -1457,11 +1477,11 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
     max_blades = strat.max_blades
     if strat.boss_traps_first and any(e.is_boss for e in battle.live_enemies):
         max_blades = max(max_blades, strat.boss_blades_max)
-    if blades and me.blade_count < max_blades:
-        card = max(blades, key=_power)
-        target = me if card.target in (Target.ALLY_SINGLE,) else None
-        return Action(ActionKind.CAST, card, target, reason="blade up")
-
+    school = me.school.lower()
+    if not (blades and me.blade_count < max_blades):
+        blades = []
+    traps: list[Card] = []
+    target = None
     if battle.live_enemies:
         target = focus or max(battle.live_enemies, key=lambda e: (e.is_boss, e.health))
         traps = [
@@ -1470,11 +1490,17 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
         and not junk_gear_hit(c, battle)
             and not _is_duplicate(c, EffectKind.TRAP, target.incoming_effects, battle.me.school.lower())
         ]
-        if traps and target.trap_count < strat.max_traps:
-            card = max(traps, key=_power)
-            t = None if card.target is Target.ENEMY_ALL else target
-            return Action(ActionKind.CAST, card, t, reason=f"trap {target.name}")
-    return None
+        if target.trap_count >= strat.max_traps:
+            traps = []
+    # The bigger boost first, blade or trap (not every blade before any trap).
+    card = _best_setup(blades, traps, school)
+    if card is None:
+        return None
+    if card in blades:
+        t = me if card.target in (Target.ALLY_SINGLE,) else None
+        return Action(ActionKind.CAST, card, t, reason="blade up")
+    t = None if card.target is Target.ENEMY_ALL else target
+    return Action(ActionKind.CAST, card, t, reason=f"trap {target.name}")
 
 
 def _shield_schools(card: Card) -> set[str]:

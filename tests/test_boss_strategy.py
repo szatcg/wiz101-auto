@@ -1002,3 +1002,21 @@ def test_no_trap_on_an_add_the_hit_all_kills_anyway():
     horn = enemy("Crazed Thunder Horn", 2145)
     b = battle([orthrus, feint], [lizard, horn], my=me(2891, 3417))
     assert brain._aoe_trap_target(b, orthrus) is lizard
+
+
+def test_a_feint_beats_spirit_blade_for_a_myth_wizard():
+    # (The player: Spirit Blade's life and death parts do nothing for a myth
+    # hit; it went before a Feint and Tzapotec lived at 216.)
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 3000, 7, aoe=True, castable=False)
+    feint = Card(1, "Feint", pip_cost=1, school="death",
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    parts = [Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school=s) for s in ("life", "myth", "death")]
+    spirit = Card(2, "Spirit Blade", pip_cost=1, school="balance", effects=parts)
+    my = me(3000, 3500)
+    my.school = "myth"
+    b = battle([orthrus, spirit, feint], [enemy("Tzapotec", 16800, boss=True)], my=my)
+    b.pips, b.power_pips = 1, 2
+    assert brain.decide(b).card is feint
+    assert brain.setup_value(spirit, "myth") == 35 and brain.setup_value(feint, "myth") == 70
