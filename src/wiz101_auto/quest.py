@@ -3004,9 +3004,12 @@ class Quester:
             # dungeon is entered by its first room's sigil.
             dungeon = first_room_with_sigil(dungeon, memory.dungeons)
             entry = memory.dungeons.get(dungeon or "")
-        if not dungeon or entry is None or not entry.sigil or is_team_dungeon(dungeon):
+        if not dungeon or entry is None or not entry.sigil:
             return False
-        add_team_dungeon(dungeon, quest)
+        # (Already on the list but fought solo, recalled straight into the boss
+        # room past the sigil: the same, no Recall back in.)
+        if not is_team_dungeon(dungeon):
+            add_team_dungeon(dungeon, quest)
         logger.warning(f"lost {objective!r} {losses} times: {dungeon.split('/')[-1]} with a team from now on "
                        f"(Team Up at its sigil) until {quest!r} is done")
         self._alert_main_stuck(quest, f"lost {objective!r} {losses} times; waiting for a team")
