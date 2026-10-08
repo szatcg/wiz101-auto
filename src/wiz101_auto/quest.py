@@ -148,6 +148,7 @@ NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health.
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
 HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
+VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
@@ -5787,7 +5788,16 @@ class Quester:
             if not arrived:
                 # Not reachable yet (Village of Sorrow before the story opens
                 # it): drop the visit (the giver waits an hour) rather than
-                # asking for a route every second.
+                # asking for a route every second. But a world's own zone is
+                # tried again first (Zenzen Seven Star's re-talk in Cloudburst
+                # Island was dropped once, and the main story's next quest
+                # with it): VISIT_RETRIES before giving up.
+                fails = int(want.get("fails", 0)) + 1
+                if fails < VISIT_RETRIES and dest.split("/", 1)[0] == (zone or "").split("/", 1)[0]:
+                    logger.info(f"visit {npc}: no way to {dest} this time ({fails}/{VISIT_RETRIES}); again")
+                    want["fails"] = fails
+                    VISIT_FILE.write_text(json.dumps(want), encoding="utf-8")
+                    return True
                 logger.warning(f"visit {npc}: no route to {dest} from {zone}; dropping the visit")
                 VISIT_FILE.unlink(missing_ok=True)
                 self._visit_tries = 0
