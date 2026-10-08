@@ -202,6 +202,7 @@ ENGAGE_BACKOFF_MAX = 2400.0
 WALKED_CLOSE = 250.0  # a walked path ended this near its target: arrived
 WALK_IN_MIN = 600.0  # a walk-in starts at least this far from the boss
 MAIN_LOSSES_NO_LADDER = 5  # a story fight lost this often with one fixed deck: side quests, then again
+TEAM_UP_AFTER_LOSSES = 2  # a main boss in a dungeon lost this often: Team Up at its sigil (the player)
 MAIN_LOSSES_RETRY_SECONDS = 3600.0  # (or at the next level-up)
 MAIN_LOSSES_RETRY_SAME_LEVEL = 2  # back after the hour at the same level: this many, then wait again
 DETOUR_DEFEATS = 15  # a detour world's fight lost this often waits (the main story meanwhile)
@@ -3060,7 +3061,7 @@ class Quester:
                             .get("defeats_before_wait", DETOUR_DEFEATS))
             except (OSError, ValueError, TypeError):
                 pass
-            if n >= limit and self._team_instead(quest, objective, n):
+            if n >= TEAM_UP_AFTER_LOSSES and self._team_instead(quest, objective, n):
                 self.setbacks.defeats.pop(objective, None)
             elif n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
@@ -3091,7 +3092,7 @@ class Quester:
             # again; fewer tries until a level-up makes the wizard stronger.)
             again = f"set aside at level {level}: {objective}"
             limit = MAIN_LOSSES_RETRY_SAME_LEVEL if again in self.setbacks.defeats else MAIN_LOSSES_NO_LADDER
-            if n >= MAIN_LOSSES_NO_LADDER and quest and self._team_instead(quest, objective, n):
+            if n >= TEAM_UP_AFTER_LOSSES and quest and self._team_instead(quest, objective, n):
                 self.setbacks.defeats.pop(objective, None)
                 self.setbacks.save()
                 return
