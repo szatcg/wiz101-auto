@@ -2989,7 +2989,7 @@ class Quester:
         that dungeon goes on the team list (the player's "multiplayer mode":
         wait at its sigil, Team Up, fight it with 2+ players, as at Mount
         Olympus). True if it did; False outside a known dungeon."""
-        from .teamup import add_team_dungeon, is_team_dungeon
+        from .teamup import TEAM_UP_DUNGEONS, add_team_dungeon
 
         if quest not in self._mainline:
             return False
@@ -3008,8 +3008,8 @@ class Quester:
             return False
         # (Already on the list but fought solo, recalled straight into the boss
         # room past the sigil: the same, no Recall back in.)
-        if not is_team_dungeon(dungeon):
-            add_team_dungeon(dungeon, quest)
+        if dungeon not in TEAM_UP_DUNGEONS:
+            add_team_dungeon(dungeon, quest)  # (this quest's: the list goes when it's done)
         logger.warning(f"lost {objective!r} {losses} times: {dungeon.split('/')[-1]} with a team from now on "
                        f"(Team Up at its sigil) until {quest!r} is done")
         self._alert_main_stuck(quest, f"lost {objective!r} {losses} times; waiting for a team")
