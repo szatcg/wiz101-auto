@@ -8790,6 +8790,26 @@ class Quester:
                 await self.travel(sigil)
                 await self._enter_by_sigil(sigil, zone)
                 return
+            if boss_zone == zone and self._may_try(objective, zone, "boss_spot"):
+                # In the boss's room, no marker, no boss in view: he comes out
+                # where he was fought before (Tzapotec at the back of his cave;
+                # the bot left and came back in, again and again): walk there.
+                from .dungeons import last_fight
+                from .smoothwalk import walk_to
+
+                who = defeat_target(objective) or ""
+                me = await self._position()
+                spots = [XYZ(*p) for p in self.entity_map.spots(zone, lambda n: n == who, (me.x, me.y, me.z))]
+                spots += [XYZ(*p) for p in self.entity_map.spots(zone, lambda n: n == "Duel Circle",
+                                                                (me.x, me.y, me.z))]
+                fought = last_fight(zone)
+                if fought:
+                    spots.insert(0, XYZ(*fought))
+                if spots:
+                    logger.info(f"no quest marker for {objective!r}: to where {who} was fought before")
+                    await walk_to(self.client, spots[0], zone)
+                    await asyncio.sleep(3.0)
+                    return
         if distance(target, XYZ(0, 0, 0)) < 1:
             # "Repair Broken Column (0 of 6)": the objects by their name first
             # (seen spots, else a sweep): the nearby-object round kept trying
