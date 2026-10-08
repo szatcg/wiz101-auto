@@ -463,6 +463,12 @@ async def close_waiting_window(client) -> bool:
             logger.info("team up: closing the Waiting-for-players window (still queued)")
             await ui.click_center(client, close)
             await asyncio.sleep(0.5)
+            q = load_queue()
+            if q:
+                # (With it closed the Waiting badge reads as not queued: a lapse
+                # was taken twice, minutes after, with the sigil still showing
+                # us queued. No badge checks for this queue.)
+                save_queue(q.get("dungeon", ""), q.get("quest", ""), sure=True)
             return True
     return False
 
