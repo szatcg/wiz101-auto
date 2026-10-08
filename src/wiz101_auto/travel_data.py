@@ -153,6 +153,9 @@ EXTRA_DISPLAY_ZONES = [
     # The Grand Chasm's past, through the Hall of Time's portal: not the Grand Chasm itself.
     ("grand chasm past", "DragonSpire/DS_A1_Knowledge/DS_A1Z4_GrandChasm_Past"),
     ("ravenwood", "WizardCity/WC_Ravenwood"),
+    # (Missing from the game's list: 'Catch Vonda Fish in Pitch Black Lake' read
+    # no zone, and its marker led into the Storm Eye pyramid.)
+    ("pitch black lake", "Azteca/AZ_Z08_PitchBlackLake"),
     ("the oasis", "Krokotopia/KT_Hub"),  # Krokotopia's hub (quest book / objective text)
     ("katzenstein's lab", "Marleybone/MB_ScotlandYard/MB_KatzLab"),  # a dungeon off Scotland Yard Roof
     ("knight's court", "Marleybone/MB_ScotlandYard/MB_KnightsCourt"),
