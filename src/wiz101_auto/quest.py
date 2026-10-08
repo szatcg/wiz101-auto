@@ -8598,6 +8598,7 @@ class Quester:
         place = objective_zone(objective) if objective else None
         world = self._book_world(objective) if place is None else None
         self._write_route(objective, zone or "", place, world)
+        zone = zone or ""  # (None during a zone change: it crashed the step here)
         if world and zone.startswith("WizardCity/") and world != "WizardCity":
             # A place in several worlds ('Talk To Zan'ne in The Library',
             # Krokotopia's): the quest book names the world. (It followed the
