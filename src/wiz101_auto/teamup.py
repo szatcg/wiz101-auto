@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import re
 import time
 from pathlib import Path
 
@@ -199,10 +200,22 @@ def is_team_dungeon(dungeon: str) -> bool:
     return dungeon in TEAM_UP_DUNGEONS or dungeon in team_list()
 
 
+def _dungeon_base(zone: str) -> str:
+    return re.sub(r"_Room\d+$", "", zone or "")
+
+
+def in_team_list(zone: str) -> bool:
+    """`zone` or another room of the same dungeon is on the team list
+    (PyramidMotherMoon_Room01 listed: Neza's Room02/03 too; it fought him solo
+    there after the list said Team Up)."""
+    base = _dungeon_base(zone)
+    return bool(zone) and any(k == zone or (base != zone and _dungeon_base(k) == base) for k in team_list())
+
+
 def is_team_up_zone(zone: str) -> bool:
     """A room of a dungeon that is only entered with a team."""
     teams = team_list()
-    if zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or zone in teams:
+    if zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES) or in_team_list(zone):
         return True
     if zone and teams and in_team_run(zone):
         return True  # (a later room of a run on the team list: the team's still on)

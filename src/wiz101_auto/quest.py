@@ -6118,11 +6118,11 @@ class Quester:
             self._team_alone_since = None
         if self._team_alone_since is None:
             self._team_alone_since = now
-        from .teamup import team_list
+        from .teamup import in_team_list
 
         # (A quest dungeon on the team list: alone in there means back in by
         # Recall after a loss, not a team elsewhere: out at once to Team Up.)
-        in_quest_team = (await self.client.zone_name() or "") in team_list()
+        in_quest_team = in_team_list(await self.client.zone_name() or "")
         alone_after = TEAM_ALONE_QUEST if in_quest_team else TEAM_ALONE_AFTER
         elif_alone = not self._team_with_us and now - self._team_alone_since > alone_after
         if (elif_alone or gone) and now - self._team_alone_since > 0:
