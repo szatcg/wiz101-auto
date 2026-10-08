@@ -8218,6 +8218,10 @@ class Quester:
                     self._team_done_logged = True
                     logger.info("the team fight is done: going on alone (out of the dungeon)")
                 team_mode = False
+                from .teamup import teammates as _mates
+
+                if not await _mates(self.client, await self._position()):
+                    self.client._players_seen_at = 0.0  # (alone: teleports, not walking)
             else:
                 self._team_done_logged = False
         if team_mode:

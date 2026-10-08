@@ -115,7 +115,11 @@ def walk_zone(client, zone: str) -> bool:
     # Alone in there (the teammate left): teleports again, like questing solo
     # (the player: it struggled to walk to the objective with nobody around).
     seen = getattr(client, "_players_seen_at", None)
-    return seen is not None and time.monotonic() - seen < ALONE_TELEPORT_AFTER
+    if seen is None:
+        # (No player seen yet since the bot started: walking while the team
+        # may be on its way in; the team step leaves after TEAM_ALONE_QUEST.)
+        return True
+    return time.monotonic() - seen < ALONE_TELEPORT_AFTER
 
 
 ALONE_TELEPORT_AFTER = 30.0  # no other player seen in a team dungeon this long: teleports allowed again
