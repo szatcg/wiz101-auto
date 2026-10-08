@@ -438,7 +438,10 @@ async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     logger.info(f"team up: pressing TEAM UP! on the form ({kind} players)")
     await ui.click_center(client, button)
     await asyncio.sleep(1.5)
-    await close_stray_forms(client)
+    # (No closing of "other" forms here: after the press the one still on
+    # screen can be ours, and closing it dropped the queue: twice the bot was
+    # out of it three minutes after queuing, and the sigil offered TEAM UP!
+    # again; the one run without that close found a team.)
     return True
 
 
