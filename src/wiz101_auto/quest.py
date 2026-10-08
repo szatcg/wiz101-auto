@@ -7646,8 +7646,13 @@ class Quester:
                 # Inside a dungeon, or a room entered from the objective's place
                 # (Usunoki in the Town Dojo, 'in Village of Sorrow'), it's here:
                 # returning silently looped every 2 s for minutes.
-                inside = await self._in_dungeon(here_zone) or bool(
-                    where and self.doors.leading_to(where, here_zone))
+                in_dungeon = await self._in_dungeon(here_zone)
+                # (A dungeon entered from somewhere else isn't the objective's
+                # place: 'Defeat Kronosaur in Pitch Black Lake' in the House of
+                # Flowers fought its myth boss Blighted Yaxche instead.)
+                dungeon_here = in_dungeon and (not where or not self._dungeon
+                                               or self._dungeon[0] == where)
+                inside = dungeon_here or bool(where and self.doors.leading_to(where, here_zone))
                 if where and where != here_zone and not inside:
                     return  # "... in Hall of Champions": not here; the quest marker leads there
                 # A locked door whose key the player told us about (Malistaire's:
@@ -8811,7 +8816,9 @@ class Quester:
         if is_combat_objective(objective) and objective_zone(objective) in (None, zone):
             if objective_zone(objective) == zone:  # an unknown place: no mark (it went in the Oasis)
                 await self._mark_for_fight(objective, zone or "")
-        if (is_combat_objective(objective) and not is_team_up_zone(zone or "")
+        place = objective_zone(objective)
+        fight_here = place in (None, zone) or bool(self._dungeon and place == self._dungeon[0])
+        if (is_combat_objective(objective) and not is_team_up_zone(zone or "") and fight_here
                 and ("/interiors/" in (zone or "").lower() or await self._in_dungeon(zone or ""))):
             await self._mark_in_dungeon_fight(objective, zone or "")
             allow_close_landing(self.client)  # enemies there are what we came for
