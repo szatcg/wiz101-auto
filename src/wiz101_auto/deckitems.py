@@ -59,6 +59,19 @@ def _note_cards(role: str):
     from .deck import save_deck_counts
     from .deck_adapt import SINGLE_FILE
 
+    try:
+        if json.loads(GENERAL_FILE.read_text(encoding="utf-8")).get("player_decks"):
+            # The player's own decks: what's in the item is read from the
+            # spellbook, never taken from a planned deck file (a stale
+            # deck_single.json put Colossus, Vermin Virtuoso and Pixies in the
+            # stream's draw pile). The next look re-reads it.
+            from .deck_keeper import STALE_FILE
+
+            STALE_FILE.parent.mkdir(exist_ok=True)
+            STALE_FILE.write_text(f"deck item {role} put on", encoding="utf-8")
+            return
+    except (OSError, ValueError):
+        pass
     path = SINGLE_FILE if role == "single" else GENERAL_FILE
     try:
         cards = json.loads(path.read_text(encoding="utf-8"))["deck"]
