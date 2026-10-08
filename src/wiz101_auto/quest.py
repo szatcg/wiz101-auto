@@ -148,6 +148,7 @@ NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health.
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
 HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
+TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
@@ -4188,6 +4189,7 @@ class Quester:
                 logger.warning(f"could not track {entry.name!r}; will try again at the next ranking")
                 self._ranked_for = None
                 self._last_rank = -1e9
+                self._track_failed = True
                 return False
             box = await ui.modal_box(self.client)
             if box and "quest helper is not allowed" in (await ui.modal_text(box)).lower():
@@ -8495,7 +8497,14 @@ class Quester:
                     objective = await self.objective()
             finally:
                 self.controller.end_idle()
-            self._ranked_for = objective
+            if getattr(self, "_track_failed", False):
+                # (Tracking the pick failed: rank again next step, not in
+                # minutes; it worked the game's tracked 'Count of Days',
+                # skipped, for five minutes meanwhile.)
+                self._track_failed = False
+                self._last_rank = time.monotonic() - RANK_QUESTS_EVERY + TRACK_RETRY_SECONDS
+            else:
+                self._ranked_for = objective
             try:
                 # Kept as it was before the reading when the ranking only
                 # continued: a switch made by the game while the book was read
