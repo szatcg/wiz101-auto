@@ -51,7 +51,7 @@ def should_talk(objective: str, prompt: str, title: str) -> bool:
 
 _OPERATE = re.compile(
     r"(?i)^\s*(?:use|repair|lock|unlock|open|light|burn|ring|pull|push|press|activate|turn|flip|place|"
-    r"charge|smash|destroy|read|study|examine|inspect|touch)\s+(?:the\s+)?(.+?)(?:\s+in\s+[^()]+)?"
+    r"charge|smash|destroy|read|study|examine|inspect|touch|free|release|rescue|break|search|unseal)\s+(?:the\s+)?(.+?)(?:\s+in\s+[^()]+)?"
     r"(?:\s*\(\d+ of \d+\))?\s*$")
 
 

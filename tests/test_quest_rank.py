@@ -411,3 +411,12 @@ def test_repair_objectives_name_their_object():
     from wiz101_auto.quest import operate_target
 
     assert operate_target("Repair Broken Column in Saltmeadow Swamp (0 of 6)") == "Broken Column"
+
+
+def test_free_objectives_are_operated_at_once():
+    from wiz101_auto.prompt_watch import should_use
+    from wiz101_auto.quest import operate_target
+
+    o = "Free Imprisoned Guard in Charred Tower (0 of 3)"
+    assert operate_target(o) == "Imprisoned Guard"
+    assert should_use(o, "Press X to free", "Imprisoned Guard")
