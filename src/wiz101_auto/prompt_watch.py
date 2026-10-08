@@ -129,7 +129,11 @@ async def prompt_loop(client, quester, controller):
                     # quest, a timeout) while the bot thought it waited: the
                     # player saw no Team Up running. Back to the sigil now.
                     last_queue_check = time.monotonic()
-                    fresh = time.time() - float(load_queue().get("at", 0)) < QUEUE_CHECK_EVERY * 1.5
+                    q = load_queue()
+                    age = time.time() - float(q.get("at", 0))
+                    # (Not when the sigil itself said we're queued: the badge
+                    # can't be read then; the 15-minute recheck still comes.)
+                    fresh = age < QUEUE_CHECK_EVERY * 1.5 or bool(q.get("sure"))
                     # (Two looks in a row, never right after queuing: the
                     # badge shows a moment late, and a lapse was read 1 s in.)
                     misses = 0 if fresh or await queued(client) else misses + 1

@@ -87,9 +87,12 @@ QUEUE_FILE = Path("state") / "team_queue.json"  # {"dungeon", "quest", "at"}: qu
 QUEUE_RECHECK = 15 * 60  # queued: the main quest waits this long, then the sigil again (queue still on?)
 
 
-def save_queue(dungeon: str, quest: str) -> None:
+def save_queue(dungeon: str, quest: str, sure: bool = False) -> None:
+    """`sure`: the sigil itself showed we're queued (no TEAM UP! on it): the
+    Waiting badge can't be read then, so no lapse checks (they sent the bot
+    back to the sigil every 4 minutes while it was still queued)."""
     QUEUE_FILE.parent.mkdir(exist_ok=True)
-    data = {"dungeon": dungeon, "quest": quest, "at": time.time()}
+    data = {"dungeon": dungeon, "quest": quest, "at": time.time(), "sure": sure}
     QUEUE_FILE.write_text(json.dumps(data), encoding="utf-8")
 
 
@@ -660,6 +663,7 @@ async def team_up(quester, dungeon: str) -> str:
     if await _resume_after_defeat(quester, zone):
         return "in"
     # The form may still be open from before (a restart): fill that one in.
+    already = False
     form_done = not use_queue or await _fill_form(client, choices)
     if not form_done and await queued(client):
         logger.info("team up: already in the queue (Waiting); waiting on")
@@ -669,6 +673,7 @@ async def team_up(quester, dungeon: str) -> str:
         # Waiting badge wasn't always readable): wait for the team to take us.
         logger.info("team up: no TEAM UP! button on the sigil (already queued?); waiting on")
         form_done = True
+        already = True
     await _dump(client, "window")
     if dungeon in team_list():
         # A main-quest boss too hard alone (the player): queued, don't stand
@@ -677,7 +682,7 @@ async def team_up(quester, dungeon: str) -> str:
         for _ in range(0 if form_done or await _fill_form(client, choices) else 3):
             if not await _click(client, CONFIRM_WORDS, "window"):
                 break
-        save_queue(dungeon, team_list()[dungeon])
+        save_queue(dungeon, team_list()[dungeon], sure=already)
         logger.info(f"team up: queued for {dungeon.split('/')[-1]} (questing, 2+); "
                     "side quests meanwhile, the main quest comes back when the team is ready")
         return "queued"
