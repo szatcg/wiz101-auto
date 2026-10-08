@@ -179,7 +179,9 @@ SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "
                       "Grizzleheim": "grizzleheim",
                       # (Not listed, Zafaria wasn't reached from Avalon: "no route",
                       # and 'Art History' was set aside.)
-                      "Zafaria": "zafaria", "Avalon": "avalon", "Wysteria": "wysteria"}
+                      "Zafaria": "zafaria", "Avalon": "avalon", "Wysteria": "wysteria",
+                      # (Azteca from Avalon: "no route", 'Schooling Fish' set aside.)
+                      "Azteca": "azteca", "Khrysalis": "khrysalis", "Polaris": "polaris"}
 CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
 AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
