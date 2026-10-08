@@ -3975,11 +3975,14 @@ class Quester:
                 step += " (counted)" if q.counted else ""
                 logger.debug(f"  {q.name!r} [{flags}{tracked}] {q.zone}/{q.world!r} {q.hops} hops: {step}")
             self._mainline = {q.name for _, q in all_quests if q.mainline}
+            # A story quest in the book but set aside (waiting for a team for
+            # Ozel Underwater Cat): not "no main quest", no giver to look for.
+            parked = sorted(q.name for _, q in all_quests if game_main[id(q)] and q.name in set_aside)
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
                 self._last_main_zone = await self.client.zone_name() or ""
                 _save_last_main(self._last_main, self._last_main_zone)
-            elif complete and self._last_main_zone != "swept":
+            elif complete and self._last_main_zone != "swept" and not parked:
                 # (After a restart: where we are now.)
                 self._last_main_zone = self._last_main_zone or await self.client.zone_name() or ""
                 # The main quest was just handed in and no next one came: its
@@ -3990,7 +3993,7 @@ class Quester:
                 self._last_main_zone = "swept"
                 _save_last_main(self._last_main, self._last_main_zone)
             alert_due = time.monotonic() - self._no_main_alerted > NO_MAIN_ALERT_SECONDS
-            if complete and not self._mainline and alert_due:
+            if complete and not self._mainline and alert_due and not parked:
                 # The next main quest isn't in the book (after 'Weights and
                 # Measures', 'The Last Meow' was never offered): side quests
                 # meanwhile, but the player should know.
