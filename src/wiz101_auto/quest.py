@@ -8012,6 +8012,13 @@ class Quester:
             if not routable and other_world and target_zone.split("/")[0] in SPIRAL_WORLD_NAMES:
                 # Another world (Marleybone from Aquila): by the Spiral Map.
                 return await self._to_world(target_zone.split("/")[0], f"to {target_zone}")
+            if not routable and not other_world:
+                # No gate route, but learned doors may lead there (Pitch Black
+                # Lake's door is in Tierra de Brea; 'Schooling Fish' was set
+                # aside as unreachable from the Zocalo): go_to_zone knows them.
+                logger.info(f"no quest marker for {objective!r}; heading to {target_zone} by known doors")
+                if await self.go_to_zone(target_zone) or await self.client.zone_name() != zone:
+                    return True
             if not routable and (other_world or "interiors" not in zone.lower()):
                 logger.warning(f"no route from {zone} to {target_zone}; setting this quest aside")
                 return await self._set_current_aside(objective)
