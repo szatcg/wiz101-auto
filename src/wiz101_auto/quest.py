@@ -3504,6 +3504,8 @@ class Quester:
                 if await self.client.zone_name() != zone:
                     await self._clear_of_enemies()
                     return True
+                if await self.client.in_battle():
+                    return False  # (pulled into a fight: 20 refused teleports through Neza's rounds)
                 if avoid_mobs and not await self._clear_spot(p):
                     continue
                 await self.client.teleport(p)
