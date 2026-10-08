@@ -5453,6 +5453,8 @@ class Quester:
             return
         old_zone, old_marker = prev
         await self._learn_dungeon_exit(old_zone, zone)
+        if is_team_up_zone(zone):
+            return  # (a Team Up teleport, not a door: Three Points "led into" Mother Quetzal's cave)
         if is_hub(zone) or zone.split("/", 1)[0] != old_zone.split("/", 1)[0] or self._recall_pending:
             return  # the hub button, a Recall or a relog, not a door (Throne Room -> hub after Zeus)
         land = getattr(self.client, "_last_landing", None)
