@@ -40,8 +40,14 @@ STATS_FILE = Path("state") / "enemy_stats.json"
 def school_on_file(name: str, stats_file: Path = STATS_FILE) -> str:
     """An enemy's school as read in an earlier fight ("" if never fought)."""
     want = "".join(c for c in name.lower() if c.isalnum())
-    for n, v in (_load(stats_file).get("enemies") or {}).items():
+    enemies = (_load(stats_file).get("enemies") or {}).items()
+    for n, v in enemies:
         if "".join(c for c in n.lower() if c.isalnum()) == want and v.get("school"):
+            return str(v["school"]).lower()
+    # The objective's short name ("Defeat Yaxche": the enemy is Blighted Yaxche).
+    words = name.lower().split()
+    for n, v in enemies:
+        if words and n.lower().split()[-len(words):] == words and v.get("school"):
             return str(v["school"]).lower()
     return ""
 

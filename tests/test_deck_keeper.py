@@ -44,3 +44,15 @@ def test_a_bosss_extra_cards_come_out_down_to_the_players_own_count(tmp_path, mo
     keeper._checked = -1e9
     target, _ = keeper.due(boss=True, extra={})
     assert target["Humongofrog"] == 1 and target["Mythblade"] == 2
+
+
+def test_a_bosss_school_by_the_objectives_short_name(tmp_path):
+    import json
+
+    from wiz101_auto.deck_keeper import school_on_file
+
+    stats = tmp_path / "stats.json"
+    stats.write_text(json.dumps({"enemies": {"Blighted Yaxche": {"school": "Myth"}}}), encoding="utf-8")
+    assert school_on_file("Yaxche", stats) == "myth"
+    assert school_on_file("Blighted Yaxche", stats) == "myth"
+    assert school_on_file("Axche", stats) == ""

@@ -2214,7 +2214,9 @@ class Quester:
             for m in await self.client.get_mobs():
                 t = await m.object_template()
                 code = await t.display_name() if t else ""
-                if code and _norm_name(await lang_name(self.client, code)) == want:
+                seen = _norm_name(await lang_name(self.client, code)) if code else ""
+                # (The objective's short name counts: "Yaxche" is Blighted Yaxche.)
+                if seen and (seen == want or seen.endswith(want)):
                     return (await t.primary_school_name() or "").lower()
         except Exception:
             pass
