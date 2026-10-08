@@ -2299,6 +2299,11 @@ class Quester:
             save_mark(self._mark)
             if kind == "dungeon":
                 logger.info(f"marked the dungeon entrance in {zone} (for a quick return after a defeat)")
+                # A fresh entrance mark: a Recall still owed for an earlier
+                # defeat would bring us straight back out here (it went into
+                # the Cave01 tunnel toward La Jefa Quetzal and was recalled
+                # out to its entrance, round and round, for 20 minutes).
+                self._recall_pending = False
             elif kind == "fight":
                 logger.info(f"marked this spot in {zone} before the fight (Recall back here after a defeat)")
             elif kind == "room":
