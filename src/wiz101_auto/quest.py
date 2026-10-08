@@ -8776,6 +8776,20 @@ class Quester:
             await asyncio.sleep(0.3)
             await self.client.send_key(Keycode.Z, 0.1)
 
+        if distance(target, XYZ(0, 0, 0)) < 1 and is_combat_objective(objective):
+            # No marker, a boss whose dungeon we know with its sigil right here
+            # (Tzapotec's cave in Pitch Black Lake: it went round the lake's quest
+            # lights for ten minutes): in by the sigil.
+            mem = DungeonMemory.load()
+            boss_zone = mem.bosses.get(defeat_target(objective) or "")
+            entry = mem.dungeons.get(boss_zone) if boss_zone else None
+            if entry is not None and entry.outside == zone and boss_zone != zone:
+                sigil = XYZ(*entry.sigil)
+                logger.info(f"no quest marker for {objective!r}; its boss is in {boss_zone.split('/')[-1]}: "
+                            "in by the sigil")
+                await self.travel(sigil)
+                await self._enter_by_sigil(sigil, zone)
+                return
         if distance(target, XYZ(0, 0, 0)) < 1:
             # "Repair Broken Column (0 of 6)": the objects by their name first
             # (seen spots, else a sweep): the nearby-object round kept trying
