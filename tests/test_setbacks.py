@@ -90,3 +90,14 @@ def test_a_stuck_side_quest_isnt_released_by_the_hour(tmp_path):
     s.set_quest_aside("All Your Basilisk...", "Go To The Hoarder's Tower", 67, now=0.0, main=False,
                       stuck=True)
     assert "All Your Basilisk..." in s.set_aside(67, now=10_000.0)
+
+
+def test_a_stuck_main_quest_comes_back_after_15_minutes(tmp_path):
+    from wiz101_auto.setbacks import Setbacks
+
+    s = Setbacks(tmp_path / "s.json") if "path" in Setbacks.__init__.__code__.co_varnames else Setbacks()
+    s.set_quest_aside("Schooling Fish", "Defeat Tzapotec", 89, now=0.0, main=True, stuck=True)
+    s.set_quest_aside("Art History", "Find Zafaria History", 89, now=0.0, main=False, stuck=True)
+    assert s.release_stuck_main(now=100.0) == []
+    assert s.release_stuck_main(now=1000.0) == ["Schooling Fish"]
+    assert "Art History" in s.deferred

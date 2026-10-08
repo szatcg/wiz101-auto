@@ -8493,6 +8493,12 @@ class Quester:
             self._last_rank = -1e9
         # The game may auto-track a quest we set aside (e.g. after handing one in):
         # re-rank at once rather than walking back to the fight we keep losing.
+        back = self.setbacks.release_stuck_main()
+        if back:
+            self.setbacks.save()
+            logger.info(f"the main story again after a while aside: {', '.join(map(repr, back))}")
+            self._ranked_for = None
+            self._last_rank = -1e9
         set_aside_objectives = {d.get("objective") for d in self.setbacks.deferred.values()}
         on_set_aside = objective in set_aside_objectives and bool(
             self.setbacks.set_aside(await self.client.stats.reference_level())

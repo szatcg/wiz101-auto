@@ -105,6 +105,17 @@ class Setbacks:
             del self.deferred[q]
         return set(self.deferred) | self.skipped | ALWAYS_SKIP
 
+    def release_stuck_main(self, now: float | None = None, after: float = MAIN_RETRY_SECONDS) -> list[str]:
+        """Main-story quests set aside as stuck at least `after` ago come back
+        whatever else there is to do (the player: the main quest first;
+        'Schooling Fish' waited an hour behind side quests). The ones released."""
+        now = time.time() if now is None else now
+        back = [q for q, d in self.deferred.items()
+                if d.get("stuck") and d.get("main") and now - d.get("at", 0) >= after]
+        for q in back:
+            del self.deferred[q]
+        return back
+
     def release_stuck(self, now: float | None = None, after: float = STUCK_RELEASE_SECONDS) -> list[str]:
         """Nothing else to do: quests set aside as stuck at least `after` ago
         come back (another try beats grinding). The ones released."""
