@@ -559,6 +559,21 @@ TEAM_RUN_FILE = Path("state") / "team_run.json"  # the dungeon a team took us in
 TEAM_RUN_HOURS = 2.0
 
 
+def _outdoors(zone: str) -> bool:
+    """The open world (Saltmeadow Swamp), not a dungeon room: no "Interiors"
+    in its path, not a known dungeon, not a Team Up dungeon."""
+    from .dungeons import DungeonMemory
+
+    if not zone or "/interiors/" in zone.lower():
+        return False
+    if zone in TEAM_UP_DUNGEONS or zone.startswith(TEAM_UP_PREFIXES):
+        return False
+    try:
+        return zone not in DungeonMemory.load().dungeons
+    except Exception:
+        return True
+
+
 def note_team_run(zone: str, new_run: bool = True) -> None:
     """In `zone` with a team: the run's first room (`new_run`), or a later
     room we followed the team into (the Keep of Ganelon's Crystal Cave)."""
@@ -567,6 +582,11 @@ def note_team_run(zone: str, new_run: bool = True) -> None:
     except (OSError, ValueError):
         run = {}
     zones = [z for z in run.get("zones", [run.get("zone", "")]) if z]
+    if _outdoors(zone) and not new_run:
+        # Out in the open world (they left the Tree of Secrets for Saltmeadow
+        # Swamp): the run is over; never a team room (it followed a teammate
+        # round the swamp after the win).
+        return
     if zone not in zones:
         zones.append(zone)
     try:
@@ -582,6 +602,8 @@ def in_team_run(zone: str) -> bool:
     except (OSError, ValueError):
         return False
     zones = run.get("zones", [run.get("zone", "")])
+    if _outdoors(zone) and zone != zones[0]:
+        return False  # (the open world after a run: not a team room)
     return zone in zones and time.time() - run.get("at", 0) < TEAM_RUN_HOURS * 3600
 
 
