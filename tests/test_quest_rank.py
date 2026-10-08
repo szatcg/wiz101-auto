@@ -387,9 +387,8 @@ def test_fishing_and_crafting_objectives_are_undoable(monkeypatch):
     from wiz101_auto import quest
     from wiz101_auto.quest import undoable_objective
 
-    assert undoable_objective("Catch Frost Dekoi in The Commons") is not quest.FISHING_PROBE
-    monkeypatch.setattr(quest, "FISHING_PROBE", False)
-    assert undoable_objective("Catch Frost Dekoi in The Commons")
+    assert not undoable_objective("Catch Frost Dekoi in The Commons")  # (walk into them: a collect)
+    _ = quest
     assert undoable_objective("Craft Dagger of Absolution in Crafting Station (0 of 2)")
     assert not undoable_objective("Talk To Sir Guy Gascoigne in Caliburn")
     assert not undoable_objective(None)
@@ -423,3 +422,9 @@ def test_free_objectives_are_operated_at_once():
     o = "Free Imprisoned Guard in Charred Tower (0 of 3)"
     assert operate_target(o) == "Imprisoned Guard"
     assert should_use(o, "Press X to free", "Imprisoned Guard")
+
+
+def test_catch_objectives_are_collects():
+    from wiz101_auto.collect import collect_item_name
+
+    assert collect_item_name("Catch Vonda Fish in Pitch Black Lake (1 of 4)") == "Vonda Fish"

@@ -21,7 +21,9 @@ CANDIDATE_CACHE_SECONDS = 5.0
 LOOT_RANGE = 2000.0  # free pickups this close are worth the small detour
 WALK_IN = 150.0  # distance to land from an item before walking onto it
 
-_VERBS = r"(?:collect|destroy|burn|light|find|gather|get|retrieve|recover|pick up)"
+# (Catch: 'Catch Vonda Fish in Pitch Black Lake' is done by walking into the
+# fish swimming about, no fishing; the player.)
+_VERBS = r"(?:collect|destroy|burn|light|find|gather|get|retrieve|recover|pick up|catch)"
 _OBJECTIVE = re.compile(rf"^\s*{_VERBS}\s+(.+?)(?:\s+(?:in|at|from|on)\s+.*)?\s*$", re.I)
 _SKIP = ("wisp", "duelcircle", "player object", "basic positional", "basic ambient", "teleportpad", "sigil")
 

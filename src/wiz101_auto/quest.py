@@ -558,12 +558,12 @@ def undoable_objective(objective: str | None) -> bool:
     """An objective the bot can't do: fishing ("Catch Frost Dekoi") or
     crafting ("Craft Dagger of Absolution")."""
     text = (objective or "").strip().lower()
-    if text.startswith("catch ") and FISHING_PROBE:
-        return False  # (fishing being learned: the bot goes to the spot and looks)
-    return text.startswith(("catch ", "craft ")) or "crafting station" in text
+    # ("Catch X" is not fishing: 'Catch Vonda Fish' is done by walking into the
+    # fish swimming about, a collect; the player did it by hand.)
+    return text.startswith("craft ") or "crafting station" in text
 
 
-FISHING_PROBE = True  # fishing objectives: go to the marker and record what's there (fishing.py)
+FISHING_PROBE = False  # fishing objectives: record the fish and screen at the spot (fishing.py)
 
 
 def load_undoable() -> set[str]:
