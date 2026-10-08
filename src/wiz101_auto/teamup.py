@@ -674,6 +674,7 @@ async def team_up(quester, dungeon: str) -> str:
     if not form_done and await queued(client):
         logger.info("team up: already in the queue (Waiting); waiting on")
         form_done = True
+        already = True  # (back here on a "lapse" that wasn't one: the badge reads badly)
     if not form_done and not await _click(client, TEAM_UP_WORDS, "sigil"):
         # The sigil shows only Resume while we're queued (after a restart the
         # Waiting badge wasn't always readable): wait for the team to take us.
