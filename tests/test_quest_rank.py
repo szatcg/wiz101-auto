@@ -383,9 +383,12 @@ def test_crafting_quests_are_never_chosen():
     assert choose_quest([craft, side]) is side
 
 
-def test_fishing_and_crafting_objectives_are_undoable():
+def test_fishing_and_crafting_objectives_are_undoable(monkeypatch):
+    from wiz101_auto import quest
     from wiz101_auto.quest import undoable_objective
 
+    assert undoable_objective("Catch Frost Dekoi in The Commons") is not quest.FISHING_PROBE
+    monkeypatch.setattr(quest, "FISHING_PROBE", False)
     assert undoable_objective("Catch Frost Dekoi in The Commons")
     assert undoable_objective("Craft Dagger of Absolution in Crafting Station (0 of 2)")
     assert not undoable_objective("Talk To Sir Guy Gascoigne in Caliburn")

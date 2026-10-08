@@ -148,6 +148,7 @@ NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health.
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
 HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
+FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
 VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
@@ -557,7 +558,12 @@ def undoable_objective(objective: str | None) -> bool:
     """An objective the bot can't do: fishing ("Catch Frost Dekoi") or
     crafting ("Craft Dagger of Absolution")."""
     text = (objective or "").strip().lower()
+    if text.startswith("catch ") and FISHING_PROBE:
+        return False  # (fishing being learned: the bot goes to the spot and looks)
     return text.startswith(("catch ", "craft ")) or "crafting station" in text
+
+
+FISHING_PROBE = True  # fishing objectives: go to the marker and record what's there (fishing.py)
 
 
 def load_undoable() -> set[str]:
@@ -8779,6 +8785,18 @@ class Quester:
 
         logger.info(f"[{zone}] {objective}")
         await self.controller.checkpoint()
+        if (FISHING_PROBE and objective.lower().startswith("catch ")
+                and distance(await self._position(), target) < FISH_PROBE_NEAR):
+            # At the fishing spot: record the fish and the screen (read-only),
+            # then wait; the player and I learn the fishing window from it.
+            from .fishing import PROBE_EVERY, probe
+
+            if time.monotonic() - getattr(self, "_fish_probed", -1e9) > PROBE_EVERY:
+                self._fish_probed = time.monotonic()
+                await probe(self.client, objective, zone or "")
+            self._last_progress_time = time.monotonic()
+            await asyncio.sleep(5.0)
+            return
         if await self._hub_for_objective(objective, zone or ""):
             return
         near = distance(await self._position(), target) < 3000
