@@ -101,6 +101,7 @@ LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as 
 LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
 CAST_FAILS_MAX = 2  # a card whose cast failed this often in a fight isn't tried again in it
 LOW_HP_HIT_MARGIN = 1.2  # our health this close to the next hit: the brain's hit isn't overridden
+TEAM_PLAN_EVERY = 60.0  # a team fight: the stream's plan card rewritten at most this often (it takes seconds)
 KILL_KEEP_ROUNDS = 3.0  # health under this many rounds of the damage we take: a hit that kills stands
 POWER_CHANCE_DEFAULT = 0.8  # the power pip chance when the stat can't be read (the player: mostly power pips)
 _POWER_CHANCE = POWER_CHANCE_DEFAULT  # the last read (the overlay's draws use it)
@@ -779,7 +780,11 @@ class Fighter(CombatHandler):
                 # (The simulator knows nothing of Reshuffle: its plays and the
                 # pips saved for it are the brain's.)
                 action = await self.planner.choose(battle, action, self.strategy, discards_left)
-            if not reshuffling and time.monotonic() - round_started < LOOKAHEAD_LATE:
+            # With teammates the turn is short and shared (the player: it put
+            # Gargantuan on, thought 12 s more and ran out of time): no
+            # whole-deck search; the brain's move goes at once.
+            team = bool(battle.allies)
+            if not reshuffling and not team and time.monotonic() - round_started < LOOKAHEAD_LATE:
                 action = await self._lookahead(battle, action, discards_left)
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
             from .brain import luska_guard
@@ -806,7 +811,11 @@ class Fighter(CombatHandler):
                                 plan_discards=False, odds_discards=False)
                 if action.kind is ActionKind.DISCARD:
                     action = Action(ActionKind.PASS, reason=f"no discard ({action.reason})")
-            _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
+            if not team or time.monotonic() - getattr(self, "_plan_written", 0.0) > TEAM_PLAN_EVERY:
+                # (The stream's plan card: a whole simulation; in a team fight
+                # once in a while, not before every move.)
+                self._plan_written = time.monotonic()
+                _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies

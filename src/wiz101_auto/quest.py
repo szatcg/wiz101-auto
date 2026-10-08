@@ -6016,6 +6016,23 @@ class Quester:
         self._ranked_for = None
         self._last_rank = -1e9
 
+    async def _team_fight_now(self) -> bool:
+        """A teammate in a fight right now (a duel circle by one of them): the
+        quest book waits, the fight comes first (the player: it read the book
+        for 15 s on entering and joined the Lizard's fight a round late)."""
+        from .collect import duel_circles
+        from .teamup import team_fight_at, teammates
+
+        try:
+            me = await self._position()
+            mates = await teammates(self.client, me)
+            if not mates:
+                return False
+            found = [XYZ(*c) for c in await duel_circles(self.client)]
+            return team_fight_at(sorted(found, key=lambda c: distance(c, me)), mates) is not None
+        except Exception:
+            return False
+
     async def _team_step(self) -> bool:
         """With a team (a Team Up dungeon): never start a fight. Join the ones
         teammates start (walk into their circle); on a fight step, stay with
@@ -8203,7 +8220,8 @@ class Quester:
             else:
                 self._team_done_logged = False
         if team_mode:
-            if time.monotonic() - self._team_ranked > TEAM_RERANK_SECONDS:
+            if (time.monotonic() - self._team_ranked > TEAM_RERANK_SECONDS
+                    and not await self._team_fight_now()):
                 # The dungeon hands out its quest on entering: track it (its
                 # marker leads room to room; the team step ends the step before
                 # the usual ranking further down).
