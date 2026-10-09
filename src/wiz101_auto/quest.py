@@ -272,6 +272,7 @@ DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone c
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
 STILL_WINDOW = 12.0  # ... looks this close together count (a whole step takes ~5 s: at 4 s none ever did)
+TEAM_START_AFTER = 90.0  # by the boss with a team and nobody starts it: we do
 BOSS_WATCH = 20.0  # by the boss's circle: watching this long, every second, for a teammate to start it
 DOOR_NEAR = 900.0  # this close to a door marker: walk through it (travel stops short)
 DOOR_TRIES = 3  # a team door walk that changes nothing this often: look elsewhere
@@ -6210,6 +6211,12 @@ class Quester:
         # Only this dungeon's own non-fight steps are done as usual (talks,
         # pick-ups); a quest from elsewhere would walk away from the team.
         here = any(n in (objective or "").lower() for n in TEAM_UP_NAMES)
+        if not here:
+            # A story dungeon put on the team list (Ahuizotl in the Well: its
+            # objective says "Floating Mountains"): its quest is why we're here.
+            from .teamup import in_team_list
+
+            here = in_team_list(await self.client.zone_name() or "")
         # The step's own words decide (the book's fight icon is the whole quest's:
         # 'Talk To Athena' was taken for a fight and routed to "her room").
         fight_step = is_combat_objective(objective or "")
@@ -6272,6 +6279,20 @@ class Quester:
             # Every second, not once a step (a step takes ~5 s; Sylster's
             # fight started without us and the player moved the bot in).
             near = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR] or at_fight
+            waited = self.__dict__.setdefault("_boss_waits", {})
+            wkey = (await self.client.zone_name() or "", round(marker.x / 300), round(marker.y / 300))
+            first = waited.setdefault(wkey, time.monotonic())
+            if time.monotonic() - first > TEAM_START_AFTER and near:
+                # Everyone waiting for someone else to start it (a teammate
+                # stood by Ahuizotl for 10 minutes, then left): we start it,
+                # they walk in.
+                waited.pop(wkey, None)
+                spot = min(near, key=lambda c: distance(c, me))
+                logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it")
+                allow_engage(self.client)  # this teleport is meant to start the fight
+                await self.client.teleport(spot)
+                await asyncio.sleep(3.0)
+                return True
             prev = mates
             end = time.monotonic() + BOSS_WATCH
             self.controller.allow_idle(BOSS_WATCH + 10)
