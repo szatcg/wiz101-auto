@@ -3868,15 +3868,44 @@ class Quester:
             return False
         self.controller.allow_idle(120)
         try:
-            return await self._prioritize_quests()
+            switched = await self._prioritize_quests()
         finally:
             self.controller.end_idle()
+        memo = getattr(self, "_ranking_memo", None)
+        if memo is not None and memo[5] is None:
+            # The quests as memory lists them right after this read: memory
+            # also keeps quests the book doesn't show ('A Foul Decree', names
+            # with a trailing space), so the next check compares memory to memory.
+            got = await self._quests_in_memory()
+            if got is not None:
+                self._ranking_memo = (*memo[:5], got[0])
+        return switched
+
+    async def _quests_in_memory(self) -> tuple[frozenset[str], str] | None:
+        """(every quest name in memory, the tracked one's), or None."""
+        try:
+            from .names import lang_name
+
+            qm = await self.client.quest_manager()
+            quests = await qm.quest_data()
+            active_id = await self.client.quest_id()
+            now: set[str] = set()
+            active = ""
+            for qid, q in quests.items():
+                name = (await lang_name(self.client, await q.name_lang_key())).strip()
+                now.add(name)
+                if qid == active_id:
+                    active = name
+            return frozenset(now), active
+        except Exception as exc:
+            logger.debug(f"quest memory read failed: {exc!r}")
+            return None
 
     def _remember_ranking(self, names: set[str], chosen: str, set_aside: set[str]):
         """What a full quest-book read decided, to skip the next read when
         nothing it depends on has changed."""
         self._ranking_memo = (frozenset(names), chosen, frozenset(set_aside), self._pin,
-                              time.monotonic())
+                              time.monotonic(), None)
 
     async def _ranking_unchanged(self) -> bool:
         """The quest book needn't be opened (the player: it paged through the
@@ -3887,29 +3916,20 @@ class Quester:
         memo = getattr(self, "_ranking_memo", None)
         if memo is None or time.monotonic() - memo[4] > RANK_FULL_EVERY:
             return False
-        names, chosen, aside, pin, _ = memo
-        if pin != self._pin:
+        _names, chosen, aside, pin, _, mem = memo
+        if pin != self._pin or mem is None:
+            return False
+        got = await self._quests_in_memory()
+        if got is None:
+            return False
+        now, active = got
+        if now != mem or active.strip() != chosen.strip():
+            logger.debug(f"quests changed since the last read: new {sorted(now - mem)[:5]}, gone "
+                         f"{sorted(mem - now)[:5]}; tracked {active!r} vs {chosen!r}")
             return False
         try:
-            from .names import lang_name
-
-            qm = await self.client.quest_manager()
-            quests = await qm.quest_data()
-            active_id = await self.client.quest_id()
-            now: set[str] = set()
-            active = ""
-            for qid, q in quests.items():
-                name = await lang_name(self.client, await q.name_lang_key())
-                now.add(name)
-                if qid == active_id:
-                    active = name
             level = await self.client.stats.reference_level()
-        except Exception as exc:
-            logger.debug(f"quest memory read failed: {exc!r}")
-            return False
-        if now != names or active != chosen:
-            logger.debug(f"quest memory vs book: only in memory {sorted(now - names)[:5]}, only in book "
-                         f"{sorted(names - now)[:5]}; tracked {active!r} vs {chosen!r}")
+        except Exception:
             return False
         if frozenset(self.setbacks.set_aside(level) | load_undoable()) != aside:
             return False
