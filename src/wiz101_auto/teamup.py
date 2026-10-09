@@ -194,11 +194,15 @@ def add_team_dungeon(dungeon: str, quest: str) -> None:
     TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
 
 
-def drop_team_dungeons(open_quests: set[str]) -> list[str]:
+def drop_team_dungeons(open_quests: set[str], seen_before: set[str] | None = None) -> list[str]:
     """Added dungeons whose quest is done (no longer in the book) go back to
-    solo. The ones dropped."""
+    solo. The ones dropped. With `seen_before` (the last read's quests): only
+    a quest that was in the book then and has left it (Xibalba went on the
+    list under a quest the book didn't show yet, was dropped two minutes
+    later, and Yacate was fought alone again)."""
     teams = team_list()
-    gone = [d for d, q in teams.items() if q not in open_quests]
+    gone = [d for d, q in teams.items()
+            if q not in open_quests and (seen_before is None or q in seen_before)]
     if gone:
         for d in gone:
             del teams[d]
