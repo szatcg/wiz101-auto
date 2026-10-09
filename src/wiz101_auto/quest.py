@@ -3174,6 +3174,15 @@ class Quester:
         if zone == marked_zone:
             self._recall_pending = False  # (back already)
             return False
+        from .teamup import in_team_list
+
+        if self._mark.kind == "dungeon" and self._dungeon and in_team_list(self._dungeon[0]):
+            # A team-only dungeon now (Ahuizotl's Well): no going back in alone
+            # (the dungeon-return button took us into Clemente Moraga's cave).
+            logger.info(f"not going back into {self._dungeon[0].split('/')[-1]} alone (a team dungeon)")
+            self._recall_pending = False
+            self._retire_dungeon_mark()
+            return False
         if await self._in_dungeon(zone or "") and self._dungeon:
             first = self._dungeon[1]
             if marked_zone == first or in_same_area(marked_zone, first):
@@ -3237,6 +3246,13 @@ class Quester:
         inside = here == marked_zone or in_same_area(here, marked_zone) or in_same_area(marked_zone, here)
         if not inside:
             logger.warning(f"the dungeon-return button took us to {here}, not {marked_zone}'s dungeon")
+            if await self._in_dungeon(here):
+                # Out again at once: that dungeon's quest may be set aside (it
+                # fought Clemente Moraga a seventh time).
+                from .dungeon_heal import go_to_hub
+
+                logger.info(f"leaving {here.split('/')[-1]}: not the dungeon we meant")
+                await go_to_hub(self.client)
         return inside
 
     async def _recall(self, marked_zone: str, what: str = "the mark") -> bool:
