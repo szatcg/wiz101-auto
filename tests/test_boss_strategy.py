@@ -1020,3 +1020,16 @@ def test_a_feint_beats_spirit_blade_for_a_myth_wizard():
     b.pips, b.power_pips = 1, 2
     assert brain.decide(b).card is feint
     assert brain.setup_value(spirit, "myth") == 35 and brain.setup_value(feint, "myth") == 70
+
+
+def test_belloq_is_hit_even_when_saving_for_orthrus():
+    # (Team fight, 09:21: 'keeping pips for Orthrus over Humongofrog' came after
+    # the hit rule, and Belloq's Ra killed the wizard; he never took a hit.)
+    orthrus = _myth(0, "Orthrus", 3000, 7, aoe=True, castable=False)
+    frog = _myth(1, "Humongofrog", 1500, 4, aoe=True)
+    my = me(2184, 3571)
+    my.school = "myth"
+    b = battle([orthrus, frog], [enemy("Grim Calaca", 3870), enemy("Belloq", 18670, boss=True)], my=my)
+    b.pips, b.power_pips = 0, 3
+    act = brain.decide(b)
+    assert act.kind.name == "CAST" and act.card is frog

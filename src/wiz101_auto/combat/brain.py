@@ -2610,6 +2610,9 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     action = _decide_hand(battle, strat, discards_left=discards_left, plan_discards=plan_discards,
                           odds_discards=odds_discards)
     action = luska_guard(battle, action)
+    # Last word for a must-hit boss: later rules (boss set-up's "keeping pips
+    # for Orthrus") turned the hit back into a pass, and Belloq's Ra came.
+    action = _keep_hitting(battle, action) or action
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
         weakest = min(copies, key=card_strength)
