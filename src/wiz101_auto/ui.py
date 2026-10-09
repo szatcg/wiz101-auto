@@ -307,7 +307,11 @@ async def close_stray_windows(client) -> list[str]:
                     if any(v is not None for v in battle.values()):
                         continue  # (the battle's own controls live here: never "closed")
                     found = await find_named(win, _STRAY_CLOSE, max_depth=5)
-                    button = next((b for b in found.values() if b is not None and await b.is_visible()), None)
+                    button = None
+                    for cand in found.values():
+                        if cand is not None and await cand.is_visible():
+                            button = cand
+                            break
                     if button is None:
                         continue
                     await click_center(client, button)
