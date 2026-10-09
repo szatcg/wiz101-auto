@@ -243,3 +243,9 @@ def test_a_learned_gate_that_failed_is_forgotten(tmp_path, monkeypatch):
     assert travel_data.forget_gate("Azteca/AZ_Z00_Zocalo", "Azteca/AZ_Z07_TierraDeBrea")
     assert json.loads(f.read_text()) == []
     assert not any(z == "Azteca/AZ_Z07_TierraDeBrea" for _p, z in gates.get("Azteca/AZ_Z00_Zocalo", []))
+
+
+def test_isle_of_arachnis_is_wizard_citys_zone():
+    from wiz101_auto.quest import objective_zone
+
+    assert objective_zone("Talk To Emperor Yoshihito in Isle Of Arachnis") == "WizardCity/KR_IsleOfArachnis"

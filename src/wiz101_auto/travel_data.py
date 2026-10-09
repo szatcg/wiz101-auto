@@ -172,6 +172,10 @@ def parse_spots(text: str) -> Spots:
 # Quest-text place names missing from displayZones.txt.
 EXTRA_DISPLAY_ZONES = [
     ("the commons", "WizardCity/WC_Hub"),
+    # Khrysalis's lead-in, through the Ice Archway in Ravenwood's Ice Tower (the
+    # player); the quest book says "Khrysalis", but the zone is Wizard City's,
+    # and the bot left it for the Spiral Map, where Khrysalis isn't yet.
+    ("isle of arachnis", "WizardCity/KR_IsleOfArachnis"),
     # The Grand Chasm's past, through the Hall of Time's portal: not the Grand Chasm itself.
     ("grand chasm past", "DragonSpire/DS_A1_Knowledge/DS_A1Z4_GrandChasm_Past"),
     ("ravenwood", "WizardCity/WC_Ravenwood"),
