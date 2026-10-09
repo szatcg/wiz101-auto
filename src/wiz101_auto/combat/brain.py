@@ -1187,7 +1187,7 @@ def _boss_traps_first(battle: Battle, card: Card, strat: Strategy) -> Action | N
              and not _is_duplicate(c, EffectKind.TRAP, boss.incoming_effects, me.school.lower())]
     if boss.trap_count >= strat.boss_traps_max:
         traps = []
-    best = _best_setup(blades, traps, me.school.lower())
+    best = _best_setup(blades, traps, me.school.lower(), with_team(battle))
     if best is None:
         return None
     if best in blades:
@@ -1348,12 +1348,27 @@ def setup_value(card: Card, school: str) -> float:
                and (not e.school or e.school.lower() == mine))
 
 
-def _best_setup(blades: list[Card], traps: list[Card], school: str) -> Card | None:
-    """The blade or trap that adds the most to our hit; a cheaper one on a tie."""
+TEAM_TRAP_WORTH = 2.0  # with players beside us: a trap counts this many times (anyone's hit uses it)
+
+
+def with_team(battle: Battle) -> bool:
+    """Other players in this fight (not minions)."""
+    return any(not a.is_minion and not a.is_dead for a in battle.allies)
+
+
+def _best_setup(blades: list[Card], traps: list[Card], school: str, team: bool = False) -> Card | None:
+    """The blade or trap that adds the most to our hit; a cheaper one on a tie.
+    With a team, traps count double (the player: Feints first in multiplayer;
+    a trap boosts whoever hits next, a blade only us)."""
     pool = [*blades, *traps]
     if not pool:
         return None
-    return max(pool, key=lambda c: (setup_value(c, school), -c.pip_cost))
+
+    def worth(c: Card) -> float:
+        v = setup_value(c, school)
+        return v * TEAM_TRAP_WORTH if team and c in traps and c not in blades else v
+
+    return max(pool, key=lambda c: (worth(c), -c.pip_cost))
 
 
 def _hit_schools(battle: Battle, besides: str = "") -> set[str]:
@@ -1498,7 +1513,7 @@ def _setup_action(battle: Battle, strat: Strategy, focus: Combatant | None) -> A
         if target.trap_count >= strat.max_traps:
             traps = []
     # The bigger boost first, blade or trap (not every blade before any trap).
-    card = _best_setup(blades, traps, school)
+    card = _best_setup(blades, traps, school, with_team(battle))
     if card is None:
         return None
     if card in blades:
@@ -2112,8 +2127,10 @@ def _free_setup(battle: Battle, strat: Strategy) -> Action | None:
                 options.append((dup, 1, Action(ActionKind.CAST, c, t, reason=why)))
     if not options:
         return None
-    # New effects before copies; blades before traps; the strongest card.
-    dup, _, action = min(options, key=lambda o: (o[0], o[1], -_power(o[2].card)))
+    # New effects before copies; blades before traps (traps first with a team:
+    # anyone's hit uses them); the strongest card.
+    team = with_team(battle)
+    dup, _, action = min(options, key=lambda o: (o[0], -o[1] if team else o[1], -_power(o[2].card)))
     if dup:
         action.reason += " (a copy: kept for the hit after)"
     return action
@@ -3242,6 +3259,8 @@ def _pip_wise_setup(battle: Battle, action: Action, strat: Strategy) -> Action |
             or not ({EffectKind.BLADE, EffectKind.TRAP} & set(card.kinds))
             or card.school.lower() == school or battle.pips > 0 or battle.power_pips <= 0):
         return None
+    if EffectKind.TRAP in card.kinds and with_team(battle):
+        return None  # (a Feint now with a team: a teammate's hit may come first)
     payoffs = [c for c in battle.cards
                if c.is_damage and c.pip_cost >= PAYOFF_PIPS and c.school.lower() == school]
     if not payoffs:

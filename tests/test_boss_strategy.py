@@ -1047,3 +1047,25 @@ def test_mythblades_from_different_spells_stack_in_the_kill_plan():
     hanging = [("spell:111", "myth", 0.35)]
     assert not brain._is_duplicate(trained, EffectKind.BLADE, hanging, "myth")
     assert brain._is_duplicate(pet, EffectKind.BLADE, hanging, "myth")
+
+
+def test_feint_before_blade_with_a_team():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    orthrus = _myth(0, "Orthrus", 3000, 7, aoe=True, castable=False)
+    feint = Card(1, "Feint", pip_cost=1, school="death",
+                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    blade = _setup(2, "Mythblade", "blade")
+    blade.effects[0].value = 80  # a blade worth more than the Feint alone
+    my = me(3000, 3500)
+    my.school = "myth"
+    boss = enemy("Ekra Bleeding Rose", 14000, boss=True)
+    solo = battle([orthrus, blade, feint], [boss], my=my)
+    solo.pips, solo.power_pips = 1, 2
+    team = battle([orthrus, blade, feint], [boss], my=my)
+    team.pips, team.power_pips = 1, 2
+    mate = me(3000, 3500)
+    mate.name = "Lucas S."
+    team.allies.append(mate)
+    assert brain._best_setup([blade], [feint], "myth") is blade
+    assert brain._best_setup([blade], [feint], "myth", team=True) is feint
