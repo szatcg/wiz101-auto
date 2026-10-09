@@ -3879,7 +3879,9 @@ class Quester:
                     # An empty book while there's an objective is a failed read
                     # (after a public fight in the Plaza of Conquests it read []
                     # and raised a false "no main quest" alert).
-                    complete = bool(all_quests) or not await self.objective()
+                    # (Nor with no objective shown: it read [] at 01:16 and
+                    # alerted "no main quest after 'The Fire and the Fury'".)
+                    complete = bool(all_quests)
                     break
                 pages = page + 1
                 all_quests += [(page, e) for e in entries]
