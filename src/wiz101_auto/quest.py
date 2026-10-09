@@ -2102,9 +2102,12 @@ class Quester:
                 from .teamup import QUEUE_RECHECK, team_list
 
                 quest = team_list().get(dungeon or "", "") or self._active_quest or ""
-                if quest:
+                # (And the tracked quest if it's another one into the same
+                # dungeon: 'Tall Enough to Meet the Sun' also needs Xibalba, and
+                # the bot walked back to the sigil every minute.)
+                for q in {quest, self._active_quest or ""} - {""}:
                     level = await self.client.stats.reference_level()
-                    self.setbacks.set_quest_aside(quest, await self.objective() or "", level, main=True,
+                    self.setbacks.set_quest_aside(q, await self.objective() or "", level, main=True,
                                                   retry_after=QUEUE_RECHECK)
                     self.setbacks.save()
                 self._ranked_for = None
