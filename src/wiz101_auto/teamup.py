@@ -187,6 +187,38 @@ def team_list() -> dict[str, str]:
         return {}
 
 
+TEAM_SIZE_FILE = Path("state") / "team_sizes.json"  # {dungeon: minimum team size} after a loss with a team
+
+
+def team_size(dungeon: str) -> int:
+    """The minimum team size to ask for at `dungeon`'s sigil: 2, or 4 after a
+    loss there with a team (the player: Xibalba's fight is tough, 4 then)."""
+    try:
+        sizes = json.loads(TEAM_SIZE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        sizes = {}
+    return int(sizes.get(team_key(dungeon) or dungeon, 2))
+
+
+def set_team_size(dungeon: str, size: int) -> None:
+    try:
+        sizes = json.loads(TEAM_SIZE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        sizes = {}
+    sizes[team_key(dungeon) or dungeon] = size
+    TEAM_SIZE_FILE.parent.mkdir(exist_ok=True)
+    TEAM_SIZE_FILE.write_text(json.dumps(sizes, indent=1), encoding="utf-8")
+
+
+def team_key(zone: str) -> str | None:
+    """The team-list entry `zone` belongs to (itself, or its dungeon's first room)."""
+    teams = team_list()
+    if zone in teams:
+        return zone
+    base = _dungeon_base(zone)
+    return next((k for k in teams if base != zone and _dungeon_base(k) == base), None)
+
+
 def add_team_dungeon(dungeon: str, quest: str) -> None:
     teams = team_list()
     teams[dungeon] = quest
@@ -465,7 +497,8 @@ async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     if button is None:
         logger.warning("team up: no TEAM UP! button on the form")
         return True
-    kind = "questing, 2+" if choices == QUEST_TEAM_CHOICES else "farming, 4+"
+    size = next((c[len("TeamSize"):-len("CheckBox")] for c in choices if c.startswith("TeamSize")), "?")
+    kind = f"{'questing' if 'TeamTypeQuestingCheckBox' in choices else 'farming'}, {size}+"
     logger.info(f"team up: pressing TEAM UP! on the form ({kind} players)")
     await ui.click_center(client, button)
     await asyncio.sleep(1.5)
@@ -688,7 +721,8 @@ async def team_up(quester, dungeon: str) -> str:
     zone = await client.zone_name()
     await _dump(client, "sigil")
     use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS or dungeon in team_list()
-    choices = QUEST_TEAM_CHOICES if dungeon in team_list() else TEAM_CHOICES
+    choices = (("TeamTypeQuestingCheckBox", f"TeamSize{team_size(dungeon)}CheckBox")
+               if dungeon in team_list() else TEAM_CHOICES)
     if not use_queue:
         # No queue: wait on the sigil for players to gather (and go in with them).
         await close_stray_forms(client)
@@ -720,7 +754,7 @@ async def team_up(quester, dungeon: str) -> str:
             if not await _click(client, CONFIRM_WORDS, "window"):
                 break
         save_queue(dungeon, team_list()[dungeon], sure=already)
-        logger.info(f"team up: queued for {dungeon.split('/')[-1]} (questing, 2+); "
+        logger.info(f"team up: queued for {dungeon.split('/')[-1]} (questing, {team_size(dungeon)}+); "
                     "side quests meanwhile, the main quest comes back when the team is ready")
         # Its Waiting window closed (the queue stays): left open, the quest book
         # couldn't open behind it, every read came back empty and the bot

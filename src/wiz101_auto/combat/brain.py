@@ -1016,7 +1016,10 @@ def _setup_fx(card: Card, kind: EffectKind, school: str) -> tuple[str, str, floa
     if not fits:
         return None
     best = max(fits, key=lambda e: e.value)
-    return (f"plan:{card.name}", best.school, best.value / 100)
+    # (Keyed by the spell: the pet's, the amulet's and the trained Mythblade
+    # are three spells that all stack, not three copies of one.)
+    key = f"spell:{card.template_id}" if card.template_id else f"plan:{card.name}"
+    return (key, best.school, best.value / 100)
 
 
 UNKNOWN_HIT_SHARE = 0.13  # an enemy never fought: a round of its hits as a share of our max health
@@ -1084,7 +1087,9 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
             continue
         if EffectKind.BLADE in c.kinds:
             fx = _setup_fx(c, EffectKind.BLADE, school)
-            if fx and not any(s == fx[1] and abs(v - fx[2]) < 0.005 for _k, s, v in me.outgoing_effects):
+            # (Hanging already only if this very spell is: another Mythblade
+            # stacks; Myth Trap went on a Grim Calaca with one Mythblade up.)
+            if fx and not _is_duplicate(c, EffectKind.BLADE, me.outgoing_effects, school):
                 moves.append((c, me if c.target is Target.ALLY_SINGLE else None, "blade", fx, ()))
         if EffectKind.TRAP in c.kinds:
             fx = _setup_fx(c, EffectKind.TRAP, school)
@@ -1097,7 +1102,7 @@ def _hit_all_setup(battle: Battle, card: Card, strat: Strategy | None = None) ->
             for e in enemies:
                 if keep_for is not None and e.name != keep_for.name:
                     continue  # Feint (any school) is for the prismed boss, not the adds
-                if not any(s == fx[1] and abs(v - fx[2]) < 0.005 for _k, s, v in e.incoming_effects):
+                if not _is_duplicate(c, EffectKind.TRAP, e.incoming_effects, school):
                     moves.append((c, e, "trap", fx, (id(e),)))
     if not moves:
         return None

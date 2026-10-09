@@ -31,3 +31,14 @@ def test_a_team_dungeon_stays_until_its_quest_leaves_the_book(tmp_path, monkeypa
     assert teamup.drop_team_dungeons({"Tall Enough to Meet the Sun"}, {"Tall Enough to Meet the Sun"}) == []
     # In the book last time, gone now: done.
     assert teamup.drop_team_dungeons(set(), {"This Is the Way the World Ends"}) == ["Azteca/AZ_Z12_Xibalba"]
+
+
+def test_team_size_goes_to_four_after_a_loss(tmp_path, monkeypatch):
+    from wiz101_auto import teamup
+
+    monkeypatch.setattr(teamup, "TEAM_LIST_FILE", tmp_path / "team_list.json")
+    monkeypatch.setattr(teamup, "TEAM_SIZE_FILE", tmp_path / "team_sizes.json")
+    teamup.add_team_dungeon("Azteca/Interiors/AZ_Z11_PyramidFallingStar_Room01", "Not a Cold Dead Place")
+    assert teamup.team_size("Azteca/Interiors/AZ_Z11_PyramidFallingStar_Room01") == 2
+    teamup.set_team_size("Azteca/Interiors/AZ_Z11_PyramidFallingStar_Room03", 4)  # lost in a later room
+    assert teamup.team_size("Azteca/Interiors/AZ_Z11_PyramidFallingStar_Room01") == 4

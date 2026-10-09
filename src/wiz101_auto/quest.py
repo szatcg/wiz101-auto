@@ -274,6 +274,7 @@ TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the tar
 STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
 STILL_WINDOW = 12.0  # ... looks this close together count (a whole step takes ~5 s: at 4 s none ever did)
 TEAM_AT_BOSS_SPOT = 400.0  # a still teammate this close to where the boss was fought: in that fight
+TEAM_SIZE_AFTER_LOSS = 4  # a loss in a team dungeon: Team Up there asks for this many players
 TEAM_START_AFTER = 90.0  # by the boss with a team and nobody starts it: we do
 BOSS_WATCH = 20.0  # by the boss's circle: watching this long, every second, for a teammate to start it
 DOOR_NEAR = 900.0  # this close to a door marker: walk through it (travel stops short)
@@ -3036,6 +3037,16 @@ class Quester:
         self._seen_deaths = deaths
         self._recall_pending = bool(self._mark and self._mark.kind in RECALL_KINDS)
         self._last_defeat = time.monotonic()
+        death_zone = (getattr(self.controller, "last_death", None) or (0, ""))[1]
+        from .teamup import set_team_size, team_key, team_size
+
+        key = team_key(death_zone) if death_zone else None
+        if key and team_size(key) < TEAM_SIZE_AFTER_LOSS:
+            # Lost with a team (the player: Xibalba's fight is tough; a full
+            # team of 4 there): the next Team Up there waits for 4.
+            set_team_size(key, TEAM_SIZE_AFTER_LOSS)
+            logger.warning(f"lost in {key.split('/')[-1]} with a team: Team Up there asks for "
+                           f"{TEAM_SIZE_AFTER_LOSS}+ players from now on")
         # The objective the fight was for: after the respawn the game may track
         # another quest (a Wysteria one), which took the blame for a Labyrinth loss.
         objective = self._last_progress[0] or await self.objective()

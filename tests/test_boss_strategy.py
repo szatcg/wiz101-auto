@@ -1033,3 +1033,17 @@ def test_belloq_is_hit_even_when_saving_for_orthrus():
     b.pips, b.power_pips = 0, 3
     act = brain.decide(b)
     assert act.kind.name == "CAST" and act.card is frog
+
+
+def test_mythblades_from_different_spells_stack_in_the_kill_plan():
+    from wiz101_auto.combat.model import Card, Effect, EffectKind, Target
+
+    pet = Card(1, "Mythblade", pip_cost=0, school="myth", template_id=111,
+               effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school="myth")])
+    trained = Card(2, "Mythblade", pip_cost=0, school="myth", template_id=222,
+                   effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35, school="myth")])
+    keys = {brain._setup_fx(c, EffectKind.BLADE, "myth")[0] for c in (pet, trained)}
+    assert len(keys) == 2
+    hanging = [("spell:111", "myth", 0.35)]
+    assert not brain._is_duplicate(trained, EffectKind.BLADE, hanging, "myth")
+    assert brain._is_duplicate(pet, EffectKind.BLADE, hanging, "myth")
