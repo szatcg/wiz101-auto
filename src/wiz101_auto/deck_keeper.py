@@ -120,6 +120,13 @@ def deck_changes(current: dict[str, int], target: dict[str, int]) -> dict[str, t
     return out
 
 
+def _named(name: str, names: set[str]) -> bool:
+    """`name` (as the deck shows it, "King Artorius - Myth") is one of
+    `names` (lower case, short: "king artorius")."""
+    low = name.lower()
+    return low in names or low.split(" - ", 1)[0] in names
+
+
 def _load(path: Path) -> dict:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -174,7 +181,7 @@ class DeckKeeper:
             # Basilisks in the boss deck item.)
             never = {n.lower() for n in general.get("never") or []}
             role = self._worn or ("single" if boss else "aoe")
-            target = {n: c for n, c in current.items() if n.lower() not in never}
+            target = {n: c for n, c in current.items() if not _named(n, never)}
             if general.get("freeze_decks"):
                 # The player (2026-10-09): keep the decks as they are; a spell
                 # learned from now on (the game puts it in: King Artorius) comes
@@ -187,7 +194,7 @@ class DeckKeeper:
                     except OSError:
                         pass
                 keep = {n.lower() for n in baseline[role]} | {n.lower() for n in extra}
-                target = {n: c for n, c in target.items() if n.lower() in keep}
+                target = {n: c for n, c in target.items() if _named(n, keep)}
             for key, base in list(self._added.items()):
                 r, _, name = key.partition(":")
                 if r != role or name in extra:
@@ -217,7 +224,7 @@ class DeckKeeper:
         # Celestial Calendars in the deck.)
         never_names = {n.lower() for n in general.get("never") or []}
         changes = {n: c for n, c in deck_changes(current, target).items()
-                   if n in known or n.lower() in never_names}
+                   if n in known or _named(n, never_names)}
         key = json.dumps(target, sort_keys=True)
         if not changes or self._tries.get(key, 0) >= TRIES_PER_TARGET:
             return None

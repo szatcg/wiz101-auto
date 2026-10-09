@@ -79,3 +79,10 @@ def test_frozen_decks_drop_spells_learned_later(tmp_path, monkeypatch):
     keeper._worn = "aoe"
     target, changes = keeper.due(boss=False, extra={})
     assert "King Artorius" not in target and target["Orthrus"] == 2
+
+
+def test_never_matches_the_decks_long_names():
+    from wiz101_auto.deck_keeper import _named
+
+    assert _named("King Artorius - Myth", {"king artorius"})
+    assert not _named("Orthrus - T02 - A", {"king artorius"})
