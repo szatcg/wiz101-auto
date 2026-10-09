@@ -62,6 +62,13 @@ class Setbacks:
         self.defeats.pop(objective, None)  # a fresh count when we come back
         now = time.time() if now is None else now
         self.deferred[quest] = {"level": level, "at": now, "objective": objective, "main": main}
+        again = f"aside at level: {quest}"
+        if not main and self.defeats.get(again) == level:
+            # Lost again after the hour, same level (Clemente Moraga, six times
+            # in an evening): only a level-up brings it back now.
+            self.deferred[quest]["level_only"] = True
+        if not main:
+            self.defeats[again] = level
         return True
 
     def set_quest_aside(
@@ -98,7 +105,7 @@ class Setbacks:
             q for q, d in self.deferred.items()
             if not d.get("stuck") and (
                 level > d.get("level", 0)
-                or (not d.get("main") and now - d.get("at", 0) > DEFER_SECONDS)
+                or (not d.get("main") and not d.get("level_only") and now - d.get("at", 0) > DEFER_SECONDS)
                 or ("until" in d and now > d["until"]))
         ]
         for q in done:
