@@ -3964,6 +3964,18 @@ class Quester:
             done = self.completions.update({q.name for _, q in all_quests}) if complete else set()
             if not complete:
                 logger.warning(f"read {len(all_quests)} quests over {pages} pages without reaching the end")
+            if not all_quests:
+                # (Empty reads at 03:51 and 03:54 with the book open: what's on screen.)
+                try:
+                    from .screenshot import save_screenshot
+
+                    root = await ui.window_at(self.client, ["WorldView", "DeckConfiguration"])
+                    lines = (await ui.dump_tree(root, max_depth=5) if root is not None
+                             else ["(no DeckConfiguration)"])
+                    Path("state", "questbook_empty.txt").write_text(chr(10).join(lines), encoding="utf-8")
+                    save_screenshot("state/questbook_empty.png")
+                except Exception as exc:
+                    logger.debug(f"empty book dump failed: {exc!r}")
             for name in done:
                 listed = self.quest_order.get(norm(name))
                 where = f" (#{listed.index} on the quest list)" if listed else ""
