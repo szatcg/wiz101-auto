@@ -2990,14 +2990,16 @@ class Quester:
         self._last_rank = -1e9
         return True
 
-    def _team_instead(self, quest: str, objective: str, losses: int) -> bool:
+    def _team_instead(self, quest: str, objective: str, losses: int, story: bool = False) -> bool:
         """A main-quest boss in a dungeon with a sigil beat us `losses` times:
         that dungeon goes on the team list (the player's "multiplayer mode":
         wait at its sigil, Team Up, fight it with 2+ players, as at Mount
         Olympus). True if it did; False outside a known dungeon."""
         from .teamup import TEAM_UP_DUNGEONS, add_team_dungeon
 
-        if quest not in self._mainline:
+        if quest not in self._mainline and not story:
+            # (`story`: on the detour world's story list: 'Not a Cold Dead Place'
+            # wasn't in _mainline and Huracan stayed solo at 2 losses.)
             return False
         memory = DungeonMemory.load()
         fought = self.fighter.last_enemy_names if self.fighter else []
@@ -3073,7 +3075,7 @@ class Quester:
                             .get("defeats_before_wait", DETOUR_DEFEATS))
             except (OSError, ValueError, TypeError):
                 pass
-            if n >= TEAM_UP_AFTER_LOSSES and self._team_instead(quest, objective, n):
+            if n >= TEAM_UP_AFTER_LOSSES and self._team_instead(quest, objective, n, story=True):
                 self.setbacks.defeats.pop(objective, None)
             elif n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
