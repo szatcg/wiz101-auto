@@ -309,7 +309,13 @@ def _click_left_of_center(client):
         return await set_position(x, y, *args, **kwargs)
 
     async def click_window(window, **kwargs):
-        r = await window.scale_to_client()
+        try:
+            r = await window.scale_to_client()
+        except Exception as exc:
+            # The window went away under us (a card at the round's end: its
+            # parent read an unmapped address and the bot crashed). No click.
+            logger.debug(f"click on a window that's gone: {exc!r}")
+            return
         await mouse.click(int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2), **kwargs)
 
     mouse.set_mouse_position = set_mouse_position
