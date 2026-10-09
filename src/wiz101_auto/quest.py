@@ -3998,7 +3998,10 @@ class Quester:
             if complete:
                 from .teamup import drop_team_dungeons
 
-                for d in drop_team_dungeons({q.name for _, q in all_quests}, self._book_names or None):
+                # (Not on the first read after a start: nothing to compare with.)
+                dropped = (drop_team_dungeons({q.name for _, q in all_quests}, self._book_names)
+                           if self._book_names else [])
+                for d in dropped:
                     logger.info(f"{d.split('/')[-1]}'s quest is done: alone there again")
             det = self._detour_names()
             game_main = {id(q): q.mainline for _, q in all_quests}
