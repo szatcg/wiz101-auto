@@ -348,6 +348,34 @@ class QuestGivers:
                 continue
         return sorted(out, key=lambda c: c[0])
 
+    async def _toward_far_person(self, zone: str) -> bool:
+        """The story's giver sweep: people seen in this zone before (the entity
+        map) but too far to be loaded now (Cloudburst Forest's sweep saw only
+        Chantico Blue Air; Yaxche and Zenzen Seven Star were never asked):
+        teleport near the nearest one not asked yet, so the next pass finds
+        them. True if it went."""
+        from .combat.sim import load_stats
+
+        enemies = set(load_stats().get("enemies", {}))
+        me = await self.client.body.position()
+        tried = self.__dict__.setdefault("_far_tried", set())
+
+        def person(n: str) -> bool:
+            return (looks_like_person(n) and n not in enemies and norm(n) not in SKIP_GIVERS
+                    and not self._asked_recently(zone, n) and (zone, n) not in tried)
+
+        names = self.q.entity_map.zones.get(zone, {})
+        for name in sorted(names, key=lambda n: min(math.dist(s[:2], (me.x, me.y)) for s in names[n])):
+            if not person(name):
+                continue
+            spot = min(names[name], key=lambda s: math.dist(s[:2], (me.x, me.y)))
+            tried.add((zone, name))  # (once per sweep: not found there, the next one)
+            logger.info(f"story giver sweep: to {name}, seen here before")
+            await self.q.travel(XYZ(*spot[:3]), npc=True)
+            self._last_check = 0.0
+            return True
+        return False
+
     async def ask_nearby(self) -> bool:
         """Talk to the nearest named NPC not asked yet (accepting any quest
         offered), then step back. True if it went to one."""
@@ -388,6 +416,8 @@ class QuestGivers:
         if not await is_free(self.client):
             return False
         found = await self._candidates(zone, float("inf") if self._sweeping else GIVER_RANGE)
+        if not found and zone == self.main_sweep_zone and await self._toward_far_person(zone):
+            return True
         if not found:
             if zone == self.main_sweep_zone:
                 self.main_sweep_zone = ""  # everyone there asked once
