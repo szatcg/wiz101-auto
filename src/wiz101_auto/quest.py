@@ -6578,11 +6578,13 @@ class Quester:
             spot = XYZ(*circles[0])
         logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it "
                     f"at {who} ({spot.x:.0f}, {spot.y:.0f})")
-        from .safe_teleport import allow_teleport
+        from .safe_teleport import allow_teleport, foot_path_failed
 
         # (Walk-only with a team, but the walk map has no way to Ahuizotl in
-        # the water: "no way on foot", twice. As joining a fight does.)
-        allow_teleport(self.client, 8.0)
+        # the water: "no way on foot", twice. Only then: the player wants the
+        # team instance walked.)
+        if foot_path_failed(self.client):
+            allow_teleport(self.client, 8.0)
         allow_engage(self.client)  # this teleport is meant to start the fight
         await self.client.teleport(spot)
         await asyncio.sleep(3.0)
@@ -6590,12 +6592,17 @@ class Quester:
 
     async def _join_team_fight(self, fight: XYZ, me: XYZ) -> bool:
         """Walk into the fight a teammate is in (teleported near it first)."""
-        from .safe_teleport import allow_engage, allow_teleport
+        from .safe_teleport import allow_engage, allow_teleport, foot_path_failed, walk_zone
 
         logger.info(f"a teammate is fighting at ({fight.x:.0f}, {fight.y:.0f}): joining")
         key = (round(fight.x / 200), round(fight.y / 200))
         fails = self.__dict__.setdefault("_join_fails", {})
-        if fails.get(key, 0) >= 1 or abs(fight.z - me.z) > 300:
+        # Walking with players around (the player: walk and follow in a team
+        # instance, it teleported around Xibalba); a teleport only when no way
+        # on foot was found (the Well's water) or the fight is on another floor.
+        walking = walk_zone(self.client, await self.client.zone_name() or "")
+        may_jump = not walking or foot_path_failed(self.client) or abs(fight.z - me.z) > 300
+        if may_jump and (fails.get(key, 0) >= 1 or abs(fight.z - me.z) > 300):
             # Walking in didn't get us there (the fight on another floor of
             # the Keep of Ganelon: 8 tries, never in): straight beside it.
             logger.info("teleporting beside the team's fight (walking in didn't reach it)")
@@ -6604,9 +6611,10 @@ class Quester:
             await self.client.teleport(XYZ(fight.x + 150, fight.y, fight.z))
             await asyncio.sleep(0.8)
         elif distance(me, fight) > TEAM_JOIN_FROM * 1.5:
-            # (Walk-only with the team, but the walk map has no way through
-            # the Well's water: "no way on foot", and the team fought alone.)
-            allow_teleport(self.client, 8.0)
+            if may_jump:
+                # (Walk-only with the team, but the walk map has no way through
+                # the Well's water: "no way on foot", and the team fought alone.)
+                allow_teleport(self.client, 8.0)
             dx, dy = me.x - fight.x, me.y - fight.y
             length = math.hypot(dx, dy) or 1.0
             await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,

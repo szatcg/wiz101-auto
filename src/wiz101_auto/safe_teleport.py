@@ -122,6 +122,13 @@ def walk_zone(client, zone: str) -> bool:
     return time.monotonic() - seen < ALONE_TELEPORT_AFTER
 
 
+def foot_path_failed(client, within: float = 90.0) -> bool:
+    """A walk-only walk found no way on foot lately: the one case a team step
+    may teleport with players around (Ahuizotl in the Well's water). The
+    player: with a teammate in the instance, walk and follow, no teleports."""
+    return time.monotonic() - getattr(client, "_no_foot_path_at", -1e9) < within
+
+
 ALONE_TELEPORT_AFTER = 30.0  # no other player seen in a team dungeon this long: teleports allowed again
 LANDED = 200.0  # a teleport that ends this near its target worked
 
@@ -153,6 +160,7 @@ async def _walk_instead(client, xyz) -> bool | None:
     if ok or walk_only:
         if not ok:
             logger.debug(f"walk-only zone: no way on foot to ({xyz.x:.0f}, {xyz.y:.0f}); not teleporting")
+            client._no_foot_path_at = time.monotonic()  # (a team step may teleport after this)
         return ok
     return None  # (walking didn't get there: teleport after all)
 
