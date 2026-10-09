@@ -3044,6 +3044,9 @@ class Quester:
         target = defeat_target(objective)
         fought = self.fighter.last_enemy_names if self.fighter else []
         bosses = self.fighter.last_bosses if self.fighter else set()
+        at_death = getattr(self.controller, "last_death_enemies", None)
+        if at_death:
+            fought, bosses = at_death
         # (A boss counts whatever the objective calls him: 'Defeat Source of
         # Corruption' is Tim-tim Snakeeye, and his losses never added up.)
         if target and fought and not bosses and not any(

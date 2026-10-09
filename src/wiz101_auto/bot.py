@@ -345,6 +345,10 @@ async def combat_loop(client, fighter: Fighter, cfg: Config, controller: Control
                 # Losing a fight sends you back (elsewhere) with a sliver of
                 # health; winning on a sliver leaves you standing where you fought.
                 controller.record_death(fight_zone)
+                # Who beat us, kept with the death: the defeat is noted a step
+                # later, after another fight may have replaced last_enemy_names
+                # (a loss to Zolton Zero Hour was put down to two Grim Calacas).
+                controller.last_death_enemies = (list(fighter.last_enemy_names), set(fighter.last_bosses))
                 if adapter is not None and not _team_zone(fight_zone):
                     adapter.on_fight(list(fighter.last_enemy_names))
                     adapter.on_defeat(list(fighter.last_enemy_names), fighter.last_bosses)
