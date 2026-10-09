@@ -538,7 +538,9 @@ FALLBACK_SIDE_PLACES = {"Celestia": ("Grizzleheim/GH_HFjord",),  # Wintertusk
                         "Avalon": ("Zafaria",),
                         # (Azteca's story waiting for its first quest: Avalon's
                         # side quests, then Zafaria's, not Wizard City's.)
-                        "Azteca": ("Avalon", "Zafaria")}
+                        "Azteca": ("Avalon", "Zafaria"),
+                        # (The player: side quests from the furthest world first.)
+                        "Khrysalis": ("Azteca", "Avalon", "Zafaria")}
 
 
 def in_place(zone: str, place: str) -> bool:
