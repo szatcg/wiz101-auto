@@ -6479,6 +6479,9 @@ class Quester:
             await self.client.teleport(XYZ(fight.x + 150, fight.y, fight.z))
             await asyncio.sleep(0.8)
         elif distance(me, fight) > TEAM_JOIN_FROM * 1.5:
+            # (Walk-only with the team, but the walk map has no way through
+            # the Well's water: "no way on foot", and the team fought alone.)
+            allow_teleport(self.client, 8.0)
             dx, dy = me.x - fight.x, me.y - fight.y
             length = math.hypot(dx, dy) or 1.0
             await self.client.teleport(XYZ(fight.x + dx / length * TEAM_JOIN_FROM,
