@@ -93,7 +93,15 @@ _OBJECT_WORDS = frozenset({"chest", "circle", "sign", "signpost", "statue", "doo
                            "sword", "shield", "grain", "brushes",
                            # Zafaria's ('Well Stones', 'Pile of Wood', 'Gold Wisp')
                            "stones", "fruit", "wood", "pile", "sticks", "bundle", "wisp",
-                           "lotus", "tree", "tower"})
+                           "lotus", "tree", "tower",
+                           # Azteca's and Khrysalis's ('Food Stores', 'Dirt Mound', 'Fire
+                           # Pit', 'Smoke Signal', 'Document Pages', 'Bee House', 'Comet
+                           # Tail', 'Broken Column', 'Web Cocoon', 'Head of the Sun')
+                           "stores", "mound", "pit", "signal", "pages", "document", "house",
+                           "tail", "column", "cocoon", "head", "nest", "scroll", "bridge",
+                           "flower", "egg", "eggs", "bones", "lantern", "torch", "tent", "cart",
+                           "wagon", "beacon", "rock", "log", "mushroom", "plant", "crystal",
+                           "barricade", "sacrifice", "beans", "leaf", "leaves", "web"})
 
 
 _AMBIENT = re.compile(r"^amb(?!rose)")  # "AmbLady", "AmbWalker10"; not Headmaster Ambrose
