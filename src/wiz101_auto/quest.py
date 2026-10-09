@@ -4001,7 +4001,13 @@ class Quester:
                 pages = page + 1
                 all_quests += [(page, e) for e in entries]
                 if await self._turn_page(page_button) is None:
-                    complete = True
+                    # No next-page button: the end, unless the book held far
+                    # more last time (one page of 4 read as the whole book: "no
+                    # main quest after 'Cry Havoc'", and a sweep for nothing).
+                    complete = not (self._book_names and len(all_quests) * 2 < len(self._book_names))
+                    if not complete:
+                        logger.warning(f"the quest book showed {len(all_quests)} quests and no next page "
+                                       f"({len(self._book_names)} last time): not the whole book")
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
