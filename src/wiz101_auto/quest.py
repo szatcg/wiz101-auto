@@ -8499,6 +8499,9 @@ class Quester:
             logger.debug("step: house's world gate")
             return
         sweep = self.givers.main_sweep_zone
+        if getattr(self, "_parked", None):
+            sweep = ""  # (the story quest waits for a team: no "next" one to ask for)
+            self.givers.main_sweep_zone = ""
         if (not self._mainline and sweep and sweep == await self.client.zone_name()
                 and await self.givers.ask_nearby()):
             # The sweep for the next story quest goes on until everyone here
