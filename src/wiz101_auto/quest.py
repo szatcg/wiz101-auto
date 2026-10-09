@@ -4001,7 +4001,11 @@ class Quester:
             self._mainline = {q.name for _, q in all_quests if q.mainline}
             # A story quest in the book but set aside (waiting for a team for
             # Ozel Underwater Cat): not "no main quest", no giver to look for.
-            parked = sorted(q.name for _, q in all_quests if game_main[id(q)] and q.name in set_aside)
+            # (Only a story quest set aside for now, not one skipped for good: the
+            # game calls 'A River Runs Through It' main, and no giver was asked
+            # after 'Smart Food'.)
+            parked = sorted(q.name for _, q in all_quests
+                            if (self.setbacks.deferred.get(q.name) or {}).get("main"))
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
                 self._last_main_zone = await self.client.zone_name() or ""
