@@ -6426,6 +6426,12 @@ class Quester:
             return False
         since.pop((zone, who), None)
         spot = XYZ(*spots[0])
+        # Into its duel circle, not where the boss was last seen (Ahuizotl's
+        # spot is behind a cage gate: two teleports there started nothing; the
+        # team fought him on the circle beside it).
+        circles = self.entity_map.spots(zone, lambda n: n == "Duel Circle", (spot.x, spot.y, spot.z))
+        if circles and distance(XYZ(*circles[0]), spot) < 1500:
+            spot = XYZ(*circles[0])
         logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it "
                     f"at {who} ({spot.x:.0f}, {spot.y:.0f})")
         from .safe_teleport import allow_teleport
