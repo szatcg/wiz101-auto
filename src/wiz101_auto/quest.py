@@ -6251,6 +6251,8 @@ class Quester:
         # we walk in once a player is in it). A marker with no circle near it
         # is a door or passage: normal travel goes through it.
         marker = await self.client.quest_position.position()
+        if here and fight_step and not farming and await self._start_stalled_team_boss(objective or "", me):
+            return True
         if here and fight_step and not farming and distance(marker, XYZ(0, 0, 0)) > 1:
             d = distance(me, marker)
             at_fight = [c for c in circles if distance(c, marker) < TEAM_CIRCLE_NEAR]
@@ -6384,6 +6386,35 @@ class Quester:
                 await self.travel(marker)
         finally:
             self.controller.end_idle()
+        return True
+
+    async def _start_stalled_team_boss(self, objective: str, me: XYZ) -> bool:
+        """With a team in the boss's dungeon and no fight for TEAM_START_AFTER
+        (stopping short of a marker on a door while a teammate waited by
+        Ahuizotl, who was never pulled): to where the boss was seen, into the
+        fight. True if it went."""
+        who = defeat_target(objective)
+        zone = await self.client.zone_name() or ""
+        if not who:
+            return False
+        since = self.__dict__.setdefault("_team_boss_since", {})
+        fights = getattr(self.fighter, "fights", 0) if self.fighter else 0
+        first, seen = since.get((zone, who), (time.monotonic(), fights))
+        if seen != fights:
+            first = time.monotonic()  # (a fight since: the clock starts again)
+        since[(zone, who)] = (first, fights)
+        if time.monotonic() - first < TEAM_START_AFTER:
+            return False
+        spots = self.entity_map.spots(zone, lambda n: n == who, (me.x, me.y, me.z))
+        if not spots:
+            return False
+        since.pop((zone, who), None)
+        spot = XYZ(*spots[0])
+        logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it "
+                    f"at {who} ({spot.x:.0f}, {spot.y:.0f})")
+        allow_engage(self.client)  # this teleport is meant to start the fight
+        await self.client.teleport(spot)
+        await asyncio.sleep(3.0)
         return True
 
     async def _join_team_fight(self, fight: XYZ, me: XYZ) -> bool:
