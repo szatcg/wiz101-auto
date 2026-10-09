@@ -272,6 +272,7 @@ DOOR_LEARN_RANGE = 3000.0  # a last landing this near the marker before a zone c
 TP_SPOT_NEAR = 1500.0  # a refused teleport: a saved good spot this near the target is tried first
 STILL_RANGE = 40.0  # a teammate that moved less than this between two looks is standing still
 STILL_WINDOW = 12.0  # ... looks this close together count (a whole step takes ~5 s: at 4 s none ever did)
+TEAM_AT_BOSS_SPOT = 400.0  # a still teammate this close to where the boss was fought: in that fight
 TEAM_START_AFTER = 90.0  # by the boss with a team and nobody starts it: we do
 BOSS_WATCH = 20.0  # by the boss's circle: watching this long, every second, for a teammate to start it
 DOOR_NEAR = 900.0  # this close to a door marker: walk through it (travel stops short)
@@ -6226,6 +6227,15 @@ class Quester:
                 except Exception:
                     continue
             fight = team_fight_at(sorted(mobs, key=lambda m: distance(m, me)), mates_for_mobs)
+        if fight is None and still:
+            # A teammate standing still where we fought this dungeon's boss
+            # before is fighting it (Ahuizotl's fight shows no circle or enemy
+            # by them: a teammate stood there 10 minutes, then "you missed it").
+            from .dungeons import last_fight
+
+            p = last_fight(await self.client.zone_name() or "")
+            if p is not None and any(distance(m, XYZ(*p)) < TEAM_AT_BOSS_SPOT for m in still):
+                fight = XYZ(*p)
         logger.debug(f"team: {len(mates)} teammate(s), {len(circles)} circle(s), fight at {fight}")
         if fight is not None:
             return await self._join_team_fight(fight, me)
@@ -6267,7 +6277,8 @@ class Quester:
         # we walk in once a player is in it). A marker with no circle near it
         # is a door or passage: normal travel goes through it.
         marker = await self.client.quest_position.position()
-        if here and fight_step and not farming and await self._start_stalled_team_boss(objective or "", me):
+        if (here and fight_step and not farming and mates
+                and await self._start_stalled_team_boss(objective or "", me)):
             return True
         if here and fight_step and not farming and distance(marker, XYZ(0, 0, 0)) > 1:
             d = distance(me, marker)
@@ -6426,11 +6437,16 @@ class Quester:
             return False
         since.pop((zone, who), None)
         spot = XYZ(*spots[0])
-        # Into its duel circle, not where the boss was last seen (Ahuizotl's
-        # spot is behind a cage gate: two teleports there started nothing; the
-        # team fought him on the circle beside it).
+        # Where we fought him before, else his duel circle, not where he was
+        # last seen (Ahuizotl's spot is behind a cage gate: two teleports there
+        # started nothing).
+        from .dungeons import last_fight
+
+        fought = last_fight(zone)
         circles = self.entity_map.spots(zone, lambda n: n == "Duel Circle", (spot.x, spot.y, spot.z))
-        if circles and distance(XYZ(*circles[0]), spot) < 1500:
+        if fought is not None and distance(XYZ(*fought), spot) < 2500:
+            spot = XYZ(*fought)
+        elif circles and distance(XYZ(*circles[0]), spot) < 1500:
             spot = XYZ(*circles[0])
         logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it "
                     f"at {who} ({spot.x:.0f}, {spot.y:.0f})")
