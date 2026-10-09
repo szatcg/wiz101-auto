@@ -3908,6 +3908,8 @@ class Quester:
             logger.debug(f"quest memory read failed: {exc!r}")
             return False
         if now != names or active != chosen:
+            logger.debug(f"quest memory vs book: only in memory {sorted(now - names)[:5]}, only in book "
+                         f"{sorted(names - now)[:5]}; tracked {active!r} vs {chosen!r}")
             return False
         if frozenset(self.setbacks.set_aside(level) | load_undoable()) != aside:
             return False
