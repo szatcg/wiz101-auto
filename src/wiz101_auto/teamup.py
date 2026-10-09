@@ -144,7 +144,8 @@ async def start_early(client) -> bool:
     """Queued and another player has joined: the Waiting window's START EARLY
     (the player: go with whoever is found, don't wait for a full team). True
     if pressed."""
-    found = await _path_to_text(client.root_window, START_EARLY_WORDS[:3], [])
+    # (The button reads "START EARLY 1/2" with a player in: exact text never matched.)
+    found = await _path_to_text(client.root_window, START_EARLY_WORDS[:3], [], prefix=True)
     if not found:
         return False
     # The text may sit on the button itself or on a label inside it.
@@ -486,8 +487,10 @@ async def close_waiting_window(client) -> bool:
     return False
 
 
-async def _path_to_text(window, words: tuple[str, ...], path: list, depth: int = 0) -> list | None:
-    """Root-to-window path of a visible window whose text is one of `words`."""
+async def _path_to_text(window, words: tuple[str, ...], path: list, depth: int = 0,
+                        prefix: bool = False) -> list | None:
+    """Root-to-window path of a visible window whose text is one of `words`
+    (`prefix`: or starts with one, "start early 1/2")."""
     try:
         if depth and not await window.is_visible():
             return None
@@ -495,7 +498,7 @@ async def _path_to_text(window, words: tuple[str, ...], path: list, depth: int =
     except Exception:
         text = ""
     here = path + [window]
-    if text in words:
+    if text in words or (prefix and text and any(text.startswith(w + " ") for w in words)):
         return here
     if depth > 12:
         return None
@@ -504,7 +507,7 @@ async def _path_to_text(window, words: tuple[str, ...], path: list, depth: int =
     except Exception:
         return None
     for kid in kids:
-        got = await _path_to_text(kid, words, here, depth + 1)
+        got = await _path_to_text(kid, words, here, depth + 1, prefix)
         if got:
             return got
     return None
