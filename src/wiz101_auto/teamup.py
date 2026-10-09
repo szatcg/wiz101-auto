@@ -708,6 +708,11 @@ async def team_up(quester, dungeon: str) -> str:
         save_queue(dungeon, team_list()[dungeon], sure=already)
         logger.info(f"team up: queued for {dungeon.split('/')[-1]} (questing, 2+); "
                     "side quests meanwhile, the main quest comes back when the team is ready")
+        # Its Waiting window closed (the queue stays): left open, the quest book
+        # couldn't open behind it, every read came back empty and the bot
+        # walked back to the sigil every few minutes instead of side quests.
+        await asyncio.sleep(1.0)
+        await close_waiting_window(client)
         return "queued"
     quester.controller.allow_idle(TEAM_UP_WAIT + 60)
     try:
