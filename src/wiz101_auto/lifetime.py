@@ -8,7 +8,9 @@ rotates); after that each death adds one.
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from pathlib import Path
 
 from .questlist import world_of_zone
@@ -44,11 +46,21 @@ def count_logged_deaths(log: Path = LOG) -> int:
 
 
 def load(path: Path = LIFETIME, log: Path = LOG) -> dict:
-    """The totals, seeded from the log when there is no file yet."""
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        data = {}
+    """The totals, seeded from the log only when there is no file yet. (A
+    file caught half-written by the other process read as empty, and the
+    total was re-seeded from the rotated log: 328 deaths became 9.)"""
+    data = None
+    for _ in range(5):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            break
+        except FileNotFoundError:
+            data = {}
+            break
+        except (OSError, ValueError):
+            time.sleep(0.2)
+    if data is None:
+        return {"deaths": 0, "deaths_by_world": {}, "unreadable": True}  # (never saved over the file)
     if "deaths" not in data or "deaths_by_world" not in data:
         total, by_world = logged_deaths(log)
         data.setdefault("deaths", total)
@@ -58,9 +70,13 @@ def load(path: Path = LIFETIME, log: Path = LOG) -> dict:
 
 
 def save(data: dict, path: Path = LIFETIME):
+    if data.get("unreadable"):
+        return
     try:
         path.parent.mkdir(exist_ok=True)
-        path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        os.replace(tmp, path)  # (whole or not at all: no half-written file for the dashboard)
     except OSError:
         pass
 

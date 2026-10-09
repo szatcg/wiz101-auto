@@ -17,3 +17,15 @@ def test_deaths_seeded_from_the_log_per_world_then_counted(tmp_path):
     assert data["deaths_by_world"] == {"Wizard City": 1, "Krokotopia": 1}
     assert lifetime.add_death("Krokotopia", state, log) == 3
     assert lifetime.load(state, log)["deaths_by_world"]["Krokotopia"] == 2  # the file wins from now on
+
+
+def test_an_unreadable_file_is_never_reseeded(tmp_path):
+    from wiz101_auto import lifetime
+
+    f = tmp_path / "lifetime.json"
+    f.write_text('{"deaths": 3')  # half-written by the other process
+    log = tmp_path / "log"
+    log.write_text("wizard defeated\n")
+    assert lifetime.load(f, log).get("unreadable")
+    lifetime.add_death("Azteca", f, log)
+    assert f.read_text() == '{"deaths": 3'  # left alone
