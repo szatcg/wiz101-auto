@@ -140,14 +140,24 @@ async def accept_team_ready(client) -> bool:
 START_EARLY_WORDS = ("start early", "start early!", "start now", "start")
 
 
+EARLY_PRESS_GAP = 120.0  # START EARLY pressed at most this often (it's a toggle)
+_early_pressed = [-1e9]
+
+
 async def start_early(client) -> bool:
     """Queued and another player has joined: the Waiting window's START EARLY
     (the player: go with whoever is found, don't wait for a full team). True
     if pressed."""
+    # Once per team: the button is a toggle ("Start Early 0/2" -> 1/2 -> 0/2):
+    # pressed every few seconds it readied and un-readied us, and the team
+    # never started.
+    if time.monotonic() - _early_pressed[0] < EARLY_PRESS_GAP:
+        return False
     # (The button reads "START EARLY 1/2" with a player in: exact text never matched.)
     found = await _path_to_text(client.root_window, START_EARLY_WORDS[:3], [], prefix=True)
     if not found:
         return False
+    _early_pressed[0] = time.monotonic()
     # The text may sit on the button itself or on a label inside it.
     target = found[-1]
     for w in reversed(found):
