@@ -4006,7 +4006,8 @@ class Quester:
             # game calls 'A River Runs Through It' main, and no giver was asked
             # after 'Smart Food'.)
             parked = sorted(q.name for _, q in all_quests
-                            if (self.setbacks.deferred.get(q.name) or {}).get("main"))
+                            if q.name in set_aside and (self.setbacks.deferred.get(q.name) or {}).get("main"))
+            self._parked = parked
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
                 self._last_main_zone = await self.client.zone_name() or ""
@@ -5734,6 +5735,11 @@ class Quester:
         pinned = self._pin if self._pin is not None else load_pin()  # (before the first ranking too)
         if self._mainline or self._detour_names() is None or pinned:
             return False  # (a pinned quest is followed first: Wysteria's story)
+        if getattr(self, "_parked", None):
+            # The story quest is in the book, set aside (waiting for a team for
+            # Ahuizotl): there's no "next" quest to ask for (it swept Cloudburst
+            # Forest's NPCs again instead of the side quests).
+            return False
         here = await self.client.zone_name() or ""
         if await self._in_dungeon(here) or is_team_up_zone(here):
             # Inside an instance the book leaves quests out ('Take Me to the
