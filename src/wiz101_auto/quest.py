@@ -6408,7 +6408,15 @@ class Quester:
                                            fight.y + dy / length * TEAM_JOIN_FROM, fight.z))
             await asyncio.sleep(0.8)
         allow_engage(self.client)
-        await self.client.goto(fight.x, fight.y)
+        # (The teammate's fight is the one we want, whoever is in it: the
+        # objective's target filter refused the walk to Ahuizotl's circle for
+        # "enemies that aren't the target by the way", and the join failed.)
+        targets = getattr(self.client, "_target_names", None)
+        self.client._target_names = None
+        try:
+            await self.client.goto(fight.x, fight.y)
+        finally:
+            self.client._target_names = targets
         await self._hold_for_fight()
         if await self.client.in_battle():
             fails.pop(key, None)
