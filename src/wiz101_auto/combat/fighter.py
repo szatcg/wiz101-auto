@@ -620,6 +620,14 @@ class Fighter(CombatHandler):
             logger.opt(exception=exc).warning("combat round failed; carrying on")
 
     async def _handle_round(self):
+        from ..deck import _spellbook_open, close_spellbook
+
+        if await _spellbook_open(self.client):
+            # The quest book left open over the battle (a quest-book read when
+            # the fight began): every card click and Pass went to the book, and
+            # the wizard sat out the rounds (Night Weavers, Monquistans).
+            logger.warning("the spellbook is open over the battle: closing it first")
+            await close_spellbook(self.client)
 
         # No minions at all (the player: slow, and their worth is hard to
         # judge): never summoned, and a minion card drawn is discarded.
