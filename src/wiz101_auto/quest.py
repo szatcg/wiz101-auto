@@ -5899,6 +5899,8 @@ class Quester:
         main story, its next quest not in the book): the NPCs where the main
         story was last worked on. True if it acted."""
         pinned = self._pin if self._pin is not None else load_pin()  # (before the first ranking too)
+        if pinned and self._book_names and pinned not in self._book_names:
+            pinned = None  # (a pin carried onto a quest already done: "Long Way 'Round" blocked the asking)
         if self._mainline or self._detour_names() is None or pinned:
             return False  # (a pinned quest is followed first: Wysteria's story)
         if getattr(self, "_parked", None) is None or self._parked:  # (None: no full read yet after a start)
@@ -8486,7 +8488,8 @@ class Quester:
             # Forest, then left for a side quest and never came back).
             logger.debug("step: story giver sweep")
             return
-        if not self._mainline and not self._pin and self._detour_gap_pending() and await self._detour_ask():
+        live_pin = self._pin and (not self._book_names or self._pin in self._book_names)
+        if not self._mainline and not live_pin and self._detour_gap_pending() and await self._detour_ask():
             # The story's quest ended with none after it: its NPCs before any
             # side quest (the player's order; it went off to 'The Spiral Cup'
             # after 'Meddling Wizards' with Zafaria's next quest at the hub).
