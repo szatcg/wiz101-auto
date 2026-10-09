@@ -474,7 +474,15 @@ async def quest_loop(quester: Quester, controller: Controller):
                     controller.allow_idle(180)
                     try:
                         if not await relog(quester.client):
-                            logger.warning("ALERT: main quest stuck: the wizard can't move; relog failed")
+                            # Relogged already and the moves still time out
+                            # (WC_Hub after Azteca: no walk, door or button
+                            # got out): the game itself is stuck: restart it.
+                            logger.warning("ALERT: the wizard can't move even after a relog; "
+                                           "stopping for a game restart")
+                            from . import gamerestart
+
+                            gamerestart.request("the wizard can't move even after a relog")
+                            controller.stop("wizard frozen (should_update) after a relog")
                     finally:
                         controller.end_idle()
             await asyncio.sleep(2.0)
