@@ -97,6 +97,7 @@ STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
 MAX_BOOK_PAGES = 30  # the quest book, read to its last page (was 5: quests went missing)
+RANK_FULL_EVERY = 600.0  # a full quest-book read at least this often (else memory says "unchanged")
 RANK_QUESTS_EVERY = 120.0  # at most this often: quest-book rankings (on objective changes)
 NO_MAIN_ALERT_SECONDS = 1800.0  # "no main quest in the book" alert at most this often
 # Quest book window paths (mapped by Deimos).
@@ -3863,11 +3864,56 @@ class Quester:
         # The read takes a while with nothing "happening": the watchdog's
         # nudge closed the open book mid-read ("closed menus/popups (1)",
         # then 0 quests read), every few minutes while queued for a team.
+        if await self._ranking_unchanged():
+            return False
         self.controller.allow_idle(120)
         try:
             return await self._prioritize_quests()
         finally:
             self.controller.end_idle()
+
+    def _remember_ranking(self, names: set[str], chosen: str, set_aside: set[str]):
+        """What a full quest-book read decided, to skip the next read when
+        nothing it depends on has changed."""
+        self._ranking_memo = (frozenset(names), chosen, frozenset(set_aside), self._pin,
+                              time.monotonic())
+
+    async def _ranking_unchanged(self) -> bool:
+        """The quest book needn't be opened (the player: it paged through the
+        book every ranking, ~11 s for 9 pages): the quests in memory are the
+        ones the last full read saw, the game still tracks the quest it chose,
+        and what's set aside and pinned is the same. Then the read would
+        decide the same. A full read at least every RANK_FULL_EVERY anyway."""
+        memo = getattr(self, "_ranking_memo", None)
+        if memo is None or time.monotonic() - memo[4] > RANK_FULL_EVERY:
+            return False
+        names, chosen, aside, pin, _ = memo
+        if pin != self._pin:
+            return False
+        try:
+            from .names import lang_name
+
+            qm = await self.client.quest_manager()
+            quests = await qm.quest_data()
+            active_id = await self.client.quest_id()
+            now: set[str] = set()
+            active = ""
+            for qid, q in quests.items():
+                name = await lang_name(self.client, await q.name_lang_key())
+                now.add(name)
+                if qid == active_id:
+                    active = name
+            level = await self.client.stats.reference_level()
+        except Exception as exc:
+            logger.debug(f"quest memory read failed: {exc!r}")
+            return False
+        if now != names or active != chosen:
+            return False
+        if frozenset(self.setbacks.set_aside(level) | load_undoable()) != aside:
+            return False
+        logger.debug(f"quest priority: unchanged since the last read ({chosen!r}); book not opened")
+        self._last_rank = time.monotonic()
+        return True
 
     async def _prioritize_quests(self) -> bool:
         if not await self._open_quest_book():
@@ -4277,6 +4323,8 @@ class Quester:
             self._step_is_fight = entry.fight
             if entry.active:
                 logger.info(f"quest priority: continuing {entry.name!r}")
+                if complete:
+                    self._remember_ranking({q.name for _, q in all_quests}, entry.name, set_aside)
                 return False
             # Straight back to its page from the last one read (it went back
             # to page 1 and forward again: the book flicked through twice).
@@ -4319,6 +4367,8 @@ class Quester:
             logger.success(f"quest priority: tracking {entry.name!r} ({kind} quest in {where})")
             self._active_quest = entry.name
             self._active_is_main = entry.mainline
+            if complete:
+                self._remember_ranking({q.name for _, q in all_quests}, entry.name, set_aside)
             return True
         finally:
             await self._close_quest_book()
