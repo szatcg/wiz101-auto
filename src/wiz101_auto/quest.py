@@ -4278,11 +4278,14 @@ class Quester:
             if entry.active:
                 logger.info(f"quest priority: continuing {entry.name!r}")
                 return False
+            # Straight back to its page from the last one read (it went back
+            # to page 1 and forward again: the book flicked through twice).
+            first_on_page = next(q.name for p, q in all_quests if p == page)
             for _ in range(pages):
+                if await self._first_book_name() == first_on_page:
+                    break
                 if not await self._turn_page(back_button):
                     break  # the first page already
-            for _ in range(page):
-                await self._turn_page(page_button)
             info = [*QUEST_LIST, f"wndQuestInfo{entry.slot}", "questInfoWindow", "wndQuestInfo"]
             slot = [*info, "btnActivate"]
             for attempt in range(TRACK_TRIES):
