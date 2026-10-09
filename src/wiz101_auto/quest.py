@@ -5769,7 +5769,7 @@ class Quester:
         pinned = self._pin if self._pin is not None else load_pin()  # (before the first ranking too)
         if self._mainline or self._detour_names() is None or pinned:
             return False  # (a pinned quest is followed first: Wysteria's story)
-        if getattr(self, "_parked", None):
+        if getattr(self, "_parked", None) is None or self._parked:  # (None: no full read yet after a start)
             # The story quest is in the book, set aside (waiting for a team for
             # Ahuizotl): there's no "next" quest to ask for (it swept Cloudburst
             # Forest's NPCs again instead of the side quests).
