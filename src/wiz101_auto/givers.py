@@ -67,6 +67,20 @@ def looks_like_person(name: str) -> bool:
             and not set(name.lower().split()) & _OBJECT_WORDS)
 
 
+_TALK_RE = re.compile(r"Talk To (.+?) in ")
+
+
+def talk_targets(path: Path = Path("activity.log")) -> set[str]:
+    """Everyone a quest objective had us talk to ("Talk To Yaxche in
+    Cloudburst Forest"), from the activity log: people, whatever their names
+    look like."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return set()
+    return set(_TALK_RE.findall(text))
+
+
 # Words that make a display name a thing, not a person (the side-quest hunt
 # visited 'Cantrip Ritual Chest' and 'Duel Circle').
 _OBJECT_WORDS = frozenset({"chest", "circle", "sign", "signpost", "statue", "door", "gate", "portal",
@@ -360,12 +374,17 @@ class QuestGivers:
         me = await self.client.body.position()
         tried = self.__dict__.setdefault("_far_tried", set())
 
+        talked = talk_targets()
+
         def person(n: str) -> bool:
-            return (looks_like_person(n) and n not in enemies and norm(n) not in SKIP_GIVERS
+            # (Anyone a quest had us talk to counts, one-word names too: Yaxche.)
+            return ((looks_like_person(n) or n in talked) and n not in enemies and norm(n) not in SKIP_GIVERS
                     and not self._asked_recently(zone, n) and (zone, n) not in tried)
 
         names = self.q.entity_map.zones.get(zone, {})
-        for name in sorted(names, key=lambda n: min(math.dist(s[:2], (me.x, me.y)) for s in names[n])):
+        # Quest people first (Yaxche, Zenzen Seven Star), then the nearest.
+        for name in sorted(names, key=lambda n: (n not in talked,
+                                                 min(math.dist(s[:2], (me.x, me.y)) for s in names[n]))):
             if not person(name):
                 continue
             spot = min(names[name], key=lambda s: math.dist(s[:2], (me.x, me.y)))

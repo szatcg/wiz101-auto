@@ -34,3 +34,12 @@ def test_people_to_ask_instead_of_grinding():
     assert g.hunt_target("Celestia", zones, {"Piscean Trooper"}) == ("Edith Benchley", "Celestia/CL_B")
     g._zone_checks["Celestia/CL_B"] = __import__("time").time()
     assert g.hunt_target("Celestia", zones, set()) == ("Thornton Lewis", "Celestia/CL_A")
+
+
+def test_talk_targets_come_from_the_activity_log(tmp_path):
+    from wiz101_auto.givers import talk_targets
+
+    log = tmp_path / "activity.log"
+    log.write_text("20:34:14 | SUCCESS | objective done -> now: 'Talk To Yaxche in Cloudburst Forest'\n"
+                   "20:52:08 | SUCCESS | objective done -> now: 'Talk To Tezcat Threestar in The Zocalo'\n")
+    assert talk_targets(log) == {"Yaxche", "Tezcat Threestar"}
