@@ -4056,8 +4056,14 @@ class Quester:
             # (Only a story quest set aside for now, not one skipped for good: the
             # game calls 'A River Runs Through It' main, and no giver was asked
             # after 'Smart Food'.)
+            from .teamup import team_list
+
+            # (Or a quest waiting for its team: 'One Voice Above The Din' was
+            # set aside as a side quest, "no main quest", and NPCs were asked.)
+            waiting = set(team_list().values())
             parked = sorted(q.name for _, q in all_quests
-                            if q.name in set_aside and (self.setbacks.deferred.get(q.name) or {}).get("main"))
+                            if q.name in set_aside and ((self.setbacks.deferred.get(q.name) or {}).get("main")
+                                                        or q.name in waiting))
             self._parked = parked
             if self._mainline:
                 self._last_main = sorted(self._mainline)[0]
