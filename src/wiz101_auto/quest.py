@@ -3855,6 +3855,16 @@ class Quester:
     async def prioritize_quests(self) -> bool:
         """Track the quest `choose_quest` picks (keep the current questline unless a
         spell quest is waiting). True if it switched."""
+        # The read takes a while with nothing "happening": the watchdog's
+        # nudge closed the open book mid-read ("closed menus/popups (1)",
+        # then 0 quests read), every few minutes while queued for a team.
+        self.controller.allow_idle(120)
+        try:
+            return await self._prioritize_quests()
+        finally:
+            self.controller.end_idle()
+
+    async def _prioritize_quests(self) -> bool:
         if not await self._open_quest_book():
             logger.warning("could not open the quest book to rank quests")
             return False
