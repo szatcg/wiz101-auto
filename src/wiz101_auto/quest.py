@@ -4230,6 +4230,12 @@ class Quester:
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
                                   FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=hunted_out)
             grinding = chosen is None and bool(all_quests)
+            # A side quest from an earlier world while this world's people
+            # haven't been asked (the player: in Azteca for Clemente Moraga with
+            # Khrysalis's NPCs never asked for side quests).
+            self._side_elsewhere = bool(
+                chosen is not None and not (chosen.mainline or chosen.activity) and world
+                and quest_world(chosen) != world)
             if grinding and not self._grinding:
                 logger.warning(f"nothing to do in {world}: fighting there for experience until a level-up")
                 for q in main_quests:
@@ -8419,8 +8425,10 @@ class Quester:
             rerank_due = True  # (no new visit this step: the ranking first)
         else:
             rerank_due = False
-        if (self._grinding and not VISIT_FILE.exists() and self._main_world and not accepted_new
-                and not rerank_due and not self._pin):
+        elsewhere = getattr(self, "_side_elsewhere", False) and not self._grinding
+        if ((self._grinding or elsewhere) and not VISIT_FILE.exists() and self._main_world
+                and not accepted_new and not rerank_due and not self._pin
+                and not await self.client.in_battle()):
             # (Not with a quest picked: the pinned 'Goblin Up' waited while it
             # went visiting Caliburn's people "instead of grinding".)
             # (Not with a quest just accepted: a ranking first. Sir Guy
@@ -8438,12 +8446,16 @@ class Quester:
                 from .combat.sim import load_stats
 
                 enemies = set(load_stats().get("enemies", {}))
-                for place in (self._main_world, *FALLBACK_SIDE_PLACES.get(self._main_world, ())):
+                # (Doing an earlier world's side quest: only this world's people
+                # are worth the trip first.)
+                places = (self._main_world,) if elsewhere else (
+                    self._main_world, *FALLBACK_SIDE_PLACES.get(self._main_world, ()))
+                for place in places:
                     target = self.givers.hunt_target(place, self.entity_map.zones, enemies)
                     if target:
                         break
                 source = "for side quests instead of grinding"
-            if not target and not getattr(self, "_hunt_exhausted_logged", False):
+            if not target and not elsewhere and not getattr(self, "_hunt_exhausted_logged", False):
                 # Nobody left to ask here: the other worlds' side quests in the
                 # book before grinding (choose_quest's `anywhere`).
                 self._hunt_exhausted = time.monotonic()
