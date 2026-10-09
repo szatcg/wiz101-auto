@@ -175,6 +175,19 @@ class DeckKeeper:
             never = {n.lower() for n in general.get("never") or []}
             role = self._worn or ("single" if boss else "aoe")
             target = {n: c for n, c in current.items() if n.lower() not in never}
+            if general.get("freeze_decks"):
+                # The player (2026-10-09): keep the decks as they are; a spell
+                # learned from now on (the game puts it in: King Artorius) comes
+                # out again. Each deck item's cards are noted the first time.
+                baseline = general.setdefault("baseline", {})
+                if role not in baseline:
+                    baseline[role] = sorted(target)
+                    try:
+                        GENERAL_FILE.write_text(json.dumps(general, indent=1), encoding="utf-8")
+                    except OSError:
+                        pass
+                keep = {n.lower() for n in baseline[role]} | {n.lower() for n in extra}
+                target = {n: c for n, c in target.items() if n.lower() in keep}
             for key, base in list(self._added.items()):
                 r, _, name = key.partition(":")
                 if r != role or name in extra:

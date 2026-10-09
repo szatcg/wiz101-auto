@@ -56,3 +56,26 @@ def test_a_bosss_school_by_the_objectives_short_name(tmp_path):
     assert school_on_file("Yaxche", stats) == "myth"
     assert school_on_file("Blighted Yaxche", stats) == "myth"
     assert school_on_file("Axche", stats) == ""
+
+
+def test_frozen_decks_drop_spells_learned_later(tmp_path, monkeypatch):
+    # (The player: King Artorius out, and any new spell, until told otherwise.)
+    import json
+
+    from wiz101_auto import deck, deck_keeper
+
+    general = tmp_path / "general.json"
+    general.write_text(json.dumps({"deck": {"Orthrus": 1}, "player_decks": True, "freeze_decks": True,
+                                   "baseline": {"aoe": ["Mythblade", "Orthrus"]}}), encoding="utf-8")
+    progress = tmp_path / "progress.json"
+    known = {"known_spells": ["Orthrus", "Mythblade", "King Artorius"]}
+    progress.write_text(json.dumps(known), encoding="utf-8")
+    monkeypatch.setattr(deck_keeper, "GENERAL_FILE", general)
+    monkeypatch.setattr(deck_keeper, "PROGRESS_FILE", progress)
+    monkeypatch.setattr(deck_keeper, "ADDED_FILE", tmp_path / "added.json")
+    counts = {"Orthrus": 2, "Mythblade": 2, "King Artorius": 1}
+    monkeypatch.setattr(deck, "load_deck_counts", lambda *a, **k: dict(counts))
+    keeper = deck_keeper.DeckKeeper()
+    keeper._worn = "aoe"
+    target, changes = keeper.due(boss=False, extra={})
+    assert "King Artorius" not in target and target["Orthrus"] == 2
