@@ -225,3 +225,21 @@ def test_the_place_after_in_comes_first():
     assert objective_zone("Go to Barracks in Zamunda").startswith("Zafaria/")
     assert objective_zone("Defeat Greyhorn Mercenaries in Zamunda Outskirts (0 of 2)") == \
         "Zafaria/ZF_Z05_Zamunda_Outskirts"
+
+
+def test_a_learned_gate_that_failed_is_forgotten(tmp_path, monkeypatch):
+    import json
+
+    from wizwalker import XYZ
+
+    from wiz101_auto import travel_data
+
+    f = tmp_path / "learned_gates.json"
+    f.write_text(json.dumps([["Azteca/AZ_Z00_Zocalo", "Azteca/AZ_Z07_TierraDeBrea", 562.0, -1987.0, 503.0]]))
+    monkeypatch.setattr(travel_data, "LEARNED_GATES", f)
+    gates = travel_data._data()[0]
+    zocalo, tierra = "Azteca/AZ_Z00_Zocalo", "Azteca/AZ_Z07_TierraDeBrea"
+    travel_data.add_gate(gates, zocalo, tierra, XYZ(562.0, -1987.0, 503.0))
+    assert travel_data.forget_gate("Azteca/AZ_Z00_Zocalo", "Azteca/AZ_Z07_TierraDeBrea")
+    assert json.loads(f.read_text()) == []
+    assert not any(z == "Azteca/AZ_Z07_TierraDeBrea" for _p, z in gates.get("Azteca/AZ_Z00_Zocalo", []))

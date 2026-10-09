@@ -88,6 +88,28 @@ def learn_gate(from_zone: str, to_zone: str, pos: XYZ) -> bool:
     return True
 
 
+def forget_gate(from_zone: str, to_zone: str) -> bool:
+    """A learned gate that didn't work (Zocalo -> Tierra de Brea, learned off a
+    teleport: every trip there walked into the Zocalo's walls for 90 s first):
+    out of state/learned_gates.json and the gates in use. True if one went."""
+    try:
+        known = json.loads(LEARNED_GATES.read_text(encoding="utf-8")) if LEARNED_GATES.exists() else []
+    except (OSError, ValueError):
+        return False
+    keep = [g for g in known if not (g[0] == from_zone and g[1] == to_zone)]
+    if len(keep) == len(known):
+        return False
+    gone = [XYZ(*g[2:5]) for g in known if g[0] == from_zone and g[1] == to_zone]
+    gates = _data()[0].get(from_zone, [])
+    gates[:] = [(p, z) for p, z in gates
+                if not (z == to_zone and any(abs(p.x - q.x) < 1 and abs(p.y - q.y) < 1 for q in gone))]
+    try:
+        LEARNED_GATES.write_text(json.dumps(keep, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+    return True
+
+
 def parse_gates(text: str) -> Gates:
     """`gates_list.txt` lines `type;x;y;z;from_zone;to_zone`, grouped by from_zone."""
     gates: Gates = {}

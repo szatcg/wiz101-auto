@@ -1809,6 +1809,10 @@ class Quester:
             if await self.client.zone_name() == zone and not await self.approach_and_walk(pos, zone):
                 logger.warning(f"gate {zone} -> {next_zone} did not work; avoiding it")
                 self._bad_gates.add((zone, next_zone))
+                from .travel_data import forget_gate
+
+                if forget_gate(zone or "", next_zone):
+                    logger.info(f"forgot the learned gate {zone} -> {next_zone} (it never worked)")
             await wait_for_loading(self.client)
         return await self.client.zone_name() == dest
 
