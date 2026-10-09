@@ -5537,7 +5537,8 @@ class Quester:
         if is_team_up_zone(zone):
             return  # (a Team Up teleport, not a door: Three Points "led into" Mother Quetzal's cave)
         entry = DungeonMemory.load().dungeons.get(zone)
-        if entry is not None and entry.outside and entry.outside != old_zone:
+        if (entry is not None and entry.outside and entry.outside != old_zone
+                and "/interiors/" in zone.lower() and "/interiors/" not in old_zone.lower()):
             # A dungeon is entered from its own zone only: arriving from another
             # is a Team Up teleport or the dungeon-return button (Three Points,
             # Saltmeadow Swamp and Zultun Dock all "led into" the Well, and the
