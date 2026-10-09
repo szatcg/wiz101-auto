@@ -3266,7 +3266,10 @@ class Quester:
             # Recalling into a team-only dungeon means going in alone.
             logger.info(f"not recalling into {marked_zone} alone (team-only dungeon)")
             return False
-        if await self._resume_instance(marked_zone):
+        # (Only for a mark inside a dungeon: for one outside, at Floating
+        # Mountains' Well entrance, the button took us back into the Well.)
+        if (("/interiors/" in marked_zone.lower() or await self._is_dungeon_zone(marked_zone))
+                and await self._resume_instance(marked_zone)):
             return True
         self.controller.allow_idle(40)
         try:
