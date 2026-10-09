@@ -6428,6 +6428,11 @@ class Quester:
         spot = XYZ(*spots[0])
         logger.info(f"nobody started the boss fight in {TEAM_START_AFTER:.0f}s: starting it "
                     f"at {who} ({spot.x:.0f}, {spot.y:.0f})")
+        from .safe_teleport import allow_teleport
+
+        # (Walk-only with a team, but the walk map has no way to Ahuizotl in
+        # the water: "no way on foot", twice. As joining a fight does.)
+        allow_teleport(self.client, 8.0)
         allow_engage(self.client)  # this teleport is meant to start the fight
         await self.client.teleport(spot)
         await asyncio.sleep(3.0)
