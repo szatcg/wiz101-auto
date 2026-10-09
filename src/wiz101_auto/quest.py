@@ -5712,6 +5712,11 @@ class Quester:
                 button = await _find_button(self.client.root_window, (label,))
             if button is None:
                 logger.warning(f"{why}: {label.title()} isn't on the Spiral Map's pages")
+                try:  # (what the pages do show: Khrysalis wasn't found by that name)
+                    lines = await ui.dump_tree(self.client.root_window, max_depth=10)
+                    Path("state", f"spiral_map_{world}.txt").write_text(chr(10).join(lines), encoding="utf-8")
+                except Exception as exc:
+                    logger.debug(f"spiral map dump failed: {exc!r}")
             if button is not None:
                 logger.info(f"{why}: choosing {label.title()} on the Spiral Map")
                 await ui.click_center(self.client, button)
