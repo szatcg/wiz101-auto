@@ -899,6 +899,9 @@ class Fighter(CombatHandler):
             if await self._committed(before):
                 return
             await self._log_failed_cast(snap, action, target)
+            stray = await ui.close_stray_windows(self.client)
+            if stray:
+                logger.warning(f"closed a window over the battle: {stray}")
             # A window over the cards (the pet level-up) eats every click: close it.
             from ..upkeep import clear_popups
 

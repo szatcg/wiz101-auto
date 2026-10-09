@@ -282,6 +282,44 @@ async def click_center(client, window) -> None:
     await button_click(client, int((r.x1 + r.x2) / 2), int((r.y1 + r.y2) / 2))
 
 
+_STRAY_CLOSE = {"exit", "Exit", "Close", "close", "btnClose", "CloseButton", "Close_Button", "btnExit",
+                "closeButton", "ExitButton", "btnX"}
+_BATTLE_WINDOWS = {"PlanningPhase", "CombatRoot", "ChatWindowFrame", "HealthAndMana", "CombatScreen"}
+
+
+async def close_stray_windows(client) -> list[str]:
+    """Close any window over the screen that has a close button and isn't part
+    of the battle UI (a "Four-Eyed Grouper: three times the gold today" fish
+    notice covered the cards: every click went to it). The names closed."""
+    closed = []
+    try:
+        root = client.root_window
+        views = [c for c in await root.children() if await c.name() == "WorldView"] or [root]
+        for view in views:
+            for win in await view.children():
+                try:
+                    if not await win.is_visible():
+                        continue
+                    name = await win.name()
+                    if name in _BATTLE_WINDOWS:
+                        continue
+                    battle = await find_named(win, {"Pass", "Flee", "Focus", "Draw"}, max_depth=6)
+                    if any(v is not None for v in battle.values()):
+                        continue  # (the battle's own controls live here: never "closed")
+                    found = await find_named(win, _STRAY_CLOSE, max_depth=5)
+                    button = next((b for b in found.values() if b is not None and await b.is_visible()), None)
+                    if button is None:
+                        continue
+                    await click_center(client, button)
+                    closed.append(name)
+                    await asyncio.sleep(0.4)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return closed
+
+
 async def find_named(window, names: set[str], max_depth: int = 8) -> dict:
     """One walk of `window`'s subtree: the shallowest window of each wanted
     name. Reading many fields of one panel this way beats a `window_at` from
