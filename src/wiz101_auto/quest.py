@@ -3838,6 +3838,20 @@ class Quester:
             )
         return out
 
+    async def _dump_empty_book(self):
+        """An empty first page with the book open (reads came back empty while
+        queued for a team): the screen and the book's window tree, to see why."""
+        try:
+            from .screenshot import save_screenshot
+
+            root = await ui.window_at(self.client, ["WorldView", "DeckConfiguration"])
+            lines = (await ui.dump_tree(root, max_depth=6) if root is not None
+                     else ["(no DeckConfiguration)"])
+            Path("state", "questbook_empty.txt").write_text(chr(10).join(lines), encoding="utf-8")
+            save_screenshot("state/questbook_empty.png")
+        except Exception as exc:
+            logger.debug(f"empty book dump failed: {exc!r}")
+
     async def prioritize_quests(self) -> bool:
         """Track the quest `choose_quest` picks (keep the current questline unless a
         spell quest is waiting). True if it switched."""
@@ -3875,6 +3889,8 @@ class Quester:
                     if not entries:
                         complete = True
                         break
+                if not entries and not all_quests:
+                    await self._dump_empty_book()
                 if not entries:
                     # An empty book while there's an objective is a failed read
                     # (after a public fight in the Plaza of Conquests it read []
@@ -3964,18 +3980,6 @@ class Quester:
             done = self.completions.update({q.name for _, q in all_quests}) if complete else set()
             if not complete:
                 logger.warning(f"read {len(all_quests)} quests over {pages} pages without reaching the end")
-            if not all_quests:
-                # (Empty reads at 03:51 and 03:54 with the book open: what's on screen.)
-                try:
-                    from .screenshot import save_screenshot
-
-                    root = await ui.window_at(self.client, ["WorldView", "DeckConfiguration"])
-                    lines = (await ui.dump_tree(root, max_depth=5) if root is not None
-                             else ["(no DeckConfiguration)"])
-                    Path("state", "questbook_empty.txt").write_text(chr(10).join(lines), encoding="utf-8")
-                    save_screenshot("state/questbook_empty.png")
-                except Exception as exc:
-                    logger.debug(f"empty book dump failed: {exc!r}")
             for name in done:
                 listed = self.quest_order.get(norm(name))
                 where = f" (#{listed.index} on the quest list)" if listed else ""
