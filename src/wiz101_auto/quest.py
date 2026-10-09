@@ -8209,6 +8209,14 @@ class Quester:
         if await self._house_to_world():
             logger.debug("step: house's world gate")
             return
+        sweep = self.givers.main_sweep_zone
+        if (not self._mainline and sweep and sweep == await self.client.zone_name()
+                and await self.givers.ask_nearby()):
+            # The sweep for the next story quest goes on until everyone here
+            # was asked (after 'Smart Food' it asked one statue in Cloudburst
+            # Forest, then left for a side quest and never came back).
+            logger.debug("step: story giver sweep")
+            return
         if not self._mainline and not self._pin and self._detour_gap_pending() and await self._detour_ask():
             # The story's quest ended with none after it: its NPCs before any
             # side quest (the player's order; it went off to 'The Spiral Cup'
