@@ -5536,6 +5536,13 @@ class Quester:
         await self._learn_dungeon_exit(old_zone, zone)
         if is_team_up_zone(zone):
             return  # (a Team Up teleport, not a door: Three Points "led into" Mother Quetzal's cave)
+        entry = DungeonMemory.load().dungeons.get(zone)
+        if entry is not None and entry.outside and entry.outside != old_zone:
+            # A dungeon is entered from its own zone only: arriving from another
+            # is a Team Up teleport or the dungeon-return button (Three Points,
+            # Saltmeadow Swamp and Zultun Dock all "led into" the Well, and the
+            # way to Twin Giants went into it, again and again).
+            return
         if is_hub(zone) or zone.split("/", 1)[0] != old_zone.split("/", 1)[0] or self._recall_pending:
             return  # the hub button, a Recall or a relog, not a door (Throne Room -> hub after Zeus)
         land = getattr(self.client, "_last_landing", None)
