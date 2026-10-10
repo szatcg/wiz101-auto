@@ -3145,6 +3145,13 @@ class Quester:
             # night to it). A level-up brings it back sooner.
             n = self.setbacks.defeats.get(objective, 0) + 1
             self.setbacks.defeats[objective] = n
+            # (Per boss too: 'Find Brood Mother' became 'Defeat Broodmother'
+            # between two losses to her, and the count began again.)
+            boss_key = f"lost to: {sorted(bosses)[0]}" if bosses else None
+            if boss_key:
+                n = max(n, self.setbacks.defeats.get(boss_key, 0) + 1)
+                self.setbacks.defeats[boss_key] = n
+                self.setbacks.defeats[objective] = n
             limit = DETOUR_DEFEATS
             try:  # (state/detour.json 'defeats_before_wait': the player watching it try again and again)
                 limit = int(json.loads(Path("state", "detour.json").read_text(encoding="utf-8"))
@@ -3158,8 +3165,10 @@ class Quester:
                 limit = 1
             if n >= TEAM_UP_AFTER_LOSSES and self._team_instead(quest, objective, n, story=True):
                 self.setbacks.defeats.pop(objective, None)
+                self.setbacks.defeats.pop(boss_key or "", None)
             elif n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
+                self.setbacks.defeats.pop(boss_key or "", None)
                 self.setbacks.defeats[again] = 1
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
