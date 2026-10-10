@@ -440,3 +440,14 @@ def test_a_later_rooms_boss_teams_up_at_the_first_rooms_sigil():
     assert (first_room_with_sigil("Azteca/Interiors/AZ_Z08_PyramidMotherMoon_Room03", rooms)
             == "Azteca/Interiors/AZ_Z08_PyramidMotherMoon_Room01")
     assert first_room_with_sigil("Azteca/Interiors/AZ_Z08_Other_Room02", rooms) is None
+
+
+def test_a_boss_room_without_a_number_finds_the_first_rooms_sigil():
+    from types import SimpleNamespace
+
+    from wiz101_auto.quest import first_room_with_sigil
+
+    # Kravenly's room: no number, and an underscore the first room lacks.
+    rooms = {"Khrysalis/Interiors/KR_Z04_I03CanyonWatchTower_01": SimpleNamespace(sigil=[7, 8, 9])}
+    assert (first_room_with_sigil("Khrysalis/Interiors/KR_Z04_I03_CanyonWatchTower", rooms)
+            == "Khrysalis/Interiors/KR_Z04_I03CanyonWatchTower_01")
