@@ -29,6 +29,7 @@ NPC_RANGE_TITLE = ["WorldView", "NPCRangeWin", "wndTitleBackground", "NPCRangeTx
 CHECK_EVERY = 0.2  # seconds between looks at the prompt
 PRESS_COOLDOWN = 3.0  # after a press, let the dialogue come up before pressing again
 COLLECT_COOLDOWN = 1.0  # between presses on pick-up prompts
+BADGE_LAPSE_CHECK = False  # a queue lapse read off the Waiting badge (unreliable: off)
 QUEUE_CHECK_EVERY = 60.0  # queued for a team: this often, make sure the game still has us queued
 
 
@@ -134,6 +135,11 @@ async def prompt_loop(client, quester, controller):
                     # (Not when the sigil itself said we're queued: the badge
                     # can't be read then; the 15-minute recheck still comes.)
                     fresh = age < QUEUE_CHECK_EVERY * 1.5 or bool(q.get("sure"))
+                    # (The badge can't be trusted either way: it read "Waiting"
+                    # with no queue on, and "not queued" 3 minutes after every
+                    # queueing at LimeBright, the bot back at the sigil each
+                    # time. The 15-minute recheck at the sigil decides.)
+                    fresh = fresh or not BADGE_LAPSE_CHECK
                     # (Two looks in a row, never right after queuing: the
                     # badge shows a moment late, and a lapse was read 1 s in.)
                     misses = 0 if fresh or await queued(client) else misses + 1
