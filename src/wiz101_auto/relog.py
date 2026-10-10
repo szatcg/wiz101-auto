@@ -108,6 +108,11 @@ RELOG_LOOP_WINDOW = 600.0  # a relog in the same zone within this of the last: a
 _RELOGS: list[tuple[float, str]] = []  # (when, zone) of recent relogs
 
 
+def last_relog_at() -> float:
+    """When the last relog (from anywhere) started, monotonic; -1e9 if none."""
+    return max((t for t, _ in _RELOGS), default=-1e9)
+
+
 def relog_loop(history: list[tuple[float, str]], zone: str, now: float) -> bool:
     """A relog in `zone` already happened within RELOG_LOOP_WINDOW: relogging
     again won't free it."""

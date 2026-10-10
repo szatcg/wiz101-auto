@@ -476,10 +476,12 @@ async def quest_loop(quester: Quester, controller: Controller):
                 cutscene = time.monotonic() < getattr(quester, "_walked_in_at", -1e9) + WALK_IN_QUIET
                 if (stuck >= STUCK_TIMEOUTS_BEFORE_RELOG and not cutscene
                         and not await quester.client.in_battle()):
-                    from .relog import relog
+                    from .relog import last_relog_at, relog
 
                     stuck = 0
-                    if time.monotonic() - last_relog[0] < RELOG_AGAIN_RESTART:
+                    # (Any relog counts: the stuck-wizard one at 07:04, then
+                    # this one at 07:07, and the game stayed frozen.)
+                    if time.monotonic() - max(last_relog[0], last_relog_at()) < RELOG_AGAIN_RESTART:
                         # Frozen again soon after a relog (or a walk out): the
                         # game itself is stuck (Last Wood, then the Bastion with
                         # every move timing out): restart it.
