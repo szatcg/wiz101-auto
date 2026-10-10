@@ -441,6 +441,7 @@ async def status_loop(client, controller: Controller, fighter: Fighter, quester,
         await asyncio.sleep(5)
 
 
+RELOG_AGAIN_RESTART = 900.0  # frozen again within this of a relog: the game is restarted instead
 STUCK_TIMEOUTS_BEFORE_RELOG = 3  # quest steps failing in a row on WizWalker's should_update
 
 
@@ -448,6 +449,7 @@ async def quest_loop(quester: Quester, controller: Controller):
     from . import loopwatch
 
     stuck = 0  # steps in a row that failed because the game ignored our moves
+    last_relog = [-1e9]  # when the last relog for a frozen wizard was
     loopwatch.reset()
     logger.add(loopwatch.sink, level="INFO", format="{message}")
     while not controller.stopped.is_set():
@@ -477,6 +479,18 @@ async def quest_loop(quester: Quester, controller: Controller):
                     from .relog import relog
 
                     stuck = 0
+                    if time.monotonic() - last_relog[0] < RELOG_AGAIN_RESTART:
+                        # Frozen again soon after a relog (or a walk out): the
+                        # game itself is stuck (Last Wood, then the Bastion with
+                        # every move timing out): restart it.
+                        from . import gamerestart
+
+                        logger.warning("ALERT: the wizard froze again soon after a relog; "
+                                       "stopping for a game restart")
+                        gamerestart.request("the wizard froze again soon after a relog")
+                        controller.stop("wizard frozen again after a relog")
+                        break
+                    last_relog[0] = time.monotonic()
                     controller.allow_idle(180)
                     try:
                         if not await relog(quester.client):
