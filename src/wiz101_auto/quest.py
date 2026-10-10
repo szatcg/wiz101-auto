@@ -7007,6 +7007,16 @@ class Quester:
         _z, door, spot, nxt = hops[0]
         logger.info(f"to {target}'s room: through the door at ({door[0]:.0f}, {door[1]:.0f}) into "
                     f"{nxt.split('/')[-1]}")
+        key = (zone, nxt)
+        tries = self.__dict__.setdefault("_boss_room_tries", {})
+        tries[key] = tries.get(key, 0) + 1
+        if tries[key] > 2:
+            # With a team the jump is a walk, and walking at the door from
+            # across the room never got there (Kravenly's tower, 8 tries in
+            # 4 minutes beside a teammate): jump to it.
+            from .safe_teleport import allow_teleport
+
+            allow_teleport(self.client)
         await self.client.teleport(XYZ(*spot))
         await asyncio.sleep(TELEPORT_SETTLE)
         if await self._zone_changed(zone):
