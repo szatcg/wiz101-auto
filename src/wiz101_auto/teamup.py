@@ -248,7 +248,10 @@ def is_team_dungeon(dungeon: str) -> bool:
 
 
 def _dungeon_base(zone: str) -> str:
-    return re.sub(r"_Room\d+$", "", zone or "")
+    """One key for every room of a dungeon: '_Room03' and '_02' suffixes
+    dropped, underscores ignored (Kravenly's KR_Z04_I03_CanyonWatchTower is
+    the room after KR_Z04_I03CanyonWatchTower_01, whose sigil went unused)."""
+    return re.sub(r"_(?:Room)?\d+$", "", zone or "").replace("_", "").lower()
 
 
 def in_team_list(zone: str) -> bool:
@@ -256,7 +259,7 @@ def in_team_list(zone: str) -> bool:
     (PyramidMotherMoon_Room01 listed: Neza's Room02/03 too; it fought him solo
     there after the list said Team Up)."""
     base = _dungeon_base(zone)
-    return bool(zone) and any(k == zone or (base != zone and _dungeon_base(k) == base) for k in team_list())
+    return bool(zone) and any(k == zone or _dungeon_base(k) == base for k in team_list())
 
 
 def is_team_up_zone(zone: str) -> bool:

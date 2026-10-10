@@ -648,9 +648,10 @@ BOOK_SIZE_FILE = Path("state") / "book_size.json"  # quests in the book at the l
 def first_room_with_sigil(zone: str, dungeons: dict) -> str | None:
     """The room of `zone`'s dungeon that has a learned sigil, first room first
     ("AZ_Z08_PyramidMotherMoon_Room03" -> "..._Room01")."""
-    base = re.sub(r"_Room\d+$", "", zone)
-    rooms = sorted(k for k, e in dungeons.items() if getattr(e, "sigil", None)
-                   and (k == base or re.fullmatch(re.escape(base) + r"_Room\d+", k)))
+    from .teamup import _dungeon_base
+
+    base = _dungeon_base(zone)
+    rooms = sorted(k for k, e in dungeons.items() if getattr(e, "sigil", None) and _dungeon_base(k) == base)
     return rooms[0] if rooms else None
 
 
