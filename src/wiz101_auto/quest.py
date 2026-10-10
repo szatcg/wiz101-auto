@@ -2141,9 +2141,15 @@ class Quester:
                 # Nothing to heal with here and "enough to go on" (84%): enter
                 # rather than loop sigil <-> heal (it did, at 82-84%).
         dungeon = self._dungeon_at(zone or "", sigil)
-        from .teamup import is_team_dungeon
+        from .teamup import TEAM_UP_DUNGEONS, is_team_dungeon
 
-        if is_team_dungeon(dungeon or ""):
+        objective_now = await self.objective() or ""
+        if (is_team_dungeon(dungeon or "") and not is_combat_objective(objective_now)
+                and (dungeon or "") not in TEAM_UP_DUNGEONS):
+            # The boss is beaten and the step left is a talk ('Talk To Tymen
+            # WhiteFlame' after the team won): in alone, not another queue.
+            logger.info(f"{objective_now!r} is no fight: into the team dungeon alone")
+        elif is_team_dungeon(dungeon or ""):
             # Too hard alone: only with a team (the Team Up button on the sigil).
             from .teamup import team_up
 
