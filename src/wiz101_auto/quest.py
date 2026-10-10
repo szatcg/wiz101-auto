@@ -2127,7 +2127,14 @@ class Quester:
             from .teamup import team_up
 
             await self._mark_here()
-            outcome = await team_up(self, dungeon)
+            # (The watchdog cut the form off half-filled, every time since the
+            # game restart: a tick, "nothing has happened for 15s", step
+            # cancelled, the form left up and no queue. It waits now.)
+            self.controller.allow_idle(90)
+            try:
+                outcome = await team_up(self, dungeon)
+            finally:
+                self.controller.end_idle()
             if outcome == "queued":
                 # The main quest waits for the team (side quests meanwhile);
                 # back here after QUEUE_RECHECK if the queue lapsed.
