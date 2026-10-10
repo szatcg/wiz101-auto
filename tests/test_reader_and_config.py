@@ -123,6 +123,8 @@ def test_controller_idle_window():
         assert c.idle_until > 0
         c.allow_idle(1)  # never shortens an existing window
         assert c.idle_until > __import__("time").monotonic() + 20
+        c.end_idle()  # the inner one ends: the outer window stays
+        assert c.idle_until > __import__("time").monotonic() + 20
         c.end_idle()
         assert c.idle_until == 0
 

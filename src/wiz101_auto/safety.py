@@ -97,10 +97,17 @@ class Controller:
 
     def allow_idle(self, seconds: float):
         """Declare an intentional quiet period (resting, waiting for respawns...)."""
+        stack = self.__dict__.setdefault("_idle_stack", [])
+        stack.append(self.idle_until)
+        del stack[:-50]
         self.idle_until = max(self.idle_until, time.monotonic() + seconds)
 
     def end_idle(self):
-        self.idle_until = 0.0
+        """End the latest quiet period: back to the one around it, if any (an
+        inner end_idle wiped the outer window: the watchdog then closed the
+        quest book mid-read and cut the Team Up form short)."""
+        stack = self.__dict__.get("_idle_stack") or []
+        self.idle_until = stack.pop() if stack else 0.0
 
     def stop(self, reason: str):
         if not self.stopped.is_set():
