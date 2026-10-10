@@ -84,3 +84,9 @@ def test_steal_is_a_collect():
 
     objective = "Steal Barrel of Kermes Fire in Tyrian Gorge (0 of 6)"
     assert collect_item_name(objective) == "Barrel of Kermes Fire"
+
+
+def test_free_is_a_collect():
+    from wiz101_auto.collect import collect_item_name
+
+    assert collect_item_name("Free Mantis Remains in Tyrian Gorge (0 of 3)") == "Mantis Remains"
