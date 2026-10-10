@@ -500,8 +500,17 @@ async def _fill_form(client, choices: tuple[str, ...] = TEAM_CHOICES) -> bool:
     size = next((c[len("TeamSize"):-len("CheckBox")] for c in choices if c.startswith("TeamSize")), "?")
     kind = f"{'questing' if 'TeamTypeQuestingCheckBox' in choices else 'farming'}, {size}+"
     logger.info(f"team up: pressing TEAM UP! on the form ({kind} players)")
-    await ui.click_center(client, button)
-    await asyncio.sleep(1.5)
+    for attempt in range(3):
+        await ui.click_center(client, button)
+        await asyncio.sleep(1.5)
+        # The press didn't take when the form is still up with its button
+        # (22:46: the filled form sat over the screen, no queue, and every
+        # quest-book read behind it came back empty).
+        still = await ui._visible_named(client.root_window, CONFIRM_WINDOW)
+        if still is None or await ui._visible_named(still, "TeamUpButton") is None:
+            break
+        logger.warning(f"team up: the form is still up after pressing TEAM UP! (try {attempt + 1})")
+        button = await ui._visible_named(still, "TeamUpButton") or button
     # (No closing of "other" forms here: after the press the one still on
     # screen can be ours, and closing it dropped the queue: twice the bot was
     # out of it three minutes after queuing, and the sigil offered TEAM UP!
