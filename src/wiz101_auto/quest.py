@@ -7017,6 +7017,12 @@ class Quester:
             from .safe_teleport import allow_teleport
 
             allow_teleport(self.client)
+            # (The learned walk starts ~2000 away (90, 1995): from there the
+            # straight walk never reached the door. Start near it instead.)
+            dx, dy = spot[0] - door[0], spot[1] - door[1]
+            far = math.hypot(dx, dy)
+            if far > 400:
+                spot = (door[0] + dx * 300 / far, door[1] + dy * 300 / far, spot[2])
         await self.client.teleport(XYZ(*spot))
         await asyncio.sleep(TELEPORT_SETTLE)
         if await self._zone_changed(zone):
