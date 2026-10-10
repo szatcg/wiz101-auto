@@ -7979,7 +7979,12 @@ class Quester:
         elsewhere = bool(place and world and place.split("/", 1)[0] != world)
         # (Or another world's: Wysteria's 'Go To Spiral Cup' tracked by the game
         # led the grinding wizard to the Spiral Map again and again.)
-        if not self._grinding or (objective not in waiting and not elsewhere):
+        # (Or the game tracks a quest skipped or set aside, nothing chosen
+        # instead: 'Into the Sea' sent it to the world gate for Atlantea
+        # again and again.)
+        tracked_aside = self._active_quest in (self.setbacks.skipped | set(self.setbacks.deferred))
+        if (not (self._grinding or (tracked_aside and elsewhere))
+                or (objective not in waiting and not elsewhere)):
             return False
         here = await self.client.zone_name() or ""
         indoors = "interiors" in here.lower() or await self._in_any_dungeon(here)
