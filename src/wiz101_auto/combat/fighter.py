@@ -692,7 +692,13 @@ class Fighter(CombatHandler):
             # restart Humongofrog and Cyclops weren't yet: "no attack cards
             # left" fled a fight on its first round).
             battle.deck_known = bool(self._deck) and not self._unknown_left
-            if out_of_mana(battle):
+            # (With other players in the fight: never flee for want of cards or
+            # mana; they can still win it. It fled Vekan LimeBlight at 5810 and
+            # left its teammate alone.)
+            from .brain import with_team
+
+            team = with_team(battle)
+            if out_of_mana(battle) and not team:
                 # Nothing castable without mana: passing until defeated loses
                 # anyway; fleeing keeps our health.
                 if not self._flee_tried_this_round:
@@ -704,7 +710,7 @@ class Fighter(CombatHandler):
                 await self.pass_button()
                 return
 
-            if battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round:
+            if battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round and not team:
                 # Passing until we die (Shakes O'Leary healed back up) loses
                 # the fight anyway; fleeing keeps our health for the retry.
                 self._flee_tried_this_round = True
