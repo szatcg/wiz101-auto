@@ -4042,6 +4042,13 @@ class Quester:
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
+            before = len(self._book_names) or _saved_book_size()
+            if complete and before and len(all_quests) * 2 < before:
+                # (However the read ended: the page didn't turn, or no next
+                # button: 4 quests of 39 isn't the whole book.)
+                logger.warning(f"the quest book read gave {len(all_quests)} quests ({before} last time): "
+                               "not the whole book")
+                complete = False
             if complete and await self._in_dungeon(await self.client.zone_name() or ""):
                 # Inside a dungeon the book can leave quests out (the Haunted
                 # Cave's Halloween dungeon showed 4, Wizard Tours not among
