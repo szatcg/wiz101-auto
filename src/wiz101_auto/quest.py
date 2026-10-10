@@ -3414,6 +3414,15 @@ class Quester:
         (the exit is behind the arrival point): boss farming reuses it."""
         try:
             interior = await self.client.zone_name()
+            for _ in range(10):
+                # (Still loading: None, and Broodmother's room went unremembered,
+                # so no Team Up after losing to her.)
+                if interior:
+                    break
+                await asyncio.sleep(0.5)
+                interior = await self.client.zone_name()
+            if not interior or interior == outside:
+                return
             pos = await self._position()
             yaw = await self.client.body.yaw()
             DungeonMemory.load().record_entry(
