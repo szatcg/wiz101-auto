@@ -57,7 +57,12 @@ class Setbacks:
         """Count a defeat on `objective`. True when its quest is now set aside."""
         n = self.defeats.get(objective, 0) + 1
         self.defeats[objective] = n
-        if n < (MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER) or not quest:
+        need = MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER
+        if not main and quest and self.defeats.get(f"aside at level: {quest}") == level:
+            # Back after the hour at the same level: one loss is enough
+            # (Galek WorldRazer, a third death at level 95).
+            need = 1
+        if n < need or not quest:
             return False
         self.defeats.pop(objective, None)  # a fresh count when we come back
         now = time.time() if now is None else now

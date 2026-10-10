@@ -109,7 +109,6 @@ def test_a_side_boss_lost_again_after_the_hour_waits_for_a_level_up(tmp_path):
     s.record_defeat(boss, "Turn Up the Sun", 90, now=0)
     assert s.record_defeat(boss, "Turn Up the Sun", 90, now=0)
     assert "Turn Up the Sun" not in s.set_aside(90, now=DEFER_SECONDS + 1)  # the hour: back
-    s.record_defeat(boss, "Turn Up the Sun", 90, now=DEFER_SECONDS + 2)
-    assert s.record_defeat(boss, "Turn Up the Sun", 90, now=DEFER_SECONDS + 3)
+    assert s.record_defeat(boss, "Turn Up the Sun", 90, now=DEFER_SECONDS + 2)  # one loss is enough
     assert "Turn Up the Sun" in s.set_aside(90, now=10 * DEFER_SECONDS)  # same level: still aside
     assert "Turn Up the Sun" not in s.set_aside(91, now=10 * DEFER_SECONDS)
