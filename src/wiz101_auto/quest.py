@@ -4094,6 +4094,14 @@ class Quester:
                 # them): twice a false "no main quest" alert, and the pin
                 # dropped. Such a read decides nothing is done.
                 complete = False
+            busy = getattr(self, "_momentum", None)
+            if (not complete and busy and busy[0] and time.monotonic() - busy[1] < 600
+                    and busy[0] not in {q.name for _, q in all_quests}):
+                # A partial read without the quest we're mid-way through
+                # ('Romancing El Yollotl', missing from a read in a clearing:
+                # dropped for grinding): no ranking from it.
+                logger.warning(f"the quest book read left out {busy[0]!r}, the quest under way: keeping it")
+                return False
             if complete:
                 from .teamup import drop_team_dungeons
 
