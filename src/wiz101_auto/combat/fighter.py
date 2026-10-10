@@ -477,6 +477,7 @@ class Fighter(CombatHandler):
         bosses = [e.name for e in battle.enemies if e.is_boss]
         self.last_enemy_names = [e.name for e in battle.enemies]
         self.last_bosses = {e.name for e in battle.enemies if e.is_boss}
+        self.last_with_team = any(not a.is_minion and not a.is_dead for a in battle.allies)
         if bosses:
             self.last_boss_names = bosses
         try:

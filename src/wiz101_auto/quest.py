@@ -1409,6 +1409,13 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                if (zone and is_team_up_zone(zone) and is_combat_objective(self._last_progress[0])
+                        and not is_combat_objective(objective)):
+                    # A team won this dungeon's fight: what's left of it may
+                    # be done alone (Tymen's talk after the team beat him).
+                    from .teamup import _dungeon_base
+
+                    self.__dict__.setdefault("_team_beaten", set()).add(_dungeon_base(zone))
                 place = objective_zone(objective) if talk_target(objective) else None
                 if place and self._active_quest in (self._mainline or set()):
                     # The story's next giver is likeliest where its last step
@@ -2144,8 +2151,13 @@ class Quester:
         from .teamup import TEAM_UP_DUNGEONS, is_team_dungeon
 
         objective_now = await self.objective() or ""
+        from .teamup import _dungeon_base
+
+        beaten = getattr(self, "_team_beaten", set())
         if (is_team_dungeon(dungeon or "") and not is_combat_objective(objective_now)
-                and (dungeon or "") not in TEAM_UP_DUNGEONS):
+                and (dungeon or "") not in TEAM_UP_DUNGEONS and _dungeon_base(dungeon or "") in beaten):
+            # (Only once a team beat its boss: 'Go To Eclipse Tower' is no
+            # fight by name, and the bot walked alone into Ravik Dreamscape.)
             # The boss is beaten and the step left is a talk ('Talk To Tymen
             # WhiteFlame' after the team won): in alone, not another queue.
             logger.info(f"{objective_now!r} is no fight: into the team dungeon alone")
@@ -3129,7 +3141,9 @@ class Quester:
         from .teamup import set_team_size, team_key, team_size
 
         key = team_key(death_zone) if death_zone else None
-        if key and team_size(key) < TEAM_SIZE_AFTER_LOSS:
+        # (Only a loss with teammates: Ravik beat it alone in the Eclipse
+        # Tower's team room, and the Team Up there was raised to 4.)
+        if key and team_size(key) < TEAM_SIZE_AFTER_LOSS and getattr(self.fighter, "last_with_team", False):
             # Lost with a team (the player: Xibalba's fight is tough; a full
             # team of 4 there): the next Team Up there waits for 4.
             set_team_size(key, TEAM_SIZE_AFTER_LOSS)
