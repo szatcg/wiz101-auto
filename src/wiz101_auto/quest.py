@@ -2151,7 +2151,23 @@ class Quester:
         from .teamup import TEAM_UP_DUNGEONS, is_team_dungeon
 
         objective_now = await self.objective() or ""
-        from .teamup import _dungeon_base
+        from .teamup import _dungeon_base, team_list
+
+        listed_for = team_list().get(dungeon or "")
+        if listed_for:
+            got = await self._quests_in_memory()
+            if got is not None and listed_for not in {n.strip() for n in got[0]}:
+                # Its quest is done (memory says so; a read inside a dungeon
+                # isn't complete, so the list kept it: 'Moonlight Shadows'
+                # after Ravik, and 'Moon Aria' queued for a team to go in).
+                from .teamup import drop_team_dungeons
+
+                drop_team_dungeons({n.strip() for n in got[0]})
+                logger.info(f"{listed_for!r} is done: {dungeon.split('/')[-1]} is no team dungeon any more")
+                from .teamup import clear_queue, load_queue
+
+                if load_queue().get("quest") == listed_for:
+                    clear_queue()
 
         beaten = getattr(self, "_team_beaten", set())
         if (is_team_dungeon(dungeon or "") and not is_combat_objective(objective_now)
