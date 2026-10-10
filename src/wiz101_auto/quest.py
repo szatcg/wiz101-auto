@@ -48,7 +48,7 @@ from .farm import Farm
 from .givers import QuestGivers
 from .marks import RETURN_KINDS, Mark, load_mark, recall_is_faster, save_mark, should_travel_mark
 from .npc import ServicesMenu
-from .questlist import SIDE_WORLDS, CompletionTracker, load_quest_list, norm
+from .questlist import SIDE_WORLDS, CompletionTracker, load_completed, load_quest_list, norm
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted, walk_zone
 from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
 from .teamup import TEAM_UP_NAMES, is_team_up_zone
@@ -2082,6 +2082,14 @@ class Quester:
 
         queue = load_queue()
         quest = self._active_quest or ""
+        if queue and queue.get("quest") in set(load_completed()[-30:]):
+            # Its quest is done (Broodmother beaten: 'First Through the Breach'
+            # finished, and the stale queue kept the bot out of Tymen's dungeon).
+            from .teamup import clear_queue
+
+            logger.info(f"the Team Up queue's quest {queue.get('quest')!r} is done: forgetting the queue")
+            clear_queue()
+            queue = {}
         if queue and quest and quest != queue.get("quest") and not is_team_up_zone(zone or ""):
             # Entering a dungeon drops the Team Up queue (the player: side
             # quests in Khrysalis with no queue for Ghalak's tent): this quest
