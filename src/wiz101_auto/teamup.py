@@ -735,10 +735,9 @@ async def team_up(quester, dungeon: str) -> str:
     # The form may still be open from before (a restart): fill that one in.
     already = False
     form_done = not use_queue or await _fill_form(client, choices)
-    if not form_done and await queued(client):
-        logger.info("team up: already in the queue (Waiting); waiting on")
-        form_done = True
-        already = True  # (back here on a "lapse" that wasn't one: the badge reads badly)
+    # (The sigil itself says it best: TEAM UP! on it means not queued. The
+    # Waiting badge read "Waiting" with no queue on, 20:42, and the bot went
+    # off to side quests unqueued.)
     if not form_done and not await _click(client, TEAM_UP_WORDS, "sigil"):
         # The sigil shows only Resume while we're queued (after a restart the
         # Waiting badge wasn't always readable): wait for the team to take us.
