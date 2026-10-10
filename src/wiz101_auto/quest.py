@@ -3927,6 +3927,22 @@ class Quester:
                 self._ranking_memo = (*memo[:5], got[0])
         return switched
 
+    async def _main_quests_missing(self, read: set[str]) -> set[str]:
+        """Main-story quests the game holds (memory's flag) that `read` lacks."""
+        try:
+            from .names import lang_name
+
+            qm = await self.client.quest_manager()
+            mains = set()
+            for q in (await qm.quest_data()).values():
+                if await q.mainline():
+                    mains.add((await lang_name(self.client, await q.name_lang_key())).strip())
+        except Exception as exc:
+            logger.debug(f"quest memory read failed: {exc!r}")
+            return set()
+        names = {n.strip() for n in read}
+        return {m for m in mains if m and m not in names}
+
     async def _quests_in_memory(self) -> tuple[frozenset[str], str] | None:
         """(every quest name in memory, the tracked one's), or None."""
         try:
@@ -4042,6 +4058,14 @@ class Quester:
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
+            if complete:
+                # Every story quest the game holds (memory says which: For All
+                # the Tea) is on a complete read: the book's pages didn't turn
+                # and short reads raised "no main quest" alerts all evening.
+                missing = await self._main_quests_missing({q.name for _, q in all_quests})
+                if missing:
+                    logger.warning(f"the quest book read left out {sorted(missing)}: not the whole book")
+                    complete = False
             before = len(self._book_names) or _saved_book_size()
             if complete and before and len(all_quests) * 2 < before:
                 # (However the read ended: the page didn't turn, or no next
