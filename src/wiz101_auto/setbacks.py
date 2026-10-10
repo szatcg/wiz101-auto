@@ -85,6 +85,12 @@ class Setbacks:
         until then); others also after DEFER_SECONDS. `retry_after`: stuck
         rather than beaten, so try again after that many seconds anyway."""
         now = time.time() if now is None else now
+        old = self.deferred.get(quest) or {}
+        if old.get("level_only") and old.get("level") == level:
+            # Already waiting for a level-up (its boss beat us): a stall
+            # doesn't make it 'stuck', which a grind would release ('Stay
+            # Sharp': Razele again at the same level).
+            return
         if stuck:
             # The player: a quest the bot can't figure out (not a lost fight)
             # stays aside: side quests for experience instead; back only when

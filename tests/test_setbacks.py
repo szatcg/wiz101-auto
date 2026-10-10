@@ -125,3 +125,11 @@ def test_a_main_boss_back_at_the_same_level_waits_again_after_one_loss(tmp_path)
     s.deferred.pop("Blind Eye")  # its wait is over
     assert s.record_defeat(boss, "Blind Eye", 95, now=1, main=True)
     assert not s.deferred["Blind Eye"].get("level_only")  # (still back on its timer)
+
+
+def test_a_stall_doesnt_turn_a_level_up_wait_into_stuck(tmp_path):
+    s = Setbacks(tmp_path / "s.json")
+    s.deferred["Stay Sharp"] = {"level": 95, "at": 0, "objective": "x", "main": False, "level_only": True}
+    s.set_quest_aside("Stay Sharp", "x", 95, now=10, stuck=True)
+    assert s.deferred["Stay Sharp"].get("level_only")
+    assert s.release_stuck(now=1e9) == []
