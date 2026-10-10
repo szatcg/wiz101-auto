@@ -9118,6 +9118,16 @@ class Quester:
         if place and zone.startswith("WizardCity/") and place.split("/", 1)[0] != "WizardCity":
             if await self._to_world(place.split("/", 1)[0], f"{objective!r} is in {place.split('/', 1)[0]}"):
                 return
+        # From any other world too, when the quest book agrees on the world:
+        # Go Home and the Spiral Map (the player: it walked out of a Wysteria
+        # house for Kravenly in Khrysalis instead).
+        there = place.split("/", 1)[0] if place else ""
+        entry = getattr(self, "_chosen_entry", None)
+        book = (entry.zone or "").replace(" ", "") if entry is not None else ""
+        if (there and zone and not zone.startswith("WizardCity/") and there != zone.split("/", 1)[0]
+                and book == there and not is_team_up_zone(zone)):
+            if await self._to_world(there, f"{objective!r} is in {there}"):
+                return
 
         # The objective's place is another zone the gates lead to: there by its
         # gates first ('Talk To Mavra Flamewing in Plaza of Conquests': the
