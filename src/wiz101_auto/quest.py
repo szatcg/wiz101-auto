@@ -1409,6 +1409,16 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                place = objective_zone(objective) if talk_target(objective) else None
+                if place and self._active_quest in (self._mainline or set()):
+                    # The story's next giver is likeliest where its last step
+                    # is handed in ('Face of a Queen' ended with Zaltanna in
+                    # Bastion; the sweep asked Moon Cliffs, where it began).
+                    try:
+                        MAIN_STORY_ZONE_FILE.write_text(json.dumps({"zone": place, "asked": 0}),
+                                                        encoding="utf-8")
+                    except OSError:
+                        pass
                 self._learn_defeat_alias(self._last_progress[0], objective)
                 self._stop_if_asked(self._last_progress[0], objective)
                 # The book's fight icon was for the old step (Katzenstein); the
