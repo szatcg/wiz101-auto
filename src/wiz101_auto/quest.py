@@ -2767,9 +2767,16 @@ class Quester:
 
         zone = await self.client.zone_name() or ""
         if not is_house(zone):
+            self._house_since = None
             return False
-        if not self._mainline and not self._pin and self._detour_gap_pending():
-            return False  # (the story's next quest first: _detour_ask goes to its world)
+        since = self.__dict__.setdefault("_house_since", None) or time.monotonic()
+        self._house_since = since
+        if (not self._mainline and not self._pin and self._detour_gap_pending()
+                and time.monotonic() - since < 60):
+            # (the story's next quest first: _detour_ask goes to its world;
+            # but not for long: with the story set aside nothing did, and the
+            # bot walked about the houseboat for 7 minutes.)
+            return False
         target = objective_zone(await self.objective())
         if target is None and self._chosen_entry is not None and self._chosen_entry.zone:
             target = self._chosen_entry.zone.replace(" ", "")  # the book's world ("Wizard City")
