@@ -261,8 +261,10 @@ WARREN_USE_RANGE = 1500.0  # objects this near a scouting hop are used
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 # Outdoor zones with enemies, per world (until a fight there is won).
 GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
-# Where to grind, highest level first.
-GRIND_WORLDS = ["Celestia", "DragonSpire", "MooShu", "Marleybone", "Krokotopia", "Grizzleheim", "WizardCity"]
+# Where to grind, highest level first (Khrysalis at level 95: it set off for
+# Celestia and got lost at the house's world gate).
+GRIND_WORLDS = ["Khrysalis", "Azteca", "Avalon", "Zafaria", "Celestia", "DragonSpire", "MooShu",
+                "Marleybone", "Krokotopia", "Grizzleheim", "WizardCity"]
 MARK_SAFE_RADIUS = 1500.0  # a (non-dungeon) mark only this far from every enemy
 WALK_IN_LEGS = 4  # walking in from a dungeon's entrance: stops to look for the person
 KNOWN_SPOT_TRIES = 3  # visits to a spot where a collect item was seen, per objective
@@ -7925,7 +7927,9 @@ class Quester:
             return self._main_world
         known = set(self.__dict__.get("_win_zones", {}))
         for w in GRIND_WORLDS:
-            if w in known or w in GRIND_FALLBACK:
+            # (The story's world counts before a win there: after a restart
+            # Khrysalis lost to Celestia's fallback zone.)
+            if w in known or w in GRIND_FALLBACK or w == self._main_world:
                 return w
         return self._main_world
 
