@@ -259,7 +259,16 @@ def in_team_list(zone: str) -> bool:
     (PyramidMotherMoon_Room01 listed: Neza's Room02/03 too; it fought him solo
     there after the list said Team Up)."""
     base = _dungeon_base(zone)
-    return bool(zone) and any(k == zone or _dungeon_base(k) == base for k in team_list())
+    return bool(zone) and any(k == zone or (_dungeon_base(k) == base and _room_no(zone) >= _room_no(k))
+                              for k in team_list())
+
+
+def _room_no(zone: str) -> int:
+    """The room's number ('_Room03', '_02': 3, 2); 0 without one (Kravenly's
+    boss room). A room before the listed one isn't the team dungeon (the
+    Eclipse Tower's entry hall _01, its sigil inside leading to _02)."""
+    m = re.search(r"_(?:Room)?(\d+)$", zone or "")
+    return int(m.group(1)) if m else 99
 
 
 def is_team_up_zone(zone: str) -> bool:
