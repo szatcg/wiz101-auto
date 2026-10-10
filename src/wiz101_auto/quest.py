@@ -2879,6 +2879,17 @@ class Quester:
                 return True
         return False
 
+    def _visit_zone_failed(self):
+        """A visit dropped (no route, or a loop): its zone counts as swept, so
+        the hunt doesn't send the next person there (the Avalon Catacombs:
+        Lady of the Lake, then Sir Patrick, minutes each)."""
+        try:
+            zone = json.loads(VISIT_FILE.read_text(encoding="utf-8")).get("zone")
+        except (OSError, ValueError, AttributeError):
+            return
+        if zone:
+            self.givers._swept(zone)
+
     async def _grind(self) -> bool:
         """Every quest is set aside (bosses too strong, the rest unreachable):
         gain the level that releases them by fighting enemies here, or where a
@@ -2979,6 +2990,7 @@ class Quester:
             elif VISIT_FILE.exists():
                 # (An NPC visit going nowhere: the Bazaar loop was one.)
                 logger.info(f"dropping the NPC visit {VISIT_FILE.read_text(encoding='utf-8')[:80]}")
+                self._visit_zone_failed()
                 VISIT_FILE.unlink(missing_ok=True)
             elif objective:
                 await self._set_current_aside(objective)
@@ -6137,6 +6149,7 @@ class Quester:
                     VISIT_FILE.write_text(json.dumps(want), encoding="utf-8")
                     return True
                 logger.warning(f"visit {npc}: no route to {dest} from {zone}; dropping the visit")
+                self._visit_zone_failed()
                 VISIT_FILE.unlink(missing_ok=True)
                 self._visit_tries = 0
             return True
