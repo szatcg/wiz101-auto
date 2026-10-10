@@ -4040,7 +4040,7 @@ class Quester:
             logger.debug(f"quest memory read failed: {exc!r}")
             return None
 
-    async def _active_is_main(self) -> bool:
+    async def _tracked_main_in_memory(self) -> bool:
         """The quest the game tracks is a main-story one (memory's flag)."""
         try:
             qm = await self.client.quest_manager()
@@ -4072,7 +4072,7 @@ class Quester:
             return False
         now, active = got
         if (now - mem == {active} and mem - now == {chosen} and chosen in (self._mainline or set())
-                and await self._active_is_main()):
+                and await self._tracked_main_in_memory()):
             # The story's next quest handed over (the game tracks it at once):
             # the read would only choose it (the player: the book paged through
             # after every story quest). The finished one is logged here.
