@@ -2052,6 +2052,23 @@ class Quester:
             self._sigil_for = await self.objective() or ""
         except Exception:
             self._sigil_for = ""
+        from .teamup import QUEUE_RECHECK, load_queue
+
+        queue = load_queue()
+        quest = self._active_quest or ""
+        if queue and quest and quest != queue.get("quest") and not is_team_up_zone(zone or ""):
+            # Entering a dungeon drops the Team Up queue (the player: side
+            # quests in Khrysalis with no queue for Ghalak's tent): this quest
+            # waits, the queue stays.
+            logger.info(f"not entering a dungeon for {quest!r}: it would drop the Team Up queue for "
+                        f"{queue.get('dungeon', '').split('/')[-1]}")
+            level = await self.client.stats.reference_level()
+            self.setbacks.set_quest_aside(quest, self._sigil_for, level, main=quest in self._mainline,
+                                          retry_after=QUEUE_RECHECK)
+            self.setbacks.save()
+            self._ranked_for = None
+            self._last_rank = -1e9
+            return False
         # An open menu (e.g. the spellbook) hides the "press X" prompt.
         await close_spellbook(self.client)
         await ui.close_menus(self.client)
