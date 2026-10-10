@@ -319,11 +319,15 @@ class QuestGivers:
         named person seen there (the entity map, `zones`) not asked in the
         last hour, in a zone not swept for quests in the last hour, the zone
         with the most of them first. (npc, zone) or None: then grinding."""
+        from .teamup import is_team_up_zone
+
         best: tuple[int, str, str] | None = None
         for zone, names in zones.items():
             if not (zone == place or zone.startswith(place + "/")) or "/interiors/" in zone.lower():
                 # (The zone itself too: "Zafaria/ZF_Z00_Hub" never matched itself.)
                 continue
+            if is_team_up_zone(zone):
+                continue  # (never walked into alone: the Obsidian Fire Mirror in Xibalba)
             if time.time() - self._zone_checks.get(zone, 0.0) < ZONE_RECHECK_SECONDS:
                 continue
             people = [n for n in names if looks_like_person(n) and n not in enemies
