@@ -58,9 +58,10 @@ class Setbacks:
         n = self.defeats.get(objective, 0) + 1
         self.defeats[objective] = n
         need = MAIN_DEFEATS_TO_DEFER if main else DEFEATS_TO_DEFER
-        if not main and quest and self.defeats.get(f"aside at level: {quest}") == level:
-            # Back after the hour at the same level: one loss is enough
-            # (Galek WorldRazer, a third death at level 95).
+        if quest and self.defeats.get(f"aside at level: {quest}") == level:
+            # Back after its wait at the same level: one loss is enough
+            # (Galek WorldRazer, a third death at level 95; Kravenly, main,
+            # back after 3 hours at the same level).
             need = 1
         if n < need or not quest:
             return False
@@ -72,8 +73,7 @@ class Setbacks:
             # Lost again after the hour, same level (Clemente Moraga, six times
             # in an evening): only a level-up brings it back now.
             self.deferred[quest]["level_only"] = True
-        if not main:
-            self.defeats[again] = level
+        self.defeats[again] = level
         return True
 
     def set_quest_aside(

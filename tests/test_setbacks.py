@@ -112,3 +112,16 @@ def test_a_side_boss_lost_again_after_the_hour_waits_for_a_level_up(tmp_path):
     assert s.record_defeat(boss, "Turn Up the Sun", 90, now=DEFER_SECONDS + 2)  # one loss is enough
     assert "Turn Up the Sun" in s.set_aside(90, now=10 * DEFER_SECONDS)  # same level: still aside
     assert "Turn Up the Sun" not in s.set_aside(91, now=10 * DEFER_SECONDS)
+
+
+def test_a_main_boss_back_at_the_same_level_waits_again_after_one_loss(tmp_path):
+    from wiz101_auto.setbacks import MAIN_DEFEATS_TO_DEFER
+
+    s = Setbacks(tmp_path / "s.json")
+    boss = "Defeat Kravenly the Hunter in Tyrian Gorge"
+    for _ in range(MAIN_DEFEATS_TO_DEFER - 1):
+        assert not s.record_defeat(boss, "Blind Eye", 95, now=0, main=True)
+    assert s.record_defeat(boss, "Blind Eye", 95, now=0, main=True)
+    s.deferred.pop("Blind Eye")  # its wait is over
+    assert s.record_defeat(boss, "Blind Eye", 95, now=1, main=True)
+    assert not s.deferred["Blind Eye"].get("level_only")  # (still back on its timer)
