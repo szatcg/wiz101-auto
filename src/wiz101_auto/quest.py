@@ -630,6 +630,19 @@ def is_crafting(q: QuestEntry) -> bool:
     return goal.startswith("craft ") or "crafting station" in goal
 
 
+def _saved_book_size() -> int:
+    """How many quests the last full read saw (state/book_size.json, kept
+    across restarts): right after a start there's no read to compare with, and
+    a one-page read of 4 was taken as the whole book twice."""
+    try:
+        return int(json.loads(BOOK_SIZE_FILE.read_text(encoding="utf-8")).get("size", 0))
+    except (OSError, ValueError, AttributeError, TypeError):
+        return 0
+
+
+BOOK_SIZE_FILE = Path("state") / "book_size.json"  # quests in the book at the last full read
+
+
 def first_room_with_sigil(zone: str, dungeons: dict) -> str | None:
     """The room of `zone`'s dungeon that has a learned sigil, first room first
     ("AZ_Z08_PyramidMotherMoon_Room03" -> "..._Room01")."""
@@ -4021,10 +4034,11 @@ class Quester:
                     # No next-page button: the end, unless the book held far
                     # more last time (one page of 4 read as the whole book: "no
                     # main quest after 'Cry Havoc'", and a sweep for nothing).
-                    complete = not (self._book_names and len(all_quests) * 2 < len(self._book_names))
+                    before = len(self._book_names) or _saved_book_size()
+                    complete = not (before and len(all_quests) * 2 < before)
                     if not complete:
                         logger.warning(f"the quest book showed {len(all_quests)} quests and no next page "
-                                       f"({len(self._book_names)} last time): not the whole book")
+                                       f"({before} last time): not the whole book")
                     break
                 # (Unchanged after the wait: the next read finds nothing new
                 # and ends it; a slow page still gets read.)
@@ -4219,6 +4233,10 @@ class Quester:
             prev_names = self._book_names
             if complete:
                 self._book_names = names  # only a full read says what's in the book
+                try:
+                    BOOK_SIZE_FILE.write_text(json.dumps({"size": len(names)}), encoding="utf-8")
+                except OSError:
+                    pass
                 self._talk_again_after_turn_in(prev_names - names, names - prev_names)
             here = await self.client.zone_name() or ""
             # Side quests fill in only in the main quest's world (where it will be
