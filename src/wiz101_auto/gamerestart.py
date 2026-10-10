@@ -221,6 +221,26 @@ def needs_restart(bot_output_tail: str = "") -> str:
 
 # --- how ----------------------------------------------------------------------
 
+def _forget_team_queue(log=print):
+    """A closed game is out of any Team Up queue: the main quest that waited
+    on it comes back at once (it waited 15 minutes for the recheck, doing a
+    side quest, after the restart in Last Wood)."""
+    try:
+        from .setbacks import Setbacks
+        from .teamup import clear_queue, load_queue
+
+        q = load_queue()
+        if not q:
+            return
+        clear_queue()
+        s = Setbacks.load()
+        if s.deferred.pop(q.get("quest", ""), None) is not None:
+            s.save()
+        log(f"game restart: out of the Team Up queue for {q.get('dungeon', '?').split('/')[-1]}")
+    except Exception as exc:
+        log(f"game restart: couldn't clear the team queue: {exc!r}")
+
+
 def restart_game(log=print) -> bool:
     """Close the game, start it, log in. True once a login was sent (the bot
     presses Play at character select itself)."""
@@ -234,6 +254,7 @@ def restart_game(log=print) -> bool:
         log("game restart: no saved login (run `wiz101-auto set-login` once); can't log back in")
         return False
     _note_restart()
+    _forget_team_queue(log)
     from wizwalker.utils import instance_login, start_instance
 
     # Only the bot's own game: the player may be playing another copy.
