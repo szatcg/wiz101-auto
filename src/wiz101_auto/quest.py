@@ -3131,10 +3131,16 @@ class Quester:
                             .get("defeats_before_wait", DETOUR_DEFEATS))
             except (OSError, ValueError, TypeError):
                 pass
+            # (Back after its wait at the same level: one loss and it waits
+            # again; Kravenly beat the level-95 wizard 5 times, then again.)
+            again = f"set aside at level {level}: {objective}"
+            if again in self.setbacks.defeats:
+                limit = 1
             if n >= TEAM_UP_AFTER_LOSSES and self._team_instead(quest, objective, n, story=True):
                 self.setbacks.defeats.pop(objective, None)
             elif n >= limit and not self._detour_stays(quest):
                 self.setbacks.defeats.pop(objective, None)
+                self.setbacks.defeats[again] = 1
                 self.setbacks.set_quest_aside(quest, objective, level, main=True,
                                               retry_after=DETOUR_RETRY_SECONDS)
                 logger.warning(f"lost {objective!r} {n} times: {quest!r} waits 3 hours (or a level-up); "
