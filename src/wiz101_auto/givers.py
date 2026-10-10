@@ -36,6 +36,9 @@ from .upkeep import is_free, mob_positions, wait_until_free
 
 TALKED_PATH = Path("state") / "npc_talked.json"
 ASK_AGAIN_HOURS = 1.0
+# Trips made only to ask (the hunt instead of grinding): the same people not
+# before this (Khrysalis and Azteca asked again every hour, nothing new).
+HUNT_AGAIN_SECONDS = 6 * 3600.0
 ZONE_CHECKS_PATH = Path("state") / "npc_zone_checks.json"
 ZONE_RECHECK_SECONDS = 3600.0  # entering a zone not swept this long: ask every named NPC in it
 GIVER_RANGE = 2500.0  # NPCs this close are worth a quick word
@@ -270,6 +273,11 @@ class QuestGivers:
     def _key(self, zone: str, name: str) -> str:
         return f"{zone}|{name}"
 
+    def _asked_within(self, zone: str, name: str, seconds: float) -> bool:
+        return self._asked_recently(zone, name) or (
+            (when := getattr(self, "_talked", {}).get(self._key(zone, name))) is not None
+            and time.time() - when < seconds)
+
     def _asked_recently(self, zone: str, name: str) -> bool:
         when = self._talked.get(self._key(zone, name))
         return when is not None and time.time() - when < ASK_AGAIN_HOURS * 3600
@@ -328,10 +336,11 @@ class QuestGivers:
                 continue
             if is_team_up_zone(zone):
                 continue  # (never walked into alone: the Obsidian Fire Mirror in Xibalba)
-            if time.time() - self._zone_checks.get(zone, 0.0) < ZONE_RECHECK_SECONDS:
+            if time.time() - self._zone_checks.get(zone, 0.0) < HUNT_AGAIN_SECONDS:
                 continue
             people = [n for n in names if looks_like_person(n) and n not in enemies
-                      and norm(n) not in SKIP_GIVERS and not self._asked_recently(zone, n)]
+                      and norm(n) not in SKIP_GIVERS
+                      and not self._asked_within(zone, n, HUNT_AGAIN_SECONDS)]
             if people and (best is None or len(people) > best[0]):
                 best = (len(people), people[0], zone)
         return (best[1], best[2]) if best else None
