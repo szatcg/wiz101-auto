@@ -4040,6 +4040,15 @@ class Quester:
             logger.debug(f"quest memory read failed: {exc!r}")
             return None
 
+    async def _active_is_main(self) -> bool:
+        """The quest the game tracks is a main-story one (memory's flag)."""
+        try:
+            qm = await self.client.quest_manager()
+            q = (await qm.quest_data()).get(await self.client.quest_id())
+            return bool(q is not None and await q.mainline())
+        except Exception:
+            return False
+
     def _remember_ranking(self, names: set[str], chosen: str, set_aside: set[str]):
         """What a full quest-book read decided, to skip the next read when
         nothing it depends on has changed."""
@@ -4062,6 +4071,25 @@ class Quester:
         if got is None:
             return False
         now, active = got
+        if (now - mem == {active} and mem - now == {chosen} and chosen in (self._mainline or set())
+                and await self._active_is_main()):
+            # The story's next quest handed over (the game tracks it at once):
+            # the read would only choose it (the player: the book paged through
+            # after every story quest). The finished one is logged here.
+            logger.success(f"quest completed: {chosen!r}")
+            self.completions.log([chosen])
+            seen = self.completions._seen
+            if seen is not None:
+                self.completions._seen = (seen - {chosen}) | {active}
+            self.completions._logged.add(chosen)
+            self._talk_again_after_completion([chosen])
+            self._mainline = (set(self._mainline or ()) - {chosen}) | {active}
+            self._active_quest = active
+            self._ranking_memo = (frozenset((memo[0] - {chosen}) | {active}), active, memo[2], pin,
+                                  memo[4], now)
+            logger.info(f"quest priority: on to {active!r}, the story's next quest (book not opened)")
+            self._last_rank = time.monotonic()
+            return True
         if now != mem or active.strip() != chosen.strip():
             logger.debug(f"quests changed since the last read: new {sorted(now - mem)[:5]}, gone "
                          f"{sorted(mem - now)[:5]}; tracked {active!r} vs {chosen!r}")
