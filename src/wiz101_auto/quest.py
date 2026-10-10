@@ -4167,6 +4167,15 @@ class Quester:
             self._active_quest = active.name if active else self._active_quest
             level = await self.client.stats.reference_level()
             set_aside = self.setbacks.set_aside(level) | load_undoable()
+            # A boss that beat us blocks every quest that needs him ('Take Me
+            # In' after 'Blind Eye' was set aside for Kravenly: same fight, a
+            # sixth loss).
+            lost_to = {norm(defeat_target(d.get("objective", "")) or "")
+                       for n, d in self.setbacks.deferred.items() if n in set_aside and not d.get("stuck")}
+            lost_to.discard("")
+            for _, q in all_quests:
+                if q.name not in set_aside and q.target and norm(q.target) in lost_to:
+                    set_aside = set_aside | {q.name}
             detour_mains = [q for _, q in all_quests if q.mainline] if det is not None else []
             if (detour_mains and all(q.name in set_aside for q in detour_mains)
                     and not any(self._detour_stays(q.name) for q in detour_mains)):
