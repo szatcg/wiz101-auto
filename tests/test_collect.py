@@ -77,3 +77,10 @@ def test_plural_items_match_their_own_plural_name():
     assert matches_item("Berries", "GH_Berries")
     assert matches_item("Berries", "Berries")
     assert matches_item("Supplies", "Supply Crate")
+
+
+def test_steal_is_a_collect():
+    from wiz101_auto.collect import collect_item_name
+
+    objective = "Steal Barrel of Kermes Fire in Tyrian Gorge (0 of 6)"
+    assert collect_item_name(objective) == "Barrel of Kermes Fire"
