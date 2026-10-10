@@ -4401,7 +4401,9 @@ class Quester:
                                   and chosen.mainline
                                   and norm(local.name) not in instances
                                   and not Farm.load().active)
-                if local and local is not chosen and not side_over_main:
+                # (Never one set aside: 'Blind Eye', lost 5 times to Kravenly,
+                # came straight back in his tower and lost a sixth.)
+                if local and local is not chosen and not side_over_main and local.name not in set_aside:
                     logger.info(f"in the dungeon: {local.name!r} comes first (this dungeon's own quest)")
                     chosen, self._grinding = local, False
             # No errand detours while a quest is pinned: the player picked it
