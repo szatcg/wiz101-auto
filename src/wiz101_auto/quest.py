@@ -200,6 +200,7 @@ DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where 
 DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
 # {"zone", "asked"}: where the main story was last worked on (its NPCs asked for its next quest)
 MAIN_STORY_ZONE_FILE = Path("state") / "main_story_zone.json"
+OBJECTIVE_ZONES_FILE = Path("state") / "objective_zones.json"  # objective -> zone it was first given in
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 DOOR_MAP_FILE = Path("state") / "door_map.json"  # {zone: [[x, y], ...]}: doors walked through to map them
 DOOR_MAP_NEAR = 300.0  # a door object this close to a tried or learned door is that door
@@ -445,6 +446,31 @@ PRESS_X_TRIES = 4  # X presses at a prompt before moving on
 TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ranking
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
+
+
+
+def note_objective_zone(objective: str, zone: str, path: Path | None = None) -> None:
+    """Remember the zone an objective first showed up in (kept; the first wins)."""
+    path = path or OBJECTIVE_ZONES_FILE
+    try:
+        known = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        known = {}
+    if objective in known:
+        return
+    known[objective] = zone
+    try:
+        path.write_text(json.dumps(known, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def given_zone(objective: str, path: Path | None = None) -> str | None:
+    """The zone `objective` first showed up in (note_objective_zone), if known."""
+    try:
+        return json.loads((path or OBJECTIVE_ZONES_FILE).read_text(encoding="utf-8")).get(objective)
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 @dataclass
@@ -1567,6 +1593,8 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
+                if zone:
+                    note_objective_zone(objective, zone)
                 # (Back to an objective set aside for stalling before: its 5
                 # minutes again. 'Search For Kondha Rune's Purpose' went round
                 # Silent Market's door for 20 minutes the second time.)
@@ -2230,7 +2258,18 @@ class Quester:
             return False
         gates = await self._entities_named_like(("teleportgate",))
         if not gates:
-            return False
+            # (None in the Ark Hold: the one in Aeriel's hub, by its door.)
+            world = zone.split("/")[0]
+            there = next((z for z in self.entity_map.zones if z.startswith(world + "/") and z != dest
+                          and z not in self._gate_tried and z != zone
+                          and self.entity_map.spots(z, lambda n: "teleportgate" in n.lower(), (0, 0, 0))
+                          and (self.doors.route(zone, z) or gate_toward(zone, z, self._bad_gates))), None)
+            if not there or self._dungeon:
+                return False
+            logger.info(f"heading to {dest}: to the world teleporter in {there.split('/')[-1]}")
+            if not await self.go_to_zone(there, 3):
+                return False
+            return await self._world_teleport_gate(there, dest)
         self._gate_tried.add(zone)
         label = dest.split("/")[-1].split("_")[-1].lower()  # EM_Z02_Zanadu -> zanadu
         logger.info(f"heading to {dest}: trying the world teleporter here")
@@ -2246,16 +2285,22 @@ class Quester:
         lines = await ui.dump_tree(root, max_depth=12)
         dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
         dump.write_text(chr(10).join(lines), encoding="utf-8")
-        windows = [*await root.get_windows_with_type("ControlButton"),
-                   *await root.get_windows_with_type("ControlText")]
-        for w in windows:
-            try:
-                if not await w.is_visible() or label not in (await ui.window_text(w)).lower():
-                    continue
-            except Exception:
+        # The Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel, opt1
+        # Zanadu; then its "Stream" button, teleportButton).
+        for i in range(8):
+            opt = None
+            for w in await root.get_windows_with_name(f"opt{i}"):
+                if label in (await ui.window_text(w)).lower():
+                    opt = w
+            if opt is None:
                 continue
             logger.info(f"world teleporter: choosing {label!r}")
-            await ui.click_center(self.client, w)
+            await ui.click_center(self.client, opt)
+            await asyncio.sleep(0.6)
+            for go in await root.get_windows_with_name("teleportButton"):
+                if await ui.window_visible(go):
+                    await ui.click_center(self.client, go)
+                    break
             await wait_for_loading(self.client, appear_timeout=8.0)
             break
         moved = await self.client.zone_name() != zone
@@ -9914,6 +9959,16 @@ class Quester:
             logger.warning(f"gate {zone} -> {dest_zone} did not work; avoiding it")
             self._bad_gates.add((zone, dest_zone))
         target_zone = objective_zone(objective)
+        given = given_zone(objective)
+        if (given and target_zone == zone and given != zone and "/interiors/" in given.lower()
+                and given.split("/")[0] == (zone or "").split("/")[0]
+                and self.doors.route(zone or "", given)):
+            # In the zone the objective names, but it was given in a room of it
+            # ('Help Khan Impress the Muse in Zanadu': in the Dance Hall, by the
+            # Leisure Dome): back into that room by the doors learned.
+            logger.info(f"no quest marker for {objective!r}; it began in {given.split('/')[-1]}: going there")
+            if await self.go_to_zone(given) or await self.client.zone_name() != zone:
+                return True
         entry = DungeonMemory.load().dungeons.get(target_zone or "")
         if entry is not None and target_zone != zone:
             # A dungeon learned before (Katzenstein's Lab, off Scotland Yard
