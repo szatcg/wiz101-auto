@@ -9960,6 +9960,11 @@ class Quester:
             self._bad_gates.add((zone, dest_zone))
         target_zone = objective_zone(objective)
         given = given_zone(objective)
+        if (given and given == zone and target_zone != zone
+                and given.split("/")[0] == (target_zone or "").split("/")[0]):
+            # Already in the room it began in (the Dance Hall, for '... in
+            # Zanadu'): it's here, not out in the zone the text names.
+            target_zone = zone
         if (given and target_zone == zone and given != zone and "/interiors/" in given.lower()
                 and given.split("/")[0] == (zone or "").split("/")[0]
                 and self.doors.route(zone or "", given)):
