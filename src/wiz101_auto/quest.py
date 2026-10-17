@@ -1585,6 +1585,9 @@ class Quester:
 
     async def _note_progress(self, objective: str, zone: str | None):
         key = (objective, zone)
+        noted_quest = getattr(self, "_noted_quest_now", "")
+        self._noted_quest = noted_quest
+        self._noted_quest_now = self._active_quest or ""
         if objective and objective != self._last_progress[0] and self._active_quest:
             from .quest_steps import record
 
@@ -1593,7 +1596,9 @@ class Quester:
             if self._last_progress[0] and objective != self._last_progress[0]:
                 self.objectives_completed += 1
                 logger.success(f"objective done -> now: {objective!r}")
-                if zone:
+                if zone and self._active_quest and self._active_quest == self._noted_quest:
+                    # (Only the quest's own next step: one shown on switching
+                    # quests began wherever we were; 'Talk To Alyvia' in Polaris.)
                     note_objective_zone(objective, zone)
                 # (Back to an objective set aside for stalling before: its 5
                 # minutes again. 'Search For Kondha Rune's Purpose' went round
