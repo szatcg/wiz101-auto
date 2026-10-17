@@ -174,6 +174,7 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 900.0  # one try's window: the dungeon taken as a solo one meanwhile
+GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
 TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this far off
 VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
@@ -1524,7 +1525,7 @@ class Quester:
         self._recalled_for = ""  # objective a travel recall was used for (once each)
         self._bad_gates: set[tuple[str, str]] = set()
         self._door_fails: dict[tuple[str, str], int] = {}  # learned doors that did not take
-        self._gate_tried: set[str] = set()  # zones whose world teleporter was tried this run
+        self._gate_tried: dict[str, float] = {}  # zone -> when its world teleporter was last tried
 
     async def objective(self) -> str:
         texts = await ui.quest_goal_texts(self.client)
@@ -2240,6 +2241,9 @@ class Quester:
                     logger.info(f"the door into {nxt.split('/')[-1]} is an X one ({prompt.strip()!r}): "
                                 "pressing X")
                     await self.client.send_key(Keycode.X, 0.1)
+                    await asyncio.sleep(1.5)
+                    # (The Streamportal learned as a door: its list opened.)
+                    await self._stream_to(nxt.split("/")[-1].split("_")[-1].lower())
                     await wait_for_loading(self.client, appear_timeout=8.0)
             if await self.client.zone_name() != zone:
                 return True
@@ -2259,14 +2263,15 @@ class Quester:
         hub and in Zanadu) to another area of the same world: X at it, and in
         the list it opens the destination's name. The window tree goes to
         state/teleportgate_window_*.txt. True if it moved."""
-        if zone.split("/")[0] != dest.split("/")[0] or zone in self._gate_tried:
+        if (zone.split("/")[0] != dest.split("/")[0]
+                or time.monotonic() - self._gate_tried.get(zone, -1e9) < GATE_RETRY_SECONDS):
             return False
         gates = await self._entities_named_like(("teleportgate",))
         if not gates:
             # (None in the Ark Hold: the one in Aeriel's hub, by its door.)
             world = zone.split("/")[0]
             there = next((z for z in self.entity_map.zones if z.startswith(world + "/") and z != dest
-                          and z not in self._gate_tried and z != zone
+                          and z != zone
                           and self.entity_map.spots(z, lambda n: "teleportgate" in n.lower(), (0, 0, 0))
                           and (self.doors.route(zone, z) or gate_toward(zone, z, self._bad_gates))), None)
             if not there or self._dungeon:
@@ -2275,7 +2280,7 @@ class Quester:
             if not await self.go_to_zone(there, 3):
                 return False
             return await self._world_teleport_gate(there, dest)
-        self._gate_tried.add(zone)
+        self._gate_tried[zone] = time.monotonic()
         label = dest.split("/")[-1].split("_")[-1].lower()  # EM_Z02_Zanadu -> zanadu
         logger.info(f"heading to {dest}: trying the world teleporter here")
         await self.client.teleport(gates[0])
@@ -2290,12 +2295,22 @@ class Quester:
         lines = await ui.dump_tree(root, max_depth=12)
         dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
         dump.write_text(chr(10).join(lines), encoding="utf-8")
-        # The Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel, opt1
-        # Zanadu; then its "Stream" button, teleportButton).
+        await self._stream_to(label)
+        moved = await self.client.zone_name() != zone
+        if not moved:
+            logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
+            await ui.close_menus(self.client)
+        return moved
+
+    async def _stream_to(self, label: str) -> bool:
+        """In a Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel,
+        opt1 Zanadu; then its "Stream" button, teleportButton): the entry
+        naming `label`. True if one was chosen."""
+        root = self.client.root_window
         for i in range(8):
             opt = None
             for w in await root.get_windows_with_name(f"opt{i}"):
-                if label in (await ui.window_text(w)).lower():
+                if label in (await ui.window_text(w)).lower() and await ui.window_visible(w):
                     opt = w
             if opt is None:
                 continue
@@ -2307,12 +2322,7 @@ class Quester:
                     await ui.click_center(self.client, go)
                     break
             await wait_for_loading(self.client, appear_timeout=8.0)
-            break
-        moved = await self.client.zone_name() != zone
-        if not moved:
-            logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
-            await ui.close_menus(self.client)
-        return moved
+            return True
         return False
 
     async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
@@ -3451,6 +3461,20 @@ class Quester:
         if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             self._map_tries = 0
             return False
+        stream = [w for w in await self.client.root_window.get_windows_with_name("streamTitle")
+                  if await ui.window_visible(w)]
+        if stream:
+            # Not the Spiral Map: a Streamportal's list (Aeriel's, Zanadu's).
+            goal = objective_zone(await ui.quest_goal(self.client) or "") or ""
+            here = await self.client.zone_name() or ""
+            if goal and goal != here and goal.split("/")[0] == here.split("/")[0]:
+                if await self._stream_to(goal.split("/")[-1].split("_")[-1].lower()):
+                    return True
+            for w in await self.client.root_window.get_windows_with_name("cancelButton"):
+                if await ui.window_visible(w):
+                    await ui.click_center(self.client, w)
+                    break
+            return True
         tries = self._map_tries = getattr(self, "_map_tries", 0) + 1
         if tries > MAP_GO_TRIES:
             # The map open step after step and nothing taking us anywhere (at
