@@ -2192,6 +2192,17 @@ class Quester:
             if not await self._zone_changed(zone):
                 await self.walk_through(XYZ(door[0], door[1], start.z), zone)
             await wait_for_loading(self.client)
+            if await self.client.zone_name() == zone:
+                # Not a walk-in door but an X one (the Ark Hold's launch pod to
+                # Zanadu, learned from 'press x to travel'): at the spot, X.
+                await self.client.teleport(start)
+                await asyncio.sleep(1.0)
+                prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").lower()
+                if any(w in prompt for w in ("travel", "enter", "go ")):
+                    logger.info(f"the door into {nxt.split('/')[-1]} is an X one ({prompt.strip()!r}): "
+                                "pressing X")
+                    await self.client.send_key(Keycode.X, 0.1)
+                    await wait_for_loading(self.client, appear_timeout=8.0)
             return await self.client.zone_name() != zone
         return False
 
