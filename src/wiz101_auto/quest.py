@@ -174,6 +174,7 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 900.0  # one try's window: the dungeon taken as a solo one meanwhile
+DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
 TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this far off
 VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
@@ -1496,6 +1497,8 @@ class Quester:
         self._dungeon: tuple[str, str] | None = None  # (outside zone, first room) of the dungeon we're in
         self._recalled_for = ""  # objective a travel recall was used for (once each)
         self._bad_gates: set[tuple[str, str]] = set()
+        self._door_fails: dict[tuple[str, str], int] = {}  # learned doors that did not take
+        self._gate_tried: set[str] = set()  # zones whose world teleporter was tried this run
 
     async def objective(self) -> str:
         texts = await ui.quest_goal_texts(self.client)
@@ -2040,6 +2043,8 @@ class Quester:
                 # its zone by the gates, then through it.
                 if await self._through_known_door(zone or "", dest, max_hops):
                     continue
+                if await self._world_teleport_gate(zone or "", dest):
+                    continue
                 return False
             pos, next_zone = gate
             logger.info(f"heading to {dest}: gate to {next_zone}")
@@ -2203,7 +2208,61 @@ class Quester:
                                 "pressing X")
                     await self.client.send_key(Keycode.X, 0.1)
                     await wait_for_loading(self.client, appear_timeout=8.0)
-            return await self.client.zone_name() != zone
+            if await self.client.zone_name() != zone:
+                return True
+            fails = self._door_fails.get((zone, nxt), 0) + 1
+            self._door_fails[(zone, nxt)] = fails
+            if fails >= DOOR_FAILS_FORGET:
+                # (The Ark Hold's launch pod took us to Zanadu once, for the
+                # quest that launched it; never again after.)
+                logger.warning(f"the door from {zone.split('/')[-1]} into {nxt.split('/')[-1]} failed "
+                               f"{fails} times: forgetting it")
+                self.doors.forget(zone, nxt)
+            return False
+        return False
+
+    async def _world_teleport_gate(self, zone: str, dest: str) -> bool:
+        """A world's own teleporter (Empyrea's EmpyreaTeleportGate, in Aeriel's
+        hub and in Zanadu) to another area of the same world: X at it, and in
+        the list it opens the destination's name. The window tree goes to
+        state/teleportgate_window_*.txt. True if it moved."""
+        if zone.split("/")[0] != dest.split("/")[0] or zone in self._gate_tried:
+            return False
+        gates = await self._entities_named_like(("teleportgate",))
+        if not gates:
+            return False
+        self._gate_tried.add(zone)
+        label = dest.split("/")[-1].split("_")[-1].lower()  # EM_Z02_Zanadu -> zanadu
+        logger.info(f"heading to {dest}: trying the world teleporter here")
+        await self.client.teleport(gates[0])
+        await asyncio.sleep(1.5)
+        if await ui.is_visible(self.client, ui.NPC_RANGE):
+            await self.client.send_key(Keycode.X, 0.1)
+        await asyncio.sleep(2.0)
+        if await self.client.zone_name() != zone:
+            await wait_for_loading(self.client)
+            return True
+        root = self.client.root_window
+        lines = await ui.dump_tree(root, max_depth=12)
+        dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
+        dump.write_text(chr(10).join(lines), encoding="utf-8")
+        windows = [*await root.get_windows_with_type("ControlButton"),
+                   *await root.get_windows_with_type("ControlText")]
+        for w in windows:
+            try:
+                if not await w.is_visible() or label not in (await ui.window_text(w)).lower():
+                    continue
+            except Exception:
+                continue
+            logger.info(f"world teleporter: choosing {label!r}")
+            await ui.click_center(self.client, w)
+            await wait_for_loading(self.client, appear_timeout=8.0)
+            break
+        moved = await self.client.zone_name() != zone
+        if not moved:
+            logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
+            await ui.close_menus(self.client)
+        return moved
         return False
 
     async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
