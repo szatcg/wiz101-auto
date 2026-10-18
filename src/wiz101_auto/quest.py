@@ -201,6 +201,7 @@ DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where 
 DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
 # {"zone", "asked"}: where the main story was last worked on (its NPCs asked for its next quest)
 MAIN_STORY_ZONE_FILE = Path("state") / "main_story_zone.json"
+BAD_GATES_FILE = Path("state") / "bad_gates.json"  # [[zone, next zone], ...]: gates that never took
 OBJECTIVE_ZONES_FILE = Path("state") / "objective_zones.json"  # objective -> zone it was first given in
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
 DOOR_MAP_FILE = Path("state") / "door_map.json"  # {zone: [[x, y], ...]}: doors walked through to map them
@@ -448,6 +449,23 @@ TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ra
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
+
+
+def load_bad_gates(path: Path | None = None) -> set[tuple[str, str]]:
+    """Gates that never took (save_bad_gate), as (zone, next zone) pairs."""
+    try:
+        return {tuple(p) for p in json.loads((path or BAD_GATES_FILE).read_text(encoding="utf-8"))}
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
+def save_bad_gate(zone: str, dest: str, path: Path | None = None) -> None:
+    path = path or BAD_GATES_FILE
+    known = load_bad_gates(path) | {(zone, dest)}
+    try:
+        path.write_text(json.dumps(sorted(known), indent=1), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def note_objective_zone(objective: str, zone: str, path: Path | None = None) -> None:
@@ -1523,7 +1541,7 @@ class Quester:
         self.healer = None  # DungeonHealer, set by the bot
         self._dungeon: tuple[str, str] | None = None  # (outside zone, first room) of the dungeon we're in
         self._recalled_for = ""  # objective a travel recall was used for (once each)
-        self._bad_gates: set[tuple[str, str]] = set()
+        self._bad_gates: set[tuple[str, str]] = load_bad_gates()
         self._door_fails: dict[tuple[str, str], int] = {}  # learned doors that did not take
         self._gate_tried: dict[str, float] = {}  # zone -> when its world teleporter was last tried
 
@@ -2087,13 +2105,13 @@ class Quester:
                 # A boat, an NPC or a door that asks: stand there and press X.
                 if not await self._use_x_gate(pos, zone or "", next_zone, ride_gate(kind)):
                     logger.warning(f"gate {zone} -> {next_zone} ({kind}) did not work; avoiding it")
-                    self._bad_gates.add((zone, next_zone))
+                    self._gate_failed(zone, next_zone)
                 await wait_for_loading(self.client)
                 continue
             await self.travel(pos)
             if await self.client.zone_name() == zone and not await self.approach_and_walk(pos, zone):
                 logger.warning(f"gate {zone} -> {next_zone} did not work; avoiding it")
-                self._bad_gates.add((zone, next_zone))
+                self._gate_failed(zone, next_zone)
                 from .travel_data import forget_gate
 
                 if forget_gate(zone or "", next_zone):
@@ -2257,6 +2275,12 @@ class Quester:
                 self.doors.forget(zone, nxt)
             return False
         return False
+
+    def _gate_failed(self, zone: str | None, dest: str | None) -> None:
+        """A gate that didn't take: avoided from now on, across restarts too
+        (Aeriel's hub -> the Zanadu Sewers cost 4 minutes on every new run)."""
+        self._bad_gates.add((zone, dest))
+        save_bad_gate(zone or "", dest or "")
 
     async def _world_teleport_gate(self, zone: str, dest: str) -> bool:
         """A world's own teleporter (Empyrea's EmpyreaTeleportGate, in Aeriel's
@@ -9986,7 +10010,7 @@ class Quester:
                 return True
             # Some gate entries in the data are wrong; route around this one from now on.
             logger.warning(f"gate {zone} -> {dest_zone} did not work; avoiding it")
-            self._bad_gates.add((zone, dest_zone))
+            self._gate_failed(zone, dest_zone)
         target_zone = objective_zone(objective)
         given = given_zone(objective)
         if (given and given == zone and target_zone != zone
