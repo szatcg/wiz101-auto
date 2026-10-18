@@ -200,6 +200,13 @@ def goal_reached(kind: str | None, stage: str | None, goals: dict, default_goal:
     return STAGES.index(stage) >= STAGES.index(goal)
 
 
+def pet_name_like(want: str, name: str) -> bool:
+    """Each word of `want` starts a word of `name`, in order ('Twitch Champ'
+    for 'Twitchy Champ', the player's spelling of the pet)."""
+    a, b = want.lower().split(), name.lower().split()
+    return len(a) == len(b) and all(y.startswith(x) or x.startswith(y) for x, y in zip(a, b, strict=True))
+
+
 def load_pet() -> dict:
     import json
 
@@ -275,8 +282,13 @@ class PetDancer:
             return False
         try:
             items = await gear._scan_tab(PET_TAB)
+            if not items:
+                # (Read empty right after a restart: the tab not filled yet.)
+                await asyncio.sleep(2.0)
+                items = await gear._scan_tab(PET_TAB)
             match = next((n for n, _ in items if n.strip().lower() == want), None) or next(
-                (n for n, _ in items if want in n.strip().lower()), None)
+                (n for n, _ in items if want in n.strip().lower()), None) or next(
+                (n for n, _ in items if pet_name_like(want, n)), None)
             if match is None:
                 logger.warning(f"pet: no {name!r} in the backpack's pets ({[n for n, _ in items]})")
                 return False

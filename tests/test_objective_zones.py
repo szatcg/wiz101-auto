@@ -71,3 +71,10 @@ def test_stream_words():
     from wiz101_auto.quest import stream_words
 
     assert stream_words("Explore Sepidious in The Stomach") == ["Sepidious", "Stomach"]
+
+
+def test_pet_name_like():
+    from wiz101_auto.petdance import pet_name_like
+
+    assert pet_name_like("twitch champ", "Twitchy Champ")
+    assert not pet_name_like("twitch champ", "Sir Roscoe")
