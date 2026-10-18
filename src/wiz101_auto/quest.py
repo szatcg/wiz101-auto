@@ -175,6 +175,7 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
+STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
 TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this far off
@@ -2482,6 +2483,29 @@ class Quester:
         opt1 Zanadu; then its "Stream" button, teleportButton): the entry
         naming `label`. True if one was chosen."""
         root = self.client.root_window
+        # (Pages: Sepidious is on page 2 of Aeriel's list, 1/2 in the corner.)
+        for _page in range(STREAM_PAGES):
+            if await self._stream_pick(root, label):
+                return True
+            turned = False
+            for arrow in await root.get_windows_with_name("rightButton"):
+                if await ui.window_visible(arrow):
+                    await ui.click_center(self.client, arrow)
+                    await asyncio.sleep(0.6)
+                    turned = True
+                    break
+            if not turned:
+                break
+        # Back to page 1 for the next name looked for.
+        for _ in range(STREAM_PAGES):
+            left = [w for w in await root.get_windows_with_name("leftButton") if await ui.window_visible(w)]
+            if not left:
+                break
+            await ui.click_center(self.client, left[0])
+            await asyncio.sleep(0.4)
+        return False
+
+    async def _stream_pick(self, root, label: str) -> bool:
         for i in range(8):
             opt = None
             for w in await root.get_windows_with_name(f"opt{i}"):
