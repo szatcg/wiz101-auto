@@ -2276,6 +2276,26 @@ class Quester:
             return False
         return False
 
+    async def _release_main_for_present_npc(self) -> None:
+        """A quest just finished: a main-story quest set aside on 'Talk To X'
+        comes back at once if X is here now (Alyvia shows up in the Dance Hall
+        only after the Light Brigade Troopers; the bot left for Polaris with
+        her standing there)."""
+        for quest, d in list(self.setbacks.deferred.items()):
+            name = talk_target(d.get("objective") or "")
+            if not d.get("main") or not name:
+                continue
+            try:
+                here = await self._npc_named(name) is not None
+            except Exception:
+                here = False
+            if here:
+                logger.info(f"{name} is here now: back to {quest!r} ({d.get('objective')!r})")
+                del self.setbacks.deferred[quest]
+                self.setbacks.save()
+                self._stall_switched_for = ""
+                self._last_progress_time = time.monotonic()
+
     def _gate_failed(self, zone: str | None, dest: str | None) -> None:
         """A gate that didn't take: avoided from now on, across restarts too
         (Aeriel's hub -> the Zanadu Sewers cost 4 minutes on every new run)."""
@@ -5218,6 +5238,8 @@ class Quester:
         active = next((q for _, q in all_quests if q.active), None)
         self._active_quest = active.name if active else self._active_quest
         level = await self.client.stats.reference_level()
+        if done:
+            await self._release_main_for_present_npc()
         set_aside = self.setbacks.set_aside(level) | load_undoable()
         # A boss that beat us blocks every quest that needs him ('Take Me
         # In' after 'Blind Eye' was set aside for Kravenly: same fight, a
