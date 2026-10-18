@@ -343,6 +343,7 @@ def _save_my_stats(me) -> None:
 
 
 
+CANCEL_PICK_SPOT = (640, 160)  # right-clicked to put a picked card back (above the arena)
 EMPTY_HAND_READS = 6  # reads, a second apart, before an empty hand is played as one
 
 
@@ -1027,11 +1028,24 @@ class Fighter(CombatHandler):
             self._fails[action.card.name] = self._fails.get(action.card.name, 0) + 1
             # (The player: Pass rather than sit out the clock; a second card
             # tried after a failed one took the rest of Sylster's first round.)
+            # The card is still picked, waiting for a target the clicks missed
+            # (Medulla, by her nameplate): Pass doesn't go through then, the
+            # round timed out and the game showed "You are idle". Right-click
+            # puts the card back first.
+            await self._cancel_pick()
             await self.pass_button()
             return
 
         logger.warning("too many steps this round, passing")
         await self.pass_button()
+
+    async def _cancel_pick(self):
+        """Put a picked card back (right-click on open ground, top middle)."""
+        try:
+            await self.client.mouse_handler.click(CANCEL_PICK_SPOT[0], CANCEL_PICK_SPOT[1], right_click=True)
+            await asyncio.sleep(0.5)
+        except Exception as exc:
+            logger.debug(f"cancelling the picked card failed: {exc!r}")
 
     async def _lookahead(self, battle, action, discards_left: int):
         """The whole-deck planner (lookahead.py) on top of the brain's move:
