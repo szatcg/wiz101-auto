@@ -229,7 +229,10 @@ SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "
                       # (Arcanum missing: 'Go To Schism Reading Room' ('History of
                       # the Cabal', world Arcanum in the book) took the map to
                       # Wizard City for 9 minutes.)
-                      "Arcanum": "arcanum", "Mirage": "mirage"}
+                      "Arcanum": "arcanum", "Mirage": "mirage",
+                      # (Empyrea missing: queued for Baane, the map at the house gate
+                      # stayed on page 1 and Go To World did nothing, 10 minutes.)
+                      "Empyrea": "empyrea"}
 CYCLOPS_LANE = "WizardCity/WC_Streets/WC_Cyclops"
 AQUILA_PORTAL = (-10241.0, 8219.0, 0.0)  # its "press X" prompt goes to Aquila (the hub, by Silenus)
 BARTLEBY_MOUTH = (31.0, 1854.0, 56.0)  # WC_BartlebyMouth_Door: into the World Tree (to Aquila)
@@ -3657,6 +3660,11 @@ class Quester:
         if off_map:
             # (Castle Darkmoor: the map pressed Teleport for it over and over.)
             return await self._to_world(off_map, f"{off_map} for the quest")
+        if world in SPIRAL_WORLD_NAMES and getattr(self, "_map_tries", 0) > 1:
+            # The map ticks the tracked quest's world, not always ours: after
+            # quest switches nothing was ticked (page 1, Wizard City) and Go To
+            # World under the gate's prompt did nothing, over and over.
+            return await self._to_world(world, f"on the Spiral Map: choosing {world} for the quest")
         logger.info("on the Spiral Map: going to the world the quest leads to")
         before = await self.client.zone_name()
         for _ in range(5):
