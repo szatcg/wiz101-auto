@@ -456,6 +456,14 @@ ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
 
 
+def stream_words(objective: str) -> list[str]:
+    """Capitalised words of an objective that could name a Streamportal stop
+    (not its verb or the small words): 'Explore Sepidious in The Stomach' ->
+    ['Sepidious', 'Stomach']."""
+    words = re.findall(r"[A-Z][a-z']{4,}", objective or "")
+    return [w for w in words[1:] if w not in ("Defeat", "Collect", "Explore", "Talk")]
+
+
 def load_solo_tries(path: Path | None = None) -> dict[str, int]:
     """Tries alone per queued dungeon, kept across restarts (each restart gave
     the Bat three new ones). Gone with the dungeon's team entry."""
@@ -4787,7 +4795,11 @@ class Quester:
             # A Streamportal (the marker led to Aeriel's, toward Outer
             # Athanor): its list, the objective's place or the area before it.
             dest = objective_zone(objective) if objective else None
-            for label in self._stream_labels(dest) if dest else []:
+            labels = self._stream_labels(dest) if dest else []
+            # An unknown place: the objective's own names ('Explore Sepidious
+            # in The Stomach': Sepidious, a new area, on the list).
+            labels += [w.lower() for w in stream_words(objective) if w.lower() not in labels]
+            for label in labels:
                 if await self._stream_to(label):
                     return True
             logger.warning(f"Streamportal: nothing in its list for {objective!r}")

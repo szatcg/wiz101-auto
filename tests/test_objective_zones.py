@@ -65,3 +65,9 @@ def test_new_train_pet_not_done(tmp_path, monkeypatch):
     assert not dancer.done()  # a new pet: trained until its own goal
     pd.save_pet({"name": "twitch champ", "stage": "mega"})
     assert dancer.done()
+
+
+def test_stream_words():
+    from wiz101_auto.quest import stream_words
+
+    assert stream_words("Explore Sepidious in The Stomach") == ["Sepidious", "Stomach"]
