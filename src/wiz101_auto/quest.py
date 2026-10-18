@@ -2129,6 +2129,9 @@ class Quester:
                 await wait_for_loading(self.client)
                 continue
             await self.travel(pos)
+            if await self.client.zone_name() == zone and await self._stream_gate(next_zone):
+                await wait_for_loading(self.client)
+                continue
             if await self.client.zone_name() == zone and not await self.approach_and_walk(pos, zone):
                 logger.warning(f"gate {zone} -> {next_zone} did not work; avoiding it")
                 self._gate_failed(zone, next_zone)
@@ -2408,12 +2411,42 @@ class Quester:
                     out.append(label(z))
         return out
 
+    async def _stream_gate(self, next_zone: str) -> bool:
+        """A learned gate that is a Streamportal (Inner Athanor's to Outer
+        Athanor): its prompt X, then the next zone in its list. True if it
+        chose one."""
+        prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").lower()
+        if not await self._stream_list_open():
+            if "stream" not in prompt and not await self._entities_near_named(("teleportgate",), 500):
+                return False
+            await self.client.send_key(Keycode.X, 0.1)
+            await asyncio.sleep(1.5)
+            if not await self._stream_list_open():
+                return False
+        for label in self._stream_labels(next_zone):
+            if await self._stream_to(label):
+                return True
+        await self._close_stream_list()
+        return False
+
+    async def _entities_near_named(self, words: tuple[str, ...], within: float) -> bool:
+        here = await self._position()
+        found = await self._entities_named_like(words)
+        return any(math.dist((e.x, e.y), (here.x, here.y)) < within for e in found)
+
     async def _stream_list_open(self) -> bool:
         """A Streamportal's destination list is showing."""
         for w in await self.client.root_window.get_windows_with_name("streamTitle"):
             if await ui.window_visible(w):
                 return True
         return False
+
+    async def _close_stream_list(self) -> None:
+        for w in await self.client.root_window.get_windows_with_name("cancelButton"):
+            if await ui.window_visible(w):
+                await ui.click_center(self.client, w)
+                await asyncio.sleep(0.6)
+                return
 
     async def _stream_to(self, label: str) -> bool:
         """In a Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel,
@@ -2829,6 +2862,15 @@ class Quester:
                                    + (f" (the prompt there: {shown!r})" if shown else ""))
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
+            await asyncio.sleep(1.0)
+            if await self._stream_list_open():
+                # Not a sigil: a Streamportal (Inner Athanor's, taken for the
+                # Temple of Light's sigil after a heal trip through it failed;
+                # re-armed for minutes).
+                logger.warning("that was a Streamportal, not the dungeon sigil: closing it")
+                await self._close_stream_list()
+                self._sigil_failed_at = None
+                return False
             started = time.monotonic()
             deadline = started + SIGIL_WAIT
             seen_box = ""
