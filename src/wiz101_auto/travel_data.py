@@ -184,6 +184,10 @@ EXTRA_DISPLAY_ZONES = [
     # the World Tree's gate, then took the Spiral Map to Wizard City. Its
     # halls' people are reached from the hub (Ignus Ferric, Qismah Shasa).
     ("the arcanum", "Arcanum/AR_Z01_Hub"),
+    # Zanadu's rooms (Empyrea): 'Talk To Alyvia in Leisure Dome' read no zone
+    # and the bot followed the marker round Polaris.
+    ("leisure dome", "Empyrea/Interiors/EM_Z02_LeisureDome"),
+    ("dance hall", "Empyrea/Interiors/EM_Z02_DanceHall"),
     ("hall of theurgy", "Arcanum/AR_Z01_Hub"),
     ("hall of pyromancy", "Arcanum/AR_Z01_Hub"),
     ("hall of thaumaturgy", "Arcanum/AR_Z01_Hub"),
