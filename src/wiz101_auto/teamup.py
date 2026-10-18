@@ -329,6 +329,12 @@ def solo_for(dungeon: str, seconds: float):
     _SOLO_UNTIL[_dungeon_base(dungeon)] = time.monotonic() + seconds
 
 
+def solo_try_active(now: float | None = None) -> bool:
+    """A try alone while queued (solo_for) is going on."""
+    now = time.monotonic() if now is None else now
+    return any(now < t for t in _SOLO_UNTIL.values())
+
+
 def solo_quest_room(zone: str, teams: dict[str, str] | None = None, now: float | None = None) -> bool:
     """`zone` is on the team list for the same quest as a dungeon being tried
     alone right now (solo_for)."""

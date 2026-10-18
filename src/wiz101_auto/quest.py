@@ -3776,6 +3776,14 @@ class Quester:
             # (With a team: never set its quest aside or leave; the player hears.)
             logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r} (team dungeon)")
             return
+        from .teamup import solo_try_active
+
+        if solo_try_active():
+            # (A try alone while queued: the ranking a loop brings would pick
+            # side quests, the queue's rule. Baane's try 1 was over the second
+            # it began, from stalls on the way to the sigil.)
+            logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r} (solo try going on)")
+            return
         logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r}; breaking out of it")
         self.controller.allow_idle(60)
         try:
