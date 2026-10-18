@@ -431,6 +431,7 @@ class PetDancer:
                     await self.q._recall(self.q._mark.zone)
                 return
         games, why = 0, "done"
+        self.feed = self.cfg.feed  # (fed again on each trip: snacks may have come in)
         await activate_dance_hook(self.client.hook_handler)
         await asyncio.sleep(HOOK_SETTLE)
         try:
@@ -568,7 +569,10 @@ class PetDancer:
                 await asyncio.sleep(1.0)
                 await self._close_level_up()
             else:
-                result = "no snacks"
+                # (The player: play until the energy runs out. A won game
+                # trains the pet without a snack too; feeding just stops.)
+                logger.info("pet: no snacks to feed: playing on without feeding")
+                self.feed = False
         await self._finish_rewards()
         return result
 
