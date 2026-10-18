@@ -11066,6 +11066,17 @@ class Quester:
             return
         if wrong_talker:
             logger.info(f"{talk_target(objective)} isn't out here; the marker must be a door")
+            here = await self._position()
+            prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").strip()
+            logger.info(f"door marker at ({target.x:.0f}, {target.y:.0f}, {target.z:.0f}); we're at "
+                        f"({here.x:.0f}, {here.y:.0f}, {here.z:.0f}); prompt {prompt!r}")
+            if any(w in prompt.lower() for w in ("enter", "go ", "open", "travel", "climb", "use")):
+                # A door that wants X (the Dance Hall's way to the VIP Area?).
+                logger.info(f"the door marker has a prompt ({prompt!r}): pressing X")
+                await self.client.send_key(Keycode.X, 0.1)
+                await wait_for_loading(self.client, appear_timeout=6.0)
+                if await self.client.zone_name() != zone:
+                    return
         if dist < INTERACT_RANGE and objective.lower().startswith("locate"):
             await self._locate_by_walking(objective)
             return
