@@ -277,7 +277,7 @@ class PetDancer:
             match = next((n for n, _ in items if n.strip().lower() == want), None) or next(
                 (n for n, _ in items if want in n.strip().lower()), None)
             if match is None:
-                logger.warning(f"pet: no {name!r} in the backpack's pets ({[n for n, _ in items][:12]})")
+                logger.warning(f"pet: no {name!r} in the backpack's pets ({[n for n, _ in items]})")
                 return False
             if any(n == match and on for n, on in items):
                 return True
