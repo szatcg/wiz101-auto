@@ -6126,7 +6126,9 @@ class Quester:
             # followed (back to its sigil to wait for the team), not dropped
             # (the player: queued for Castle Darkmoor, the bot dropped the
             # pin and went back to the main story).
-            queued_pin = load_queue().get("quest") == pinned.name
+            # (The player's pin only: the bot's own pin of the main story
+            # walked back to the Temple of Light's sigil every 20 s.)
+            queued_pin = load_queue().get("quest") == pinned.name and player_pinned() == pinned.name
         if pinned is None or (pinned.name in set_aside and not queued_pin):
             why = "done" if pinned is None else "set aside"
             logger.info(f"your pick {self._pin!r} is {why}; choosing quests again")
