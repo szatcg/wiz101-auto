@@ -188,6 +188,8 @@ EXTRA_DISPLAY_ZONES = [
     # and the bot followed the marker round Polaris.
     ("leisure dome", "Empyrea/Interiors/EM_Z02_LeisureDome"),
     ("dance hall", "Empyrea/Interiors/EM_Z02_DanceHall"),
+    # Sepidious (a Streamportal stop): its parts are named in the quests.
+    ("the stomach", "Empyrea/EM_Z05_Sepidious"),
     ("hall of theurgy", "Arcanum/AR_Z01_Hub"),
     ("hall of pyromancy", "Arcanum/AR_Z01_Hub"),
     ("hall of thaumaturgy", "Arcanum/AR_Z01_Hub"),

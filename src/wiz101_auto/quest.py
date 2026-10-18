@@ -4814,8 +4814,15 @@ class Quester:
             opened = not await is_free(self.client) or await self.services.is_open()
             if opened or await self.client.is_loading():
                 break
-        await asyncio.sleep(0.5)
-        if await self._stream_list_open():
+        stream_open = False
+        for _ in range(6):  # (the list can take a couple of seconds to come up)
+            await asyncio.sleep(0.5)
+            if await self._stream_list_open():
+                stream_open = True
+                break
+            if not await is_free(self.client) or await self.client.is_loading():
+                break
+        if stream_open:
             # A Streamportal (the marker led to Aeriel's, toward Outer
             # Athanor): its list, the objective's place or the area before it.
             dest = objective_zone(objective) if objective else None
