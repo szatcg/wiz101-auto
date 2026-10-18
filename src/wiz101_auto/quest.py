@@ -5144,8 +5144,16 @@ class Quester:
             # From the first page: the book can open on a later one (a read
             # began on page 2, missed 'In-Flight Meals' and the pin's line was
             # dropped; quests "completed" that weren't).
+            # (A slow turn reads as "the first page": a read began on page 3
+            # and left out 'To the Bat's Cave!'. Two unchanged turns in a row
+            # are the first page.)
+            unchanged = 0
             for _ in range(MAX_BOOK_PAGES):
-                if not await self._turn_page(back_button):
+                turned = await self._turn_page(back_button)
+                if turned is None:
+                    break
+                unchanged = 0 if turned else unchanged + 1
+                if unchanged >= 2:
                     break
             # Every page: with 5 pages at most, 'Fetch Bones!' (main) sat past
             # the end, and quests pushed off the read counted as completed.
