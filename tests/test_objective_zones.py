@@ -78,3 +78,11 @@ def test_pet_name_like():
 
     assert pet_name_like("twitch champ", "Twitchy Champ")
     assert not pet_name_like("twitch champ", "Sir Roscoe")
+
+
+def test_pod_to_other_place_not_taken():
+    from wiz101_auto.quest import closest_name
+
+    names = ["Pod", "Pod to \nOuter Athanor", "Wooden Chest"]
+    assert closest_name("Pod to Mandalla", names) == "Pod"
+    assert closest_name("Pod to Outer Athanor", names) == "Pod to \nOuter Athanor"

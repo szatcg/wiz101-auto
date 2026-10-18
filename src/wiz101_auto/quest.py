@@ -1210,6 +1210,13 @@ def _words_alike(a: str, b: str) -> bool:
     return n >= 5 and a[:max(5, n - 2)] == b[:max(5, n - 2)]
 
 
+def _to_place(name: str) -> str:
+    """'Pod to <newline>Outer Athanor' -> 'outerathanor'; '' with no 'to <place>'."""
+    text = (name or "").replace(chr(92) + "n", " ").replace(chr(10), " ")
+    m = re.search(r"\bto\s+(?:the\s+)?(.+)$", text, flags=re.I)
+    return re.sub(r"[^a-z]", "", m.group(1).lower()) if m else ""
+
+
 def closest_name(want: str, names, used=()) -> str | None:
     """The name in `names` (things in the zone: seen on the map or in view)
     that the quest's `want` most likely means, or None. The player: when
@@ -1224,6 +1231,15 @@ def closest_name(want: str, names, used=()) -> str | None:
        already used for earlier steps here) are ruled out first.
     """
     names = [n for n in dict.fromkeys(names) if n]
+    # A "<thing> to <place>" for another place isn't it: 'Pod to Mandalla'
+    # went by 'Pod to Outer Athanor', over and over (a plain 'Pod' it is).
+    to_want = _to_place(want)
+    if to_want:
+        names = [n for n in names if _to_place(n) in ("", to_want)]
+        want_thing = re.split(r"\s+to\s+", want, maxsplit=1, flags=re.I)[0]
+        plain = [n for n in names if _norm_name(n) == _norm_name(want_thing)]
+        if plain and not any(_to_place(n) == to_want for n in names):
+            return plain[0]
 
     def contains(n: str, w: str) -> bool:
         # (Containing the whole name, one or many: matches_item's first-word
