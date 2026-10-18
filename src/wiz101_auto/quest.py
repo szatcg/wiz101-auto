@@ -2408,6 +2408,13 @@ class Quester:
                     out.append(label(z))
         return out
 
+    async def _stream_list_open(self) -> bool:
+        """A Streamportal's destination list is showing."""
+        for w in await self.client.root_window.get_windows_with_name("streamTitle"):
+            if await ui.window_visible(w):
+                return True
+        return False
+
     async def _stream_to(self, label: str) -> bool:
         """In a Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel,
         opt1 Zanadu; then its "Stream" button, teleportButton): the entry
@@ -2416,7 +2423,11 @@ class Quester:
         for i in range(8):
             opt = None
             for w in await root.get_windows_with_name(f"opt{i}"):
-                if label in (await ui.window_text(w)).lower() and await ui.window_visible(w):
+                text = (await ui.window_text(w)).lower().replace(" ", "")
+                want = label.replace(" ", "")
+                # ("Athanor" in the list for Outer Athanor would match too.)
+                fits = bool(text) and (want in text or (len(text) >= 5 and text in want))
+                if fits and await ui.window_visible(w):
                     opt = w
             if opt is None:
                 continue
@@ -4697,6 +4708,15 @@ class Quester:
             opened = not await is_free(self.client) or await self.services.is_open()
             if opened or await self.client.is_loading():
                 break
+        await asyncio.sleep(0.5)
+        if await self._stream_list_open():
+            # A Streamportal (the marker led to Aeriel's, toward Outer
+            # Athanor): its list, the objective's place or the area before it.
+            dest = objective_zone(objective) if objective else None
+            for label in self._stream_labels(dest) if dest else []:
+                if await self._stream_to(label):
+                    return True
+            logger.warning(f"Streamportal: nothing in its list for {objective!r}")
 
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")
