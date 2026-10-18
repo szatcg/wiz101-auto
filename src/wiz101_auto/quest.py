@@ -174,7 +174,7 @@ FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
 FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its marker: a quest giver)
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
-SOLO_TRY_SECONDS = 900.0  # one try's window: the dungeon taken as a solo one meanwhile
+SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
 TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this far off
@@ -5147,14 +5147,21 @@ class Quester:
             # (A slow turn reads as "the first page": a read began on page 3
             # and left out 'To the Bat's Cave!'. Two unchanged turns in a row
             # are the first page.)
+            # And the book wraps (back from page 1 is the last page): a page
+            # seen before ends it too (30 turns took two minutes, and the
+            # watchdog cut the read off). The read forward wraps the same way
+            # and stops at the first page it has read already.
             unchanged = 0
+            firsts = {await self._first_book_name()}
             for _ in range(MAX_BOOK_PAGES):
                 turned = await self._turn_page(back_button)
                 if turned is None:
                     break
                 unchanged = 0 if turned else unchanged + 1
-                if unchanged >= 2:
+                first = await self._first_book_name()
+                if unchanged >= 2 or (turned and first in firsts):
                     break
+                firsts.add(first)
             # Every page: with 5 pages at most, 'Fetch Bones!' (main) sat past
             # the end, and quests pushed off the read counted as completed.
             for page in range(MAX_BOOK_PAGES):
