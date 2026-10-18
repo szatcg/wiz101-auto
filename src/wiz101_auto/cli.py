@@ -309,7 +309,7 @@ def main(argv: list[str] | None = None):
     if args.command == "pin":
         from .quest import save_pin
 
-        save_pin(args.quest)
+        save_pin(args.quest, player=True)
         print(f"pinned: {args.quest!r} (takes effect at the bot's next start)" if args.quest else "unpinned")
         return
     if args.command == "publish-setup":

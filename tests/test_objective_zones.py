@@ -27,3 +27,14 @@ def test_place_from_learned_zone():
     cave = "Empyrea/Interiors/EM_Z02_BatCave"
     assert objective_zone("Defeat Bat Bot in Bat Cave (1 of 2)", learned) == cave
     assert objective_zone("Defeat Nobody in Nowhere Land", learned) is None
+
+
+def test_player_pin_kept(tmp_path, monkeypatch):
+    import wiz101_auto.quest as q
+
+    monkeypatch.setattr(q, "PIN_FILE", tmp_path / "pin.json")
+    q.save_pin("To the Bat's Cave!")
+    assert q.player_pinned() == ""
+    q.save_pin("Le Chateau de Darkmoor", player=True)
+    q.save_pin("Le Chateau de Darkmoor")
+    assert q.player_pinned() == "Le Chateau de Darkmoor"

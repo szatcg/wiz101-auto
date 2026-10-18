@@ -104,7 +104,7 @@ def act(action: str, payload: dict | None = None) -> dict:
         from .quest import save_pin
 
         name = str(payload.get("quest") or "").strip()
-        save_pin(name)
+        save_pin(name, player=True)
         note = " (takes effect at the bot's next start)" if service.running_pid() else ""
         return {"ok": True, "message": (f"pinned {name!r}" if name else "unpinned") + note}
     return {"ok": False, "message": f"unknown action {action!r}"}

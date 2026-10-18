@@ -1295,12 +1295,26 @@ def load_pin() -> str:
         return ""
 
 
-def save_pin(name: str):
+def save_pin(name: str, player: bool = False):
+    """Pin `name` ("" unpins). `player`: pinned by the player (the pin command
+    or the control page), kept when the bot saves the same pin again; the
+    bot's own pins of the main story aren't."""
     try:
+        if not player and name and player_pinned() == name:
+            player = True
         PIN_FILE.parent.mkdir(exist_ok=True)
-        PIN_FILE.write_text(json.dumps({"quest": name}), encoding="utf-8")
+        PIN_FILE.write_text(json.dumps({"quest": name, "player": player}), encoding="utf-8")
     except OSError:
         pass
+
+
+def player_pinned() -> str:
+    """The quest the player pinned (not the bot's own main-story pin), or ""."""
+    try:
+        data = json.loads(PIN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return data.get("quest", "") if data.get("player") else ""
 
 
 LAST_MAIN_FILE = Path("state") / "last_main.json"
