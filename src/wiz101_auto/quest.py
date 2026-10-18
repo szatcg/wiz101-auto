@@ -2422,7 +2422,10 @@ class Quester:
                 return False
             return await self._world_teleport_gate(there, dest)
         self._gate_tried[zone] = time.monotonic()
-        labels = self._stream_labels(dest)
+        # (Not the stop we're at: from Mandalla's Landing Zone toward Aeriel
+        # it chose 'mandalla' over and over.)
+        here_stops = set(self._stream_labels(zone)) - {"hub"}
+        labels = [lb for lb in self._stream_labels(dest) if lb not in here_stops]
         logger.info(f"heading to {dest}: trying the world teleporter here")
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
@@ -2442,6 +2445,7 @@ class Quester:
         moved = await self.client.zone_name() != zone
         if not moved:
             logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
+            await self._close_stream_list()
             await ui.close_menus(self.client)
         return moved
 
@@ -2450,7 +2454,9 @@ class Quester:
         own (EM_Z02_Zanadu -> zanadu), then the open zones of its world that
         known doors lead from to it (the Leisure Dome: from Zanadu)."""
         def label(z: str) -> str:
-            return z.split("/")[-1].split("_")[-1].lower()
+            # (EM_Z00_Aeriel_HUB -> aeriel: "hub" is in no list.)
+            parts = [p for p in z.split("/")[-1].split("_") if p.lower() not in ("hub",)]
+            return (parts[-1] if parts else z).lower()
 
         world = dest.split("/")[0]
         out = [label(dest)]
@@ -4864,6 +4870,7 @@ class Quester:
                 if await self._stream_to(label):
                     return True
             logger.warning(f"Streamportal: nothing in its list for {objective!r}")
+            await self._close_stream_list()
 
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")
