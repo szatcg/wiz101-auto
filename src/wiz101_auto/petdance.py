@@ -176,6 +176,7 @@ STAGES = ("baby", "teen", "adult", "ancient", "epic", "mega", "ultra")
 PET_STATE = Path("state") / "pet.json"  # the equipped pet as last seen: kind, stage
 PET_WINDOWS = Path("state") / "pet_windows.txt"  # every text of the pet-game windows (for mapping)
 ENERGY_CHECK_SECONDS = 60.0
+NO_PET_RETRY = 3600.0  # the pet to train wasn't found: look again after this
 
 
 def stage_in(texts: list[str]) -> str | None:
@@ -400,7 +401,14 @@ class PetDancer:
                 if pet.get("name") != train:
                     save_pet({"name": train})  # a new pet: its kind and stage from the games
             else:
-                logger.warning(f"pet: {self.cfg.train_pet!r} not put on: dancing with the pet that's on")
+                # (Not with the wrong pet: the energy waits for the one to train.)
+                logger.warning(f"pet: {self.cfg.train_pet!r} not put on: no dance trip")
+                self._next_check = time.monotonic() + NO_PET_RETRY
+                if self.cfg.battle_pet:
+                    await self.battle_pet_on()
+                if marked and self.q._mark and await is_free(self.client):
+                    await self.q._recall(self.q._mark.zone)
+                return
         games, why = 0, "done"
         await activate_dance_hook(self.client.hook_handler)
         await asyncio.sleep(HOOK_SETTLE)
