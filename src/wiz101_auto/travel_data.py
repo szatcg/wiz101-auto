@@ -190,6 +190,11 @@ EXTRA_DISPLAY_ZONES = [
     ("dance hall", "Empyrea/Interiors/EM_Z02_DanceHall"),
     # Sepidious (a Streamportal stop): its parts are named in the quests.
     ("the stomach", "Empyrea/EM_Z05_Sepidious"),
+    # (Its rooms by their quest names: after two losses to Dynt 'in Ink Gland'
+    # the bot had no place for him and never reached the Team Up sigil.)
+    ("ink gland", "Empyrea/Interiors/EM_Z05_InkSack"),
+    ("ink spillway", "Empyrea/Interiors/EM_Z05_InkTubing"),
+    ("notochord", "Empyrea/Interiors/EM_Z05_NodoChord"),
     ("hall of theurgy", "Arcanum/AR_Z01_Hub"),
     ("hall of pyromancy", "Arcanum/AR_Z01_Hub"),
     ("hall of thaumaturgy", "Arcanum/AR_Z01_Hub"),
