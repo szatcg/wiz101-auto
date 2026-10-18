@@ -358,6 +358,13 @@ class PetDancer:
                 and time.monotonic() - self._wait_since < QUEST_FIRST_MAX):
             return False
         self._wait_quest = None
+        from .quest import VISIT_FILE, load_retalk
+
+        if load_retalk() or VISIT_FILE.exists():
+            # (A quest just done and its giver not talked to again yet, or a
+            # visit queued: after 'Into the Jungle' the trip went first and
+            # 'To Samsara' was never picked up from Maram.)
+            return False
         pet = load_pet()
         what = f"{pet.get('kind') or 'pet'} {pet.get('stage') or ''}".strip()
         logger.info(f"pet: energy full ({now}/{most}): off to the dance game ({what})")
