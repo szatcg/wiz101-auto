@@ -428,8 +428,40 @@ def zones_near(zone: str, depth: int = 2) -> list[str]:
     return zones_around(zone, _data()[0], depth)
 
 
-def objective_zone(objective: str) -> str | None:
-    return named_zone(objective, _data()[1])
+def objective_zone(objective: str, learned: list[str] | None = None) -> str | None:
+    """The zone an objective's place names: the game's place list, else a
+    zone learned while playing whose name is the place's (the Bat Cave:
+    EM_Z02_BatCave, missing from the list; the bot followed the marker into
+    the Streamportal and stalled)."""
+    zone = named_zone(objective, _data()[1])
+    if zone:
+        return zone
+    m = re.search(r" in (?:the )?([A-Za-z' ]+?)(?: \(\d+ of \d+\))?$", objective)
+    if not m:
+        return None
+    place = re.sub(r"[^a-z]", "", m.group(1).lower())
+    if len(place) < 5:
+        return None
+    if learned is None:
+        try:
+            from .entitymap import DOOR_FILE
+
+            known = json.loads(DOOR_FILE.read_text(encoding="utf-8"))
+            learned = list(known) + [d for zs in known.values() for d in _door_dests(zs)]
+        except (OSError, ValueError):
+            learned = []
+    for z in learned:
+        if re.sub(r"[^a-z]", "", z.split("/")[-1].split("_")[-1].lower()) == place:
+            return z
+    return None
+
+
+def _door_dests(entries) -> list[str]:
+    out = []
+    for e in entries if isinstance(entries, list) else []:
+        if isinstance(e, list) and e and isinstance(e[-1], str):
+            out.append(e[-1])
+    return out
 
 
 def quest_spots(zone: str) -> list[XYZ]:

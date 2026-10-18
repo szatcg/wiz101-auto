@@ -17,3 +17,13 @@ def test_bad_gates_kept(tmp_path):
     save_bad_gate("Empyrea/EM_Z00_Aeriel_HUB", "Empyrea/Interiors/EM_Z02_Sewers", p)
     save_bad_gate("Empyrea/EM_Z00_Aeriel_HUB", "Empyrea/Interiors/EM_Z02_Sewers", p)
     assert load_bad_gates(p) == {("Empyrea/EM_Z00_Aeriel_HUB", "Empyrea/Interiors/EM_Z02_Sewers")}
+
+
+def test_place_from_learned_zone():
+    from wiz101_auto.travel_data import objective_zone
+
+    learned = ["Empyrea/EM_Z02_Zanadu", "Empyrea/Interiors/EM_Z02_BatCave"]
+    assert objective_zone("Defeat Baane in Bat Cave", learned) == "Empyrea/Interiors/EM_Z02_BatCave"
+    cave = "Empyrea/Interiors/EM_Z02_BatCave"
+    assert objective_zone("Defeat Bat Bot in Bat Cave (1 of 2)", learned) == cave
+    assert objective_zone("Defeat Nobody in Nowhere Land", learned) is None
