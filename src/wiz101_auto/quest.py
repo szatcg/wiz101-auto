@@ -2439,6 +2439,15 @@ class Quester:
             if z.startswith(world + "/") and "/interiors/" not in z.lower() and self.doors.route(z, dest):
                 if label(z) not in out:
                     out.append(label(z))
+        # The open zone of the same area (EM_Z05_RightEye -> EM_Z05_Sepidious:
+        # no known doors to a room not yet visited, and the bot looped at the
+        # Streamportal).
+        area = re.match(r"([A-Z]+_Z\d+)_", dest.split("/")[-1])
+        if area:
+            for z in [*self.doors.doors, *self.entity_map.zones]:
+                if (z.startswith(world + "/") and "/interiors/" not in z.lower()
+                        and z.split("/")[-1].startswith(area.group(1) + "_") and label(z) not in out):
+                    out.append(label(z))
         return out
 
     async def _stream_gate(self, next_zone: str) -> bool:
