@@ -178,6 +178,7 @@ SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one m
 # Streamportal stops named for a region, not its zones: area code -> the
 # list's name (Chaos Jungle, EM_Z14, is reached by "Mandalla").
 STREAM_STOPS = {"EM_Z12": "mandalla", "EM_Z13": "mandalla", "EM_Z14": "mandalla"}
+STREAM_WAIT_TICKS = 12  # half-seconds a Streamportal's list is waited for after X
 STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
@@ -2333,9 +2334,7 @@ class Quester:
                     await self.client.send_key(Keycode.X, 0.1)
                     await asyncio.sleep(1.5)
                     # (The Streamportal learned as a door: its list opened.)
-                    for label in self._stream_labels(nxt):
-                        if await self._stream_to(label):
-                            break
+                    await self._stream_go(nxt)
                     await wait_for_loading(self.client, appear_timeout=8.0)
             if await self.client.zone_name() != zone:
                 return True
@@ -2422,10 +2421,6 @@ class Quester:
                 return False
             return await self._world_teleport_gate(there, dest)
         self._gate_tried[zone] = time.monotonic()
-        # (Not the stop we're at: from Mandalla's Landing Zone toward Aeriel
-        # it chose 'mandalla' over and over.)
-        here_stops = set(self._stream_labels(zone)) - {"hub"}
-        labels = [lb for lb in self._stream_labels(dest) if lb not in here_stops]
         logger.info(f"heading to {dest}: trying the world teleporter here")
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
@@ -2439,9 +2434,7 @@ class Quester:
         lines = await ui.dump_tree(root, max_depth=12)
         dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
         dump.write_text(chr(10).join(lines), encoding="utf-8")
-        for label in labels:
-            if await self._stream_to(label):
-                break
+        await self._stream_go(dest)
         moved = await self.client.zone_name() != zone
         if not moved:
             logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
@@ -2490,11 +2483,7 @@ class Quester:
             await asyncio.sleep(1.5)
             if not await self._stream_list_open():
                 return False
-        for label in self._stream_labels(next_zone):
-            if await self._stream_to(label):
-                return True
-        await self._close_stream_list()
-        return False
+        return await self._stream_go(next_zone)
 
     async def _entities_near_named(self, words: tuple[str, ...], within: float) -> bool:
         here = await self._position()
@@ -2515,54 +2504,96 @@ class Quester:
                 await asyncio.sleep(0.6)
                 return
 
-    async def _stream_to(self, label: str) -> bool:
-        """In a Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel,
-        opt1 Zanadu; then its "Stream" button, teleportButton): the entry
-        naming `label`. True if one was chosen."""
-        root = self.client.root_window
-        # (Pages: Sepidious is on page 2 of Aeriel's list, 1/2 in the corner.)
-        for _page in range(STREAM_PAGES):
-            if await self._stream_pick(root, label):
+    async def _wait_stream_list(self, likely: bool = True) -> bool:
+        """The Streamportal's list showing, waited for a few seconds when the
+        prompt looked like one (it comes up slowly)."""
+        for _ in range(STREAM_WAIT_TICKS if likely else 2):
+            if await self._stream_list_open():
                 return True
-            turned = False
-            for arrow in await root.get_windows_with_name("rightButton"):
-                if await ui.window_visible(arrow):
-                    await ui.click_center(self.client, arrow)
-                    await asyncio.sleep(0.6)
-                    turned = True
-                    break
-            if not turned:
-                break
-        # Back to page 1 for the next name looked for.
-        for _ in range(STREAM_PAGES):
-            left = [w for w in await root.get_windows_with_name("leftButton") if await ui.window_visible(w)]
-            if not left:
-                break
-            await ui.click_center(self.client, left[0])
-            await asyncio.sleep(0.4)
+            if await self.client.is_loading():
+                return False
+            await asyncio.sleep(0.5)
+        return await self._stream_list_open()
+
+    async def _stream_option_windows(self) -> list:
+        """(name, window) of the list's entries on the page shown."""
+        out = []
+        for i in range(8):
+            for w in await self.client.root_window.get_windows_with_name(f"opt{i}"):
+                name = (await ui.window_text(w)).strip()
+                if name and await ui.window_visible(w):
+                    out.append((name, w))
+        return out
+
+    async def _stream_turn(self, button: str) -> bool:
+        for w in await self.client.root_window.get_windows_with_name(button):
+            if await ui.window_visible(w):
+                await ui.click_center(self.client, w)
+                await asyncio.sleep(0.5)
+                return True
         return False
 
-    async def _stream_pick(self, root, label: str) -> bool:
-        for i in range(8):
-            opt = None
-            for w in await root.get_windows_with_name(f"opt{i}"):
-                text = (await ui.window_text(w)).lower().replace(" ", "")
-                want = label.replace(" ", "")
-                # ("Athanor" in the list for Outer Athanor would match too.)
-                fits = bool(text) and (want in text or (len(text) >= 5 and text in want))
-                if fits and await ui.window_visible(w):
-                    opt = w
-            if opt is None:
-                continue
-            logger.info(f"world teleporter: choosing {label!r}")
-            await ui.click_center(self.client, opt)
-            await asyncio.sleep(0.6)
-            for go in await root.get_windows_with_name("teleportButton"):
-                if await ui.window_visible(go):
-                    await ui.click_center(self.client, go)
-                    break
-            await wait_for_loading(self.client, appear_timeout=8.0)
+    async def _stream_options(self) -> list[str]:
+        """Every entry of the list, all pages, back on page 1 after."""
+        names: list[str] = []
+        for _ in range(STREAM_PAGES):
+            page = [n for n, _w in await self._stream_option_windows()]
+            new = [n for n in page if n not in names]
+            names += new
+            if not new or not await self._stream_turn("rightButton"):
+                break
+        for _ in range(STREAM_PAGES):
+            if not await self._stream_turn("leftButton"):
+                break
+        return names
+
+    async def _stream_go(self, dest: str, extra_hints=()) -> bool:
+        """With the Streamportal's list open: the stop toward `dest`
+        (streamportal.choose_stop: by where each stop was seen to land, then
+        names), Stream, and note where it landed. Closed if nothing fits. True
+        if it moved."""
+        if not await self._wait_stream_list():
+            return False
+        self.controller.allow_idle(30)  # (reading every page isn't a stall)
+        try:
+            return await self._stream_choose(dest, extra_hints)
+        finally:
+            self.controller.end_idle()
+
+    async def _stream_choose(self, dest: str, extra_hints=()) -> bool:
+        from .streamportal import choose_stop, load_stops, save_stop
+
+        here = await self.client.zone_name() or ""
+        world = here.split("/")[0]
+        options = await self._stream_options()
+        hints = (self._stream_labels(dest) if dest else []) + [w.lower() for w in extra_hints]
+        learned = load_stops(world)
+
+        def reaches(a: str, b: str) -> bool:
+            return bool(self.doors.route(a, b) or gate_toward(a, b, self._bad_gates))
+
+        stop = choose_stop(options, dest, here, learned, reaches, hints)
+        where = dest.split("/")[-1] or "?"
+        logger.info(f"Streamportal: stops {options}; toward {where}: {stop or 'none fits'}")
+        if stop is None:
+            await self._close_stream_list()
+            return False
+        for _ in range(STREAM_PAGES):
+            hit = next((w for n, w in await self._stream_option_windows() if n == stop), None)
+            if hit is not None:
+                await ui.click_center(self.client, hit)
+                await asyncio.sleep(0.5)
+                await self._stream_turn("teleportButton")
+                await wait_for_loading(self.client, appear_timeout=8.0)
+                break
+            if not await self._stream_turn("rightButton"):
+                break
+        now = await self.client.zone_name() or ""
+        if now and now != here:
+            if learned.get(stop) != now:
+                save_stop(world, stop, now)
             return True
+        await self._close_stream_list()
         return False
 
     async def _use_x_gate(self, pos: XYZ, zone: str, next_zone: str, ride: bool) -> bool:
@@ -3709,23 +3740,18 @@ class Quester:
         """Walking into a world gate (not pressing X at it) opens the Spiral
         Map with the quest's world already ticked: press Go To World. True if
         the map was open."""
-        if not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
+        stream = await self._stream_list_open()
+        if not stream and not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             self._map_tries = 0
             return False
-        stream = [w for w in await self.client.root_window.get_windows_with_name("streamTitle")
-                  if await ui.window_visible(w)]
         if stream:
             # Not the Spiral Map: a Streamportal's list (Aeriel's, Zanadu's).
             goal = objective_zone(await ui.quest_goal(self.client) or "") or ""
             here = await self.client.zone_name() or ""
             if goal and goal != here and goal.split("/")[0] == here.split("/")[0]:
-                for label in self._stream_labels(goal):
-                    if await self._stream_to(label):
-                        return True
-            for w in await self.client.root_window.get_windows_with_name("cancelButton"):
-                if await ui.window_visible(w):
-                    await ui.click_center(self.client, w)
-                    break
+                await self._stream_go(goal, stream_words(await ui.quest_goal(self.client) or ""))
+            else:
+                await self._close_stream_list()
             return True
         tries = self._map_tries = getattr(self, "_map_tries", 0) + 1
         if tries > MAP_GO_TRIES:
@@ -4851,27 +4877,17 @@ class Quester:
             opened = not await is_free(self.client) or await self.services.is_open()
             if opened or await self.client.is_loading():
                 break
-        stream_open = False
-        for _ in range(6):  # (the list can take a couple of seconds to come up)
-            await asyncio.sleep(0.5)
-            if await self._stream_list_open():
-                stream_open = True
-                break
-            if not await is_free(self.client) or await self.client.is_loading():
-                break
-        if stream_open:
+        # (Not "until not free": the Streamportal's list itself makes the
+        # client not free, and it was given up on before it was drawn; the
+        # watchdog's recovery then took a minute.)
+        if await self._wait_stream_list("stream" in prompt or "interact" in prompt):
             # A Streamportal (the marker led to Aeriel's, toward Outer
-            # Athanor): its list, the objective's place or the area before it.
+            # Athanor): the stop toward the objective's place; an unknown
+            # place by the objective's own names ('Explore Sepidious in The
+            # Stomach': Sepidious).
             dest = objective_zone(objective) if objective else None
-            labels = self._stream_labels(dest) if dest else []
-            # An unknown place: the objective's own names ('Explore Sepidious
-            # in The Stomach': Sepidious, a new area, on the list).
-            labels += [w.lower() for w in stream_words(objective) if w.lower() not in labels]
-            for label in labels:
-                if await self._stream_to(label):
-                    return True
-            logger.warning(f"Streamportal: nothing in its list for {objective!r}")
-            await self._close_stream_list()
+            if await self._stream_go(dest or "", stream_words(objective)):
+                return True
 
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")
