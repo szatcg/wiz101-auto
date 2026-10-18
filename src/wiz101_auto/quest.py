@@ -175,6 +175,9 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
+# Streamportal stops named for a region, not its zones: area code -> the
+# list's name (Chaos Jungle, EM_Z14, is reached by "Mandalla").
+STREAM_STOPS = {"EM_Z12": "mandalla", "EM_Z13": "mandalla", "EM_Z14": "mandalla"}
 STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
@@ -2459,6 +2462,8 @@ class Quester:
         # no known doors to a room not yet visited, and the bot looped at the
         # Streamportal).
         area = re.match(r"([A-Z]+_Z\d+)_", dest.split("/")[-1])
+        if area and area.group(1) in STREAM_STOPS and STREAM_STOPS[area.group(1)] not in out:
+            out.append(STREAM_STOPS[area.group(1)])
         if area:
             for z in [*self.doors.doors, *self.entity_map.zones]:
                 if (z.startswith(world + "/") and "/interiors/" not in z.lower()
