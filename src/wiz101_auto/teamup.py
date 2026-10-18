@@ -329,12 +329,29 @@ def solo_for(dungeon: str, seconds: float):
     _SOLO_UNTIL[_dungeon_base(dungeon)] = time.monotonic() + seconds
 
 
+def solo_quest_room(zone: str, teams: dict[str, str] | None = None, now: float | None = None) -> bool:
+    """`zone` is on the team list for the same quest as a dungeon being tried
+    alone right now (solo_for)."""
+    teams = team_list() if teams is None else teams
+    quest = teams.get(zone)
+    if not quest:
+        return False
+    now = time.monotonic() if now is None else now
+    active = {b for b, t in _SOLO_UNTIL.items() if now < t}
+    return any(_dungeon_base(z) in active for z, q in teams.items() if q == quest)
+
+
 def is_team_up_zone(zone: str) -> bool:
     """A room of a dungeon that is only entered with a team."""
     teams = team_list()
     if zone in TEAM_UP_HUBS:
         return False
     if zone and time.monotonic() < _SOLO_UNTIL.get(_dungeon_base(zone), 0.0):
+        return False
+    if zone and solo_quest_room(zone, teams):
+        # (A room listed on its own for the same quest: the Bat Cave past the
+        # Secret Entrance. Taken as a team room mid-try, the bot was about to
+        # leave Baane's dungeon "alone".)
         return False
     if zone and any(time.monotonic() < t for t in _SOLO_UNTIL.values()) and in_team_run(zone):
         # (A later room of that run, the House of Scrolls past Zruvan Grotto:

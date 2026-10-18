@@ -38,3 +38,17 @@ def test_player_pin_kept(tmp_path, monkeypatch):
     q.save_pin("Le Chateau de Darkmoor", player=True)
     q.save_pin("Le Chateau de Darkmoor")
     assert q.player_pinned() == "Le Chateau de Darkmoor"
+
+
+def test_solo_try_covers_quest_rooms():
+    import wiz101_auto.teamup as t
+
+    teams = {"Empyrea/Interiors/EM_Z02_SecretEntrance": "To the Bat's Cave!",
+             "Empyrea/Interiors/EM_Z02_BatCave": "To the Bat's Cave!"}
+    t._SOLO_UNTIL.clear()
+    assert not t.solo_quest_room("Empyrea/Interiors/EM_Z02_BatCave", teams)
+    t.solo_for("Empyrea/Interiors/EM_Z02_SecretEntrance", 60)
+    try:
+        assert t.solo_quest_room("Empyrea/Interiors/EM_Z02_BatCave", teams)
+    finally:
+        t._SOLO_UNTIL.clear()
