@@ -2079,6 +2079,8 @@ class Quester:
     async def go_to_zone(self, dest: str, max_hops: int = 6) -> bool:
         """Walk the known gates to `dest`. True once there."""
         if is_team_up_zone(dest) and not is_team_up_zone(await self.client.zone_name() or ""):
+            if await self._to_team_sigil(dest):
+                return await self.client.zone_name() == dest
             logger.info(f"not walking into {dest} alone (team-only dungeon)")
             return False
         await self._hub_shortcut(dest)
@@ -2297,6 +2299,29 @@ class Quester:
                 self.setbacks.save()
                 self._stall_switched_for = ""
                 self._last_progress_time = time.monotonic()
+
+    async def _to_team_sigil(self, dest: str) -> bool:
+        """A team-only room (the Bat Cave, a room of the dungeon the Secret
+        Entrance's sigil opens): to that dungeon's sigil instead, where Team Up
+        is pressed (or the solo tries). True if it got to the sigil."""
+        dungeons = DungeonMemory.load().dungeons
+        start = next((z for z in [dest, *dungeons] if z in dungeons and is_team_up_zone(z)
+                      and (z == dest or self.doors.route(z, dest))), None)
+        if start is None or self.__dict__.get("_team_sigil_trip"):
+            return False
+        entry = dungeons[start]
+        logger.info(f"{dest.split('/')[-1]} is team-only: to {start.split('/')[-1]}'s sigil in "
+                    f"{entry.outside.split('/')[-1]}")
+        self._team_sigil_trip = True
+        try:
+            if await self.client.zone_name() != entry.outside and not await self.go_to_zone(entry.outside):
+                return False
+            sigil = XYZ(*entry.sigil)
+            await self.travel(sigil)
+            await self._enter_by_sigil(sigil, entry.outside)
+            return True
+        finally:
+            self._team_sigil_trip = False
 
     def _gate_failed(self, zone: str | None, dest: str | None) -> None:
         """A gate that didn't take: avoided from now on, across restarts too
