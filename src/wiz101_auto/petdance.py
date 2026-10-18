@@ -296,6 +296,15 @@ class PetDancer:
                 return True
             ok = await gear._equip_by_name(PET_TAB, match)
             logger.info(f"pet: {match!r} {'on' if ok else 'could not be put on'}")
+            if not ok:
+                # What the backpack shows with the pet picked (to find why).
+                from . import ui
+
+                try:
+                    lines = await ui.dump_tree(self.client.root_window, max_depth=14)
+                    Path("state/pet_backpack_window.txt").write_text(chr(10).join(lines), encoding="utf-8")
+                except Exception as exc:
+                    logger.debug(f"pet backpack dump failed: {exc!r}")
             return ok
         finally:
             await gear._close()
