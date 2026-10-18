@@ -4166,6 +4166,9 @@ class Quester:
             # was fought alone a 4th and 5th time.
             logger.info("lost on a try alone: that try is over")
             end_solo()
+            # (Its own window too: still open, the sigil let the bot in alone
+            # as the same try, the team check then saw no try and left.)
+            self.__dict__.setdefault("_solo_try", {}).clear()
             self._recall_pending = False
         from .teamup import set_team_size, team_key, team_size
 
