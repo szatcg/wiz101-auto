@@ -195,6 +195,8 @@ EXTRA_DISPLAY_ZONES = [
     ("ink gland", "Empyrea/Interiors/EM_Z05_InkSack"),
     ("ink spillway", "Empyrea/Interiors/EM_Z05_InkTubing"),
     ("notochord", "Empyrea/Interiors/EM_Z05_NodoChord"),
+    # (The game lists the later, destroyed village under this name.)
+    ("samsara village", "Empyrea/EM_Z12_SamsaraVillage"),
     ("left ocular vein", "Empyrea/Interiors/EM_Z05_LeftEyePath"),
     ("right ocular vein", "Empyrea/Interiors/EM_Z05_RightEyePath"),
     ("left eye", "Empyrea/Interiors/EM_Z05_LeftEye"),
@@ -315,7 +317,9 @@ def _data() -> tuple[Gates, DisplayZones, Spots]:
     global _cache
     if _cache is None:
         display_text = (_TRAVERSAL_DIR / "displayZones.txt").read_text()
-        display_zones = parse_display_zones(display_text) + EXTRA_DISPLAY_ZONES
+        # (Ours first: a sort by length keeps them ahead of the game's same
+        # names, e.g. Samsara Village, listed as the destroyed one.)
+        display_zones = EXTRA_DISPLAY_ZONES + parse_display_zones(display_text)
         display_zones.sort(key=lambda z: -len(z[0]))
         _cache = (
             parse_gates((_TRAVERSAL_DIR / "gates_list.txt").read_text()),

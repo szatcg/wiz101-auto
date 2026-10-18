@@ -2455,7 +2455,8 @@ class Quester:
         known doors lead from to it (the Leisure Dome: from Zanadu)."""
         def label(z: str) -> str:
             # (EM_Z00_Aeriel_HUB -> aeriel: "hub" is in no list.)
-            parts = [p for p in z.split("/")[-1].split("_") if p.lower() not in ("hub",)]
+            # (Nor a one-letter room suffix: Clearing_C looked for "c".)
+            parts = [p for p in z.split("/")[-1].split("_") if p.lower() not in ("hub",) and len(p) > 1]
             return (parts[-1] if parts else z).lower()
 
         world = dest.split("/")[0]
