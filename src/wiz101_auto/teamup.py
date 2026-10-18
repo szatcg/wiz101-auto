@@ -329,6 +329,11 @@ def solo_for(dungeon: str, seconds: float):
     _SOLO_UNTIL[_dungeon_base(dungeon)] = time.monotonic() + seconds
 
 
+def end_solo() -> None:
+    """Every try alone is over (lost)."""
+    _SOLO_UNTIL.clear()
+
+
 def solo_try_active(now: float | None = None) -> bool:
     """A try alone while queued (solo_for) is going on."""
     now = time.monotonic() if now is None else now

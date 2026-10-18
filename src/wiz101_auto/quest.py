@@ -202,6 +202,7 @@ DETOUR_GAP_FILE = Path("state") / "detour_gap.json"  # {"zone", "asked"}: where 
 DETOUR_ASK_SECONDS = 3600.0  # its NPCs asked again after this
 # {"zone", "asked"}: where the main story was last worked on (its NPCs asked for its next quest)
 MAIN_STORY_ZONE_FILE = Path("state") / "main_story_zone.json"
+SOLO_TRIES_FILE = Path("state") / "solo_tries.json"  # {dungeon: tries alone while queued}
 BAD_GATES_FILE = Path("state") / "bad_gates.json"  # [[zone, next zone], ...]: gates that never took
 OBJECTIVE_ZONES_FILE = Path("state") / "objective_zones.json"  # objective -> zone it was first given in
 VISIT_FILE = Path("state") / "visit_npc.json"  # {"npc", "zone"}: go and talk to them
@@ -453,6 +454,26 @@ TRACK_TRIES = 3  # clicks on a quest's track button before giving up for this ra
 COLLECT_SEARCH_DEPTH = 2  # search zones up to this many gates from the objective's place
 ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
+
+
+def load_solo_tries(path: Path | None = None) -> dict[str, int]:
+    """Tries alone per queued dungeon, kept across restarts (each restart gave
+    the Bat three new ones). Gone with the dungeon's team entry."""
+    from .teamup import team_list
+
+    try:
+        data = json.loads((path or SOLO_TRIES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    teams = team_list()
+    return {d: n for d, n in data.items() if d in teams} if path is None else data
+
+
+def save_solo_tries(tries: dict[str, int], path: Path | None = None) -> None:
+    try:
+        (path or SOLO_TRIES_FILE).write_text(json.dumps(tries, indent=1), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def load_bad_gates(path: Path | None = None) -> set[tuple[str, str]]:
@@ -2758,10 +2779,11 @@ class Quester:
                 # stands (the player), only then side quests meanwhile.
                 from .teamup import solo_for
 
-                tries = self.__dict__.setdefault("_solo_tries", {})
+                tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
                 used = tries.get(dungeon or "", 0)
                 if used < SOLO_TRIES:
                     tries[dungeon or ""] = used + 1
+                    save_solo_tries(tries)
                     self._solo_try[dungeon or ""] = time.monotonic() + SOLO_TRY_SECONDS
                     solo_for(dungeon or "", SOLO_TRY_SECONDS)
                     # (A fresh clock for the try: the 15 min waited for the team
@@ -2803,11 +2825,12 @@ class Quester:
             if outcome == "none" and (dungeon or "") not in TEAM_UP_DUNGEONS:
                 from .teamup import solo_for
 
-                tries = self.__dict__.setdefault("_solo_tries", {})
+                tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
                 used = tries.get(dungeon or "", 0)
                 name = (dungeon or "").split("/")[-1]
                 if used < SOLO_TRIES:
                     tries[dungeon or ""] = used + 1
+                    save_solo_tries(tries)
                     self._solo_try[dungeon or ""] = time.monotonic() + SOLO_TRY_SECONDS
                     solo_for(dungeon or "", SOLO_TRY_SECONDS)
                     # (A fresh clock for the try: the 15 min waited for the team
@@ -4040,6 +4063,15 @@ class Quester:
         self._recall_pending = bool(self._mark and self._mark.kind in RECALL_KINDS)
         self._last_defeat = time.monotonic()
         death_zone = (getattr(self.controller, "last_death", None) or (0, ""))[1]
+        from .teamup import end_solo, solo_try_active
+
+        if solo_try_active():
+            # A loss ends the try alone (the player: 3 tries, then side
+            # quests): the Recall back in kept the window open, and the Bat
+            # was fought alone a 4th and 5th time.
+            logger.info("lost on a try alone: that try is over")
+            end_solo()
+            self._recall_pending = False
         from .teamup import set_team_size, team_key, team_size
 
         key = team_key(death_zone) if death_zone else None
