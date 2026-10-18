@@ -118,6 +118,11 @@ class PetConfig:
     goals: dict = field(default_factory=lambda: {"bloodbat": "adult", "fellhound": "adult"})
     default_goal: str = "mega"
     feed: bool = True  # feed the first snack offered after each win
+    # The player (2026-10-18): the pet trained in the dance game is put on for
+    # the trip, the battle pet back on after it (backpack, Pet tab; names as
+    # shown there, matched without case). Empty: no swapping.
+    train_pet: str = ""
+    battle_pet: str = ""
 
 
 @dataclass

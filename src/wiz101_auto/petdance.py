@@ -29,6 +29,7 @@ from .upkeep import is_free, wait_for_loading
 
 PET_REQUEST = Path("state") / "pet.request"  # `pet`: games to play ("0": until the energy runs out)
 PET_PARK = "WizardCity/WC_Streets/Interiors/WC_PET_Park"
+PET_TAB = "Tab_Pet"  # the backpack's pets
 GAME_IDLE_SECONDS = 180.0  # a dance game and its rewards: no watchdog recovery meanwhile
 DANCE_SIGIL = XYZ(-4450.58, -994.90, -8.04)  # the dance game's sigil in the Pet Pavilion
 DANCE_TITLE = "Dance Game"  # the sigil's prompt title
@@ -256,7 +257,43 @@ class PetDancer:
 
     def done(self) -> bool:
         pet = load_pet()
+        train = (self.cfg.train_pet or "").strip().lower()
+        if train and pet.get("name") != train:
+            return False  # a new pet to train: its stage isn't known yet
         return goal_reached(pet.get("kind"), pet.get("stage"), self.cfg.goals, self.cfg.default_goal)
+
+    async def swap_to(self, name: str) -> bool:
+        """Put on the pet named `name` (backpack, Pet tab; matched without case,
+        a part of the shown name is enough). True if it's on after."""
+        gear = getattr(self.q, "gear", None)
+        if not name or gear is None:
+            return False
+        want = name.strip().lower()
+        if not await gear._open():
+            logger.warning("pet: the backpack didn't open to swap pets")
+            return False
+        try:
+            items = await gear._scan_tab(PET_TAB)
+            match = next((n for n, _ in items if n.strip().lower() == want), None) or next(
+                (n for n, _ in items if want in n.strip().lower()), None)
+            if match is None:
+                logger.warning(f"pet: no {name!r} in the backpack's pets ({[n for n, _ in items][:12]})")
+                return False
+            if any(n == match and on for n, on in items):
+                return True
+            ok = await gear._equip_by_name(PET_TAB, match)
+            logger.info(f"pet: {match!r} {'on' if ok else 'could not be put on'}")
+            return ok
+        finally:
+            await gear._close()
+
+    async def battle_pet_on(self) -> bool:
+        """The battle pet back on (after a trip, and once at start in case a
+        trip was cut short). True if it swapped."""
+        if not self.cfg.battle_pet:
+            return False
+        self._battle_checked = True
+        return await self.swap_to(self.cfg.battle_pet)
 
     async def energy(self) -> tuple[int | None, int | None]:
         """(the wizard's energy now, its maximum): pet games cost energy."""
@@ -269,6 +306,8 @@ class PetDancer:
 
     async def tick(self) -> bool:
         """Call while free. True if it made the trip."""
+        if self.cfg.battle_pet and not getattr(self, "_battle_checked", False):
+            await self.battle_pet_on()
         wanted = games_requested()
         if wanted is not None:
             try:
@@ -354,6 +393,14 @@ class PetDancer:
                 return
         else:
             marked = False
+        if self.cfg.train_pet and not resumed:
+            if await self.swap_to(self.cfg.train_pet):
+                pet = load_pet()
+                train = self.cfg.train_pet.strip().lower()
+                if pet.get("name") != train:
+                    save_pet({"name": train})  # a new pet: its kind and stage from the games
+            else:
+                logger.warning(f"pet: {self.cfg.train_pet!r} not put on: dancing with the pet that's on")
         games, why = 0, "done"
         await activate_dance_hook(self.client.hook_handler)
         await asyncio.sleep(HOOK_SETTLE)
@@ -379,6 +426,8 @@ class PetDancer:
             await self._close_all()
             await deactivate_dance_hook(self.client.hook_handler)
         logger.info(f"pet: {games} game(s) played; stopped: {why}")
+        if self.cfg.battle_pet and await is_free(self.client):
+            await self.battle_pet_on()
         if marked and self.q._mark and await is_free(self.client):
             await self.q._recall(self.q._mark.zone)
 

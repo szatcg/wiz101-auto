@@ -52,3 +52,16 @@ def test_solo_try_covers_quest_rooms():
         assert t.solo_quest_room("Empyrea/Interiors/EM_Z02_BatCave", teams)
     finally:
         t._SOLO_UNTIL.clear()
+
+
+def test_new_train_pet_not_done(tmp_path, monkeypatch):
+    import wiz101_auto.petdance as pd
+    from wiz101_auto.config import PetConfig
+
+    monkeypatch.setattr(pd, "PET_STATE", tmp_path / "pet.json")
+    pd.save_pet({"kind": None, "stage": "mega"})
+    dancer = pd.PetDancer.__new__(pd.PetDancer)
+    dancer.cfg = PetConfig(default_goal="mega", train_pet="Twitch Champ", battle_pet="Sir Roscoe")
+    assert not dancer.done()  # a new pet: trained until its own goal
+    pd.save_pet({"name": "twitch champ", "stage": "mega"})
+    assert dancer.done()
