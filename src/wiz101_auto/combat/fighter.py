@@ -346,6 +346,27 @@ def _save_my_stats(me) -> None:
 EMPTY_HAND_READS = 6  # reads, a second apart, before an empty hand is played as one
 
 
+
+async def return_from_idle(client) -> bool:
+    """The game's "You are idle - would you like to return to combat?" box
+    (Flee / Return) hides the hand: every round passed, unread (Medulla, with
+    a team). Its Return button, found by its text, never Flee. True if pressed."""
+    box = await ui.modal_box(client)
+    if box is None or "idle" not in (await ui.modal_text(box)).lower():
+        return False
+    for kind in ("ControlButton", "ControlText"):
+        try:
+            found = await box.get_windows_with_type(kind)
+        except Exception:
+            continue
+        for w in found:
+            if (await ui.window_text(w)).strip().lower() == "return" and await ui.window_visible(w):
+                logger.warning("'You are idle' box over the battle: pressing Return")
+                await ui.click_center(client, w)
+                return True
+    logger.warning("'You are idle' box over the battle, but no Return button found")
+    return False
+
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 99, flee_below: float = 0.0,
                  rollouts: bool = True):
@@ -796,6 +817,9 @@ class Fighter(CombatHandler):
                     logger.warning(f"discarding {name} didn't work; no more discards this round, "
                                    f"and never {name} again this fight")
 
+            if not battle.cards and await return_from_idle(self.client):
+                await asyncio.sleep(1.0)
+                continue
             empty = self.__dict__.setdefault("_empty_reads", {})
             if not battle.cards and battle.upcoming and empty.get(battle.round, 0) < EMPTY_HAND_READS:
                 # No hand read with cards still to draw (Eerkala, with a team:
