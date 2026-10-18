@@ -114,6 +114,7 @@ WISP_SCAN_SECONDS = 30.0
 STATUS_EVERY_SECONDS = 20.0
 SWITCH_QUEST_AFTER = 4  # same objective, this many interactions without change
 MAX_QUEST_SLOTS = 6
+BOOK_READ_IDLE = 60.0  # seconds the watchdog leaves a quest-book read alone
 MAX_BOOK_PAGES = 30  # the quest book, read to its last page (was 5: quests went missing)
 RANK_FULL_EVERY = 1800.0  # a full quest-book read at least this often (else memory and the cache say)
 RANK_QUESTS_EVERY = 120.0  # at most this often: quest-book rankings (on objective changes)
@@ -5113,6 +5114,16 @@ class Quester:
             if switched is not None:
                 return switched
             logger.debug("quest priority: another quest to track: reading the quest book")
+        # (A whole read takes ~15 s now the book has 7 pages: the watchdog's
+        # 15 s closed it mid-read, every read came back empty and the bot
+        # couldn't switch back to Baane.)
+        self.controller.allow_idle(BOOK_READ_IDLE)
+        try:
+            return await self._read_and_rank_book()
+        finally:
+            self.controller.end_idle()
+
+    async def _read_and_rank_book(self):
         if not await self._open_quest_book():
             logger.warning("could not open the quest book to rank quests")
             return False
