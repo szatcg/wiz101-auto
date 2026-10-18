@@ -2255,13 +2255,15 @@ class Quester:
                 await self.client.teleport(start)
                 await asyncio.sleep(1.0)
                 prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").lower()
-                if any(w in prompt for w in ("travel", "enter", "go ")):
+                if any(w in prompt for w in ("travel", "enter", "go ", "stream", "teleport")):
                     logger.info(f"the door into {nxt.split('/')[-1]} is an X one ({prompt.strip()!r}): "
                                 "pressing X")
                     await self.client.send_key(Keycode.X, 0.1)
                     await asyncio.sleep(1.5)
                     # (The Streamportal learned as a door: its list opened.)
-                    await self._stream_to(nxt.split("/")[-1].split("_")[-1].lower())
+                    for label in self._stream_labels(nxt):
+                        if await self._stream_to(label):
+                            break
                     await wait_for_loading(self.client, appear_timeout=8.0)
             if await self.client.zone_name() != zone:
                 return True
@@ -2325,7 +2327,7 @@ class Quester:
                 return False
             return await self._world_teleport_gate(there, dest)
         self._gate_tried[zone] = time.monotonic()
-        label = dest.split("/")[-1].split("_")[-1].lower()  # EM_Z02_Zanadu -> zanadu
+        labels = self._stream_labels(dest)
         logger.info(f"heading to {dest}: trying the world teleporter here")
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
@@ -2339,12 +2341,29 @@ class Quester:
         lines = await ui.dump_tree(root, max_depth=12)
         dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
         dump.write_text(chr(10).join(lines), encoding="utf-8")
-        await self._stream_to(label)
+        for label in labels:
+            if await self._stream_to(label):
+                break
         moved = await self.client.zone_name() != zone
         if not moved:
             logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
             await ui.close_menus(self.client)
         return moved
+
+    def _stream_labels(self, dest: str) -> list[str]:
+        """Names to look for in a Streamportal's list on the way to `dest`: its
+        own (EM_Z02_Zanadu -> zanadu), then the open zones of its world that
+        known doors lead from to it (the Leisure Dome: from Zanadu)."""
+        def label(z: str) -> str:
+            return z.split("/")[-1].split("_")[-1].lower()
+
+        world = dest.split("/")[0]
+        out = [label(dest)]
+        for z in self.doors.doors:
+            if z.startswith(world + "/") and "/interiors/" not in z.lower() and self.doors.route(z, dest):
+                if label(z) not in out:
+                    out.append(label(z))
+        return out
 
     async def _stream_to(self, label: str) -> bool:
         """In a Streamportal's list (Aeriel's: "Destinations", opt0 Aeriel,
@@ -3512,8 +3531,9 @@ class Quester:
             goal = objective_zone(await ui.quest_goal(self.client) or "") or ""
             here = await self.client.zone_name() or ""
             if goal and goal != here and goal.split("/")[0] == here.split("/")[0]:
-                if await self._stream_to(goal.split("/")[-1].split("_")[-1].lower()):
-                    return True
+                for label in self._stream_labels(goal):
+                    if await self._stream_to(label):
+                        return True
             for w in await self.client.root_window.get_windows_with_name("cancelButton"):
                 if await ui.window_visible(w):
                     await ui.click_center(self.client, w)
