@@ -11344,8 +11344,11 @@ class Quester:
         place = objective_zone(objective) if objective else None
         if await self._toward_boss_room(objective, zone or ""):
             return
+        # (Nor from a team dungeon's rooms: 'Defeat Sir Blackwater in Castle
+        # Darkmoor' read as the hub zone of that name, and the bot walked out
+        # of the Armory, Blackwater's room, toward the castle's sigils.)
         if (place and zone and place != zone and "/interiors/" not in zone.lower()
-                and not await self._in_dungeon(zone)
+                and not await self._in_dungeon(zone) and not is_team_up_zone(zone)
                 and (gate_toward(zone, place, self._bad_gates) or self.doors.route(zone, place))
                 and self._may_try(objective, zone, "zone_first")):
             logger.info(f"{objective!r} is in {place.split('/')[-1]}: there by its gates first")
