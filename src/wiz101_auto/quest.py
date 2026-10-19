@@ -2510,10 +2510,9 @@ class Quester:
             self._stream_panel_seen = None
         for w in await self.client.root_window.get_windows_with_name("streamTitle"):
             if await ui.window_visible(w):
-                try:
-                    panel = await w.parent() or self.client.root_window
-                except Exception:
-                    panel = self.client.root_window
+                # (Not w.parent(): its subtree read took minutes. The root, one
+                # walk for all the parts at once.)
+                panel = self.client.root_window
                 self._stream_panel_seen = (panel, w)  # (one whole-tree search, not one a check)
                 return panel
         return None
@@ -2537,7 +2536,7 @@ class Quester:
         """The list's entries and buttons, by name, in one walk of its window
         (a search per entry from the root took a minute a page)."""
         panel = panel or await self._stream_panel() or self.client.root_window
-        return await ui.find_named(panel, STREAM_PARTS, max_depth=5)
+        return await ui.find_named(panel, STREAM_PARTS, max_depth=12)
 
     async def _stream_option_windows(self, panel=None) -> list:
         """(name, window) of the list's entries on the page shown."""
