@@ -179,6 +179,7 @@ SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one m
 # list's name (Chaos Jungle, EM_Z14, is reached by "Mandalla").
 STREAM_STOPS = {"EM_Z12": "mandalla", "EM_Z13": "mandalla", "EM_Z14": "mandalla"}
 STREAM_WAIT_TICKS = 12  # half-seconds a Streamportal's list is waited for after X
+STREAM_PARTS = {*(f"opt{i}" for i in range(8)), "rightButton", "leftButton", "teleportButton", "cancelButton"}
 STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
@@ -2430,11 +2431,11 @@ class Quester:
         if await self.client.zone_name() != zone:
             await wait_for_loading(self.client)
             return True
-        root = self.client.root_window
-        lines = await ui.dump_tree(root, max_depth=12)
-        dump = Path("state") / f"teleportgate_window_{zone.split('/')[-1]}.txt"
-        dump.write_text(chr(10).join(lines), encoding="utf-8")
-        await self._stream_go(dest)
+        self.controller.allow_idle(45)  # (the list comes up slowly: not a stall)
+        try:
+            await self._stream_go(dest)
+        finally:
+            self.controller.end_idle()
         moved = await self.client.zone_name() != zone
         if not moved:
             logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
@@ -2499,21 +2500,27 @@ class Quester:
         entries, arrows and buttons all sit in it), or None. Every lookup in
         it instead of the whole UI tree: eight whole-tree searches a page took
         so long that the watchdog cut the step off before a stop was chosen."""
+        cached = self.__dict__.get("_stream_panel_seen")
+        if cached is not None:
+            try:
+                if await ui.window_visible(cached[1]):
+                    return cached[0]
+            except Exception:
+                pass
+            self._stream_panel_seen = None
         for w in await self.client.root_window.get_windows_with_name("streamTitle"):
             if await ui.window_visible(w):
                 try:
-                    return await w.parent() or self.client.root_window
+                    panel = await w.parent() or self.client.root_window
                 except Exception:
-                    return self.client.root_window
+                    panel = self.client.root_window
+                self._stream_panel_seen = (panel, w)  # (one whole-tree search, not one a check)
+                return panel
         return None
 
     async def _close_stream_list(self) -> None:
-        panel = await self._stream_panel() or self.client.root_window
-        for w in await panel.get_windows_with_name("cancelButton"):
-            if await ui.window_visible(w):
-                await ui.click_center(self.client, w)
-                await asyncio.sleep(0.6)
-                return
+        if await self._stream_turn("cancelButton"):
+            await asyncio.sleep(0.2)
 
     async def _wait_stream_list(self, likely: bool = True) -> bool:
         """The Streamportal's list showing, waited for a few seconds when the
@@ -2526,24 +2533,31 @@ class Quester:
             await asyncio.sleep(0.5)
         return await self._stream_list_open()
 
+    async def _stream_parts(self, panel=None) -> dict:
+        """The list's entries and buttons, by name, in one walk of its window
+        (a search per entry from the root took a minute a page)."""
+        panel = panel or await self._stream_panel() or self.client.root_window
+        return await ui.find_named(panel, STREAM_PARTS, max_depth=5)
+
     async def _stream_option_windows(self, panel=None) -> list:
         """(name, window) of the list's entries on the page shown."""
-        panel = panel or await self._stream_panel() or self.client.root_window
+        parts = await self._stream_parts(panel)
         out = []
         for i in range(8):
-            for w in await panel.get_windows_with_name(f"opt{i}"):
-                name = (await ui.window_text(w)).strip()
-                if name and await ui.window_visible(w):
-                    out.append((name, w))
+            w = parts.get(f"opt{i}")
+            if w is None:
+                continue
+            name = (await ui.window_text(w)).strip()
+            if name and await ui.window_visible(w):
+                out.append((name, w))
         return out
 
     async def _stream_turn(self, button: str, panel=None) -> bool:
-        panel = panel or await self._stream_panel() or self.client.root_window
-        for w in await panel.get_windows_with_name(button):
-            if await ui.window_visible(w):
-                await ui.click_center(self.client, w)
-                await asyncio.sleep(0.5)
-                return True
+        w = (await self._stream_parts(panel)).get(button)
+        if w is not None and await ui.window_visible(w):
+            await ui.click_center(self.client, w)
+            await asyncio.sleep(0.5)
+            return True
         return False
 
     async def _stream_options(self) -> list[str]:
@@ -2566,7 +2580,9 @@ class Quester:
         (streamportal.choose_stop: by where each stop was seen to land, then
         names), Stream, and note where it landed. Closed if nothing fits. True
         if it moved."""
+        logger.debug(f"stream: list wanted toward {dest!r}")
         if not await self._wait_stream_list():
+            logger.debug("stream: no list")
             return False
         self.controller.allow_idle(30)  # (reading every page isn't a stall)
         try:
@@ -2579,7 +2595,9 @@ class Quester:
 
         here = await self.client.zone_name() or ""
         world = here.split("/")[0]
+        logger.debug("stream: reading the stops")
         options = await self._stream_options()
+        logger.debug(f"stream: read {options}")
         hints = (self._stream_labels(dest) if dest else []) + [w.lower() for w in extra_hints]
         learned = load_stops(world)
 
@@ -3756,6 +3774,7 @@ class Quester:
         Map with the quest's world already ticked: press Go To World. True if
         the map was open."""
         stream = await self._stream_list_open()
+        logger.debug(f"step: map check (stream list {stream})")
         if not stream and not await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
             self._map_tries = 0
             return False
