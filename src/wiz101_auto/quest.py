@@ -179,7 +179,9 @@ SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one m
 # list's name (Chaos Jungle, EM_Z14, is reached by "Mandalla").
 STREAM_STOPS = {"EM_Z12": "mandalla", "EM_Z13": "mandalla", "EM_Z14": "mandalla"}
 STREAM_WAIT_TICKS = 12  # half-seconds a Streamportal's list is waited for after X
-STREAM_PARTS = {*(f"opt{i}" for i in range(8)), "rightButton", "leftButton", "teleportButton", "cancelButton"}
+STREAM_OPTIONS = ["WorldView", "", "messageBoxBG", "ControlSprite", "optionWindow"]  # the list's entries
+STREAM_TITLE = ["WorldView", "", "messageBoxBG", "ControlSprite", "streamTitle"]  # "Streamportal"
+STREAM_PER_PAGE = 4  # stops on a page of the list
 STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
@@ -2492,80 +2494,13 @@ class Quester:
         return any(math.dist((e.x, e.y), (here.x, here.y)) < within for e in found)
 
     async def _stream_list_open(self) -> bool:
-        """A Streamportal's destination list is showing."""
-        return await self._stream_panel() is not None
-
-    async def _stream_panel(self):
-        """The Streamportal list's own window (streamTitle's parent: the
-        entries, arrows and buttons all sit in it), or None. Every lookup in
-        it instead of the whole UI tree: eight whole-tree searches a page took
-        so long that the watchdog cut the step off before a stop was chosen."""
-        cached = self.__dict__.get("_stream_panel_seen")
-        if cached is not None:
-            try:
-                if await ui.window_visible(cached[1]):
-                    return cached[0]
-            except Exception:
-                pass
-            self._stream_panel_seen = None
-        # Straight down its known path (Root > WorldView > <unnamed> > messageBoxBG >
-        # ControlSprite, which holds streamTitle, the entries and buttons):
-        # a few windows read, not the whole tree (a minute and more there).
-        seen = []
-        try:
-            # (Root > WorldView > <unnamed> > messageBoxBG > ControlSprite, as
-            # the game showed it.)
-            tops = []
-            for root_kid in await self.client.root_window.children():
-                if await root_kid.name() == "WorldView":
-                    tops += await root_kid.children()
-            for top in tops:
-                top_name = await top.name()
-                if top_name not in ("", "<unnamed>") and top_name != "messageBoxBG":
-                    continue
-                boxes = [top] if top_name == "messageBoxBG" else await top.children()
-                for box in boxes:
-                    if await box.name() != "messageBoxBG":
-                        continue
-                    for sprite in await box.children():
-                        if await sprite.name() != "ControlSprite":
-                            continue
-                        parts = await ui.find_named(sprite, {"streamTitle", "optionWindow"}, max_depth=1)
-                        seen.append(sorted(parts))
-                        title = parts.get("streamTitle")
-                        if title is not None and await ui.window_visible(title):
-                            self._stream_panel_seen = (sprite, title)
-                            return sprite
-        except Exception as exc:
-            logger.debug(f"stream panel lookup failed: {exc!r}")
-        if seen:
-            logger.debug(f"stream panel: ControlSprites seen {seen}, none showing streamTitle")
-        # (The old whole-tree search, for a layout the path misses.)
-        for w in await self.client.root_window.get_windows_with_name("streamTitle"):
-            if await ui.window_visible(w):
-                chain, node = [], w
-                try:
-                    for _ in range(8):
-                        node = await node.parent()
-                        if node is None:
-                            break
-                        chain.append(await node.name() or "<unnamed>")
-                except Exception as exc:
-                    chain.append(f"({exc!r})")
-                tops = []
-                try:
-                    tops = [await t.name() or "<unnamed>" for t in await self.client.root_window.children()]
-                except Exception:
-                    pass
-                logger.debug(f"stream panel: found by the whole-tree search only; its parents {chain}; "
-                             f"the root's windows {tops}")
-                self._stream_panel_seen = (self.client.root_window, w)
-                return self.client.root_window
-        return None
+        """A Streamportal's destination list is showing (its title, at the
+        Spiral Map window's path)."""
+        return await ui.is_visible(self.client, STREAM_TITLE)
 
     async def _close_stream_list(self) -> None:
-        if await self._stream_turn("cancelButton"):
-            await asyncio.sleep(0.2)
+        if await ui.click(self.client, ui.SPIRAL_DOOR_EXIT):
+            await asyncio.sleep(0.3)
 
     async def _wait_stream_list(self, likely: bool = True) -> bool:
         """The Streamportal's list showing, waited for a few seconds when the
@@ -2578,48 +2513,45 @@ class Quester:
             await asyncio.sleep(0.5)
         return await self._stream_list_open()
 
-    async def _stream_parts(self, panel=None) -> dict:
-        """The list's entries and buttons, by name, in one walk of its window
-        (a search per entry from the root took a minute a page)."""
-        panel = panel or await self._stream_panel() or self.client.root_window
-        depth = 12 if panel is self.client.root_window else 3
-        return await ui.find_named(panel, STREAM_PARTS, max_depth=depth)
-
-    async def _stream_option_windows(self, panel=None) -> list:
-        """(name, window) of the list's entries on the page shown."""
-        parts = await self._stream_parts(panel)
+    async def _stream_page(self) -> list[str]:
+        """The stops on the page shown: the Spiral Map's own window (the
+        Streamportal is that window with other names), read at its fixed
+        paths like the Spiral Map's worlds, not searched for."""
         out = []
-        for i in range(8):
-            w = parts.get(f"opt{i}")
-            if w is None:
-                continue
-            name = (await ui.window_text(w)).strip()
-            if name and await ui.window_visible(w):
-                out.append((name, w))
+        for i in range(STREAM_PER_PAGE):
+            name = (await ui.text_at(self.client, [*STREAM_OPTIONS, f"opt{i}"]) or "").strip()
+            if name:
+                out.append(name)
         return out
 
-    async def _stream_turn(self, button: str, panel=None) -> bool:
-        w = (await self._stream_parts(panel)).get(button)
-        if w is not None and await ui.window_visible(w):
-            await ui.click_center(self.client, w)
-            await asyncio.sleep(0.5)
-            return True
-        return False
-
     async def _stream_options(self) -> list[str]:
-        """Every entry of the list, all pages, back on page 1 after."""
-        panel = await self._stream_panel() or self.client.root_window
+        """Every stop, all pages (the Spiral Map's arrows), back on page 1 after."""
         names: list[str] = []
         for _ in range(STREAM_PAGES):
-            page = [n for n, _w in await self._stream_option_windows(panel)]
-            new = [n for n in page if n not in names]
+            new = [n for n in await self._stream_page() if n not in names]
             names += new
-            if not new or not await self._stream_turn("rightButton", panel):
+            if not new or not await ui.click(self.client, ui.SPIRAL_DOOR_NEXT):
                 break
+            await asyncio.sleep(0.3)
         for _ in range(STREAM_PAGES):
-            if not await self._stream_turn("leftButton", panel):
+            if not await ui.click(self.client, ui.SPIRAL_DOOR_PREV):
                 break
+            await asyncio.sleep(0.2)
         return names
+
+    async def _stream_click(self, stop: str) -> bool:
+        """Page to `stop`, click it, then Stream. True if clicked."""
+        for _ in range(STREAM_PAGES):
+            page = await self._stream_page()
+            if stop in page:
+                await ui.click(self.client, [*STREAM_OPTIONS, f"opt{page.index(stop)}"])
+                await asyncio.sleep(0.3)
+                await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
+                return True
+            if not await ui.click(self.client, ui.SPIRAL_DOOR_NEXT):
+                break
+            await asyncio.sleep(0.3)
+        return False
 
     async def _stream_go(self, dest: str, extra_hints=()) -> bool:
         """With the Streamportal's list open: the stop toward `dest`
@@ -2641,9 +2573,7 @@ class Quester:
 
         here = await self.client.zone_name() or ""
         world = here.split("/")[0]
-        logger.debug("stream: reading the stops")
         options = await self._stream_options()
-        logger.debug(f"stream: read {options}")
         hints = (self._stream_labels(dest) if dest else []) + [w.lower() for w in extra_hints]
         learned = load_stops(world)
 
@@ -2653,20 +2583,10 @@ class Quester:
         stop = choose_stop(options, dest, here, learned, reaches, hints)
         where = dest.split("/")[-1] or "?"
         logger.info(f"Streamportal: stops {options}; toward {where}: {stop or 'none fits'}")
-        if stop is None:
+        if stop is None or not await self._stream_click(stop):
             await self._close_stream_list()
             return False
-        panel = await self._stream_panel() or self.client.root_window
-        for _ in range(STREAM_PAGES):
-            hit = next((w for n, w in await self._stream_option_windows(panel) if n == stop), None)
-            if hit is not None:
-                await ui.click_center(self.client, hit)
-                await asyncio.sleep(0.5)
-                await self._stream_turn("teleportButton", panel)
-                await wait_for_loading(self.client, appear_timeout=8.0)
-                break
-            if not await self._stream_turn("rightButton", panel):
-                break
+        await wait_for_loading(self.client, appear_timeout=8.0)
         now = await self.client.zone_name() or ""
         if now and now != here:
             if learned.get(stop) != now:
