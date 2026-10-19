@@ -3023,6 +3023,15 @@ BOSS_BANS = {
     # Ghost Dog answers any positive charm, global or manipulation with a 0-pip
     # ice hit and a 3-round burn: no blades (traps and hits only).
     "ghost dog": lambda c: _blade(c) and not c.is_damage,
+    # Khan steals or clears blades and traps.
+    "khan": lambda c: not c.is_damage and (_blade(c) or EffectKind.TRAP in c.kinds),
+    # Nimbus Citadel: unprotected traps turned into shields for the boss.
+    "corporate shinobi": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
+    "baba yaga": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
+    # The Husk's Storm Titan / Titan's Trident: Uprise wipes every blade and
+    # trap: plain hits only.
+    "storm titan": lambda c: not c.is_damage and (_blade(c) or EffectKind.TRAP in c.kinds),
+    "titan's trident": lambda c: not c.is_damage and (_blade(c) or EffectKind.TRAP in c.kinds),
 }
 
 
