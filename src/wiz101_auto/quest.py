@@ -2396,6 +2396,28 @@ class Quester:
         finally:
             self._team_sigil_trip = False
 
+    async def _solo_try_on_entry(self, inside: str) -> None:
+        """In alone through a sigil not known to be a team dungeon's (the
+        Dream Shrine's, in the Nexus), and in here it is one: that's a try
+        alone while the queue stands (the player: 3 of them), not a walk in
+        and straight back out after a minute "alone in the team dungeon"."""
+        from .teamup import is_team_up_zone, solo_for, solo_try_active
+
+        if not inside or not is_team_up_zone(inside) or solo_try_active():
+            return
+        tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
+        used = tries.get(inside, 0)
+        if used >= SOLO_TRIES:
+            logger.info(f"in {inside.split('/')[-1]} alone, its {SOLO_TRIES} tries alone used: "
+                        "leaving it for a team")
+            return
+        tries[inside] = used + 1
+        save_solo_tries(tries)
+        solo_for(inside, SOLO_TRY_SECONDS)
+        self.__dict__.setdefault("_solo_try", {})[inside] = time.monotonic() + SOLO_TRY_SECONDS
+        self._last_progress_time = time.monotonic()
+        logger.info(f"in {inside.split('/')[-1]} alone: try {used + 1} of {SOLO_TRIES} while queued")
+
     def _gate_failed(self, zone: str | None, dest: str | None) -> None:
         """A gate that didn't take: avoided from now on, across restarts too
         (Aeriel's hub -> the Zanadu Sewers cost 4 minutes on every new run)."""
@@ -3043,6 +3065,7 @@ class Quester:
                     self._dungeon = (zone or "", await self.client.zone_name() or "")
                     self._sigil_failed_at = None
                     await self._remember_dungeon(zone, sigil)
+                    await self._solo_try_on_entry(await self.client.zone_name() or "")
                     return True
                 if await self.client.in_battle():
                     waited = time.monotonic() - started
