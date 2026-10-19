@@ -4660,6 +4660,15 @@ class Quester:
                 interior = await self.client.zone_name()
             if not interior or interior == outside:
                 return
+            from .teamup import is_open_hub
+            from .travel_data import zones_near
+
+            open_zone = "/interiors/" not in interior.lower() and len(zones_near(interior, 1)) > 1
+            if is_open_hub(interior) or open_zone:
+                # (An open zone the gates lead to isn't a dungeon: after a loss
+                # in Reverie the bot landed in Aeriel's hub and the jungle, and
+                # both went down as "the dungeon behind the Nexus sigil".)
+                return
             pos = await self._position()
             yaw = await self.client.body.yaw()
             DungeonMemory.load().record_entry(
