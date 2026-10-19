@@ -2629,6 +2629,12 @@ class Quester:
 
         here = await self.client.zone_name() or ""
         world = here.split("/")[0]
+        if dest and dest == here:
+            # Already there: the X went to the portal, not the NPC beside it
+            # (Sparck by Zanadu's Streamportal; it streamed to Sepidious).
+            logger.info(f"Streamportal: already in {here.split('/')[-1]}; closing it")
+            await self._close_stream_list()
+            return False
         options = await self._stream_options()
         hints = (self._stream_labels(dest) if dest else []) + [w.lower() for w in extra_hints]
         learned = load_stops(world)
