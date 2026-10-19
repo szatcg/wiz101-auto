@@ -3002,7 +3002,10 @@ BOSS_BANS = {
     "howling chaney": lambda c: c.is_heal and not c.is_damage,
     # Sir Blackwater disarms a wizard who casts a blade (the bot bladed itself
     # and lost each one, and the turn, to his Disarm).
-    "sir blackwater": _blade,
+    # (And the player's 2026-10-19 list: a single-target weakness on him
+    # brings his Dark Tribute.)
+    "sir blackwater": lambda c: _blade(c) or (EffectKind.WEAKNESS in c.kinds and not c.is_damage
+                                              and aims_at_one_enemy(c)),
     # Akhtang Wormcrawl steals a blade for every blade cast.
     "akhtang wormcrawl": _blade,
     # Spirit of Darkmoor: a blade brings her Scald on all of us; a trap on her

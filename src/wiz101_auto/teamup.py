@@ -332,6 +332,17 @@ def _room_no(zone: str) -> int:
     return int(m.group(1)) if m else 99
 
 
+# Dungeons never tried alone nor joined through strangers on the sigil (the
+# player, 2026-10-19: "we need a team for Sir Blackwater"; the sigil's players
+# put the bot in its own copy of Castle Darkmoor, alone at Howling Chaney
+# again): only a Team Up team goes in.
+NO_SOLO_PREFIXES = ("G14_DM/",)
+
+
+def no_solo(dungeon: str) -> bool:
+    return (dungeon or "").startswith(NO_SOLO_PREFIXES)
+
+
 _SOLO_UNTIL: dict[str, float] = {}  # dungeon base -> monotonic end of a try alone
 
 
@@ -1034,8 +1045,9 @@ async def team_up(quester, dungeon: str) -> str:
         last_sigil_check = 0.0
         while time.monotonic() - started < TEAM_UP_WAIT:
             await close_stray_forms(client)
-            if await _join_party_on_sigil(client, zone, center, last_press, quester._far_spot,
-                                          need=1 if dungeon in team_list() else PARTY_ON_SIGIL):
+            if not no_solo(dungeon) and await _join_party_on_sigil(
+                    client, zone, center, last_press, quester._far_spot,
+                    need=1 if dungeon in team_list() else PARTY_ON_SIGIL):
                 return "in"
             if time.monotonic() - last_sigil_check > SIGIL_CHECK_EVERY:
                 last_sigil_check = time.monotonic()

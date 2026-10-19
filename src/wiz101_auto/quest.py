@@ -2419,8 +2419,10 @@ class Quester:
 
         if not inside or not is_team_up_zone(inside) or solo_try_active():
             return
+        from .teamup import no_solo
+
         tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
-        used = tries.get(inside, 0)
+        used = SOLO_TRIES if no_solo(inside) else tries.get(inside, 0)
         if used >= SOLO_TRIES:
             logger.info(f"in {inside.split('/')[-1]} alone, its {SOLO_TRIES} tries alone used: "
                         "leaving it for a team")
