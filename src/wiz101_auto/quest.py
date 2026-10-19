@@ -2552,6 +2552,11 @@ class Quester:
             except Exception:
                 pass
         box = await ui.window_at(self.client, STREAM_BOX, visible_only=True)
+        if box is None:
+            # (A window on the way reads hidden while the list shows: the
+            # Nimbus Hangar's Streamportal went undetected and was taken for
+            # the Spiral Map. The plain lookup then.)
+            box = await ui.window_at(self.client, STREAM_BOX)
         self._stream_box_seen = box
         return box
 
