@@ -221,6 +221,10 @@ EXTRA_DISPLAY_ZONES = [
     ("knight's court", "Marleybone/MB_ScotlandYard/MB_KnightsCourt"),
     ("counterweight east", "Marleybone/MB_BigBen/MB_CounterweightEast"),  # a dungeon off the Museum
     ("nightside", "WizardCity/WC_NightSide"),  # off the Commons
+    # (The game's id says NW for the Northeast Aero Plains: the name matched the
+    # Southwest's zone, and the bot walked between the two toward the Frog Prince.)
+    ("northeast aero plains", "Empyrea/EM_Z09_NWAeroplains"),
+    ("southwest aero plains", "Empyrea/EM_Z08_SWAeroplains"),
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
     ("throne room of fire", "Krokotopia/KT_Pyramid/KT_ThroneRoom"),  # not MooShu's "throne room"

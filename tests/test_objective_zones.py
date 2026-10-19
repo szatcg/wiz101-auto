@@ -86,3 +86,10 @@ def test_pod_to_other_place_not_taken():
     names = ["Pod", "Pod to \nOuter Athanor", "Wooden Chest"]
     assert closest_name("Pod to Mandalla", names) == "Pod"
     assert closest_name("Pod to Outer Athanor", names) == "Pod to \nOuter Athanor"
+
+
+def test_aero_plains_by_direction():
+    from wiz101_auto.travel_data import objective_zone
+
+    assert objective_zone("Defeat Frog Prince in Northeast Aero Plains") == "Empyrea/EM_Z09_NWAeroplains"
+    assert objective_zone("Talk To Tyler in Southwest Aero Plains") == "Empyrea/EM_Z08_SWAeroplains"
