@@ -2747,10 +2747,41 @@ def strongest_copies_first(cards: list[Card]) -> list[Card]:
     return out
 
 
+CLASS_CARDS = ("participate", "ask questions", "take notes", "listen")  # the Headmaster's lesson, best first
+CLASS_SKIP = ("snack break",)
+
+
+def classroom_move(battle: Battle) -> Action | None:
+    """The Headmaster's classroom (Reverie): rounds deal only lesson cards.
+    Attendance and Homework are played (passed, the lesson went wrong), a
+    class card that takes part (never Snack Break), and in the School round
+    our own school: passed, a second Myth shield came up (-999%) and the
+    fight was lost three times."""
+    names = {c.name.lower(): c for c in battle.cards}
+    school = (battle.me.school or "myth").lower()
+    mine = names.get(f"{school} school")
+    if mine is not None:
+        return Action(ActionKind.CAST, mine, None, reason=f"the lesson: {mine.name}, our school")
+    if any(n.endswith(" school") for n in names):
+        return None
+    for lesson in ("attendance",):
+        if lesson in names:
+            return Action(ActionKind.CAST, names[lesson], None, reason="the lesson: attendance")
+    if "homework" in names:
+        return Action(ActionKind.CAST, names["homework"], battle.me, reason="the lesson: homework")
+    for lesson in CLASS_CARDS:
+        if lesson in names:
+            return Action(ActionKind.CAST, names[lesson], None, reason=f"the lesson: {names[lesson].name}")
+    return None
+
+
 def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
            plan_discards: bool = False, odds_discards: bool | None = None) -> Action:
     """The action for this step: of two copies of a spell the stronger is
     played (the rules take the first fitting card) and the weaker discarded."""
+    lesson = classroom_move(battle)
+    if lesson is not None:
+        return lesson
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
     try:
         card_rules(battle)
