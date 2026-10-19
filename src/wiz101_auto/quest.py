@@ -2828,6 +2828,15 @@ class Quester:
         # needs the Moon Shrine in Ravik's room, the dungeon queued for under
         # 'Moonlight Shadows': the Team Up check below, not "not entering",
         # which never confirmed the queue.)
+        if queue and quest and Farm.load().active and quest == player_pinned():
+            # Farming comes first (the player: farm Darkmoor; the Neumian
+            # Lion's queue kept the bot out of Castle Darkmoor, the farm's way
+            # to the Graveyard): the other queue is dropped.
+            from .teamup import clear_queue
+
+            logger.info(f"farming: dropping the Team Up queue for {queue.get('dungeon', '').split('/')[-1]}")
+            clear_queue()
+            queue = {}
         queued_base = _dungeon_base(queue.get("dungeon", "")) if queue else ""
         same_dungeon = bool(here_dungeon) and _dungeon_base(here_dungeon) == queued_base
         if (queue and quest and quest != queue.get("quest") and not same_dungeon
