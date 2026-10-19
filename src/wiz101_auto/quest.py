@@ -465,6 +465,14 @@ ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
 
 
+def objective_person(objective: str) -> str:
+    """The person a Talk/Follow/Meet objective names ('Follow Josiah into Town
+    in Port Aero' -> 'Josiah'), or ''."""
+    m = re.match(r"^(?:Talk To|Talk to|Follow|Meet|Meet With|Escort)\s+(.+?)(?:\s+(?:into|in|to|at)\b.*)?$",
+                 (objective or "").strip())
+    return m.group(1).strip() if m else ""
+
+
 def stream_words(objective: str) -> list[str]:
     """Capitalised words of an objective that could name a Streamportal stop
     (not its verb or the small words): 'Explore Sepidious in The Stomach' ->
@@ -4981,6 +4989,17 @@ class Quester:
             dest = objective_zone(objective) if objective else None
             if await self._stream_go(dest or "", stream_words(objective)):
                 return True
+            # No stop for it: the X went to the portal, not the one the
+            # objective names beside it (Josiah by the Nimbus Hangar's
+            # Streamportal: 'Follow Josiah into Town'). Them, from around.
+            who = objective_person(objective)
+            if who:
+                await self._close_stream_list()
+                pos = await self._npc_named(who)
+                if pos is not None:
+                    logger.info(f"Streamportal in the way: {who} from another side")
+                    return await self._talk_from_around(who, pos, await self.client.zone_name() or "",
+                                                        objective)
 
         if "to enter" in prompt:
             # Dungeon warning ("you can't leave once you enter...")

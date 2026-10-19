@@ -57,3 +57,11 @@ def test_hub_never_team_dungeon():
     assert is_open_hub("Empyrea/EM_Z00_Aeriel_HUB")
     assert is_open_hub("WizardCity/WC_Hub")
     assert not is_open_hub("Empyrea/Interiors/EM_Z15_DreamShrine")
+
+
+def test_objective_person():
+    from wiz101_auto.quest import objective_person
+
+    assert objective_person("Follow Josiah into Town in Port Aero") == "Josiah"
+    assert objective_person("Talk To Sparck in Zanadu") == "Sparck"
+    assert objective_person("Defeat Baane in Bat Cave") == ""
