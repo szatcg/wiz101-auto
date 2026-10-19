@@ -139,6 +139,7 @@ def main(argv: list[str] | None = None):
     farm_p.add_argument("--name", default=None)
     farm_p.add_argument("--boss", default=None, help="the boss whose defeat ends a run")
     farm_p.add_argument("--reset", action="store_true", help="set the run count back to 0")
+    farm_p.add_argument("--preset", default=None, help="a known farm: darkmoor (Yevgeny's athame), olympus")
     decks_p = sub.add_parser("decks", help="set up the two deck items: AoE and single-target (bot stopped)")
     decks_p.add_argument("--setup", action="store_true", help="find the deck items and fill each once")
     decks_p.add_argument("--aoe", default="", help="the deck item for the AoE deck (default: the worn one)")
@@ -272,10 +273,15 @@ def main(argv: list[str] | None = None):
         return
 
     if args.command == "farm":
-        from .farm import Farm
+        from .farm import PRESETS, Farm
 
         farm = Farm.load()
         farm.active = not args.stop
+        if args.preset:
+            dungeon, name, boss, unlock = PRESETS[args.preset.lower()]
+            if name != farm.name:
+                farm.complete, farm.runs = False, 0
+            farm.dungeon, farm.name, farm.final_boss, farm.unlock_world = dungeon, name, boss, unlock
         if args.dungeon and args.dungeon != farm.dungeon:
             farm.complete, farm.runs = False, 0  # (a new farm: the last one's "done" isn't this one's)
         farm.dungeon = args.dungeon or farm.dungeon

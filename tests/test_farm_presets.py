@@ -1,0 +1,24 @@
+from wiz101_auto.farm import PRESETS, Farm, target_status, unlock_quest
+
+
+def test_darkmoor_preset():
+    dungeon, name, boss, unlock = PRESETS["darkmoor"]
+    assert (name, boss, unlock) == ("Darkmoor Graveyard", "Yevgeny NightCreeper", "Castle Darkmoor")
+    assert [t["name"] for t in target_status(name, {})] == ["Lord of Death's Razor"]
+    assert target_status(name, {"Lord of Death's Razor": {}})[0]["have"]
+
+
+def test_run_ends_on_the_boss():
+    farm = Farm(final_boss="Yevgeny NightCreeper")
+    assert farm.ends_run(["Yevgeny Nightcreeper"])
+    assert not farm.ends_run(["Howling Chaney"])
+
+
+def test_unlock_quest_prefers_the_tracked_one():
+    book = [
+        {"name": "Stream On", "world": "Empyrea"},
+        {"name": "Le Chateau de Darkmoor", "world": "Castle Darkmoor"},
+        {"name": "Upper Halls", "world": "Castle Darkmoor", "active": True},
+    ]
+    assert unlock_quest("Castle Darkmoor", book) == "Upper Halls"
+    assert unlock_quest("Castle Darkmoor", book[:1]) == ""

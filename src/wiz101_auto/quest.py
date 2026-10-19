@@ -227,6 +227,12 @@ def untried_doors(doors: list[tuple[float, float]], tried: list, learned: list) 
 # Worlds reached by a teleporter, not the Spiral Map (the player: Castle
 # Darkmoor from Darkside): world -> zone prefix; gone to by the Mark there.
 OFF_MAP_WORLDS = {"CastleDarkmoor": "G14_DM/"}
+# Their way in on foot when the Mark isn't there (the player, 2026-10-19:
+# Darkmoor's entrance is in Nightside, the "Gateway" by Mortis): world ->
+# (zone, the gateway's position, the zone it leads to).
+OFF_MAP_ENTRANCES = {
+    "CastleDarkmoor": ("WizardCity/WC_NightSide", (-2381.0, -592.0, 0.0), "G14_DM/DM_Z01_CastleDarkmoor"),
+}
 
 SPIRAL_WORLD_NAMES = {"WizardCity": "wizard city", "Krokotopia": "krokotopia", "Marleybone": "marleybone",
                       "MooShu": "mooshu", "DragonSpire": "dragonspyre", "Celestia": "celestia",
@@ -7385,6 +7391,9 @@ class Quester:
             if self._mark and self._mark.zone.startswith(prefix):
                 logger.info(f"{why}: {world} isn't on the Spiral Map; Recall to the mark there")
                 return await self._recall(self._mark.zone, f"the mark in {world}")
+            gate = OFF_MAP_ENTRANCES.get(world)
+            if gate:
+                return await self._to_off_map_entrance(world, gate, why)
             logger.warning(f"{why}: {world} isn't on the Spiral Map and there's no mark there")
             return False
         acted = False
@@ -7402,6 +7411,22 @@ class Quester:
             if after == before and (map_open or not on_map):
                 return True  # this stage got nowhere (or the map didn't take us): the next step tries again
         return acted
+
+    async def _to_off_map_entrance(self, world: str, gate, why: str) -> bool:
+        """Toward an off-map world on foot: its entrance's world, its zone,
+        then X at the gateway. True if it acted."""
+        gate_zone, pos, inside = gate
+        zone = await self.client.zone_name() or ""
+        gate_world = gate_zone.split("/")[0]
+        if zone.split("/")[0] != gate_world:
+            logger.info(f"{why}: {world} is reached from {gate_zone}: to {gate_world} first")
+            return await self._to_world(gate_world, why)
+        if zone != gate_zone:
+            logger.info(f"{why}: to {world}'s gateway in {gate_zone}")
+            return await self.go_to_zone(gate_zone)
+        logger.info(f"{why}: through the gateway to {world}")
+        await self._use_x_gate(XYZ(*pos), zone, inside, False)
+        return True
 
     async def _to_world_stage(self, world: str, why: str) -> bool:
         """One stage of _to_world. True if it acted."""
@@ -7965,10 +7990,13 @@ class Quester:
         farm = Farm.load()
         if not farm.active:
             return False
-        entry = DungeonMemory.load().dungeons.get(farm.dungeon)
+        mem = DungeonMemory.load()
+        entry = mem.dungeons.get(farm.dungeon)
+        if entry is None and farm.final_boss:
+            found = mem.find_for_boss(farm.final_boss)
+            entry = found[1] if found else None
         if entry is None:
-            logger.warning(f"farming {farm.name}: its sigil isn't learned yet; questing instead")
-            return False
+            return self._farm_unlock(farm)
         self._last_progress_time = time.monotonic()  # farming isn't a stalled quest
         if self.gear and not await self.client.in_battle():
             # The loot of the last run (Zeus' chest, fight drops): note and try
@@ -8017,6 +8045,10 @@ class Quester:
                     return True
             if entry.outside.startswith("Aquila/") and await self._world_tree_to_aquila(zone):
                 return True
+            off_map = next((w for w, p in OFF_MAP_WORLDS.items() if entry.outside.startswith(p)), None)
+            if off_map and not zone.startswith(OFF_MAP_WORLDS[off_map]):
+                if await self._to_world(off_map, f"farming {farm.name}"):
+                    return True
             if time.monotonic() - self._farm_alerted > 600:
                 self._farm_alerted = time.monotonic()
                 logger.warning(f"ALERT: farming {farm.name}: can't get to {entry.outside} from {zone} "
@@ -8028,6 +8060,35 @@ class Quester:
         logger.info(f"farming {farm.name} (run {farm.runs + 1}): to the sigil")
         await self._enter_by_sigil(XYZ(*entry.sigil), zone)
         return True
+
+    def _farm_unlock(self, farm: Farm) -> bool:
+        """The farmed dungeon isn't learned yet (never entered, maybe not open
+        yet: the Graveyard is Darkmoor's third dungeon): follow its world's
+        quests (pinned, so their Team Ups wait at the sigils) until it is.
+        Questing goes on: always False."""
+        from .farm import unlock_quest
+
+        if not farm.unlock_world:
+            if time.monotonic() - self._farm_alerted > 600:
+                self._farm_alerted = time.monotonic()
+                logger.warning(f"farming {farm.name}: its sigil isn't learned yet; questing instead")
+            return False
+        try:
+            raw = (Path("state") / "quest_book.json").read_text(encoding="utf-8")
+            book = json.loads(raw).get("quests", [])
+        except (OSError, ValueError, AttributeError):
+            book = []
+        quest = unlock_quest(farm.unlock_world, book)
+        if quest and player_pinned() != quest:
+            save_pin(quest, player=True)
+            self._last_rank = -1e9
+            logger.info(f"farming {farm.name}: not open yet; following {quest!r} ({farm.unlock_world}) "
+                        f"to get to {farm.final_boss}")
+        elif not quest and time.monotonic() - self._farm_alerted > 600:
+            self._farm_alerted = time.monotonic()
+            logger.warning(f"ALERT: farming {farm.name}: no {farm.unlock_world} quest held and "
+                           f"{farm.final_boss}'s dungeon isn't learned; questing meanwhile")
+        return False
 
     async def _drop_done_team_quests(self) -> bool:
         """Team-list dungeons whose quest is no longer held (memory, not the

@@ -30,11 +30,27 @@ TARGETS = {
         ("Tricksy", "Robe", "Tricksy Cape"),
         ("Tricksy", "Shoes", "Tricksy Boots"),
     ],
+    # The player (2026-10-19): the slots the Bazaar can't fill, for power pip
+    # chance and resistance: the athame from Yevgeny NightCreeper, the first
+    # boss of Castle Darkmoor's Graveyard (the robe, Malistaire's Mantle of
+    # Kan Davasi Law, once the bot is up to him).
+    "Darkmoor Graveyard": [
+        ("Darkmoor", "Athame", "Lord of Death's Razor"),
+    ],
     "Mount Olympus": [  # the player's Zeus set: farming stops once all are looted
         ("Zeus", "Hat", "Helmet of Zeus' Will"),
         ("Zeus", "Robe", "Zeus' Armor of Supremacy"),
         ("Zeus", "Shoes", "Boots of Zeus' Lore"),
     ],
+}
+
+
+# `farm --preset NAME`: dungeon (first room's zone id; "" = found by its boss
+# once entered), name, final boss, and the book world whose quests open the
+# dungeon (followed, pinned, while it isn't learned yet).
+PRESETS = {
+    "darkmoor": ("", "Darkmoor Graveyard", "Yevgeny NightCreeper", "Castle Darkmoor"),
+    "olympus": ("Aquila/AQ_Z01_MountOlympus", "Mount Olympus", "Zeus Sky Father", ""),
 }
 
 
@@ -67,6 +83,7 @@ class Farm:
     active: bool = False
     runs: int = 0
     complete: bool = False  # every target looted: farming is done (a stuck main quest won't restart it)
+    unlock_world: str = ""  # the book world whose quests open the dungeon (Castle Darkmoor)
 
     @classmethod
     def load(cls, path: Path | None = None) -> Farm:
@@ -93,4 +110,14 @@ class Farm:
 
     def ends_run(self, boss_names: list[str]) -> bool:
         """The fight just won had the boss that ends a run."""
-        return any(self.final_boss.lower() == n.lower() for n in boss_names)
+        want = self.final_boss.lower()
+        return any(want == n.lower() or bool(want and n and (want in n.lower() or n.lower() in want))
+                   for n in boss_names)
+
+
+def unlock_quest(world: str, book: list[dict]) -> str:
+    """A held quest in `world` (the book's world name) to follow until the
+    farmed dungeon is open, or "": the one being tracked first."""
+    held = [q for q in book if _norm(q.get("world", "")) == _norm(world) and q.get("name")]
+    held.sort(key=lambda q: not q.get("active"))
+    return held[0]["name"] if held else ""
