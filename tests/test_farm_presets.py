@@ -27,5 +27,5 @@ def test_unlock_quest_prefers_the_tracked_one():
 def test_darkmoor_never_alone():
     from wiz101_auto.teamup import no_solo
 
-    assert no_solo("G14_DM/DM_Z02_MainHall")
+    assert not no_solo("G14_DM/DM_Z02_MainHall")  # (the bot beat Blackwater alone)
     assert not no_solo("Empyrea/Interiors/EM_Z08_MeowlsDen")

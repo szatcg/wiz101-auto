@@ -336,7 +336,8 @@ def _room_no(zone: str) -> int:
 # player, 2026-10-19: "we need a team for Sir Blackwater"; the sigil's players
 # put the bot in its own copy of Castle Darkmoor, alone at Howling Chaney
 # again): only a Team Up team goes in.
-NO_SOLO_PREFIXES = ("G14_DM/",)
+# (Off again the same day: the bot beat Blackwater alone on its second try.)
+NO_SOLO_PREFIXES: tuple[str, ...] = ()
 
 
 def no_solo(dungeon: str) -> bool:
