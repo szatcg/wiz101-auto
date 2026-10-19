@@ -2208,6 +2208,16 @@ class Quester:
                 if forget_gate(zone or "", next_zone):
                     logger.info(f"forgot the learned gate {zone} -> {next_zone} (it never worked)")
             await wait_for_loading(self.client)
+            landed = await self.client.zone_name() or ""
+            if landed and landed not in (zone, next_zone):
+                # Somewhere else (the Southwest Aero Plains' "gate to Velo
+                # City", learned wrong, led to the Northeast: the bot walked
+                # the circle for ten minutes): that gate is forgotten.
+                from .travel_data import forget_gate
+
+                logger.warning(f"gate {zone} -> {next_zone} led to {landed}; avoiding it")
+                self._gate_failed(zone, next_zone)
+                forget_gate(zone or "", next_zone)
         return await self.client.zone_name() == dest
 
     async def _hub_for_objective(self, objective: str, zone: str) -> bool:
