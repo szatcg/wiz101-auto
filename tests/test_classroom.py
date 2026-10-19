@@ -30,3 +30,10 @@ def test_attendance_and_homework_played():
 def test_class_card_never_snack_break():
     a = decide(lesson(["Listen", "Snack Break", "Ask Questions", "Participate", "Take Notes"]))
     assert a.card.name == "Participate"
+
+
+def test_ultra_assail_never_played():
+    from wiz101_auto.combat.model import Effect, EffectKind, Target, normalize_card
+
+    ua = Card(0, "Ultra Assail", pip_cost=0, effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 300)])
+    assert normalize_card(ua).banned

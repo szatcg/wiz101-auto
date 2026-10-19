@@ -207,6 +207,11 @@ class Battle:
         return [a for a in [self.me, *self.allies] if not a.is_dead]
 
 
+# The 0-pip wand hit by name too (the player: never played; discarded, it
+# clogged the hand three at a time, read as no item card).
+NEVER_PLAY = {"ultra assail"}
+
+
 def normalize_card(card: Card) -> Card:
     """Spells whose effect list, as the game reads, doesn't say what they do
     (the player's words and the card faces), made into what the brain plans
@@ -235,7 +240,8 @@ def normalize_card(card: Card) -> Card:
         # (Read as a +10 damage enchant: it would have gone on Orthrus.)
         value = next((e.value for e in card.effects if e.value > 0), 10.0)
         return _remade(card, [Effect(EffectKind.ENCHANT_BLADE, Target.SPELL, value)])
-    if card.item and card.is_damage and card.pip_cost == 0 and not card.banned:
+    never = card.item or any(n in name for n in NEVER_PLAY)
+    if never and card.is_damage and card.pip_cost == 0 and not card.banned:
         # The wand's 0-pip hit (the player, 2026-10-16: never; Pierce takes a
         # shield off instead).
         from dataclasses import replace
