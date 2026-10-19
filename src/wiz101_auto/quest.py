@@ -3046,8 +3046,7 @@ class Quester:
                                    + (f" (the prompt there: {shown!r})" if shown else ""))
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
-            await asyncio.sleep(1.0)
-            if await self._stream_list_open():
+            if await self._wait_stream_list(await self._entities_near_named(("teleportgate",), 600)):
                 # Not a sigil: a Streamportal (Inner Athanor's, taken for the
                 # Temple of Light's sigil after a heal trip through it failed;
                 # re-armed for minutes).
@@ -11493,6 +11492,13 @@ class Quester:
             prompt = (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").strip()
             logger.info(f"door marker at ({target.x:.0f}, {target.y:.0f}, {target.z:.0f}); we're at "
                         f"({here.x:.0f}, {here.y:.0f}, {here.z:.0f}); prompt {prompt!r}")
+            near_portal = await self._entities_near_named(("teleportgate",), 600)
+            if near_portal and "interact" in prompt.lower():
+                # (The marker on Aeriel's Streamportal, toward Sparck in
+                # Zanadu: taken for a dungeon sigil and "re-armed" for minutes.)
+                await self.client.send_key(Keycode.X, 0.1)
+                if await self._stream_go(objective_zone(objective) or "", stream_words(objective)):
+                    return
             if any(w in prompt.lower() for w in ("enter", "go ", "open", "travel", "climb", "use")):
                 # A door that wants X (the Dance Hall's way to the VIP Area?).
                 logger.info(f"the door marker has a prompt ({prompt!r}): pressing X")
