@@ -7402,10 +7402,18 @@ class Quester:
             if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT):
                 await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
                 await asyncio.sleep(1.0)
+            gate = OFF_MAP_ENTRANCES.get(world)
             if self._mark and self._mark.zone.startswith(prefix):
                 logger.info(f"{why}: {world} isn't on the Spiral Map; Recall to the mark there")
-                return await self._recall(self._mark.zone, f"the mark in {world}")
-            gate = OFF_MAP_ENTRANCES.get(world)
+                if await self._recall(self._mark.zone, f"the mark in {world}"):
+                    return True
+                if not gate:
+                    return False
+                # (The Recall didn't take, again and again by Nightside's
+                # Gateway: the mark is forgotten, the Gateway taken.)
+                logger.info(f"{why}: the Recall didn't take; forgetting the mark, by the gateway instead")
+                self._mark = None
+                save_mark(None)
             if gate:
                 return await self._to_off_map_entrance(world, gate, why)
             logger.warning(f"{why}: {world} isn't on the Spiral Map and there's no mark there")
