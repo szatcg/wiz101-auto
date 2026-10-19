@@ -37,3 +37,13 @@ def test_ultra_assail_never_played():
 
     ua = Card(0, "Ultra Assail", pip_cost=0, effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 300)])
     assert normalize_card(ua).banned
+
+
+def test_empyrea_boss_bans():
+    from wiz101_auto.combat.brain import BOSS_BANS
+    from wiz101_auto.combat.model import Effect, EffectKind, Target
+
+    blade = Card(1, "Mythblade", pip_cost=0, effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])
+    trap = Card(2, "Feint", pip_cost=1, effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+    assert BOSS_BANS["ghost dog"](blade) and not BOSS_BANS["ghost dog"](trap)
+    assert BOSS_BANS["medulla"](trap) and not BOSS_BANS["medulla"](blade)

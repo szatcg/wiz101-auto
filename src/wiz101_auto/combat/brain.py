@@ -365,7 +365,7 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
 
 
 # Bosses whose minions go first (the player: Rasputin's, Horizon Hold).
-MINIONS_FIRST = ("rasputin", "the rat")
+MINIONS_FIRST = ("rasputin", "the rat", "medulla")  # (Medulla: Beans heals and strips, Pork Detonates)
 MINIONS_FIRST_BONUS = 2000.0
 
 
@@ -3016,6 +3016,13 @@ BOSS_BANS = {
     # Malistaire the Undying steals or removes universal blades and traps:
     # school ones only (Mythblade, Myth Trap), not Feint or Spirit Blade.
     "malistaire the undying": lambda c: not c.is_damage and _universal_charm(c),
+    # Empyrea (the player's cheat list, 2026-10-19): Medulla's Beans strips
+    # every trap and weakness put on him: none on him (his minions go first,
+    # MINIONS_FIRST).
+    "medulla": lambda c: not c.is_damage and (_single_trap_or_prism(c) or EffectKind.WEAKNESS in c.kinds),
+    # Ghost Dog answers any positive charm, global or manipulation with a 0-pip
+    # ice hit and a 3-round burn: no blades (traps and hits only).
+    "ghost dog": lambda c: _blade(c) and not c.is_damage,
 }
 
 
