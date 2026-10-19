@@ -2848,8 +2848,14 @@ class Quester:
             self._sigil_failed_at = sigil
             return False
         # Never into a dungeon hurt or low on mana (Mount Olympus twice at low
-        # health): heal first, then come back to the sigil.
-        if self.upkeep:
+        # health): heal first, then come back to the sigil. (Not to queue for
+        # a team with the tries alone used: the Dream Shrine's sigil looped
+        # sigil -> no wisps in the Nexus -> a gate that never took.)
+        from .teamup import is_team_dungeon as _is_team
+
+        here_dungeon = self._dungeon_at(zone or "", sigil) or ""
+        tries_used = (load_solo_tries().get(here_dungeon, 0) if here_dungeon else 0) >= SOLO_TRIES
+        if self.upkeep and not (here_dungeon and _is_team(here_dungeon) and tries_used):
             hp, mana = await health_mana(self.client)
             if self.upkeep.needs_recovery(hp, mana):
                 logger.info(f"{hp:.0%} health, {mana:.0%} mana: healing before entering the dungeon")
