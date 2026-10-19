@@ -2538,8 +2538,21 @@ class Quester:
         box = await self._stream_box()
         if box is None:
             return False
-        title = (await ui.find_named(box, {"streamTitle"}, max_depth=1)).get("streamTitle")
-        return title is not None and await ui.window_visible(title)
+        parts = await ui.find_named(box, {"streamTitle", "opt0"}, max_depth=3)
+        title = parts.get("streamTitle")
+        if title is not None and await ui.window_visible(title):
+            return True
+        # (No title found: Aeriel's list was taken for the Spiral Map and
+        # closed, X after X, for ten minutes toward the Frog Prince. Its first
+        # entry being a stop learned in this world says it's the Streamportal.)
+        first = parts.get("opt0")
+        if first is None or not await ui.window_visible(first):
+            return False
+        from .streamportal import load_stops
+
+        name = (await ui.window_text(first)).strip()
+        world = (await self.client.zone_name() or "").split("/")[0]
+        return bool(name) and name in load_stops(world)
 
     async def _close_stream_list(self) -> None:
         if await self._stream_press("cancelButton"):
