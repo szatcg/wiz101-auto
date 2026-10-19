@@ -88,4 +88,7 @@ def choose_stop(
         for o in pool:
             if name_fits(o, hint):
                 return o
-    return None
+    # A stop not learned yet (Port Aero, added mid-story): taken to learn where
+    # it lands rather than none (the bot looped at Aeriel's portal toward the
+    # Southwest Aero Plains, which Port Aero's gate reaches).
+    return next((o for o in pool if o not in learned), None)

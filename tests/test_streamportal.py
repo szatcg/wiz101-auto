@@ -42,7 +42,7 @@ def test_names_when_nothing_learned():
     stop = choose_stop(OPTIONS, "Empyrea/EM_Z03_OuterAthanor", "Empyrea/EM_Z00_Aeriel_HUB", {}, never,
                        ["outerathanor"])
     assert stop == "Outer Athanor"
-    assert choose_stop(OPTIONS, "Empyrea/EM_Z99_Nowhere", "x", {}, never, ["nowhere"]) is None
+    assert choose_stop(OPTIONS, "Empyrea/EM_Z99_Nowhere", "x", {}, never, ["nowhere"]) == "Aeriel"
 
 
 def test_stops_kept(tmp_path):
@@ -65,3 +65,10 @@ def test_objective_person():
     assert objective_person("Follow Josiah into Town in Port Aero") == "Josiah"
     assert objective_person("Talk To Sparck in Zanadu") == "Sparck"
     assert objective_person("Defeat Baane in Bat Cave") == ""
+
+
+def test_unlearned_stop_tried():
+    learned = {o: f"Empyrea/EM_Z0{i}_X" for i, o in enumerate(OPTIONS)}
+    stop = choose_stop([*OPTIONS, "Port Aero"], "Empyrea/EM_Z08_SWAeroplains", "Empyrea/EM_Z00_X", learned,
+                       never, ["swaeroplains"])
+    assert stop == "Port Aero"
