@@ -68,7 +68,7 @@ from .questlist import (
 )
 from .safe_teleport import allow_close_landing, allow_engage, teleport_aborted, walk_zone
 from .setbacks import ALWAYS_SKIP, DEFEATS_TO_DEFER, MAIN_DEFEATS_TO_DEFER, Setbacks
-from .teamup import TEAM_UP_NAMES, is_team_up_zone
+from .teamup import NO_SOLO_PREFIXES, TEAM_UP_HUBS, TEAM_UP_NAMES, is_team_up_zone
 from .travel_data import (
     find_zone_gate,
     gate_behind,
@@ -2974,10 +2974,10 @@ class Quester:
             if outcome == "queued" and (dungeon or "") not in TEAM_UP_DUNGEONS:
                 # Queued: first up to SOLO_TRIES tries alone while the queue
                 # stands (the player), only then side quests meanwhile.
-                from .teamup import solo_for
+                from .teamup import no_solo, solo_for
 
                 tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
-                used = tries.get(dungeon or "", 0)
+                used = SOLO_TRIES if no_solo(dungeon or "") else tries.get(dungeon or "", 0)
                 if used < SOLO_TRIES:
                     tries[dungeon or ""] = used + 1
                     save_solo_tries(tries)
@@ -3020,10 +3020,10 @@ class Quester:
             # SOLO_TRIES tries alone while the queue stands; then side quests,
             # still queued.)
             if outcome == "none" and (dungeon or "") not in TEAM_UP_DUNGEONS:
-                from .teamup import solo_for
+                from .teamup import no_solo, solo_for
 
                 tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
-                used = tries.get(dungeon or "", 0)
+                used = SOLO_TRIES if no_solo(dungeon or "") else tries.get(dungeon or "", 0)
                 name = (dungeon or "").split("/")[-1]
                 if used < SOLO_TRIES:
                     tries[dungeon or ""] = used + 1
@@ -11009,6 +11009,10 @@ class Quester:
         # (Recall, NPC visits, grinding, gear checks, training trips); the quest
         # step itself still runs (returning here stood still while the team left).
         team = is_team_up_zone(zone_now)
+        if not team and zone_now.startswith(NO_SOLO_PREFIXES) and zone_now not in TEAM_UP_HUBS:
+            # (A team-only place's room is never left for a trip: the bot went
+            # shopping from Darkmoor's Landing Zone with the run under way.)
+            team = True
         if not team and await self._farm_trip(zone_now):
             logger.debug("step: farm trip")
             return

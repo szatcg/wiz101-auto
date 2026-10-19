@@ -29,3 +29,11 @@ def test_darkmoor_never_alone():
 
     assert no_solo("G14_DM/DM_Z02_MainHall")
     assert not no_solo("Empyrea/Interiors/EM_Z08_MeowlsDen")
+
+
+def test_darkmoor_sigils_always_team():
+    from wiz101_auto.teamup import is_team_dungeon
+
+    assert is_team_dungeon("G14_DM/DM_Z01_CastleDarkmoor@20,279")
+    assert is_team_dungeon("G14_DM/DM_Z04_LandingZone2")
+    assert not is_team_dungeon("Empyrea/Interiors/EM_Z99_Nowhere")

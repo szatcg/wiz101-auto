@@ -304,8 +304,13 @@ def drop_team_dungeons(open_quests: set[str], seen_before: set[str] | None = Non
 
 
 def is_team_dungeon(dungeon: str) -> bool:
-    """A dungeon only entered with a team: the fixed ones, and those added."""
-    return dungeon in TEAM_UP_DUNGEONS or dungeon in team_list()
+    """A dungeon only entered with a team: the fixed ones, and those added.
+    (And every sigil and room of the team-only places, whatever quest: when
+    'The Dark Powers' was done its sigils left the list, and the bot went
+    into Castle Darkmoor alone for 'Walpurgisnacht'.)"""
+    base = (dungeon or "").split("@")[0]
+    return (dungeon in TEAM_UP_DUNGEONS or dungeon in team_list() or base in TEAM_UP_HUBS
+            or (base.startswith(TEAM_UP_PREFIXES) and no_solo(base)))
 
 
 def _dungeon_base(zone: str) -> str:
