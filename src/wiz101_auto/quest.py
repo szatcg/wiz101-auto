@@ -2492,13 +2492,24 @@ class Quester:
 
     async def _stream_list_open(self) -> bool:
         """A Streamportal's destination list is showing."""
+        return await self._stream_panel() is not None
+
+    async def _stream_panel(self):
+        """The Streamportal list's own window (streamTitle's parent: the
+        entries, arrows and buttons all sit in it), or None. Every lookup in
+        it instead of the whole UI tree: eight whole-tree searches a page took
+        so long that the watchdog cut the step off before a stop was chosen."""
         for w in await self.client.root_window.get_windows_with_name("streamTitle"):
             if await ui.window_visible(w):
-                return True
-        return False
+                try:
+                    return await w.parent() or self.client.root_window
+                except Exception:
+                    return self.client.root_window
+        return None
 
     async def _close_stream_list(self) -> None:
-        for w in await self.client.root_window.get_windows_with_name("cancelButton"):
+        panel = await self._stream_panel() or self.client.root_window
+        for w in await panel.get_windows_with_name("cancelButton"):
             if await ui.window_visible(w):
                 await ui.click_center(self.client, w)
                 await asyncio.sleep(0.6)
@@ -2515,18 +2526,20 @@ class Quester:
             await asyncio.sleep(0.5)
         return await self._stream_list_open()
 
-    async def _stream_option_windows(self) -> list:
+    async def _stream_option_windows(self, panel=None) -> list:
         """(name, window) of the list's entries on the page shown."""
+        panel = panel or await self._stream_panel() or self.client.root_window
         out = []
         for i in range(8):
-            for w in await self.client.root_window.get_windows_with_name(f"opt{i}"):
+            for w in await panel.get_windows_with_name(f"opt{i}"):
                 name = (await ui.window_text(w)).strip()
                 if name and await ui.window_visible(w):
                     out.append((name, w))
         return out
 
-    async def _stream_turn(self, button: str) -> bool:
-        for w in await self.client.root_window.get_windows_with_name(button):
+    async def _stream_turn(self, button: str, panel=None) -> bool:
+        panel = panel or await self._stream_panel() or self.client.root_window
+        for w in await panel.get_windows_with_name(button):
             if await ui.window_visible(w):
                 await ui.click_center(self.client, w)
                 await asyncio.sleep(0.5)
@@ -2535,15 +2548,16 @@ class Quester:
 
     async def _stream_options(self) -> list[str]:
         """Every entry of the list, all pages, back on page 1 after."""
+        panel = await self._stream_panel() or self.client.root_window
         names: list[str] = []
         for _ in range(STREAM_PAGES):
-            page = [n for n, _w in await self._stream_option_windows()]
+            page = [n for n, _w in await self._stream_option_windows(panel)]
             new = [n for n in page if n not in names]
             names += new
-            if not new or not await self._stream_turn("rightButton"):
+            if not new or not await self._stream_turn("rightButton", panel):
                 break
         for _ in range(STREAM_PAGES):
-            if not await self._stream_turn("leftButton"):
+            if not await self._stream_turn("leftButton", panel):
                 break
         return names
 
@@ -2578,15 +2592,16 @@ class Quester:
         if stop is None:
             await self._close_stream_list()
             return False
+        panel = await self._stream_panel() or self.client.root_window
         for _ in range(STREAM_PAGES):
-            hit = next((w for n, w in await self._stream_option_windows() if n == stop), None)
+            hit = next((w for n, w in await self._stream_option_windows(panel) if n == stop), None)
             if hit is not None:
                 await ui.click_center(self.client, hit)
                 await asyncio.sleep(0.5)
-                await self._stream_turn("teleportButton")
+                await self._stream_turn("teleportButton", panel)
                 await wait_for_loading(self.client, appear_timeout=8.0)
                 break
-            if not await self._stream_turn("rightButton"):
+            if not await self._stream_turn("rightButton", panel):
                 break
         now = await self.client.zone_name() or ""
         if now and now != here:
@@ -4883,7 +4898,15 @@ class Quester:
         # (Not "until not free": the Streamportal's list itself makes the
         # client not free, and it was given up on before it was drawn; the
         # watchdog's recovery then took a minute.)
-        if await self._wait_stream_list("stream" in prompt or "interact" in prompt):
+        likely_stream = "stream" in prompt or "interact" in prompt
+        if likely_stream:
+            self.controller.allow_idle(45)
+        try:
+            stream_open = await self._wait_stream_list(likely_stream)
+        finally:
+            if likely_stream:
+                self.controller.end_idle()
+        if stream_open:
             # A Streamportal (the marker led to Aeriel's, toward Outer
             # Athanor): the stop toward the objective's place; an unknown
             # place by the objective's own names ('Explore Sepidious in The
