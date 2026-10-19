@@ -2537,7 +2537,22 @@ class Quester:
         # (The old whole-tree search, for a layout the path misses.)
         for w in await self.client.root_window.get_windows_with_name("streamTitle"):
             if await ui.window_visible(w):
-                logger.debug("stream panel: found by the whole-tree search only")
+                chain, node = [], w
+                try:
+                    for _ in range(8):
+                        node = await node.parent()
+                        if node is None:
+                            break
+                        chain.append(await node.name() or "<unnamed>")
+                except Exception as exc:
+                    chain.append(f"({exc!r})")
+                tops = []
+                try:
+                    tops = [await t.name() or "<unnamed>" for t in await self.client.root_window.children()]
+                except Exception:
+                    pass
+                logger.debug(f"stream panel: found by the whole-tree search only; its parents {chain}; "
+                             f"the root's windows {tops}")
                 self._stream_panel_seen = (self.client.root_window, w)
                 return self.client.root_window
         return None
