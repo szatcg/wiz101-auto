@@ -2508,13 +2508,23 @@ class Quester:
             except Exception:
                 pass
             self._stream_panel_seen = None
-        for w in await self.client.root_window.get_windows_with_name("streamTitle"):
-            if await ui.window_visible(w):
-                # (Not w.parent(): its subtree read took minutes. The root, one
-                # walk for all the parts at once.)
-                panel = self.client.root_window
-                self._stream_panel_seen = (panel, w)  # (one whole-tree search, not one a check)
-                return panel
+        # Straight down its known path (Root > <unnamed> > messageBoxBG >
+        # ControlSprite, which holds streamTitle, the entries and buttons):
+        # a few windows read, not the whole tree (a minute and more there).
+        try:
+            for top in await self.client.root_window.children():
+                for box in await top.children():
+                    if await box.name() != "messageBoxBG":
+                        continue
+                    for sprite in await box.children():
+                        if await sprite.name() != "ControlSprite":
+                            continue
+                        title = (await ui.find_named(sprite, {"streamTitle"}, max_depth=1)).get("streamTitle")
+                        if title is not None and await ui.window_visible(title):
+                            self._stream_panel_seen = (sprite, title)
+                            return sprite
+        except Exception as exc:
+            logger.debug(f"stream panel lookup failed: {exc!r}")
         return None
 
     async def _close_stream_list(self) -> None:
@@ -2536,7 +2546,7 @@ class Quester:
         """The list's entries and buttons, by name, in one walk of its window
         (a search per entry from the root took a minute a page)."""
         panel = panel or await self._stream_panel() or self.client.root_window
-        return await ui.find_named(panel, STREAM_PARTS, max_depth=12)
+        return await ui.find_named(panel, STREAM_PARTS, max_depth=3)
 
     async def _stream_option_windows(self, panel=None) -> list:
         """(name, window) of the list's entries on the page shown."""
