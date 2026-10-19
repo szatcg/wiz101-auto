@@ -7380,6 +7380,9 @@ class Quester:
         stage after stage without going back to the step in between (each
         stage waited a whole step's checks: the trip took half a minute). True
         if it acted; False once in `world` (off the map)."""
+        # (Named by its zone prefix too: 'Explore Castle Darkmoor' asked for
+        # "G14_DM" and went looking on the Spiral Map.)
+        world = next((w for w, p in OFF_MAP_WORLDS.items() if world in (w, p.rstrip("/"))), world)
         prefix = OFF_MAP_WORLDS.get(world)
         if prefix:
             # Not on the Spiral Map (the player: Castle Darkmoor is a
