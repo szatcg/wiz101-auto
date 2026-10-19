@@ -63,7 +63,7 @@ CLOSE_BUTTONS = [
 _TAGS = re.compile(r"<[^>]+>")
 
 
-async def window_at(client, path: list[str]):
+async def window_at(client, path: list[str], visible_only: bool = False):
     """Follow `path` from the root window; returns the window or None. A
     visible match beats a hidden one: an old Spiral Map, hidden, sat first
     under WorldView, so the open one read as closed and the bot walked on
@@ -81,6 +81,15 @@ async def window_at(client, path: list[str]):
             return None
         for child in await window.children():
             if await child.name() == rest[0]:
+                if visible_only:
+                    # (Hidden copies pile up under WorldView over a long run:
+                    # old Spiral Maps and Streamportal lists. Following each
+                    # made one lookup take seconds.)
+                    try:
+                        if not await child.is_visible():
+                            continue
+                    except Exception:
+                        continue
                 found = await _follow(child, rest[1:])
                 if found is not None:
                     return found
@@ -88,6 +97,8 @@ async def window_at(client, path: list[str]):
 
     try:
         found = await _follow(client.root_window, path)
+        if visible_only:
+            return found
         return found if found is not None else (hidden[0] if hidden else None)
     except Exception as exc:  # memory can shift mid-read during zone changes
         logger.trace(f"window_at {path} failed: {exc}")
@@ -384,7 +395,9 @@ async def window_visible(w) -> bool:
 
 
 async def is_visible(client, path: list[str]) -> bool:
-    w = await window_at(client, path)
+    # (Only visible windows on the way: hidden copies are never the answer,
+    # and following them made each check slow late in a long run.)
+    w = await window_at(client, path, visible_only=True)
     if w is None:
         return False
     try:

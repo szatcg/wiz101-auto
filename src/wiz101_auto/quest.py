@@ -2529,7 +2529,7 @@ class Quester:
                     return box
             except Exception:
                 pass
-        box = await ui.window_at(self.client, STREAM_BOX)
+        box = await ui.window_at(self.client, STREAM_BOX, visible_only=True)
         self._stream_box_seen = box
         return box
 
