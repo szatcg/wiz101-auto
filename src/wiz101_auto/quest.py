@@ -5354,6 +5354,14 @@ class Quester:
             # after every story quest). The finished one is logged here.
             logger.success(f"quest completed: {chosen!r}")
             self.completions.log([chosen])
+            # Its team dungeons and Team Up queue go too (after 'Sparck Seconds
+            # that Emotion' the queue stood, a player joined and the bot went
+            # back into the Training Grounds for a quest already done).
+            from .teamup import clear_queue, drop_team_dungeons, load_queue
+
+            drop_team_dungeons(set(), done={chosen})
+            if load_queue().get("quest") == chosen:
+                clear_queue()
             seen = self.completions._seen
             if seen is not None:
                 self.completions._seen = (seen - {chosen}) | {active}
