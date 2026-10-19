@@ -2762,7 +2762,7 @@ def classroom_move(battle: Battle) -> Action | None:
     if schools:
         # The school he's open to (the one his -999% ward leaves out: Fire);
         # our own school (Myth, picked twice) brought another Myth ward up.
-        warded = {sch for e in battle.enemies if e.is_boss
+        warded = {sch for e in battle.enemies
                   for _k, sch, frac in e.incoming_effects if frac <= -5.0}
         open_to = [sch for sch in schools if sch not in warded]
         pick = open_to[0] if len(open_to) == 1 else (battle.me.school or "myth").lower()
@@ -2775,7 +2775,7 @@ def classroom_move(battle: Battle) -> Action | None:
     if att is not None:
         return Action(ActionKind.CAST, att, None, reason="the lesson: attendance")
     if "homework" in names:
-        return Action(ActionKind.CAST, names["homework"], battle.me, reason="the lesson: homework")
+        return Action(ActionKind.CAST, names["homework"], None, reason="the lesson: homework")
     for lesson in CLASS_CARDS:
         if lesson in names:
             return Action(ActionKind.CAST, names[lesson], None, reason=f"the lesson: {names[lesson].name}")

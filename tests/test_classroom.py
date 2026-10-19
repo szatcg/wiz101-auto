@@ -8,7 +8,7 @@ def me():
 
 def boss():
     ward = [("w", sch, -9.99) for sch in ("balance", "death", "life", "myth", "storm", "ice")]
-    return Combatant("The Headmaster", 9040, 9040, is_enemy=True, is_boss=True, incoming_effects=ward)
+    return Combatant("The Headmaster", 9040, 9040, is_enemy=True, incoming_effects=ward)
 
 
 def lesson(names):
