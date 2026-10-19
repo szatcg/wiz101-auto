@@ -2508,12 +2508,18 @@ class Quester:
             except Exception:
                 pass
             self._stream_panel_seen = None
-        # Straight down its known path (Root > <unnamed> > messageBoxBG >
+        # Straight down its known path (Root > WorldView > <unnamed> > messageBoxBG >
         # ControlSprite, which holds streamTitle, the entries and buttons):
         # a few windows read, not the whole tree (a minute and more there).
         seen = []
         try:
-            for top in await self.client.root_window.children():
+            # (Root > WorldView > <unnamed> > messageBoxBG > ControlSprite, as
+            # the game showed it.)
+            tops = []
+            for root_kid in await self.client.root_window.children():
+                if await root_kid.name() == "WorldView":
+                    tops += await root_kid.children()
+            for top in tops:
                 top_name = await top.name()
                 if top_name not in ("", "<unnamed>") and top_name != "messageBoxBG":
                     continue
