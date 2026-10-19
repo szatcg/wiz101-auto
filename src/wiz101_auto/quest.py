@@ -8090,6 +8090,15 @@ class Quester:
         me = await self._position()
         mates = await teammates(self.client, me)
         now = time.monotonic()
+        if not mates and not self._team_with_us:
+            # Put on the team list while already in here (lost the Nimbari
+            # Justicar twice in the Training Grounds): a try alone now, while
+            # tries are left, not standing still for a team that isn't coming.
+            await self._solo_try_on_entry(await self.client.zone_name() or "")
+            from .teamup import solo_try_active
+
+            if solo_try_active():
+                return False
         self._team_arrived(await self.client.zone_name() or "")
         self._track_room(await self.client.zone_name() or "")
         await self._final_boss_potion()
