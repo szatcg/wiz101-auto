@@ -49,3 +49,11 @@ def test_stops_kept(tmp_path):
     p = tmp_path / "stops.json"
     save_stop("Empyrea", "Mandalla", "Empyrea/EM_Z12_LandingZone", p)
     assert load_stops("Empyrea", p) == {"Mandalla": "Empyrea/EM_Z12_LandingZone"}
+
+
+def test_hub_never_team_dungeon():
+    from wiz101_auto.teamup import is_open_hub
+
+    assert is_open_hub("Empyrea/EM_Z00_Aeriel_HUB")
+    assert is_open_hub("WizardCity/WC_Hub")
+    assert not is_open_hub("Empyrea/Interiors/EM_Z15_DreamShrine")

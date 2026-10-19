@@ -240,10 +240,22 @@ def team_key(zone: str) -> str | None:
 
 
 def add_team_dungeon(dungeon: str, quest: str) -> None:
+    if is_open_hub(dungeon):
+        # (A world's hub is never a team dungeon: lost to the Headmaster in
+        # Reverie, the defeat landed in Aeriel's hub and the hub went on the
+        # list, every visit there "team-only".)
+        logger.warning(f"not putting {dungeon} on the team list (a hub, not a dungeon)")
+        return
     teams = team_list()
     teams[dungeon] = quest
     TEAM_LIST_FILE.parent.mkdir(exist_ok=True)
     TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
+
+
+def is_open_hub(zone: str) -> bool:
+    """A world's hub zone ('Empyrea/EM_Z00_Aeriel_HUB', 'WizardCity/WC_Hub')."""
+    last = zone.split("/")[-1].lower()
+    return "/interiors/" not in zone.lower() and (last.endswith("_hub") or last == "hub")
 
 
 BEATEN_FILE = Path("state") / "team_beaten.json"
