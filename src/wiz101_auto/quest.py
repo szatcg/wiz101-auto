@@ -2511,20 +2511,35 @@ class Quester:
         # Straight down its known path (Root > <unnamed> > messageBoxBG >
         # ControlSprite, which holds streamTitle, the entries and buttons):
         # a few windows read, not the whole tree (a minute and more there).
+        seen = []
         try:
             for top in await self.client.root_window.children():
-                for box in await top.children():
+                top_name = await top.name()
+                if top_name not in ("", "<unnamed>") and top_name != "messageBoxBG":
+                    continue
+                boxes = [top] if top_name == "messageBoxBG" else await top.children()
+                for box in boxes:
                     if await box.name() != "messageBoxBG":
                         continue
                     for sprite in await box.children():
                         if await sprite.name() != "ControlSprite":
                             continue
-                        title = (await ui.find_named(sprite, {"streamTitle"}, max_depth=1)).get("streamTitle")
+                        parts = await ui.find_named(sprite, {"streamTitle", "optionWindow"}, max_depth=1)
+                        seen.append(sorted(parts))
+                        title = parts.get("streamTitle")
                         if title is not None and await ui.window_visible(title):
                             self._stream_panel_seen = (sprite, title)
                             return sprite
         except Exception as exc:
             logger.debug(f"stream panel lookup failed: {exc!r}")
+        if seen:
+            logger.debug(f"stream panel: ControlSprites seen {seen}, none showing streamTitle")
+        # (The old whole-tree search, for a layout the path misses.)
+        for w in await self.client.root_window.get_windows_with_name("streamTitle"):
+            if await ui.window_visible(w):
+                logger.debug("stream panel: found by the whole-tree search only")
+                self._stream_panel_seen = (self.client.root_window, w)
+                return self.client.root_window
         return None
 
     async def _close_stream_list(self) -> None:
@@ -2546,7 +2561,8 @@ class Quester:
         """The list's entries and buttons, by name, in one walk of its window
         (a search per entry from the root took a minute a page)."""
         panel = panel or await self._stream_panel() or self.client.root_window
-        return await ui.find_named(panel, STREAM_PARTS, max_depth=3)
+        depth = 12 if panel is self.client.root_window else 3
+        return await ui.find_named(panel, STREAM_PARTS, max_depth=depth)
 
     async def _stream_option_windows(self, panel=None) -> list:
         """(name, window) of the list's entries on the page shown."""
