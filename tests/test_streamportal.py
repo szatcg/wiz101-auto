@@ -72,3 +72,9 @@ def test_unlearned_stop_tried():
     stop = choose_stop([*OPTIONS, "Port Aero"], "Empyrea/EM_Z08_SWAeroplains", "Empyrea/EM_Z00_X", learned,
                        never, ["swaeroplains"])
     assert stop == "Port Aero"
+
+
+def test_play_is_operated():
+    from wiz101_auto.quest import operate_target
+
+    assert operate_target("Play Whirlyburly in Velo City") == "Whirlyburly"

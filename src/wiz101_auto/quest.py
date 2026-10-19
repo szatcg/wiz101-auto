@@ -1139,7 +1139,7 @@ def locate_target(objective: str) -> str | None:
 # ("Open Pixie Cage in The Wild (0 of 6)": no marker; 'Far Away Girls' waited and was set aside.)
 _OPERATE = re.compile(
     r"^\s*(?:use|pull|push|press|activate|turn|flip|learn|read|study|examine|inspect|touch|open|repair|light"
-    r"|ring|unlock|lock|charge|smash|destroy|burn|place|free|release|rescue|break|search|unseal)\s+(.+?)"
+    r"|ring|unlock|lock|charge|smash|destroy|burn|place|free|release|rescue|break|search|unseal|play)\s+(.+?)"
     r"(?:\s+in\s+.+)?\s*$", re.I)
 
 
@@ -4991,7 +4991,10 @@ class Quester:
             logger.info(f"not pressing X on '{prompt}': a Locate only needs us there")
             return False
         thing = operate_target(objective)
-        if "talk" in prompt and thing and not await self._nearest_is(thing):
+        # ('Play Whirlyburly': the game is Coach Landri's, whose talk prompt
+        # it is; it was taken for an item to collect and waited for minutes.)
+        playing = objective.lower().startswith("play ")
+        if "talk" in prompt and thing and not playing and not await self._nearest_is(thing):
             # "Use Forge": the prompt is the NPC beside it (Xihong Bi), not the
             # Forge; talking to them again looped for minutes. (Unless the
             # object itself talks: the Water Breathing Device's prompt is
