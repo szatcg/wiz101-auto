@@ -2767,7 +2767,9 @@ def classroom_move(battle: Battle) -> Action | None:
         open_to = [sch for sch in schools if sch not in warded]
         pick = open_to[0] if len(open_to) == 1 else (battle.me.school or "myth").lower()
         card = schools.get(pick) or next(iter(schools.values()))
-        return Action(ActionKind.CAST, card, None, reason=f"the lesson: {card.name} (the open school)")
+        seen = {e.name: [(sch, round(f, 2)) for _k, sch, f in e.incoming_effects] for e in battle.enemies}
+        return Action(ActionKind.CAST, card, None,
+                      reason=f"the lesson: {card.name} (open: {open_to}; wards seen: {seen})")
     # (Attendance can't be played: the game greys it out; the round is passed.)
     att = names.get("attendance")
     if att is not None and not att.castable:
