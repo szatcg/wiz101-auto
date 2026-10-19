@@ -179,8 +179,9 @@ SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one m
 # list's name (Chaos Jungle, EM_Z14, is reached by "Mandalla").
 STREAM_STOPS = {"EM_Z12": "mandalla", "EM_Z13": "mandalla", "EM_Z14": "mandalla"}
 STREAM_WAIT_TICKS = 12  # half-seconds a Streamportal's list is waited for after X
-STREAM_OPTIONS = ["WorldView", "", "messageBoxBG", "ControlSprite", "optionWindow"]  # the list's entries
-STREAM_TITLE = ["WorldView", "", "messageBoxBG", "ControlSprite", "streamTitle"]  # "Streamportal"
+STREAM_BOX = ["WorldView", "", "messageBoxBG", "ControlSprite"]  # the list's window (the Spiral Map's)
+STREAM_PART_NAMES = {"opt0", "opt1", "opt2", "opt3", "rightButton", "leftButton", "teleportButton",
+                     "cancelButton"}
 STREAM_PER_PAGE = 4  # stops on a page of the list
 STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
@@ -2496,10 +2497,14 @@ class Quester:
     async def _stream_list_open(self) -> bool:
         """A Streamportal's destination list is showing (its title, at the
         Spiral Map window's path)."""
-        return await ui.is_visible(self.client, STREAM_TITLE)
+        box = await self._stream_box()
+        if box is None:
+            return False
+        title = (await ui.find_named(box, {"streamTitle"}, max_depth=1)).get("streamTitle")
+        return title is not None and await ui.window_visible(title)
 
     async def _close_stream_list(self) -> None:
-        if await ui.click(self.client, ui.SPIRAL_DOOR_EXIT):
+        if await self._stream_press("cancelButton"):
             await asyncio.sleep(0.3)
 
     async def _wait_stream_list(self, likely: bool = True) -> bool:
@@ -2513,13 +2518,42 @@ class Quester:
             await asyncio.sleep(0.5)
         return await self._stream_list_open()
 
+    async def _stream_box(self):
+        """The list's window (the Spiral Map's ControlSprite), found once at
+        its fixed path; everything after is read inside it (each path from
+        the root goes through WorldView's many windows: seconds a read)."""
+        box = self.__dict__.get("_stream_box_seen")
+        if box is not None:
+            try:
+                if await ui.window_visible(box):
+                    return box
+            except Exception:
+                pass
+        box = await ui.window_at(self.client, STREAM_BOX)
+        self._stream_box_seen = box
+        return box
+
+    async def _stream_parts(self) -> dict:
+        box = await self._stream_box()
+        if box is None:
+            return {}
+        return await ui.find_named(box, STREAM_PART_NAMES, max_depth=2)
+
+    async def _stream_press(self, name: str) -> bool:
+        w = (await self._stream_parts()).get(name)
+        if w is None or not await ui.window_visible(w):
+            return False
+        await ui.click_center(self.client, w)
+        return True
+
     async def _stream_page(self) -> list[str]:
         """The stops on the page shown: the Spiral Map's own window (the
-        Streamportal is that window with other names), read at its fixed
-        paths like the Spiral Map's worlds, not searched for."""
+        Streamportal is that window with other names), its opt0-3."""
+        parts = await self._stream_parts()
         out = []
         for i in range(STREAM_PER_PAGE):
-            name = (await ui.text_at(self.client, [*STREAM_OPTIONS, f"opt{i}"]) or "").strip()
+            w = parts.get(f"opt{i}")
+            name = (await ui.window_text(w)).strip() if w is not None else ""
             if name:
                 out.append(name)
         return out
@@ -2530,11 +2564,11 @@ class Quester:
         for _ in range(STREAM_PAGES):
             new = [n for n in await self._stream_page() if n not in names]
             names += new
-            if not new or not await ui.click(self.client, ui.SPIRAL_DOOR_NEXT):
+            if not new or not await self._stream_press("rightButton"):
                 break
             await asyncio.sleep(0.3)
         for _ in range(STREAM_PAGES):
-            if not await ui.click(self.client, ui.SPIRAL_DOOR_PREV):
+            if not await self._stream_press("leftButton"):
                 break
             await asyncio.sleep(0.2)
         return names
@@ -2544,11 +2578,11 @@ class Quester:
         for _ in range(STREAM_PAGES):
             page = await self._stream_page()
             if stop in page:
-                await ui.click(self.client, [*STREAM_OPTIONS, f"opt{page.index(stop)}"])
+                await self._stream_press(f"opt{page.index(stop)}")
                 await asyncio.sleep(0.3)
-                await ui.click(self.client, ui.SPIRAL_DOOR_TELEPORT)
+                await self._stream_press("teleportButton")
                 return True
-            if not await ui.click(self.client, ui.SPIRAL_DOOR_NEXT):
+            if not await self._stream_press("rightButton"):
                 break
             await asyncio.sleep(0.3)
         return False
