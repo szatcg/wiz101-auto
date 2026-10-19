@@ -2758,15 +2758,22 @@ def classroom_move(battle: Battle) -> Action | None:
     our own school: passed, a second Myth shield came up (-999%) and the
     fight was lost three times."""
     names = {c.name.lower(): c for c in battle.cards}
-    school = (battle.me.school or "myth").lower()
-    mine = names.get(f"{school} school")
-    if mine is not None:
-        return Action(ActionKind.CAST, mine, None, reason=f"the lesson: {mine.name}, our school")
-    if any(n.endswith(" school") for n in names):
-        return None
-    for lesson in ("attendance",):
-        if lesson in names:
-            return Action(ActionKind.CAST, names[lesson], None, reason="the lesson: attendance")
+    schools = {n[: -len(" school")]: c for n, c in names.items() if n.endswith(" school")}
+    if schools:
+        # The school he's open to (the one his -999% ward leaves out: Fire);
+        # our own school (Myth, picked twice) brought another Myth ward up.
+        warded = {sch for e in battle.enemies if e.is_boss
+                  for _k, sch, frac in e.incoming_effects if frac <= -5.0}
+        open_to = [sch for sch in schools if sch not in warded]
+        pick = open_to[0] if len(open_to) == 1 else (battle.me.school or "myth").lower()
+        card = schools.get(pick) or next(iter(schools.values()))
+        return Action(ActionKind.CAST, card, None, reason=f"the lesson: {card.name} (the open school)")
+    # (Attendance can't be played: the game greys it out; the round is passed.)
+    att = names.get("attendance")
+    if att is not None and not att.castable:
+        return Action(ActionKind.PASS, reason="the lesson: attendance, taken by itself")
+    if att is not None:
+        return Action(ActionKind.CAST, att, None, reason="the lesson: attendance")
     if "homework" in names:
         return Action(ActionKind.CAST, names["homework"], battle.me, reason="the lesson: homework")
     for lesson in CLASS_CARDS:
@@ -3715,6 +3722,8 @@ def specials(battle: Battle, action: Action) -> Action | None:
     move (enchant, discard) or a cast that ends the fight stands."""
     if action.kind in (ActionKind.ENCHANT, ActionKind.DISCARD) or not battle.live_enemies:
         return None
+    if action.reason.startswith("the lesson"):
+        return None  # (the Headmaster's lesson cards: Homework on ourselves crashed hold_last_attack)
     card = action.card
     if action.kind is ActionKind.CAST and card is not None:
         if card.is_heal and not card.is_damage:

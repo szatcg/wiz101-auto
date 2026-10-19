@@ -7,7 +7,8 @@ def me():
 
 
 def boss():
-    return Combatant("The Headmaster", 9040, 9040, is_enemy=True, is_boss=True)
+    ward = [("w", sch, -9.99) for sch in ("balance", "death", "life", "myth", "storm", "ice")]
+    return Combatant("The Headmaster", 9040, 9040, is_enemy=True, is_boss=True, incoming_effects=ward)
 
 
 def lesson(names):
@@ -15,14 +16,14 @@ def lesson(names):
     return Battle(me=me(), allies=[], enemies=[boss()], cards=cards, pips=4)
 
 
-def test_our_school_is_picked():
+def test_open_school_is_picked():
     schools = ["Storm School", "Ice School", "Fire School", "Death School", "Life School", "Myth School"]
     a = decide(lesson(schools))
-    assert a.kind is ActionKind.CAST and a.card.name == "Myth School"
+    assert a.kind is ActionKind.CAST and a.card.name == "Fire School"
 
 
 def test_attendance_and_homework_played():
-    assert decide(lesson(["Attendance", "Attendance"])).card.name == "Attendance"
+    assert decide(lesson(["Attendance", "Attendance"])).kind is ActionKind.PASS
     assert decide(lesson(["Homework"] * 7)).card.name == "Homework"
 
 
