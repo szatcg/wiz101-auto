@@ -2545,7 +2545,15 @@ class Quester:
     async def _stream_list_open(self) -> bool:
         """A Streamportal's destination list is showing (its title, at the
         Spiral Map window's path)."""
-        box = await self._stream_box()
+        if await self._stream_list_in(await self._stream_box()):
+            return True
+        # (The window kept from before was the Spiral Map's, shown again after
+        # a trip by the map: Aeriel's list read as the map, X after X, until a
+        # restart. A fresh lookup then.)
+        self._stream_box_seen = None
+        return await self._stream_list_in(await self._stream_box())
+
+    async def _stream_list_in(self, box) -> bool:
         if box is None:
             return False
         parts = await ui.find_named(box, {"streamTitle", "opt0"}, max_depth=3)
