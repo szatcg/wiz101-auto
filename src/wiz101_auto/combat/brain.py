@@ -2760,16 +2760,15 @@ def classroom_move(battle: Battle) -> Action | None:
     names = {c.name.lower(): c for c in battle.cards}
     schools = {n[: -len(" school")]: c for n, c in names.items() if n.endswith(" school")}
     if schools:
-        # The school he's open to (the one his -999% ward leaves out: Fire);
-        # our own school (Myth, picked twice) brought another Myth ward up.
-        warded = {sch for e in battle.enemies
-                  for _k, sch, frac in e.incoming_effects if frac <= -5.0}
-        open_to = [sch for sch in schools if sch not in warded]
-        pick = open_to[0] if len(open_to) == 1 else (battle.me.school or "myth").lower()
-        card = schools.get(pick) or next(iter(schools.values()))
-        seen = {e.name: [(sch, round(f, 2)) for _k, sch, f in e.incoming_effects] for e in battle.enemies}
-        return Action(ActionKind.CAST, card, None,
-                      reason=f"the lesson: {card.name} (open: {open_to}; wards seen: {seen})")
+        # Every school is warded -999% (the reader showed all seven); the
+        # school picked here gets a second ward of its own: Myth School,
+        # picked three times, put one more on Myth. So never ours: one we
+        # don't fight with (Fire first).
+        ours = (battle.me.school or "myth").lower()
+        pick = next((sch for sch in ("fire", "ice", "storm", "life", "death", "balance") if sch in schools
+                     and sch != ours), None)
+        card = schools.get(pick) or next(c for sch, c in schools.items() if sch != ours)
+        return Action(ActionKind.CAST, card, None, reason=f"the lesson: {card.name} (not our school)")
     # (Attendance can't be played: the game greys it out; the round is passed.)
     att = names.get("attendance")
     if att is not None and not att.castable:
