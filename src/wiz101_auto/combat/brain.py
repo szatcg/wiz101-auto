@@ -3055,7 +3055,11 @@ HOLD_UNTIL_ROUND: dict[str, int] = {}
 # always passes and surrenders after enough of them (Wizard101 Central,
 # 'Rebuilding the Bat': five Shadow Creature spells; the Bat took Orthrus for
 # 1 damage and the bot fled, out of attacks, five times).
-SCRIPTED_FIGHTS = {"the bat": "shadow creature"}
+SCRIPTED_FIGHTS = {"the bat": "shadow creature",
+                   # The End of Days' Paradox fight: the wizard is handed Scion
+                   # of Elements / of Spirits (0 pips; the brain didn't know
+                   # them and passed 30+ rounds, the Titan at 500,000).
+                   "aethyr titan": "scion"}
 
 
 def shadow_creature(card: Card) -> bool:
@@ -3072,12 +3076,28 @@ def shadow_spell(card: Card) -> bool:
     return shadow_creature(card) or "shadow self" in words or card.is_shadow
 
 
+def scion_card(card: Card) -> bool:
+    return "scion" in f"{card.name} {card.template_name}".lower()
+
+
+def scripted_spell(foe_name: str, card: Card) -> bool:
+    """A card the scripted fight against `foe_name` wants."""
+    kind = SCRIPTED_FIGHTS.get(foe_name.lower())
+    return scion_card(card) if kind == "scion" else shadow_spell(card)
+
+
 def scripted_move(battle: Battle) -> Action | None:
     """The move in a SCRIPTED_FIGHTS fight: the spell it wants whenever it can
     be cast, else pass (nothing else counts)."""
     foe = next((e for e in battle.live_enemies if e.name.lower() in SCRIPTED_FIGHTS), None)
     if foe is None:
         return None
+    if SCRIPTED_FIGHTS[foe.name.lower()] == "scion":
+        for c in battle.cards:
+            if c.castable and scion_card(c):
+                target = foe if c.target in (Target.ENEMY_SINGLE, Target.NONE) else None
+                return Action(ActionKind.CAST, c, target, reason=f"{foe.name}: the Paradox's {c.name}")
+        return None  # (no Scion in hand: the usual play with the rest)
     for want in (shadow_creature, shadow_spell):
         for c in battle.cards:
             if c.castable and want(c):

@@ -37,3 +37,11 @@ def test_immune_enemy_not_hit():
 def test_others_hit_as_usual():
     a = decide(fight("Some Boss", 6, hp=500))
     assert a.kind is ActionKind.CAST and a.card.name == "Orthrus"
+
+
+def test_paradox_casts_scions():
+    b = fight("Aethyr Titan", 30, hp=500000)
+    b.cards = [Card(0, "Scion of Elements", pip_cost=0, effects=[]),
+               Card(1, "Scion of Spirits", pip_cost=0, effects=[])]
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name.startswith("Scion")
