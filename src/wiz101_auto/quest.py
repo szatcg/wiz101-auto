@@ -5675,7 +5675,18 @@ class Quester:
         chosen quest isn't the tracked one (tracking needs the book)."""
         back_button = [*QUEST_LIST, "btnPrevPage"]
         busy = getattr(self, "_momentum", None)
-        if (not complete and busy and busy[0] and time.monotonic() - busy[1] < 600
+        # (Not over a main quest the read shows and nothing holds back: 'Take
+        # the Low Road', a side quest, was kept for half an hour after
+        # 'Forever Mines' came back from its set-aside.)
+        def held(name: str) -> bool:
+            d = self.setbacks.deferred.get(name)
+            if d is None:
+                return name in self.setbacks.skipped
+            return d.get("stuck") or not ("until" in d and time.time() > d["until"])
+
+        main_ready = busy and busy[0] not in self._mainline and any(
+            q.mainline and not held(q.name) for _, q in all_quests)
+        if (not complete and busy and busy[0] and time.monotonic() - busy[1] < 600 and not main_ready
                 and busy[0] not in {q.name for _, q in all_quests}):
             # A partial read without the quest we're mid-way through
             # ('Romancing El Yollotl', missing from a read in a clearing:
