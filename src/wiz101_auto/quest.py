@@ -7958,6 +7958,12 @@ class Quester:
                 self._visit_tries = 0
             return True
         logger.info(f"visit: talking to {npc} in {dest}")
+        if want.get("pos"):
+            # Near a given spot first (a zone with several copies of the NPC,
+            # one per story step: the Chaos Jungle's Mellori by the Bat's camp,
+            # out of view from where the visit arrives).
+            await self.travel(XYZ(*want["pos"]))
+            await wait_until_free(self.client, timeout=5)
         if self.dialogue:
             self.dialogue.accept_offers_for(60)
         objective = f"Talk To {npc}"
