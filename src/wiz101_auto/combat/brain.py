@@ -3065,15 +3065,24 @@ def shadow_creature(card: Card) -> bool:
     return "shadow creature" in words or (card.is_damage and card.is_shadow)
 
 
+def shadow_spell(card: Card) -> bool:
+    """Any shadow spell (Shadow Self Nova too: the deck holds 4 Shadow
+    Creatures and the Bat wants 5; tried, in case it counts)."""
+    words = f"{card.name} {card.template_name}".lower()
+    return shadow_creature(card) or "shadow self" in words or card.is_shadow
+
+
 def scripted_move(battle: Battle) -> Action | None:
     """The move in a SCRIPTED_FIGHTS fight: the spell it wants whenever it can
     be cast, else pass (nothing else counts)."""
     foe = next((e for e in battle.live_enemies if e.name.lower() in SCRIPTED_FIGHTS), None)
     if foe is None:
         return None
-    for c in battle.cards:
-        if c.castable and shadow_creature(c):
-            return Action(ActionKind.CAST, c, foe, reason=f"{foe.name} wants Shadow Creature spells")
+    for want in (shadow_creature, shadow_spell):
+        for c in battle.cards:
+            if c.castable and want(c):
+                target = foe if c.target in (Target.ENEMY_SINGLE, Target.NONE) else None
+                return Action(ActionKind.CAST, c, target, reason=f"{foe.name} wants Shadow Creature spells")
     return Action(ActionKind.PASS, reason=f"waiting for a Shadow Creature spell for {foe.name}")
 
 

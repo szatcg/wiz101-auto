@@ -174,7 +174,7 @@ FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
 FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its marker: a quest giver)
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 # Objective words -> cards the deck needs for its scripted fight.
-QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 6}}
+QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 4, "Shadow Self Nova": 4}}
 PET_AFTER_PROGRESS = 90.0  # seconds after the objective changed before a pet trip
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
