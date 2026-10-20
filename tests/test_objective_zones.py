@@ -106,3 +106,9 @@ def test_storm_titans_wake():
 
     assert objective_zone("Dispel The Storm Titan in Storm Titan's Wake", learned=[]) == \
         "Empyrea/Interiors/EM_Z16_I04_StormTitan"
+
+
+def test_broken_bough_not_bartlebys_room():
+    from wiz101_auto.travel_data import objective_zone
+
+    assert objective_zone("Talk To Bartleby in Broken Bough", learned=[]).startswith("Empyrea/")
