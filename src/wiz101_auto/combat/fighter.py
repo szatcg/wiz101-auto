@@ -368,6 +368,10 @@ async def return_from_idle(client) -> bool:
     logger.warning("'You are idle' box over the battle, but no Return button found")
     return False
 
+IMMUNE_MIN_HIT = 500  # a predicted hit this big that does next to nothing: the target is immune
+IMMUNE_SCRATCH = 0.02  # "next to nothing": under this share of the predicted damage
+IMMUNE_HOLD = 3  # rounds an immune enemy is held off before another try
+
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 99, flee_below: float = 0.0,
                  rollouts: bool = True):
@@ -852,6 +856,8 @@ class Fighter(CombatHandler):
             if tried:
                 battle.cards = [dataclasses.replace(c, enchanted=True) if c.name in tried else c
                                 for c in battle.cards]
+            self._note_immune(battle)
+            battle.immune = {n for n, last in self._immune.items() if battle.round <= last}
             # One plan discard a round at most (four in a round ran the deck dry).
             action = decide(battle, self.strategy, discards_left=discards_left,
                             plan_discards=self._plan_toss_round != battle.round, odds_discards=True)
@@ -923,6 +929,10 @@ class Fighter(CombatHandler):
             )
             shown = action
             predicted = predicted_damage(battle, action)
+            hit = action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
+            if hit and predicted:
+                self._hit_watch = (battle.round, {e.name: e.health for e in battle.live_enemies}, predicted,
+                                   action.target.name if action.target is not None else None)
             if not predicted:
                 # A setup round: the bars show the biggest hit in hand, the one
                 # the blades are for (the player: no crit numbers on those rounds).
@@ -1145,6 +1155,25 @@ class Fighter(CombatHandler):
                 self._unknown_left += left
         return out
 
+    def _note_immune(self, battle) -> None:
+        """Our last hit (a big one) barely scratched its target: it's immune
+        for now (the Bat Bot, Orthrus for 1): held off for IMMUNE_HOLD rounds."""
+        watch, self._hit_watch = getattr(self, "_hit_watch", None), None
+        if not watch or battle.round <= watch[0]:
+            self._hit_watch = watch
+            return
+        _rnd, before, predicted, target = watch
+        if predicted < IMMUNE_MIN_HIT:
+            return
+        now = {e.name: e.health for e in battle.enemies}
+        for name, hp in before.items():
+            if target is not None and name != target:
+                continue
+            if name in now and hp - now[name] < IMMUNE_SCRATCH * predicted:
+                self._immune[name] = battle.round + IMMUNE_HOLD - 1
+                logger.info(f"{name} took {hp - now[name]} of ~{predicted:.0f}: immune now; "
+                            f"no attacks on it for {IMMUNE_HOLD} rounds")
+
     async def handle_combat(self):
         self._unusable.clear()
         self._fails: dict[str, int] = {}  # failed casts per card this fight
@@ -1152,6 +1181,8 @@ class Fighter(CombatHandler):
         self._pp_chance = None  # read once a fight
         self._hp_seen: list[tuple[int, int]] = []  # (round, our health) for the planner's damage estimate
         self._summons = 0
+        self._immune: dict[str, int] = {}  # enemy -> last round it's held off (a hit barely scratched it)
+        self._hit_watch = None  # (round, {enemy: health}, predicted damage, target name or None)
         self._gone: Counter[str] = Counter()  # deck cards cast or discarded this fight
         self._discarded = Counter()
         self._deck = load_deck_counts()

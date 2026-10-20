@@ -2791,6 +2791,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     if lesson is not None:
         return lesson
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
+    battle = _immune_holds(battle)
     try:
         card_rules(battle)
     except SearchTimeout:
@@ -3041,6 +3042,28 @@ BOSS_BANS = {
 def _universal_charm(c: Card) -> bool:
     """A blade or trap for every school (Feint, Spirit Blade)."""
     return any(e.kind in (EffectKind.BLADE, EffectKind.TRAP) and not e.school for e in c.effects)
+
+
+# Enemies immune at first (the player's tip, Empyrea's Bat Bot: immune until
+# it turns into the Bat, about round 4 or 5; the damage it takes then stays):
+# no attacks on them before this round, set-up instead.
+HOLD_UNTIL_ROUND = {"the bat": 4}
+
+
+def _immune_holds(battle: Battle) -> Battle:
+    """No attacks this round when every enemy left is immune right now (a hit
+    barely scratched it, or it's one of HOLD_UNTIL_ROUND's early on): blades,
+    traps, heals and passes instead. The bot ran out of attacks against the Bat
+    Bot (Orthrus for 1 damage) and fled, three times. Only the hand's cards:
+    the plans still count on the attacks for later rounds."""
+    held = set(battle.immune)
+    for e in battle.live_enemies:
+        until = HOLD_UNTIL_ROUND.get(e.name.lower())
+        if until and battle.round < until:
+            held.add(e.name)
+    if not held or any(e.name not in held for e in battle.live_enemies):
+        return battle
+    return replace(battle, cards=[replace(c, castable=False) if c.is_damage else c for c in battle.cards])
 
 
 def _boss_bans(battle: Battle) -> Battle:

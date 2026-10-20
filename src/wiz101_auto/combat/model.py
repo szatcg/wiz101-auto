@@ -197,6 +197,7 @@ class Battle:
     summoned: int = 0  # minions we summoned this fight
     upcoming: list[Card] = field(default_factory=list)  # deck cards not drawn/played yet this fight
     deck_known: bool = False  # `upcoming` comes from a read of the deck (else it's just empty)
+    immune: set[str] = field(default_factory=set)  # enemies our last big hit barely scratched (held off)
 
     @property
     def live_enemies(self) -> list[Combatant]:
