@@ -175,6 +175,8 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 # Objective words -> cards the deck needs for its scripted fight.
 QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 4, "Shadow Self Nova": 4}}
+PET_MODE_TRIES = 4  # tries of Pet Mode's button per objective
+PET_MODE_RETRY = 45.0  # seconds between them
 FAR_COPY = 30000.0  # an NPC copy further than this from us is a bad read, not a place
 PET_AFTER_PROGRESS = 90.0  # seconds after the objective changed before a pet trip
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
@@ -7102,19 +7104,25 @@ class Quester:
         """'Use Pet Mode to Find Key' (Karamelle): the pet button by the health
         globe, then Play As Pet; the wizard walks as the pet and the hidden
         thing shows. Once per objective. True if it switched."""
-        tried = self.__dict__.setdefault("_pet_mode_for", set())
-        if objective in tried:
+        tries = self.__dict__.setdefault("_pet_mode_for", {})
+        n, last = tries.get(objective, (0, -1e9))
+        if n >= PET_MODE_TRIES or time.monotonic() - last < PET_MODE_RETRY:
             return False
-        tried.add(objective)
-        found = await ui.find_named(self.client.root_window, {"PetSystemButton"}, max_depth=6)
-        btn = found.get("PetSystemButton")
-        if btn is None:
-            logger.warning("Pet Mode: no pet button on screen")
-            return False
-        await ui.click_center(self.client, btn)
-        await asyncio.sleep(1.5)
-        menu = await ui.find_named(self.client.root_window, {"PlayAsPetButton"}, max_depth=8)
+        tries[objective] = (n + 1, time.monotonic())
+        names = {"PlayAsPetButton", "PetSystemButton"}
+        menu = await ui.find_named(self.client.root_window, names, max_depth=8)
         play = menu.get("PlayAsPetButton")
+        if play is None or not await ui.window_visible(play):
+            # (The pet menu shut first: left open, the button's click closed it
+            # and Play As Pet was "not in the menu".)
+            btn = menu.get("PetSystemButton")
+            if btn is None:
+                logger.warning("Pet Mode: no pet button on screen")
+                return False
+            await ui.click_center(self.client, btn)
+            await asyncio.sleep(1.5)
+            menu = await ui.find_named(self.client.root_window, {"PlayAsPetButton"}, max_depth=8)
+            play = menu.get("PlayAsPetButton")
         if play is None or not await ui.window_visible(play):
             logger.warning("Pet Mode: no Play As Pet in the pet menu")
             await ui.close_menus(self.client)
