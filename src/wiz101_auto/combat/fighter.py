@@ -771,9 +771,13 @@ class Fighter(CombatHandler):
                 await self.pass_button()
                 return
 
-            from .brain import SCRIPTED_FIGHTS
+            from .brain import SCRIPTED_FIGHTS, shadow_spell
 
-            scripted = any(e.name.lower() in SCRIPTED_FIGHTS for e in battle.live_enemies)
+            # (A scripted fight is never fled while its spells are left; with
+            # none in hand or deck the bot passed against the Bat for good,
+            # the Bat passing too: then it's fled like any other.)
+            scripted = (any(e.name.lower() in SCRIPTED_FIGHTS for e in battle.live_enemies)
+                        and any(shadow_spell(c) for c in [*battle.cards, *battle.upcoming]))
             if (battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round and not team
                     and not scripted):
                 # Passing until we die (Shakes O'Leary healed back up) loses
