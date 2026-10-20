@@ -4824,15 +4824,27 @@ class Quester:
             return distance(await self._position(), target) < INTERACT_RANGE
 
         if mobs and not clear_of(target, mobs, MOB_CLEARANCE):
-            spot = safe_landing(target, start, mobs, MOB_CLEARANCE)
+            from .dungeons import add_exit, dungeon_exits
+
+            # (Known exits count as obstacles: the Possessed Shrine's landing
+            # clear of the Kalamar Elder's guards was by its exit, and the walk
+            # on went out; in by the sigil, out again, for half an hour.)
+            exits = [XYZ(*e) for e in dungeon_exits(zone or "")]
+            spot = safe_landing(target, start, [*mobs, *exits], MOB_CLEARANCE)
             if spot is not None:
                 logger.info(f"enemies near the destination; landing {distance(spot, target):.0f} away")
                 await self.client.teleport(spot)
                 await asyncio.sleep(TELEPORT_SETTLE)
                 if await self._zone_changed(zone):
+                    add_exit(zone or "", (spot.x, spot.y, spot.z))
                     return True
                 await self.client.goto(target.x, target.y)
-                if await self._zone_changed(zone) or await self.client.in_battle():
+                if await self._zone_changed(zone):
+                    if add_exit(zone or "", (spot.x, spot.y, spot.z)):
+                        logger.warning(f"the walk on from ({spot.x:.0f}, {spot.y:.0f}) left {zone}: "
+                                       "landing elsewhere from now on")
+                    return True
+                if await self.client.in_battle():
                     return True
                 if distance(await self._position(), target) < INTERACT_RANGE:
                     return True
