@@ -9478,7 +9478,23 @@ class Quester:
         await asyncio.sleep(0.5)
         if await self.interact(objective):
             return True
-        await self._talk_from_around(name, pos, start_zone, objective)
+        if await self._talk_from_around(name, pos, start_zone, objective):
+            return True
+        # No prompt from any side: another copy of them (the Chaos Jungle has
+        # five Melloris, one per story step; the nearest wasn't the one with
+        # 'Extra Life', and the visit gave up).
+        tried = [pos]
+        for _ in range(4):
+            other = await self._npc_named(name, near=await self._position(), skip=tried)
+            if other is None or (await self.client.zone_name() or "") != start_zone:
+                break
+            tried.append(other)
+            logger.info(f"{name}: trying another of them at ({other.x:.0f}, {other.y:.0f})")
+            await self.travel(other, npc=True)
+            if not await wait_until_free(self.client, timeout=5) or await self.interact(objective):
+                return True
+            if await self._talk_from_around(name, other, start_zone, objective):
+                return True
         return True
 
     async def _talk_from_around(self, name: str, pos: XYZ, zone: str, objective: str) -> bool:
