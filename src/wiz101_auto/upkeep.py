@@ -37,6 +37,10 @@ async def is_free(client) -> bool:
             await client.is_loading()
             or await client.in_battle()
             or await ui.is_visible(client, ui.ADVANCE_DIALOG)
+            # (A talk that plays on its own, no advance button: the Bat,
+            # Mellori and Grandfather Spider by the Rift. The step walked off
+            # to the door marker mid-talk and 'Talk To Bat' never completed.)
+            or await ui.is_visible(client, ui.DIALOG_BOX)
         )
     except Exception:
         return False

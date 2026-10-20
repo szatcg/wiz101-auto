@@ -15,6 +15,7 @@ from loguru import logger
 
 # Dialogue
 ADVANCE_DIALOG = ["WorldView", "wndDialogMain", "btnRight"]
+DIALOG_BOX = ["WorldView", "wndDialogMain"]  # the box itself: shown through talks that play on their own
 DECLINE_QUEST = ["WorldView", "wndDialogMain", "btnLeft"]
 DIALOG_TEXT = ["WorldView", "wndDialogMain", "txtArea", "txtMessage"]
 
