@@ -6640,8 +6640,10 @@ class Quester:
             if not await wait_until_free(self.client, timeout=5) or await self._zone_changed(zone):
                 return True
             self.collector._cache = None
-            if any(distance(await e.location(), marker) < COLLECT_DOOR_NEAR
-                   for e in await self.collector._candidates(item)):
+            # (A list, not a generator with await inside: any() can't iterate
+            # an async generator, and the step crashed at the Temple of Light.)
+            spots = [await e.location() for e in await self.collector._candidates(item)]
+            if any(distance(p, marker) < COLLECT_DOOR_NEAR for p in spots):
                 return True  # there after all: collected on the next step
         logger.info(f"no {item!r} by the quest marker: it must be a door; walking through it")
         if await self.walk_through(marker, zone) or await self._walk_in_from_around(marker, zone):
