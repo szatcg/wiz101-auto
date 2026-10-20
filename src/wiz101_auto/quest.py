@@ -4214,7 +4214,9 @@ class Quester:
         Olympus). True if it did; False outside a known dungeon."""
         from .teamup import TEAM_UP_DUNGEONS, _dungeon_base, add_team_dungeon
 
-        if quest not in self._mainline and not story:
+        # (Or the last main quest known: after a game restart the book isn't
+        # read, and the Hangriest Gobbler beat the bot four times with no Team Up.)
+        if quest not in self._mainline and quest != self._last_main and not story:
             # (`story`: on the detour world's story list: 'Not a Cold Dead Place'
             # wasn't in _mainline and Huracan stayed solo at 2 losses.)
             return False
