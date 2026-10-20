@@ -2479,8 +2479,26 @@ class Quester:
         logger.info(f"heading to {dest}: trying the world teleporter here")
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
+        if not await ui.is_visible(self.client, ui.NPC_RANGE):
+            # No prompt on the portal's own point (Aeriel's, toward the Chaos
+            # Jungle: "no list" twice and the visit to Ranna dropped): spots
+            # around it, as for any X gate.
+            g = gates[0]
+            for radius in (150.0, 300.0):
+                for i in range(8):
+                    a = i * math.pi / 4
+                    near = XYZ(g.x + radius * math.cos(a), g.y + radius * math.sin(a), g.z)
+                    await self.client.teleport(near)
+                    await asyncio.sleep(0.8)
+                    if await ui.is_visible(self.client, ui.NPC_RANGE):
+                        break
+                else:
+                    continue
+                break
         if await ui.is_visible(self.client, ui.NPC_RANGE):
             await self.client.send_key(Keycode.X, 0.1)
+        else:
+            logger.info("no prompt at the world teleporter, nor around it")
         await asyncio.sleep(2.0)
         if await self.client.zone_name() != zone:
             await wait_for_loading(self.client)
