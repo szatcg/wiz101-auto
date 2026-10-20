@@ -4381,8 +4381,11 @@ class Quester:
             logger.info(f"defeated by {', '.join(fought)}, not {target}: not counted against {objective!r}")
             return
         level = await self.client.stats.reference_level()
-        quest = self._active_quest
-        main = quest in self._mainline
+        quest = self._active_quest or self._last_main
+        # (Or the last main quest known: right after a restart the book isn't
+        # read, the main quests aren't known, and Vigilant Sargun's losses
+        # went the side path, "trying again" five times with no Team Up.)
+        main = quest in self._mainline or (bool(quest) and quest == self._last_main)
         det = self._detour_names()
         # (Main or not: once set aside by the detour fallback the quest reads
         # as a side quest, and its losses went the side path, an hour each.)
