@@ -7102,6 +7102,30 @@ class Quester:
         await self._press_x_here(zone, adjust=True)
         return True
 
+    async def _press_named_key(self, objective: str) -> bool:
+        """'Press Z to Photomance Cavity in Gummy Plant' (Karamelle): at the
+        quest marker, the key the objective names. True if it pressed it (a
+        few tries per objective, the marker reached first)."""
+        m = re.match(r"^\s*press\s+([a-z0-9])\s+to\s+", objective or "", re.I)
+        if not m:
+            return False
+        key = getattr(Keycode, m.group(1).upper(), None)
+        tries = self.__dict__.setdefault("_key_presses", {})
+        if key is None or tries.get(objective, 0) >= 4:
+            return False
+        marker = await self.client.quest_position.position()
+        if distance(marker, XYZ(0, 0, 0)) < 1:
+            return False
+        if distance(await self._position(), marker) > INTERACT_RANGE:
+            await self.travel(marker)
+            if distance(await self._position(), marker) > INTERACT_RANGE * 2:
+                return True  # (on the way; the next step goes on)
+        tries[objective] = tries.get(objective, 0) + 1
+        logger.info(f"pressing {m.group(1).upper()} at the marker for {objective!r}")
+        await self.client.send_key(key, 0.1)
+        await asyncio.sleep(3.0)
+        return True
+
     async def _play_as_pet(self, objective: str) -> bool:
         """'Use Pet Mode to Find Key' (Karamelle): the pet button by the health
         globe, then Play As Pet; the wizard walks as the pet and the hidden
@@ -11592,6 +11616,8 @@ class Quester:
             return
 
         if "pet mode" in objective.lower() and await self._play_as_pet(objective):
+            return
+        if await self._press_named_key(objective):
             return
 
         if await self._try_switch_puzzle(objective, zone or ""):
