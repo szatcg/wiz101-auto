@@ -931,7 +931,8 @@ class Fighter(CombatHandler):
             predicted = predicted_damage(battle, action)
             hit = action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
             if hit and predicted:
-                self._hit_watch = (battle.round, {e.name: e.health for e in battle.live_enemies}, predicted,
+                biggest = max(predicted.values()) if isinstance(predicted, dict) else predicted
+                self._hit_watch = (battle.round, {e.name: e.health for e in battle.live_enemies}, biggest,
                                    action.target.name if action.target is not None else None)
             if not predicted:
                 # A setup round: the bars show the biggest hit in hand, the one
