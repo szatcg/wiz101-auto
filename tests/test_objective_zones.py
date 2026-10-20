@@ -99,3 +99,10 @@ def test_husk_is_empyrea_not_bartleby():
     from wiz101_auto.travel_data import objective_zone
 
     assert objective_zone("Talk To Bartleby in Husk", learned=[]) == "Empyrea/EM_Z16_Husk"
+
+
+def test_storm_titans_wake():
+    from wiz101_auto.travel_data import objective_zone
+
+    assert objective_zone("Dispel The Storm Titan in Storm Titan's Wake", learned=[]) == \
+        "Empyrea/Interiors/EM_Z16_I04_StormTitan"

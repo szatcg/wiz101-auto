@@ -227,6 +227,9 @@ EXTRA_DISPLAY_ZONES = [
     # (Bartleby's husk in Empyrea: 'Search For Bartleby in Husk' matched the
     # World Tree room by his name and sent the bot to Wizard City.)
     ("husk", "Empyrea/EM_Z16_Husk"),
+    # (Its dungeon, off Husk: unnamed, the bot opened the Streamportal toward
+    # nothing eight times after losing to Titan's Trident.)
+    ("storm titan's wake", "Empyrea/Interiors/EM_Z16_I04_StormTitan"),
     ("southwest aero plains", "Empyrea/EM_Z08_SWAeroplains"),
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
