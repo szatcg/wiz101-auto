@@ -5030,7 +5030,8 @@ class Quester:
             self.dialogue.accept_offers_for(30)
         if objective.lower().startswith("talk") and talk_target(objective):
             self._last_talk = (talk_target(objective), await self.client.zone_name() or "", time.monotonic())
-            if self._active_quest and self._active_quest in self._mainline:
+            if self._active_quest and (self._active_quest in self._mainline
+                                       or self._active_quest == self._last_main):
                 self._last_main_talk = self._last_talk
         await self.client.send_key(Keycode.X, 0.1)
         # Move on as soon as something opens (dialogue, a menu, a loading
