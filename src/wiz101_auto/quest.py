@@ -7098,6 +7098,32 @@ class Quester:
         await self._press_x_here(zone, adjust=True)
         return True
 
+    async def _play_as_pet(self, objective: str) -> bool:
+        """'Use Pet Mode to Find Key' (Karamelle): the pet button by the health
+        globe, then Play As Pet; the wizard walks as the pet and the hidden
+        thing shows. Once per objective. True if it switched."""
+        tried = self.__dict__.setdefault("_pet_mode_for", set())
+        if objective in tried:
+            return False
+        tried.add(objective)
+        found = await ui.find_named(self.client.root_window, {"PetSystemButton"}, max_depth=6)
+        btn = found.get("PetSystemButton")
+        if btn is None:
+            logger.warning("Pet Mode: no pet button on screen")
+            return False
+        await ui.click_center(self.client, btn)
+        await asyncio.sleep(1.5)
+        menu = await ui.find_named(self.client.root_window, {"PlayAsPetButton"}, max_depth=8)
+        play = menu.get("PlayAsPetButton")
+        if play is None or not await ui.window_visible(play):
+            logger.warning("Pet Mode: no Play As Pet in the pet menu")
+            await ui.close_menus(self.client)
+            return False
+        await ui.click_center(self.client, play)
+        await asyncio.sleep(3.0)
+        logger.info(f"Pet Mode: playing as the pet for {objective!r}")
+        return True
+
     async def _try_switch_puzzle(self, objective: str, zone: str) -> bool:
         """'Use X' where X should be but isn't (a chest that appears when the
         room's switches are right): try every switch combination, once per
@@ -11553,6 +11579,9 @@ class Quester:
                 and self._may_try(objective, zone, "zone_first")):
             logger.info(f"{objective!r} is in {place.split('/')[-1]}: there by its gates first")
             await self.go_to_zone(place)
+            return
+
+        if "pet mode" in objective.lower() and await self._play_as_pet(objective):
             return
 
         if await self._try_switch_puzzle(objective, zone or ""):
