@@ -2179,6 +2179,16 @@ class Quester:
                 return True
             if not await is_free(self.client):
                 return False  # a fight started on the way
+            ride = await self._transport_to(dest)
+            if ride is not None:
+                # A transport named for the place, in view (the Ark Hold's
+                # "Pod to Husk": walked into as a door, it failed three times
+                # and 'Extra Life' was set aside): X at it.
+                logger.info(f"heading to {dest}: the transport to it at ({ride.x:.0f}, {ride.y:.0f})")
+                if not await self._use_x_gate(ride, zone or "", dest, False):
+                    self.__dict__.setdefault("_transport_failed", {})[dest] = time.monotonic()
+                await wait_for_loading(self.client)
+                continue
             gate = gate_toward(zone, dest, self._bad_gates)
             if not gate:
                 # No gate leads there (an instance: Khin-Pao in Kishibe's
@@ -8047,6 +8057,32 @@ class Quester:
             return await self.approach_and_walk(DORM_DOOR, DORM)
         logger.info("to Aquila: walking to Cyclops Lane")
         return await self.go_to_zone(CYCLOPS_LANE)
+
+    async def _transport_to(self, dest: str) -> XYZ | None:
+        """An object around named for a trip to `dest`'s place ("Pod to Husk",
+        "Pod to Mandalla"), or None. Not one that failed lately."""
+        from .names import lang_name
+
+        if time.monotonic() - self.__dict__.get("_transport_failed", {}).get(dest, -1e9) < 600:
+            return None
+        labels = {norm(x) for x in self._stream_labels(dest)}
+        try:
+            entities = await self.client.get_base_entity_list()
+        except Exception:
+            return None
+        for e in entities:
+            try:
+                t = await e.object_template()
+                code = await t.display_name() if t else ""
+                if not code:
+                    continue
+                name = " ".join((await lang_name(self.client, code) or "").split())
+                m = re.match(r"^(?:pod|boat|ship|portal|teleport\w*|airship)\s+to\s+(.+)$", name, re.I)
+                if m and norm(m.group(1)) in labels:
+                    return await e.location()
+            except Exception:
+                continue
+        return None
 
     async def _entities_named_like(self, words: tuple[str, ...]) -> list[XYZ]:
         out = []
