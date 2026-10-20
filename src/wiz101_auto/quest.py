@@ -175,6 +175,7 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 # Objective words -> cards the deck needs for its scripted fight.
 QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 4, "Shadow Self Nova": 4}}
+FAR_COPY = 30000.0  # an NPC copy further than this from us is a bad read, not a place
 PET_AFTER_PROGRESS = 90.0  # seconds after the objective changed before a pet trip
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
@@ -9539,9 +9540,15 @@ class Quester:
         me = await self._position()
         # (And where other copies were seen, out of view now: the Mellori with
         # 'Extra Life' stood at the Bat's camp, never loaded from the others.)
-        seen = [XYZ(*p) for p in self.entity_map.spots(start_zone, lambda n: n == name, (me.x, me.y, me.z))]
+        seen = [XYZ(*p) for p in self.entity_map.spots(start_zone, lambda n: n == name, (me.x, me.y, me.z))
+                if math.dist(p[:2], (me.x, me.y)) < FAR_COPY]
         for _ in range(6):
             other = await self._npc_named(name, near=await self._position(), skip=tried)
+            if other is not None and distance(other, await self._position()) > FAR_COPY:
+                # (Garbage positions: Ione Virga's "others" at (333092, -147282)
+                # and on, a minute's walk at each.)
+                tried.append(other)
+                continue
             if other is None:
                 far = next((p for p in seen if all(distance(p, t) > 300 for t in tried)), None)
                 if far is None:

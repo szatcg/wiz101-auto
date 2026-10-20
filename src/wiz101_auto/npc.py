@@ -44,7 +44,17 @@ def _words(text: str) -> set[str]:
 def rank_options(labels: list[str], objective: str) -> list[int]:
     """Indexes of `labels`, best match for the objective first (stable otherwise)."""
     target = _words(objective)
-    return sorted(range(len(labels)), key=lambda i: -len(_words(labels[i]) & target))
+
+    def service(label: str) -> bool:
+        # (Shops and the like last: 'Talk To Librarian Fitzhume' opened his
+        # Treasure Card Shop, not 'Better Recognize', the menu's other entry.)
+        low = label.lower()
+        return any(w in low for w in SERVICE_WORDS)
+
+    return sorted(range(len(labels)), key=lambda i: (-len(_words(labels[i]) & target), service(labels[i])))
+
+
+SERVICE_WORDS = ("shop", "treasure card", "buy", "sell", "vendor", "store", "crafting", "recipe", "bazaar")
 
 
 async def _text_of(window, depth: int = 0) -> str:

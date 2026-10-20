@@ -92,3 +92,10 @@ def test_walk_zones_learned(tmp_path, monkeypatch):
     assert safe_teleport.learn_walk_zone("Empyrea/Interiors/EM_Z99_Room")
     assert not safe_teleport.learn_walk_zone("Empyrea/Interiors/EM_Z99_Room")
     assert safe_teleport.walk_zone(C(), "Empyrea/Interiors/EM_Z99_Room")
+
+
+def test_npc_menu_quest_before_shop():
+    from wiz101_auto.npc import rank_options
+
+    labels = ["Treasure Card Shop", "Better Recognize"]
+    assert rank_options(labels, "Talk To Librarian Fitzhume")[0] == 1
