@@ -2477,6 +2477,12 @@ class Quester:
             return await self._world_teleport_gate(there, dest)
         self._gate_tried[zone] = time.monotonic()
         logger.info(f"heading to {dest}: trying the world teleporter here")
+        if await ui.is_visible(self.client, ui.SPIRAL_DOOR_TELEPORT) and not await self._stream_list_open():
+            # (The Spiral Map left open by a walk into the world gate, taken
+            # for a door to the Chaos Jungle: X at the Streamportal did nothing
+            # under it, "no list", three visits to Ranna dropped.)
+            await ui.click(self.client, ui.SPIRAL_DOOR_EXIT)
+            await asyncio.sleep(1.0)
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
         if not await ui.is_visible(self.client, ui.NPC_RANGE):
