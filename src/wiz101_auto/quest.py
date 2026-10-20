@@ -173,6 +173,7 @@ HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
 FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
 FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its marker: a quest giver)
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
+PET_AFTER_PROGRESS = 90.0  # seconds after the objective changed before a pet trip
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
 # Streamportal stops named for a region, not its zones: area code -> the
@@ -5015,6 +5016,8 @@ class Quester:
             self.dialogue.accept_offers_for(30)
         if objective.lower().startswith("talk") and talk_target(objective):
             self._last_talk = (talk_target(objective), await self.client.zone_name() or "", time.monotonic())
+            if self._active_quest and self._active_quest in self._mainline:
+                self._last_main_talk = self._last_talk
         await self.client.send_key(Keycode.X, 0.1)
         # Move on as soon as something opens (dialogue, a menu, a loading
         # screen), not after a set second.
@@ -5809,6 +5812,14 @@ class Quester:
         elif complete and self._last_main_zone != "swept" and not parked:
             # (After a restart: where we are now.)
             self._last_main_zone = self._last_main_zone or await self.client.zone_name() or ""
+            talk = self.__dict__.get("_last_main_talk")
+            if talk and talk[0] and time.monotonic() - talk[2] < 3600 and not VISIT_FILE.exists():
+                # The story's last step was a talk: that NPC first (the player:
+                # Helena handed out 'Vanitus Veritas' in Nimbus Citadel; the bot
+                # asked around the Rear Courtyard, the last fight's zone, found
+                # no one and went to side quests).
+                logger.info(f"no main quest after {self._last_main!r}: back to {talk[0]} for the next one")
+                VISIT_FILE.write_text(json.dumps({"npc": talk[0], "zone": talk[1]}), encoding="utf-8")
             # The main quest was just handed in and no next one came: its
             # giver is usually near (asked an hour ago, before it had it).
             logger.info(f"no main quest after {self._last_main!r}: asking the NPCs of "
@@ -11079,7 +11090,11 @@ class Quester:
             if not await is_free(self.client):
                 return
         pet = getattr(self, "pet", None)
-        if pet and not team and not await self._dungeon_in_progress(zone_now):
+        # (Not right after the quest moved on: Helena's talk ended 'The Search
+        # for Sparck' and the pet trip went at once, before the turn-in was
+        # seen and she was asked for the next one.)
+        settled = time.monotonic() - self._last_progress_time > PET_AFTER_PROGRESS
+        if pet and not team and settled and not await self._dungeon_in_progress(zone_now):
             self.controller.allow_idle(1800)  # the trip and up to dozens of games
             try:
                 acted = await pet.tick()

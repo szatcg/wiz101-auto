@@ -204,6 +204,8 @@ async def prompt_loop(client, quester, controller):
                 zone = await client.zone_name() or ""
                 quester._recent_talks = [*getattr(quester, "_recent_talks", [])[-3:],
                                          (title, zone, time.monotonic())]
+                if getattr(quester, "_active_quest", None) in (getattr(quester, "_mainline", None) or set()):
+                    quester._last_main_talk = (title, zone, time.monotonic())  # (Helena, 'Vanitus Veritas')
                 # (And the turn-in a quest leaving the book is put down to: the
                 # NPC is asked again for the next one.)
                 quester._last_talk = (title, zone, time.monotonic())
