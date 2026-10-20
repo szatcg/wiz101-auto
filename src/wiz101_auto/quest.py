@@ -9490,9 +9490,23 @@ class Quester:
         # five Melloris, one per story step; the nearest wasn't the one with
         # 'Extra Life', and the visit gave up).
         tried = [pos]
-        for _ in range(4):
+        me = await self._position()
+        # (And where other copies were seen, out of view now: the Mellori with
+        # 'Extra Life' stood at the Bat's camp, never loaded from the others.)
+        seen = [XYZ(*p) for p in self.entity_map.spots(start_zone, lambda n: n == name, (me.x, me.y, me.z))]
+        for _ in range(6):
             other = await self._npc_named(name, near=await self._position(), skip=tried)
-            if other is None or (await self.client.zone_name() or "") != start_zone:
+            if other is None:
+                far = next((p for p in seen if all(distance(p, t) > 300 for t in tried)), None)
+                if far is None:
+                    break
+                tried.append(far)
+                logger.info(f"{name}: to where another of them was seen ({far.x:.0f}, {far.y:.0f})")
+                await self.travel(far)
+                other = await self._npc_named(name, near=far, skip=tried[:-1])
+                if other is None or distance(other, far) > 600:
+                    continue
+            if (await self.client.zone_name() or "") != start_zone:
                 break
             tried.append(other)
             logger.info(f"{name}: trying another of them at ({other.x:.0f}, {other.y:.0f})")
