@@ -78,3 +78,17 @@ def test_play_is_operated():
     from wiz101_auto.quest import operate_target
 
     assert operate_target("Play Whirlyburly in Velo City") == "Whirlyburly"
+
+
+def test_walk_zones_learned(tmp_path, monkeypatch):
+    from wiz101_auto import safe_teleport
+
+    monkeypatch.setattr(safe_teleport, "LEARNED_WALK_FILE", tmp_path / "walk.json")
+
+    class C:
+        pass
+
+    assert safe_teleport.walk_zone(C(), "Empyrea/Interiors/EM_Z07_PrivateWing")
+    assert safe_teleport.learn_walk_zone("Empyrea/Interiors/EM_Z99_Room")
+    assert not safe_teleport.learn_walk_zone("Empyrea/Interiors/EM_Z99_Room")
+    assert safe_teleport.walk_zone(C(), "Empyrea/Interiors/EM_Z99_Room")

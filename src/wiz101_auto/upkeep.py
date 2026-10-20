@@ -480,6 +480,26 @@ async def can_move(client) -> bool:
     return moved > STUCK_MOVE_DISTANCE
 
 
+async def _learn_circle_freeze(client, me) -> None:
+    """Frozen out of battle beside a duel circle: a teleport landed on a
+    scripted fight's circle (its cutscene never ran): walk that zone from now on."""
+    try:
+        from .safe_teleport import learn_walk_zone
+
+        zone = await client.zone_name() or ""
+        for e in await client.get_base_entity_list():
+            t = await e.object_template()
+            name = (await t.object_name() or "") if t else ""
+            if "duel circle" not in name.lower():
+                continue
+            p = await e.location()
+            if math.dist((p.x, p.y), me[:2]) < 400 and learn_walk_zone(zone):
+                logger.warning(f"frozen on a duel circle with no fight in {zone}: walking there from now on")
+                return
+    except Exception as exc:
+        logger.debug(f"circle freeze check failed: {exc!r}")
+
+
 async def unstick(client, frozen: bool = False) -> bool:
     """If the wizard can't walk (clipped into geometry after a teleport), move it
     to the nearest on-map landmark it can walk from. True if it was stuck.
@@ -491,6 +511,7 @@ async def unstick(client, frozen: bool = False) -> bool:
             return False
         me = _pt(await client.body.position())
         if frozen:
+            await _learn_circle_freeze(client, me)
             if await _home_out(client):
                 return True
             logger.warning(f"wizard frozen at ({me[0]:.0f}, {me[1]:.0f}): can't walk or teleport; relogging")

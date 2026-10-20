@@ -18,8 +18,10 @@ wizard came from, before it engages.
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import time
+from pathlib import Path
 
 from loguru import logger
 from wizwalker import XYZ
@@ -106,13 +108,39 @@ def allow_teleport(client, seconds: float = 6.0):
 # Zones always walked: a teleport there lands on a scripted fight's circle and
 # leaves the wizard frozen (the Mine Docks: Rasputin's marker is on Ivan's
 # circle; teleported onto it, Ivan never came, through relogs and restarts).
-WALK_ZONES = ("Polaris/Interiors/PL_Z05_MineDocks",)
+WALK_ZONES = ("Polaris/Interiors/PL_Z05_MineDocks",
+              # (Vanitus's Private Wing: a landing clear of his guards was his
+              # empty circle; frozen, the player relogged.)
+              "Empyrea/Interiors/EM_Z07_PrivateWing")
+# And zones learned so: frozen beside a duel circle out of battle.
+LEARNED_WALK_FILE = Path("state") / "walk_zones.json"
+
+
+def learned_walk_zones() -> list[str]:
+    try:
+        return list(json.loads(LEARNED_WALK_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def learn_walk_zone(zone: str) -> bool:
+    """Walk `zone` from now on. True if it's new."""
+    known = learned_walk_zones()
+    if not zone or zone in known or zone.startswith(WALK_ZONES):
+        return False
+    try:
+        LEARNED_WALK_FILE.parent.mkdir(exist_ok=True)
+        LEARNED_WALK_FILE.write_text(json.dumps(sorted([*known, zone]), indent=1), encoding="utf-8")
+    except OSError:
+        return False
+    return True
 
 
 def walk_zone(client, zone: str) -> bool:
     """Walk-only here: WALK_ZONES, config movement.walk_only, or a dungeon on
     the team list (the player's multiplayer mode, walked like the Waterworks)."""
-    if any(zone.startswith(p) for p in (*WALK_ZONES, *getattr(client, "_walk_only", ()))):
+    walked = (*WALK_ZONES, *learned_walk_zones(), *getattr(client, "_walk_only", ()))
+    if any(zone.startswith(p) for p in walked):
         return True
     from .teamup import is_team_up_zone
 
