@@ -5095,6 +5095,13 @@ class Quester:
             # place by the objective's own names ('Explore Sepidious in The
             # Stomach': Sepidious).
             dest = objective_zone(objective) if objective else None
+            here = await self.client.zone_name() or ""
+            if dest and here and dest.split("/")[0] != here.split("/")[0]:
+                # Another world (the Arcanum, from Zanadu's portal: "none
+                # fits", over and over): the Spiral Map, not the Streamportal.
+                await self._close_stream_list()
+                logger.info(f"Streamportal: {dest.split('/')[0]} is another world; by the Spiral Map")
+                return await self._to_world(dest.split("/")[0], f"{objective!r} is in {dest.split('/')[0]}")
             if await self._stream_go(dest or "", stream_words(objective)):
                 return True
             # No stop for it: the X went to the portal, not the one the
