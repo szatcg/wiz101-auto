@@ -224,6 +224,9 @@ EXTRA_DISPLAY_ZONES = [
     # (The game's id says NW for the Northeast Aero Plains: the name matched the
     # Southwest's zone, and the bot walked between the two toward the Frog Prince.)
     ("northeast aero plains", "Empyrea/EM_Z09_NWAeroplains"),
+    # (Bartleby's husk in Empyrea: 'Search For Bartleby in Husk' matched the
+    # World Tree room by his name and sent the bot to Wizard City.)
+    ("husk", "Empyrea/EM_Z16_Husk"),
     ("southwest aero plains", "Empyrea/EM_Z08_SWAeroplains"),
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss
