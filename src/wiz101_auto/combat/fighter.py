@@ -771,7 +771,11 @@ class Fighter(CombatHandler):
                 await self.pass_button()
                 return
 
-            if battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round and not team:
+            from .brain import SCRIPTED_FIGHTS
+
+            scripted = any(e.name.lower() in SCRIPTED_FIGHTS for e in battle.live_enemies)
+            if (battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round and not team
+                    and not scripted):
                 # Passing until we die (Shakes O'Leary healed back up) loses
                 # the fight anyway; fleeing keeps our health for the retry.
                 self._flee_tried_this_round = True

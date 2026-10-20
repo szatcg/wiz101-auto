@@ -20,8 +20,14 @@ def no_hit(action):
     return not (action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage)
 
 
-def test_the_bat_held_early():
-    assert no_hit(decide(fight("The Bat", 2, hp=500)))
+def test_the_bat_wants_shadow_creatures():
+    b = fight("The Bat", 2, hp=9200)
+    assert decide(b).kind is ActionKind.PASS
+    sc = Card(2, "Shadow Creature Big Bomb", pip_cost=2, school="shadow",
+              effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 900)])
+    b.cards.append(sc)
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card.name == "Shadow Creature Big Bomb"
 
 
 def test_immune_enemy_not_hit():
@@ -29,5 +35,5 @@ def test_immune_enemy_not_hit():
 
 
 def test_others_hit_as_usual():
-    a = decide(fight("The Bat", 6, hp=500))
+    a = decide(fight("Some Boss", 6, hp=500))
     assert a.kind is ActionKind.CAST and a.card.name == "Orthrus"

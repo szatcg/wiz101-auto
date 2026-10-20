@@ -173,6 +173,8 @@ HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
 FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
 FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its marker: a quest giver)
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
+# Objective words -> cards the deck needs for its scripted fight.
+QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 6}}
 PET_AFTER_PROGRESS = 90.0  # seconds after the objective changed before a pet trip
 SOLO_TRIES = 3  # tries alone while queued for a team (after the first empty wait)
 SOLO_TRY_SECONDS = 2700.0  # one try's window: the dungeon taken as a solo one meanwhile
@@ -11202,6 +11204,11 @@ class Quester:
                     ahead = self._boss_ahead_in_dungeon(here, bosses)
                     if ahead and bosses.get(ahead) == here:
                         boss, boss_now, extra = True, True, await self._boss_prisms(ahead)
+                # A scripted fight's cards ('Battle The Bat': Shadow Creature
+                # spells, none in the deck; the fight can't be won without).
+                for words, cards in QUEST_FIGHT_CARDS.items():
+                    if words in (obj or "").lower():
+                        extra = {**(extra or {}), **cards}
                 # With a team: only the boss deck right before the boss, never
                 # while a teammate fights (clicking the backpack kept us out
                 # of their fight).

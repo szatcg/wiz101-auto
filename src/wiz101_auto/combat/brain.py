@@ -2790,6 +2790,9 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     lesson = classroom_move(battle)
     if lesson is not None:
         return lesson
+    scripted = scripted_move(battle)
+    if scripted is not None:
+        return scripted
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
     battle = _immune_holds(battle)
     try:
@@ -3044,10 +3047,34 @@ def _universal_charm(c: Card) -> bool:
     return any(e.kind in (EffectKind.BLADE, EffectKind.TRAP) and not e.school for e in c.effects)
 
 
-# Enemies immune at first (the player's tip, Empyrea's Bat Bot: immune until
-# it turns into the Bat, about round 4 or 5; the damage it takes then stays):
-# no attacks on them before this round, set-up instead.
-HOLD_UNTIL_ROUND = {"the bat": 4}
+# Enemies immune at first: no attacks on them before this round, set-up
+# instead. (None now: the Bat, thought one, is a scripted fight, below.)
+HOLD_UNTIL_ROUND: dict[str, int] = {}
+
+# Scripted fights won by casting a kind of spell, not by damage: the enemy
+# always passes and surrenders after enough of them (Wizard101 Central,
+# 'Rebuilding the Bat': five Shadow Creature spells; the Bat took Orthrus for
+# 1 damage and the bot fled, out of attacks, five times).
+SCRIPTED_FIGHTS = {"the bat": "shadow creature"}
+
+
+def shadow_creature(card: Card) -> bool:
+    """A Shadow Creature spell (paid with a shadow pip; 'Shadow Creature Big
+    Bomb' by its template)."""
+    words = f"{card.name} {card.template_name}".lower()
+    return "shadow creature" in words or (card.is_damage and card.is_shadow)
+
+
+def scripted_move(battle: Battle) -> Action | None:
+    """The move in a SCRIPTED_FIGHTS fight: the spell it wants whenever it can
+    be cast, else pass (nothing else counts)."""
+    foe = next((e for e in battle.live_enemies if e.name.lower() in SCRIPTED_FIGHTS), None)
+    if foe is None:
+        return None
+    for c in battle.cards:
+        if c.castable and shadow_creature(c):
+            return Action(ActionKind.CAST, c, foe, reason=f"{foe.name} wants Shadow Creature spells")
+    return Action(ActionKind.PASS, reason=f"waiting for a Shadow Creature spell for {foe.name}")
 
 
 def _immune_holds(battle: Battle) -> Battle:
