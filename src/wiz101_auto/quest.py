@@ -2626,6 +2626,11 @@ class Quester:
         finally:
             self.controller.end_idle()
         moved = await self.client.zone_name() != zone
+        if moved:
+            # (It worked: the retry wait is for one that didn't. Back at the
+            # hub 50 s later for another trip, it went through the Pipeline
+            # Cave instead.)
+            self._gate_tried.pop(zone, None)
         if not moved:
             logger.warning(f"world teleporter here didn't take us toward {dest} (window saved)")
             await self._close_stream_list()
