@@ -485,7 +485,8 @@ def skipped_goal(objective: str, skipped: set[str], path: Path = Path("state") /
     except (OSError, ValueError, AttributeError):
         return False
     low = objective.lower()
-    return any(q.get("name") in skipped and len(q.get("goal") or "") > 3 and q["goal"].lower() in low
+    return any(q.get("name") in skipped and any(len(t or "") > 3 and t.lower() in low
+                                                for t in (q.get("goal"), q.get("target")))
                for q in quests)
 
 
@@ -1456,7 +1457,7 @@ def _write_quest_book(quests: list[QuestEntry], chosen: QuestEntry | None, world
             "tracking_area": chosen.world if chosen else "",
             "quests": [
                 {"name": q.name, "area": q.world, "world": q.zone, "main": q.mainline, "spell": q.activity,
-                 "goal": q.goal}
+                 "goal": q.goal, "target": q.target}
                 for q in quests
             ],
         }
