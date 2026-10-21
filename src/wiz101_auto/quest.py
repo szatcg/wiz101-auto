@@ -403,7 +403,7 @@ APPROACH_LIMITS = {"talk_marker": 2, "marker_x": 2, "walk": 2, "teleporter": 3, 
                    "use_walk": 2, "collect_marker": 3, "marker_travel": 2,
                    "spirit_portal": 2, "go_to_spot": 2, "known_door": 2, "find_marker": 8, "collect_sigil": 2,
                    "zone_first": 3, "fight_for_item": 2, "hub_button": 2, "locked_door_early": 8,
-                   "zone_boss": 4, "locked_door_late": 8, "door_key": 3, "door_key_use": 2}
+                   "zone_boss": 15, "locked_door_late": 8, "door_key": 3, "door_key_use": 2}
 BOSS_ON_CIRCLE = 500.0  # an enemy this near a duel circle's center stands on it (a boss)
 EXIT_LEARN_SECONDS = 5.0  # out of a dungeon this soon after a landing: that landing was its exit
 ALIAS_AFTER_FIGHT = 60.0  # a Defeat counter that moves this soon after a fight was moved by it
