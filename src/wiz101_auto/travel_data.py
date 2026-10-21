@@ -233,6 +233,10 @@ EXTRA_DISPLAY_ZONES = [
     # (The End of Days' finale room: 'Talk To Bartleby in Broken Bough' matched
     # the World Tree room by his name, and the bot looped at Ravenwood's gate.)
     ("broken bough", "Empyrea/Interiors/EM_Z16_I06_BrokenBough_B"),
+    # (Karamelle's mine tunnels: unknown by name, the bot searched Grizzleheim
+    # for the Cabal Soldier and set the story aside.)
+    ("mining tunnel a", "Karamelle/Interiors/KM_Z06_MiningTunnel_A"),
+    ("mining tunnel b", "Karamelle/Interiors/KM_Z06_MiningTunnel_B"),
     ("southwest aero plains", "Empyrea/EM_Z08_SWAeroplains"),
     ("fireglobe theatre", "WizardCity/WC_Streets/Interiors/WC_Firecat_Theatre"),  # off Firecat Alley
     ("akori's chamber", "Krokotopia/KT_Pyramid/Interiors/KT_PalaceOfFire_T4"),  # Palace of Fire boss

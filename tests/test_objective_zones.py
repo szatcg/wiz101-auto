@@ -112,3 +112,10 @@ def test_broken_bough_not_bartlebys_room():
     from wiz101_auto.travel_data import objective_zone
 
     assert objective_zone("Talk To Bartleby in Broken Bough", learned=[]).startswith("Empyrea/")
+
+
+def test_karamelle_mine_tunnels():
+    from wiz101_auto.travel_data import objective_zone
+
+    assert objective_zone("Defeat Cabal Soldier in Mining Tunnel B", learned=[]) == \
+        "Karamelle/Interiors/KM_Z06_MiningTunnel_B"
