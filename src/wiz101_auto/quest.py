@@ -7246,11 +7246,33 @@ class Quester:
             if distance(await self._position(), marker) > INTERACT_RANGE * 2:
                 return True  # (on the way; the next step goes on)
         tries[objective] = tries.get(objective, 0) + 1
+        await self._face_photo_subject(objective)
         logger.info(f"pressing {m.group(1).upper()} at the marker for {objective!r}")
         await self.client.send_key(key, 0.1)
         await asyncio.sleep(3.0)
         await self._keep_picture()
         return True
+
+    async def _face_photo_subject(self, objective: str) -> None:
+        """'Press Z to Photomance Waste Pipes': turn to the thing first, the
+        photo is taken the way the wizard faces (kept pictures of a wall in
+        the Pump Room never counted)."""
+        m = re.search(r"photomance\s+(.+?)(?:\s+in\s+.*)?$", objective or "", re.I)
+        if not m:
+            return
+        thing = m.group(1).strip().lower()
+        words = {thing, thing.replace(" ", ""), thing.replace(" ", "_"), thing.rstrip("s")}
+        spots = await self._entities_named_like(tuple(w for w in words if len(w) > 3))
+        if not spots:
+            logger.info(f"Photomancy: no {thing!r} in view to face")
+            return
+        from .smoothwalk import yaw_to
+
+        pos = await self._position()
+        target = min(spots, key=lambda q: distance(pos, q))
+        logger.info(f"Photomancy: facing {thing!r} at ({target.x:.0f}, {target.y:.0f})")
+        await self.client.body.write_yaw(yaw_to(pos, target))
+        await asyncio.sleep(0.5)
 
     async def _keep_picture(self) -> bool:
         """Photomancy's photo, Trash Picture / Keep Picture: Keep. Left open,
