@@ -10866,6 +10866,11 @@ class Quester:
                 logger.info(f"no quest marker for {objective!r}; heading to {target_zone} by known doors")
                 if await self.go_to_zone(target_zone) or await self.client.zone_name() != zone:
                     return True
+                # The way out locked by this room's boss (the Pipeline Cave's
+                # Cinnamon Troll, on the way to the Mines: the bot walked at
+                # the locked exit for minutes): the boss first.
+                if await self._in_dungeon(zone) and await self._fight_zone_boss(objective, zone):
+                    return True
             if not routable and (other_world or "interiors" not in zone.lower()):
                 logger.warning(f"no route from {zone} to {target_zone}; setting this quest aside")
                 return await self._set_current_aside(objective)
