@@ -568,6 +568,14 @@ def given_zone(objective: str, path: Path | None = None) -> str | None:
         return None
 
 
+def queue_moved_on(queue: dict, area: str) -> bool:
+    """The Team Up queue's quest now shows `area` in the book, and that area
+    isn't the queued dungeon ("Pipeline Cave" vs KM_Z03_I02_PipelineCave)."""
+    place = re.sub(r"[^a-z]", "", (area or "").lower())
+    dungeon = re.sub(r"[^a-z]", "", (queue or {}).get("dungeon", "").split("/")[-1].lower())
+    return bool(place and dungeon) and place not in dungeon
+
+
 @dataclass
 class QuestEntry:
     slot: int
@@ -3870,6 +3878,32 @@ class Quester:
                 return name
         return ""
 
+    def _drop_moved_queue(self, quests) -> None:
+        """The queued quest's step is no longer in the queued dungeon (the
+        Cinnamon Troll got beaten: 'The Proofing is in the Pudding' went on to
+        Nibbleheim, and the Pipeline Cave queue kept it set aside with the bot
+        on side quests): the queue goes and the quest comes back."""
+        from .teamup import clear_queue, load_queue
+
+        q = load_queue()
+        entry = next((e for e in quests if e.name == q.get("quest")), None) if q else None
+        if not queue_moved_on(q, entry.world if entry is not None else ""):
+            return
+        # Only to an outdoor zone it's known by (a dungeon's rooms go by other
+        # names than its sigil's zone: Castle Darkmoor's).
+        from .travel_data import _data, named_zone
+
+        there = named_zone(f"Go To {entry.world}", _data()[1]) or ""
+        if not there or "interiors" in there.lower():
+            return
+        clear_queue()
+        if self.setbacks.deferred.pop(entry.name, None) is not None:
+            self.setbacks.save()
+        logger.info(f"team up: {entry.name!r} is now in {entry.world}, past "
+                    f"{q.get('dungeon', '').split('/')[-1]}: dropping its queue")
+        self._ranked_for = None
+        self._last_rank = -1e9
+
     def queue_lapsed(self):
         """The game no longer has us in the Team Up queue: the main quest comes
         back now (to its sigil, Team Up again) instead of waiting out its 15
@@ -6182,6 +6216,7 @@ class Quester:
                 self._gap_vehicle = chosen.name
         self._last_quests = [q for _, q in all_quests]
         _write_quest_book([q for _, q in all_quests], chosen, world)
+        self._drop_moved_queue([q for _, q in all_quests])
         self._chosen_entry = chosen
         best = next(((p, q) for p, q in all_quests if q is chosen), None)
         # A spell quest that left the book was completed: it usually taught a spell.
