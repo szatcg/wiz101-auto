@@ -3902,6 +3902,12 @@ class Quester:
         there = named_zone(f"Go To {entry.world}", _data()[1]) or ""
         if not there or "interiors" in there.lower():
             return
+        # The zone outside the dungeon is the dungeon's area in the book ('Defeat
+        # Copy Qhat in Gutenstadt' is in the Cupcake Factory: the queue was
+        # dropped and taken again every minute).
+        door = DungeonMemory.load().dungeons.get(q.get("dungeon", ""))
+        if door is None or door.outside == there:
+            return
         clear_queue()
         if self.setbacks.deferred.pop(entry.name, None) is not None:
             self.setbacks.save()
