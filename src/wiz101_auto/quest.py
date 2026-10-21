@@ -7188,6 +7188,8 @@ class Quester:
         """'Press Z to Photomance Cavity in Gummy Plant' (Karamelle): at the
         quest marker, the key the objective names. True if it pressed it (a
         few tries per objective, the marker reached first)."""
+        if await self._keep_picture():
+            return True
         m = re.match(r"^\s*press\s+([a-z0-9])\s+to\s+", objective or "", re.I)
         if not m:
             return False
@@ -7206,6 +7208,21 @@ class Quester:
         logger.info(f"pressing {m.group(1).upper()} at the marker for {objective!r}")
         await self.client.send_key(key, 0.1)
         await asyncio.sleep(3.0)
+        await self._keep_picture()
+        return True
+
+    async def _keep_picture(self) -> bool:
+        """Photomancy's photo, Trash Picture / Keep Picture: Keep. Left open,
+        the wizard can't move (the Pump Room's Waste Pipes: read as frozen,
+        relogged, the photo still up). True if it clicked."""
+        from .relog import _find_button
+
+        button = await _find_button(self.client.root_window, ("keep picture",))
+        if button is None:
+            return False
+        logger.info("Photomancy: keeping the picture")
+        await ui.click_center(self.client, button)
+        await asyncio.sleep(2.0)
         return True
 
     async def _play_as_pet(self, objective: str) -> bool:
@@ -11851,6 +11868,8 @@ class Quester:
             await self.client.send_key(Keycode.Z, 0.1)
             await asyncio.sleep(0.3)
             await self.client.send_key(Keycode.Z, 0.1)
+            await asyncio.sleep(2.0)
+            await self._keep_picture()
 
         if distance(target, XYZ(0, 0, 0)) < 1 and is_combat_objective(objective):
             # No marker, a boss whose dungeon we know with its sigil right here
