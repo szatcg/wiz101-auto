@@ -10927,12 +10927,16 @@ class Quester:
                 # the locked exit for minutes): the boss first.
                 if await self._in_dungeon(zone) and await self._fight_zone_boss(objective, zone):
                     return True
-                # Nobody left on its circles: back out the way in, then the
-                # world teleporter toward the target (Nibbleheim for the Mines).
-                way_in = next((e[2] for e in self.doors.doors.get(zone, []) if len(e) > 2 and e[2]), None)
-                if way_in and await self._in_dungeon(zone):
-                    logger.info(f"a locked way on with no one left to beat: out to {way_in} for another way")
-                    if await self.go_to_zone(way_in, 1):
+                # Nobody left on its circles: out by the hub button (walking
+                # out failed: the cave's way in is an X exit, Marshfellows by
+                # it), then the world teleporter toward the target (Nibbleheim
+                # for the Mines).
+                if await self._in_dungeon(zone):
+                    from .dungeon_heal import go_to_hub
+
+                    logger.info("a locked way on with no one left to beat: out by the hub for another way")
+                    if await go_to_hub(self.client):
+                        await wait_for_loading(self.client)
                         await self._stream_shortcut(target_zone)
                         return True
             if not routable and (other_world or "interiors" not in zone.lower()):
