@@ -2326,8 +2326,27 @@ class Quester:
         world = dest.split("/")[0]
         if not zone or zone == dest or zone.split("/")[0] != world:
             return ""
-        return next((s for s in load_stops(world).values()
-                     if s != zone and (s == dest or len(self.doors.route(s, dest)) == 1)), "")
+        # A stop whose known doors reach `dest` without a dungeon on the way
+        # (the Candy Corn Farm: the doors from the hub ran through the
+        # Pipeline Cave and its fights), when it beats the way from here.
+        dungeons = set(DungeonMemory.load().dungeons)
+
+        def through_dungeon(route) -> bool:
+            return any(hop[3] in dungeons for hop in route[:-1])
+
+        best, best_len = "", 0
+        for stop in load_stops(world).values():
+            if stop == zone:
+                continue
+            if stop == dest:
+                return stop
+            route = self.doors.route(stop, dest)
+            if route and not through_dungeon(route) and (not best or len(route) < best_len):
+                best, best_len = stop, len(route)
+        here = self.doors.route(zone, dest)
+        if best and (not here or through_dungeon(here) or len(here) > best_len + 1):
+            return best
+        return ""
 
     async def _stream_shortcut(self, dest: str) -> bool:
         """The world teleporter to a stop one known door from `dest` when the
@@ -2339,12 +2358,12 @@ class Quester:
         if not stop:
             return False
         walk = zone_hops(zone, dest)
-        if (walk is not None and walk < 2) or len(self.doors.route(zone, dest)) == 1:
+        if walk is not None and walk < 2:
             return False
         if is_team_up_zone(zone) or await self._in_dungeon(zone) or not await is_free(self.client):
             return False
         logger.info(f"to {dest.split('/')[-1]}: the world teleporter to {stop.split('/')[-1]}, "
-                    f"a door from it, instead of {walk if walk is not None else 'unknown'} gate(s)")
+                    f"then known doors, instead of {walk if walk is not None else 'unknown'} gate(s)")
         if not await self._world_teleport_gate(zone, stop):
             return False
         await wait_for_loading(self.client)
