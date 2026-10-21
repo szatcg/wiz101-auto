@@ -2190,6 +2190,7 @@ class Quester:
             logger.info(f"not walking into {dest} alone (team-only dungeon)")
             return False
         await self._hub_shortcut(dest)
+        await self._stream_shortcut(dest)
         for _ in range(max_hops):
             zone = await self.client.zone_name()
             if zone == dest:
@@ -2306,6 +2307,34 @@ class Quester:
                     + (f" {walk} zone(s)" if walk is not None else ""))
         self._teleported = True  # (not a walk-through gate: don't learn it)
         return await go_to_hub(self.client)
+
+    async def _stream_shortcut(self, dest: str) -> bool:
+        """The world teleporter to a stop one known door from `dest` when the
+        gates go the long way (the Mines: Nibbleheim is a stop, but the gates
+        led through the Pipeline Cave, whose locked exit kept the bot circling
+        for an hour). Not out of a dungeon. True if it moved."""
+        from .streamportal import load_stops
+
+        zone = await self.client.zone_name() or ""
+        world = dest.split("/")[0]
+        if not zone or zone == dest or zone.split("/")[0] != world:
+            return False
+        stops = [s for s in load_stops(world).values()
+                 if s != zone and (s == dest or len(self.doors.route(s, dest)) == 1)]
+        if not stops:
+            return False
+        walk = zone_hops(zone, dest)
+        if (walk is not None and walk < 2) or len(self.doors.route(zone, dest)) == 1:
+            return False
+        if is_team_up_zone(zone) or await self._in_dungeon(zone) or not await is_free(self.client):
+            return False
+        stop = stops[0]
+        logger.info(f"to {dest.split('/')[-1]}: the world teleporter to {stop.split('/')[-1]}, "
+                    f"a door from it, instead of {walk if walk is not None else 'unknown'} gate(s)")
+        if not await self._world_teleport_gate(zone, stop):
+            return False
+        await wait_for_loading(self.client)
+        return await self.client.zone_name() != zone
 
     async def _hub_shortcut(self, dest: str) -> bool:
         """The hub button first when the walk from the hub is shorter than
@@ -7055,7 +7084,12 @@ class Quester:
                 c, near = here, on
                 break
         if c is None:
-            turn = self.__dict__.get("_zone_boss_turn", 0) % len(circles)
+            turn = self.__dict__.get("_zone_boss_turn", 0)
+            if turn >= len(circles):
+                # Every circle seen empty: its fights are done (the Pipeline
+                # Cave, the Troll beaten, an hour going round the circles).
+                self._zone_boss_turn = 0
+                return False
             self._zone_boss_turn = turn + 1
             c = XYZ(*circles[turn])
             logger.info(f"a locked way on: to this zone's duel circle {turn + 1} of {len(circles)}, "
@@ -10893,6 +10927,14 @@ class Quester:
                 # the locked exit for minutes): the boss first.
                 if await self._in_dungeon(zone) and await self._fight_zone_boss(objective, zone):
                     return True
+                # Nobody left on its circles: back out the way in, then the
+                # world teleporter toward the target (Nibbleheim for the Mines).
+                way_in = next((e[2] for e in self.doors.doors.get(zone, []) if len(e) > 2 and e[2]), None)
+                if way_in and await self._in_dungeon(zone):
+                    logger.info(f"a locked way on with no one left to beat: out to {way_in} for another way")
+                    if await self.go_to_zone(way_in, 1):
+                        await self._stream_shortcut(target_zone)
+                        return True
             if not routable and (other_world or "interiors" not in zone.lower()):
                 logger.warning(f"no route from {zone} to {target_zone}; setting this quest aside")
                 return await self._set_current_aside(objective)
