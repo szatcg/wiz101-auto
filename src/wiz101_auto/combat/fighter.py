@@ -848,7 +848,13 @@ class Fighter(CombatHandler):
                 continue
             _note_unknown_cards(battle)
             self.last_team_alive = any(not a.is_minion and not a.is_dead for a in battle.allies)
-            hand = ", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
+            if any(not a.is_minion for a in battle.allies):
+                # (A teammate in this fight: the run is on, a defeat now
+                # RESUMEs back into it.)
+                from ..teamup import note_mate_seen
+
+                note_mate_seen()
+            hand =", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
             logger.debug(f"hand: {hand}; deck left: {len(battle.upcoming)}")
             plan = plan_fight(battle, self.strategy).text
             if plan != self._last_plan:

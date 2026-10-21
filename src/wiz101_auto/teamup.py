@@ -880,6 +880,18 @@ def in_team_run(zone: str) -> bool:
     return zone in zones and time.time() - run.get("at", 0) < TEAM_RUN_HOURS * 3600
 
 
+MATE_RECENT = 300.0  # a teammate seen this recently: the team's run is still on (RESUME rejoins it)
+
+
+def mate_seen_lately(now: float | None = None) -> bool:
+    """A teammate was seen in the team run within MATE_RECENT seconds."""
+    try:
+        run = json.loads(TEAM_RUN_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return (time.time() if now is None else now) - run.get("mate_at", 0) <= MATE_RECENT
+
+
 def note_mate_seen() -> None:
     """A teammate seen in the team run's dungeon just now."""
     try:
@@ -923,6 +935,12 @@ async def _resume_after_defeat(quester, zone: str, dungeon: str = "") -> bool:
     if not in_team_run(quester.controller.last_death[1]):
         # A solo loss (no team ever came): RESUME put us back in our own copy
         # of the Keep of Ganelon alone, where team mode never starts a fight.
+        return False
+    if not mate_seen_lately():
+        # The team left a while ago (the Candy Corn Silo: gone at 16:31, and
+        # RESUME took the bot back in alone to the two Toasted Brudels, four
+        # defeats in a row): no rejoining an empty run.
+        logger.info("team up: no teammate seen lately; not resuming the old run")
         return False
     quester.controller.last_death = None  # one try per defeat
     if not await _click(client, ("resume",), "sigil"):
