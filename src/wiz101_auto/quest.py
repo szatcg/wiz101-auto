@@ -477,6 +477,18 @@ ENEMY_SWEEP_SPACING = 2500.0  # enemies load within roughly this range
 
 
 
+def skipped_goal(objective: str, skipped: set[str], path: Path = Path("state") / "quest_book.json") -> bool:
+    """`objective` is the current step of a skipped quest (its goal, as the
+    last full book read showed it, is in it)."""
+    try:
+        quests = json.loads(path.read_text(encoding="utf-8")).get("quests", [])
+    except (OSError, ValueError, AttributeError):
+        return False
+    low = objective.lower()
+    return any(q.get("name") in skipped and len(q.get("goal") or "") > 3 and q["goal"].lower() in low
+               for q in quests)
+
+
 def objective_person(objective: str) -> str:
     """The person a Talk/Follow/Meet objective names ('Follow Josiah into Town
     in Port Aero' -> 'Josiah'), or ''."""
@@ -11454,6 +11466,12 @@ class Quester:
         on_set_aside = objective in set_aside_objectives and bool(
             self.setbacks.set_aside(await self.client.stats.reference_level())
         )
+        if not on_set_aside and objective and skipped_goal(objective, self.setbacks.skipped):
+            # (A skipped quest the game tracked again by itself after another
+            # was done: 'Trade Voyage' and its Vidar Silverthread at the world
+            # gate, looped for ten minutes.)
+            logger.info(f"{objective!r} is a skipped quest's: ranking the quest book again")
+            on_set_aside = True
         # The game tracked another quest by itself (after 'Foe of Foes' was
         # handed in it tracked the side quest 'Grizzleheim', and the bot went
         # for the Spiral Map 80 s after the last ranking): rank again at once.

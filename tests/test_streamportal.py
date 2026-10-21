@@ -99,3 +99,14 @@ def test_npc_menu_quest_before_shop():
 
     labels = ["Treasure Card Shop", "Better Recognize"]
     assert rank_options(labels, "Talk To Librarian Fitzhume")[0] == 1
+
+
+def test_skipped_goal(tmp_path):
+    import json
+
+    from wiz101_auto.quest import skipped_goal
+
+    p = tmp_path / "book.json"
+    p.write_text(json.dumps({"quests": [{"name": "Trade Voyage", "goal": "Vidar Silverthread"}]}))
+    assert skipped_goal("Talk To Vidar Silverthread in Northguard", {"Trade Voyage"}, p)
+    assert not skipped_goal("Talk To Vidar Silverthread in Northguard", set(), p)
