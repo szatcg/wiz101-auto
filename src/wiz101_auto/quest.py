@@ -2364,6 +2364,23 @@ class Quester:
             return False
         logger.info(f"to {dest.split('/')[-1]}: the world teleporter to {stop.split('/')[-1]}, "
                     f"then known doors, instead of {walk if walk is not None else 'unknown'} gate(s)")
+        hub_for = self.__dict__.setdefault("_hub_for_stream", {})
+        if not await self._entities_named_like(("teleportgate",)):
+            if time.monotonic() - hub_for.get(dest, -1e9) < 600:
+                return False  # (tried lately: no hub trips back and forth)
+            hub_for[dest] = time.monotonic()
+            # None here and no known way to one (the Gumdrop Forest: its doors
+            # only lead into the Pipeline Cave): the hub button, the world's
+            # teleporter is by the hub's spawn.
+            from .dungeon_heal import go_to_hub
+
+            logger.info("no world teleporter here: the hub button to the hub's")
+            if not await go_to_hub(self.client):
+                return False
+            await wait_for_loading(self.client)
+            zone = await self.client.zone_name() or ""
+            if zone == dest:
+                return True
         if not await self._world_teleport_gate(zone, stop):
             return False
         await wait_for_loading(self.client)
