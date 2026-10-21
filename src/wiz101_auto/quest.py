@@ -175,6 +175,7 @@ FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its mar
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 # Objective words -> cards the deck needs for its scripted fight.
 QUEST_FIGHT_CARDS = {"battle the bat": {"Shadow Creature Big Bomb": 4, "Shadow Self Nova": 4}}
+PET_MODE_SPAN = 15 * 60  # seconds a Pet Mode switch is taken to last (no frozen-wizard Home meanwhile)
 PET_MODE_TRIES = 4  # tries of Pet Mode's button per objective
 PET_MODE_RETRY = 45.0  # seconds between them
 FAR_COPY = 30000.0  # an NPC copy further than this from us is a bad read, not a place
@@ -7196,6 +7197,12 @@ class Quester:
         await ui.click_center(self.client, play)
         await asyncio.sleep(3.0)
         logger.info(f"Pet Mode: playing as the pet for {objective!r}")
+        # A pet can't teleport: walking only here while it lasts (refused
+        # teleports read as "frozen" and the home button took the pet out of
+        # the Mines, the Witches' Trail left behind).
+        if here and here not in getattr(self.client, "_walk_only", ()):
+            self.client._walk_only = (*getattr(self.client, "_walk_only", ()), here)
+        self.client._pet_mode_until = time.monotonic() + PET_MODE_SPAN
         return True
 
     async def _try_switch_puzzle(self, objective: str, zone: str) -> bool:

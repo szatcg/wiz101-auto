@@ -511,6 +511,8 @@ async def unstick(client, frozen: bool = False) -> bool:
     try:
         if not await is_free(client):
             return False  # fighting, a dialogue or a cutscene: standing still is normal
+        if time.monotonic() < getattr(client, "_pet_mode_until", 0.0):
+            return False  # (playing as the pet: teleports refused; no Home, no relog)
         if await can_move(client):
             return False
         me = _pt(await client.body.position())
@@ -594,6 +596,8 @@ async def _home_out(client) -> bool:
     zone = await client.zone_name() or ""
     if is_team_up_zone(zone) or in_team_run(zone):
         return False
+    if time.monotonic() < getattr(client, "_pet_mode_until", 0.0):
+        return False  # (playing as the pet: teleports refused, it walks)
     logger.warning("wizard frozen: pressing the home button to get out")
     await go_home(client)
     now = await client.zone_name() or ""
