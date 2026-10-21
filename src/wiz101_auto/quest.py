@@ -7036,17 +7036,30 @@ class Quester:
         circles = (self.entity_map.zones.get(zone, {}) or {}).get("Duel Circle") or []
         if not circles or not self._may_try(objective, zone, "zone_boss"):
             return False
-        c = XYZ(*circles[0])
-        near = []
+        mobs = []
         for mob in await self.client.get_mobs():
             try:
-                pos = await mob.location()
+                mobs.append(await mob.location())
             except Exception:
                 continue
-            if math.dist((pos.x, pos.y), (c.x, c.y)) < ZONE_BOSS_RANGE:
-                near.append(pos)
-        if not near:
-            logger.info("a locked way on: to this zone's duel circle, where its boss stands")
+        # The circle with enemies on it, whichever (the Pipeline Cave: the
+        # Marshfellow's and the Whatchamagolem's before the Cinnamon Troll
+        # shows on his; only the first circle was ever looked at, empty, and
+        # the bot stood at the locked exit for an hour). None in view: the
+        # circles in turn, to see them.
+        c, near = None, []
+        for spot in circles:
+            here = XYZ(*spot)
+            on = [p for p in mobs if math.dist((p.x, p.y), (here.x, here.y)) < ZONE_BOSS_RANGE]
+            if on:
+                c, near = here, on
+                break
+        if c is None:
+            turn = self.__dict__.get("_zone_boss_turn", 0) % len(circles)
+            self._zone_boss_turn = turn + 1
+            c = XYZ(*circles[turn])
+            logger.info(f"a locked way on: to this zone's duel circle {turn + 1} of {len(circles)}, "
+                        "for whoever stands there")
             await self.client.teleport(XYZ(c.x + 900, c.y, c.z))  # (lands clear of enemies)
             await asyncio.sleep(1.5)
             return True
