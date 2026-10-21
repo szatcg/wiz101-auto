@@ -172,8 +172,16 @@ class DungeonHealer:
             mark = True
         # (A mark outside, on the entrance sigil, would bring us back to the
         # start of the dungeon: mark this spot inside instead.)
-        if self.q._recall_pending:
+        if self.q._recall_pending and not (m and m.zone != here and m.zone in DungeonMemory.load().dungeons
+                                           and here not in DungeonMemory.load().dungeons):
             mark = False  # after a defeat: the mark waits for its Recall
+        elif self.q._recall_pending:
+            # (The pending mark is in a dungeon we've since walked out of: the
+            # Pipeline Cave's, the bot in the Mines past it. The Recall back
+            # from the heal found the cave reset and it walked through it
+            # again: here is marked instead.)
+            self.q._recall_pending = False
+            mark = True
         # The dungeon's own wisps first (another of its rooms): faster, and
         # the dungeon isn't left (the player's rule).
         from .upkeep import needed_wisps, wisp_memory
