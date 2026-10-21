@@ -7146,6 +7146,12 @@ class Quester:
         """'Use Pet Mode to Find Key' (Karamelle): the pet button by the health
         globe, then Play As Pet; the wizard walks as the pet and the hidden
         thing shows. Once per objective. True if it switched."""
+        # (Only there: switched on in the Gumdrop Forest for the Witches'
+        # Trail in the Mines, the pet wandered to the hub and back.)
+        place = objective_zone(objective)
+        here = await self.client.zone_name() or ""
+        if place and here and place != here:
+            return False
         tries = self.__dict__.setdefault("_pet_mode_for", {})
         n, last = tries.get(objective, (0, -1e9))
         if n >= PET_MODE_TRIES or time.monotonic() - last < PET_MODE_RETRY:
