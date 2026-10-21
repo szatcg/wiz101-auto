@@ -118,3 +118,11 @@ def test_named_stop_beats_a_learned_one_that_only_reaches():
     got = choose_stop(["Karamelle City", "Sweetzburg", "Candy Corn Farm"], "Karamelle/KM_Z09_CandyCornFarm",
                       "Karamelle/KM_Z00_HUB", learned, lambda z, d: True, ["Candy Corn Farm"])
     assert got == "Candy Corn Farm"
+
+
+def test_named_stop_by_a_door_zone_label():
+    learned = {"Sweetzburg": "Karamelle/KM_Z04_Sweetzburg"}
+    got = choose_stop(["Sweetzburg", "Black Licorice Forest"], "Karamelle/Interiors/KM_Z08_WitchsTreehouse",
+                      "Karamelle/KM_Z00_HUB", learned, lambda z, d: True,
+                      ["witchstreehouse", "licoriceforest"])
+    assert got == "Black Licorice Forest"

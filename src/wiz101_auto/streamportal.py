@@ -74,12 +74,14 @@ def choose_stop(
     for o, z in by_zone:
         if z == dest:
             return o
-    # A stop named for the place, not learned yet, before a learned one whose
-    # doors merely reach it (toward the Candy Corn Farm: Sweetzburg, the way
-    # through the Pipeline Cave, over the list's own 'Candy Corn Farm').
+    # A stop named for the place (or a zone whose doors lead to it), not
+    # learned yet, before a learned one whose doors merely reach it (toward
+    # the Candy Corn Farm: Sweetzburg, the way through the Pipeline Cave,
+    # over the list's own 'Candy Corn Farm'; toward the Witch's Treehouse,
+    # 'Black Licorice Forest' for 'licoriceforest').
     for hint in hints:
         for o in pool:
-            if o not in learned and norm(o) and norm(o) == norm(hint):
+            if o not in learned and name_fits(o, hint):
                 return o
     for o, z in by_zone:
         if reaches(z, dest):
