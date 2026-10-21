@@ -7171,6 +7171,8 @@ class Quester:
         here = await self.client.zone_name() or ""
         if place and here and place != here:
             return False
+        if time.monotonic() < getattr(self.client, "_pet_mode_until", 0.0):
+            return False  # (already the pet: another Play As Pet click turned it off)
         tries = self.__dict__.setdefault("_pet_mode_for", {})
         n, last = tries.get(objective, (0, -1e9))
         if n >= PET_MODE_TRIES or time.monotonic() - last < PET_MODE_RETRY:
