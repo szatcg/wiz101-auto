@@ -1302,6 +1302,9 @@ async def clear_popups(client):
     await _close_dungeon_exit(client)
 
 
+INFO_BOX_WORDS = ("no available quests",)  # OK-only notices closed by the popup sweep
+
+
 async def _close_dungeon_exit(client):
     """A relog started in a dungeon left "If you leave a Dungeon you will lose
     all your progress... Yes / No" over the game's settings page (Ghost
@@ -1319,6 +1322,16 @@ async def _close_dungeon_exit(client):
                 logger.info("closing the \"leave the dungeon?\" box: No")
                 await ui.click_center(client, no)
                 await asyncio.sleep(0.5)
+            elif no is None and any(w in text for w in INFO_BOX_WORDS):
+                # An OK-only notice ("Quest Finder: There are no available
+                # quests in this world."): left up, it sat over the settings
+                # page and the Spiral Map and every click missed for 15 min.
+                ok = (await ui.find_named(box, {"rightButton"})).get("rightButton")
+                ok = ok or await _find_button(box, ("ok",))
+                if ok is not None:
+                    logger.info(f"closing a notice: {text[:60]!r}")
+                    await ui.click_center(client, ok)
+                    await asyncio.sleep(0.5)
         if page is not None and await page.is_visible():
             ok = await _find_button(page, ("ok",))
             if ok is not None:
