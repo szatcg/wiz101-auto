@@ -111,3 +111,10 @@ def test_skipped_goal(tmp_path):
     p.write_text(json.dumps({"quests": [quest]}))
     assert skipped_goal("Talk To Vidar Silverthread in Northguard", {"Trade Voyage"}, p)
     assert not skipped_goal("Talk To Vidar Silverthread in Northguard", set(), p)
+
+
+def test_named_stop_beats_a_learned_one_that_only_reaches():
+    learned = {"Sweetzburg": "Karamelle/KM_Z04_Sweetzburg"}
+    got = choose_stop(["Karamelle City", "Sweetzburg", "Candy Corn Farm"], "Karamelle/KM_Z09_CandyCornFarm",
+                      "Karamelle/KM_Z00_HUB", learned, lambda z, d: True, ["Candy Corn Farm"])
+    assert got == "Candy Corn Farm"
