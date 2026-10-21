@@ -2316,27 +2316,33 @@ class Quester:
         self._teleported = True  # (not a walk-through gate: don't learn it)
         return await go_to_hub(self.client)
 
+    def _stream_stop_for(self, zone: str, dest: str) -> str:
+        """A learned world-teleporter stop at `dest` or one known door from it,
+        in `zone`'s world ('' if none): Nibbleheim, which the quest marker
+        reached only through the Pipeline Cave's sigil (a team dungeon: the
+        bot queued for it again and again for a Hazmat Hamster in Nibbleheim)."""
+        from .streamportal import load_stops
+
+        world = dest.split("/")[0]
+        if not zone or zone == dest or zone.split("/")[0] != world:
+            return ""
+        return next((s for s in load_stops(world).values()
+                     if s != zone and (s == dest or len(self.doors.route(s, dest)) == 1)), "")
+
     async def _stream_shortcut(self, dest: str) -> bool:
         """The world teleporter to a stop one known door from `dest` when the
         gates go the long way (the Mines: Nibbleheim is a stop, but the gates
         led through the Pipeline Cave, whose locked exit kept the bot circling
         for an hour). Not out of a dungeon. True if it moved."""
-        from .streamportal import load_stops
-
         zone = await self.client.zone_name() or ""
-        world = dest.split("/")[0]
-        if not zone or zone == dest or zone.split("/")[0] != world:
-            return False
-        stops = [s for s in load_stops(world).values()
-                 if s != zone and (s == dest or len(self.doors.route(s, dest)) == 1)]
-        if not stops:
+        stop = self._stream_stop_for(zone, dest)
+        if not stop:
             return False
         walk = zone_hops(zone, dest)
         if (walk is not None and walk < 2) or len(self.doors.route(zone, dest)) == 1:
             return False
         if is_team_up_zone(zone) or await self._in_dungeon(zone) or not await is_free(self.client):
             return False
-        stop = stops[0]
         logger.info(f"to {dest.split('/')[-1]}: the world teleporter to {stop.split('/')[-1]}, "
                     f"a door from it, instead of {walk if walk is not None else 'unknown'} gate(s)")
         if not await self._world_teleport_gate(zone, stop):
@@ -11787,7 +11793,8 @@ class Quester:
         # of the Armory, Blackwater's room, toward the castle's sigils.)
         if (place and zone and place != zone and "/interiors/" not in zone.lower()
                 and not await self._in_dungeon(zone) and not is_team_up_zone(zone)
-                and (gate_toward(zone, place, self._bad_gates) or self.doors.route(zone, place))
+                and (gate_toward(zone, place, self._bad_gates) or self.doors.route(zone, place)
+                     or self._stream_stop_for(zone, place))
                 and self._may_try(objective, zone, "zone_first")):
             logger.info(f"{objective!r} is in {place.split('/')[-1]}: there by its gates first")
             await self.go_to_zone(place)
