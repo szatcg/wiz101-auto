@@ -2361,6 +2361,11 @@ class Quester:
             # through it alone, after the Galleries were put on the team list
             # for two defeats, and lost again.)
             logger.info(f"not going through into {hops[0][3].split('/')[-1]} alone (team-only dungeon)")
+            # To its sigil for the Team Up (or a try alone) instead: refused
+            # and nothing more, the bot stood in the Gumdrop Forest for the
+            # Pipeline Cave, the way to the Mines, with no queue.
+            if await self._to_team_sigil(hops[0][3]):
+                return await self.client.zone_name() == dest
             return False
         if hops:
             _z, door, spot, nxt = hops[0]
