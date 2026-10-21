@@ -11860,7 +11860,10 @@ class Quester:
         # (Nor from a team dungeon's rooms: 'Defeat Sir Blackwater in Castle
         # Darkmoor' read as the hub zone of that name, and the bot walked out
         # of the Armory, Blackwater's room, toward the castle's sigils.)
-        if (place and zone and place != zone and "/interiors/" not in zone.lower()
+        # (Pet Mode steps out of a room though: 'Find Rosina's House in Black
+        # Licorice Forest' sat in the Witch's Treehouse, the house outside.)
+        out_of_room = "/interiors/" not in zone.lower() or "pet mode" in objective.lower() if zone else False
+        if (place and zone and place != zone and out_of_room
                 and not await self._in_dungeon(zone) and not is_team_up_zone(zone)
                 and (gate_toward(zone, place, self._bad_gates) or self.doors.route(zone, place)
                      or self._stream_stop_for(zone, place))
