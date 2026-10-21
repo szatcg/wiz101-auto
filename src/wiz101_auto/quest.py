@@ -11224,6 +11224,13 @@ class Quester:
         # needs no fight (the talk after beating Willie Marks), and heal only
         # when the next step is a fight.
         heal_now = not in_dungeon or await self._fight_ahead(await self.objective())
+        if heal_now and time.monotonic() < getattr(self.client, "_pet_mode_until", 0.0) and self.upkeep:
+            # (Playing as the pet on a trail: no fight ahead, and a heal trip
+            # out of the Mines for mana after a fled fight left the trail
+            # behind the Pipeline Cave again.)
+            hp, _mana = await health_mana(self.client)
+            if hp >= self.upkeep.min_health_to_fight:
+                heal_now = False
         if heal_now and in_dungeon and self.upkeep:
             hp, mana = await health_mana(self.client)
             if hp >= self.upkeep.min_health_to_fight and mana >= DUNGEON_MANA_TRIP:
