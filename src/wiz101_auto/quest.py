@@ -4722,11 +4722,14 @@ class Quester:
             return False
         from .teamup import in_team_list
 
-        if (self._mark.kind == "dungeon" and self._dungeon and in_team_list(self._dungeon[0])
-                and not team_back):
+        # (By its first room: [0] is the zone outside, never on the list, and
+        # the dungeon-return button took the bot back to the Jellymancer alone
+        # after every loss.)
+        if (self._mark.kind == "dungeon" and self._dungeon
+                and (in_team_list(self._dungeon[1]) or in_team_list(self._dungeon[0])) and not team_back):
             # A team-only dungeon now (Ahuizotl's Well): no going back in alone
             # (the dungeon-return button took us into Clemente Moraga's cave).
-            logger.info(f"not going back into {self._dungeon[0].split('/')[-1]} alone (a team dungeon)")
+            logger.info(f"not going back into {self._dungeon[1].split('/')[-1]} alone (a team dungeon)")
             self._recall_pending = False
             self._retire_dungeon_mark()
             return False
