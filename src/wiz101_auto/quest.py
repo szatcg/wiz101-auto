@@ -2360,7 +2360,11 @@ class Quester:
         walk = zone_hops(zone, dest)
         if walk is not None and walk < 2:
             return False
-        if is_team_up_zone(zone) or await self._in_dungeon(zone) or not await is_free(self.client):
+        # (By the dungeon list, not the "in a dungeon" flag: X at a hub sigil
+        # that took nobody in left the flag set at the Karamelle hub, and the
+        # walk went through the Pipeline Cave.)
+        if (is_team_up_zone(zone) or zone in DungeonMemory.load().dungeons
+                or not await is_free(self.client)):
             return False
         logger.info(f"to {dest.split('/')[-1]}: the world teleporter to {stop.split('/')[-1]}, "
                     f"then known doors, instead of {walk if walk is not None else 'unknown'} gate(s)")
