@@ -365,7 +365,9 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
 
 
 # Bosses whose minions go first (the player: Rasputin's, Horizon Hold).
-MINIONS_FIRST = ("rasputin", "the rat", "medulla")  # (Medulla: Beans heals and strips, Pork Detonates)
+# (Medulla: Beans heals and strips, Pork Detonates; the Aberrant Paradox
+# respawns and heals if hit before his minions are all down.)
+MINIONS_FIRST = ("rasputin", "the rat", "medulla", "aberrant paradox")
 MINIONS_FIRST_BONUS = 2000.0
 
 
@@ -2796,6 +2798,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
     battle = _immune_holds(battle)
     battle = _death_drains(battle)
+    battle = _quake_holds(battle)
     try:
         card_rules(battle)
     except SearchTimeout:
@@ -2806,6 +2809,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     # Last word for a must-hit boss: later rules (boss set-up's "keeping pips
     # for Orthrus") turned the hit back into a pass, and Belloq's Ra came.
     action = _keep_hitting(battle, action) or action
+    action = _no_saving(battle, action) or action
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
         weakest = min(copies, key=card_strength)
@@ -3000,6 +3004,9 @@ BOSS_BANS = {
     # answers a second Feint by moving every negative effect on him onto the
     # caster (his "Fool me once?"), and steals traps onto us: no traps on him,
     # blades instead (they were banned before, from an older list).
+    # Karamelle (the player's list, 2026-10-22): the Bundozer punishes blades
+    # and auras (feints instead).
+    "the bundozer": _blade,
     "rasputin": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
     "the rat": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
     # Darkmoor (the player's cheat list, 2026-10-14):
@@ -3154,6 +3161,42 @@ def _death_drains(battle: Battle) -> Battle:
         return low and (c.is_aoe or not others)
 
     return replace(battle, cards=[replace(c, castable=False) if held(c) else c for c in battle.cards])
+
+
+# The Quake Charmer Earthquakes at the end of rounds 1 and 5 (the player's
+# list): blades, traps and shields set up in those rounds are wiped.
+QUAKE_ROUNDS = {"the quake charmer": (1, 5)}
+
+
+def _quake_holds(battle: Battle) -> Battle:
+    names = [e.name.lower() for e in battle.live_enemies]
+    rounds = next((r for n in names for k, r in QUAKE_ROUNDS.items() if k in n), ())
+    if battle.round not in rounds:
+        return battle
+    def wiped(c: Card) -> bool:
+        return not c.is_damage and bool({EffectKind.BLADE, EffectKind.TRAP, EffectKind.SHIELD} & set(c.kinds))
+    return replace(battle, cards=[replace(c, castable=False) if wiped(c) else c for c in battle.cards])
+
+
+# Pips that can't be saved (the player's list): the Treemugger's aura resets
+# them every round, the Jamburglar's Impede gives a few that never come back.
+# A pass "saving pips" there is a lost round: the biggest castable hit instead.
+NO_PIP_SAVING = ("treemugger", "jamburglar")
+
+
+def _no_saving(battle: Battle, action: Action) -> Action | None:
+    if action.kind is not ActionKind.PASS or "saving" not in (action.reason or ""):
+        return None
+    if not any(k in e.name.lower() for e in battle.live_enemies for k in NO_PIP_SAVING):
+        return None
+    focus = min(battle.live_enemies, key=lambda e: e.health)
+    hits = [c for c in _castable(battle.cards) if c.is_damage and not c.is_heal]
+    if not hits:
+        return None
+    many = len(battle.live_enemies)
+    best = max(hits, key=lambda c: hit_damage(c, battle.me, focus) * (many if c.is_aoe else 1))
+    return Action(ActionKind.CAST, best, None if best.is_aoe else focus,
+                  reason=f"no saving pips here (they don't carry over): {best.name}")
 
 
 def _boss_bans(battle: Battle) -> Battle:
