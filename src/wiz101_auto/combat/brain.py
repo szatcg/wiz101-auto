@@ -2795,6 +2795,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
         return scripted
     battle = replace(battle, cards=strongest_copies_first(battle.cards))
     battle = _immune_holds(battle)
+    battle = _death_drains(battle)
     try:
         card_rules(battle)
     except SearchTimeout:
@@ -3120,6 +3121,39 @@ def _immune_holds(battle: Battle) -> Battle:
     if not held or any(e.name not in held for e in battle.live_enemies):
         return battle
     return replace(battle, cards=[replace(c, castable=False) if c.is_damage else c for c in battle.cards])
+
+
+# Enemies whose death drains our health (the player's notes, Castle Gobbsmack
+# Throne Room: each of the first four Oogie Boogies cheat-casts "Boogie
+# Revenge" for 26% of every wizard's max health as it dies, through shields
+# and wards; one hit-all killing all four takes 104%). Their respawns (other
+# names) don't.
+DEATH_DRAIN = {"oogie boogie": 0.26}
+DRAIN_MARGIN = 0.12  # health kept above a death's drain before a kill
+
+
+def _death_drains(battle: Battle) -> Battle:
+    """Against DEATH_DRAIN enemies: no hit-all spell while two or more are up
+    (it could kill several at once), and no hits at all while our health is
+    within a drain (+ margin) of zero and only drain enemies are left: a heal
+    first. Only the hand's cards."""
+    def drain(e) -> float:
+        return next((v for k, v in DEATH_DRAIN.items() if k in e.name.lower()), 0.0)
+
+    drains = [d for d in map(drain, battle.live_enemies) if d]
+    if not drains:
+        return battle
+    low = battle.me.health_ratio <= max(drains) + DRAIN_MARGIN
+    others = any(not drain(e) for e in battle.live_enemies)
+
+    def held(c: Card) -> bool:
+        if not c.is_damage:
+            return False
+        if c.is_aoe and len(drains) >= 2:
+            return True
+        return low and (c.is_aoe or not others)
+
+    return replace(battle, cards=[replace(c, castable=False) if held(c) else c for c in battle.cards])
 
 
 def _boss_bans(battle: Battle) -> Battle:
