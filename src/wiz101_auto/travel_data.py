@@ -233,6 +233,9 @@ EXTRA_DISPLAY_ZONES = [
     # (The End of Days' finale room: 'Talk To Bartleby in Broken Bough' matched
     # the World Tree room by his name, and the bot looped at Ravenwood's gate.)
     ("broken bough", "Empyrea/Interiors/EM_Z16_I06_BrokenBough_B"),
+    # (King Gobbsmack's throne room: read as MooShu's Emperor Palace, the bot
+    # took the hub button back and forth.)
+    ("castle gobbsmack throne room", "Karamelle/Interiors/KM_Z10_ThroneRoom_B"),
     # (Karamelle's mine tunnels: unknown by name, the bot searched Grizzleheim
     # for the Cabal Soldier and set the story aside.)
     ("mining tunnel a", "Karamelle/Interiors/KM_Z06_MiningTunnel_A"),
