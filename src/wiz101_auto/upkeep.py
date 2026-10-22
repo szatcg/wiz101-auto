@@ -113,6 +113,7 @@ async def decline_chat_invite(client) -> bool:
 
 CONNECTION_LOST = "connection lost"
 UNREACHABLE = "unable to connect"
+MAINTENANCE = "brought down for maintenance"
 
 
 def is_connection_lost(text: str) -> bool:
@@ -124,7 +125,10 @@ def is_unreachable(text: str) -> bool:
     """The box after a failed RECONNECT: "Unable to connect to server", QUIT
     only (04:00: the bot sat behind it, 'battle hasn't progressed', until
     stopped by hand). Only a game restart gets past it."""
-    return UNREACHABLE in (text or "").lower()
+    low = (text or "").lower()
+    # (Or the servers down for maintenance, QUIT only: 03:03, mid-fight in
+    # the Crab Realm, the bot waited behind it for 40 minutes.)
+    return UNREACHABLE in low or MAINTENANCE in low
 
 
 async def server_unreachable(client) -> bool:
