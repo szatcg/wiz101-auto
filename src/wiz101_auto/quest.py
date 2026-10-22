@@ -10560,7 +10560,13 @@ class Quester:
         fight was last won outdoors in the main world. True if it acted."""
         if self._grinding and await self._detour_ask():
             return True  # (the detour's or the main story's next quest first: never grinding for it)
-        waiting = {d.get("objective") for d in self.setbacks.deferred.values()}
+        if VISIT_FILE.exists():
+            # A talk owed first (the second talk after a turn-in): 'Hit the
+            # Gym' handed in to Rosina in her lab, and grinding took the bot
+            # Home to Celestia before it; the lab, past the Gym's boss, was
+            # out of reach after.
+            return False
+        waiting ={d.get("objective") for d in self.setbacks.deferred.values()}
         place = objective_zone(objective or "")
         world = self._grind_world()
         elsewhere = bool(place and world and place.split("/", 1)[0] != world)
