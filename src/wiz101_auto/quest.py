@@ -198,6 +198,7 @@ VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's 
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 DUNGEON_LOW = 0.3  # below this in a dungeon: a potion or a rest before any step (a talk can start a fight)
+DUNGEON_REST_SECONDS = 120.0  # ... a rest there this long at most (health hardly comes back)
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
@@ -11560,10 +11561,17 @@ class Quester:
                     logger.info(f"drinking a potion (hp {hp:.0%}) before the dungeon's next step")
                     await ui.click(self.client, ui.POTION_BUTTON)
                     await asyncio.sleep(1.5)
-                else:
+                    return
+                # No potion: a short rest (health hardly comes back in a
+                # dungeon: 10 minutes at 18% in Production Junction), then on.
+                since = self.__dict__.setdefault("_low_rest_since", {}).setdefault(zone_now, time.monotonic())
+                if time.monotonic() - since < DUNGEON_REST_SECONDS:
                     logger.info(f"resting here at {hp:.0%} before the dungeon's next step")
                     await recover(self.client, self.upkeep, self.controller)
-                return
+                    await asyncio.sleep(5.0)
+                    return
+            else:
+                self.__dict__.get("_low_rest_since", {}).pop(zone_now, None)
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
         if (heal_now and in_dungeon and self.upkeep and self.upkeep.use_potions
