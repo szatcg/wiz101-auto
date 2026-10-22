@@ -193,6 +193,13 @@ def story_world(completed: list[str] | None = None, lists: dict | None = None) -
     return found
 
 
+def world_of_quest(name: str, lists: dict | None = None) -> str:
+    """The world whose quest list has `name` ("" if none or several)."""
+    lists = load_world_lists() if lists is None else lists
+    found = {w for w, qs in lists.items() if any(_same_quest(q.name, name) for q in qs)} if name else set()
+    return found.pop() if len(found) == 1 else ""
+
+
 def world_of_zone(zone: str) -> str:
     """"Krokotopia/KT_Hub" -> "Krokotopia" ("" if unknown)."""
     parts = (zone or "").split("/")

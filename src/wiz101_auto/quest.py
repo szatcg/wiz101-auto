@@ -6121,7 +6121,15 @@ class Quester:
         # No story quest held: the last story quest's world (Polaris, after
         # 'Darling Clementine'), not wherever the bot happens to stand.
         last_zone = _load_last_main()[1]
-        last_zone = last_zone if "/" in last_zone else _load_last_main(2)
+        if "/" not in last_zone:
+            # (Not where a fight was last won: 'swept' in place of a zone after
+            # 'Hit the Gym', and grinding wins in Celestia made Celestia the
+            # story's world: hours of old side quests there. The last story
+            # quest's world by the quest lists: Karamelle.)
+            from .questlist import world_of_quest
+
+            told = world_of_quest(_load_last_main()[0])
+            last_zone = f"{told}/" if told else _load_last_main(2)
         last_world = last_zone.split("/", 1)[0] if "/" in last_zone else None
         world = main_world or last_world or self._main_world or (here.split("/", 1)[0] if here else None)
         det_now = self._detour_names()
