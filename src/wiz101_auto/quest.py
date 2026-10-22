@@ -2626,7 +2626,16 @@ class Quester:
             await asyncio.sleep(1.0)
         await self.client.teleport(gates[0])
         await asyncio.sleep(1.5)
-        if not await ui.is_visible(self.client, ui.NPC_RANGE):
+
+        async def portal_prompt() -> bool:
+            # A prompt, and not a dungeon's "Press X to Enter" beside the
+            # portal (the Karamelle hub: Production Junction's door, and the
+            # bot went in alone to the Jellymancer).
+            if not await ui.is_visible(self.client, ui.NPC_RANGE):
+                return False
+            return "enter" not in (await ui.text_at(self.client, ui.NPC_RANGE_TEXT) or "").lower()
+
+        if not await portal_prompt():
             # No prompt on the portal's own point (Aeriel's, toward the Chaos
             # Jungle: "no list" twice and the visit to Ranna dropped): spots
             # around it, as for any X gate.
@@ -2637,12 +2646,12 @@ class Quester:
                     near = XYZ(g.x + radius * math.cos(a), g.y + radius * math.sin(a), g.z)
                     await self.client.teleport(near)
                     await asyncio.sleep(0.8)
-                    if await ui.is_visible(self.client, ui.NPC_RANGE):
+                    if await portal_prompt():
                         break
                 else:
                     continue
                 break
-        if await ui.is_visible(self.client, ui.NPC_RANGE):
+        if await portal_prompt():
             await self.client.send_key(Keycode.X, 0.1)
         else:
             logger.info("no prompt at the world teleporter, nor around it")
