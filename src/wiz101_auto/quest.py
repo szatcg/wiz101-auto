@@ -568,6 +568,17 @@ def given_zone(objective: str, path: Path | None = None) -> str | None:
         return None
 
 
+def talk_in_dungeon(objective: str, dungeon: str) -> bool:
+    """The talk is in that dungeon itself (Tymen WhiteFlame in his), not
+    elsewhere: 'Talk To Grace Conrad in Survey Camp' took the bot alone into
+    the Gobblerton Gym, and Rosina's Lab is only past the Gym's boss, whom a
+    fresh copy of the Gym has again."""
+    from .teamup import _dungeon_base
+
+    place = objective_zone(objective or "")
+    return place is None or _dungeon_base(place) == _dungeon_base(dungeon or "")
+
+
 def queue_moved_on(queue: dict, area: str) -> bool:
     """The Team Up queue's quest now shows `area` in the book, and that area
     isn't the queued dungeon ("Pipeline Cave" vs KM_Z03_I02_PipelineCave)."""
@@ -3145,7 +3156,7 @@ class Quester:
         solo_try = time.monotonic() < self.__dict__.setdefault("_solo_try", {}).get(dungeon or "", 0.0)
         if solo_try:
             pass  # (an alone try after no team came: below, as any dungeon)
-        elif (is_team_dungeon(dungeon or "") and solo_step
+        elif (is_team_dungeon(dungeon or "") and solo_step and talk_in_dungeon(objective_now, dungeon or "")
                 and (dungeon or "") not in TEAM_UP_DUNGEONS and _dungeon_base(dungeon or "") in beaten):
             # (Only once a team beat its boss: 'Go To Eclipse Tower' is no
             # fight by name, and the bot walked alone into Ravik Dreamscape.
@@ -6135,13 +6146,26 @@ class Quester:
         hunted_out = time.monotonic() - getattr(self, "_hunt_exhausted", -1e9) < HUNT_EXHAUSTED_SECONDS
         chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
                               FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=hunted_out)
-        if chosen is None and not hunted_out:
+        finder = next((q for _, q in all_quests if q.name == QUEST_FINDER and q.name not in set_aside), None)
+        # Stuck: the latest world's side quests, Quest Finder for more there,
+        # before older worlds' (the player: "Celestia side quests are so old;
+        # side quests in its latest world, the quest finder to find quests if
+        # it has none in that world"). Quest Finder points at givers near the
+        # wizard: out of the story's world, back there first (grinding there).
+        main_w = zone_world(world)
+        here_w = zone_world(await self.client.zone_name() or "")
+        goal = finder.goal if finder is not None else ""
+        finder_place = zone_world(objective_zone(goal) or "") if goal else None
+        finder_here = finder is not None and (not main_w or finder_place in (None, main_w))
+        away = bool(main_w and here_w and here_w != main_w)
+        if chosen is None and not hunted_out and not finder_here and not away:
             # Any side quest in the book, earlier worlds included, beats
             # fighting for experience (the player: "grinding is very
             # inefficient; the previous world's side quests instead").
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
                                   FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=True)
-        finder = next((q for _, q in all_quests if q.name == QUEST_FINDER and q.name not in set_aside), None)
+        if not finder_here:
+            finder = None
         if finder is not None and not (chosen and (chosen.mainline or chosen.activity)):
             # Quest Finder's marker points at someone with a quest for us, the
             # story's next one maybe (the player: after 'Gemstone Secrets' no
@@ -10540,11 +10564,11 @@ class Quester:
         """Where to fight for experience: the highest-level world we've been
         to (the player: Celestia's enemies give far more than Grizzleheim's,
         where 50 fights moved the bar 8%), else the main world."""
-        from .teamup import load_queue
-
-        if load_queue() and self._main_world:
-            # Queued for a team: stay in the story's world, near its sigil
-            # (it set off for Celestia while waiting for the Pendragon's team).
+        if self._main_world:
+            # The story's world (its enemies are the strongest ones yet; the
+            # player: "Celestia side quests are so old"). Queued for a team,
+            # near its sigil too (it set off for Celestia while waiting for
+            # the Pendragon's team).
             return self._main_world
         known = set(self.__dict__.get("_win_zones", {}))
         for w in GRIND_WORLDS:
