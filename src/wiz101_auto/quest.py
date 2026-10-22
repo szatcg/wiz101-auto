@@ -7385,6 +7385,34 @@ class Quester:
         self.client._pet_mode_until = time.monotonic() + PET_MODE_SPAN
         return True
 
+    async def _leave_pet_mode(self) -> bool:
+        """Still the pet after its step (Rosina's House found, then 'Talk To
+        Maulwurf von Trap': no talk prompt for a pet, ten minutes round him):
+        Play As Pet again turns it off. True if it clicked."""
+        if time.monotonic() >= getattr(self.client, "_pet_mode_until", 0.0):
+            return False
+        self.client._pet_mode_until = 0.0
+        here = await self.client.zone_name() or ""
+        self.client._walk_only = tuple(z for z in getattr(self.client, "_walk_only", ()) if z != here)
+        names = {"PlayAsPetButton", "PetSystemButton"}
+        menu = await ui.find_named(self.client.root_window, names, max_depth=8)
+        play = menu.get("PlayAsPetButton")
+        if play is None or not await ui.window_visible(play):
+            btn = menu.get("PetSystemButton")
+            if btn is None:
+                return False
+            await ui.click_center(self.client, btn)
+            await asyncio.sleep(1.5)
+            play = (await ui.find_named(self.client.root_window, {"PlayAsPetButton"}, max_depth=8)).get(
+                "PlayAsPetButton")
+        if play is None:
+            logger.warning("Pet Mode: no Play As Pet button to turn it off")
+            return False
+        logger.info("Pet Mode: the step is done; back to the wizard")
+        await ui.click_center(self.client, play)
+        await asyncio.sleep(2.0)
+        return True
+
     async def _try_switch_puzzle(self, objective: str, zone: str) -> bool:
         """'Use X' where X should be but isn't (a chest that appears when the
         room's switches are right): try every switch combination, once per
@@ -11877,6 +11905,8 @@ class Quester:
             return
 
         if "pet mode" in objective.lower() and await self._play_as_pet(objective):
+            return
+        if "pet mode" not in objective.lower() and await self._leave_pet_mode():
             return
         if await self._press_named_key(objective):
             return
