@@ -197,6 +197,7 @@ TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this
 VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
+DUNGEON_LOW = 0.3  # below this in a dungeon: a potion or a rest before any step (a talk can start a fight)
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
 HUNT_EXHAUSTED_SECONDS = 3600.0  # after the NPC hunt ran dry: other worlds' side quests for this long
@@ -11549,6 +11550,19 @@ class Quester:
             # and the way out left); a surprise fight drinks one in battle.
             hp, mana = await health_mana(self.client)
             if hp < DUNGEON_TOP_UP and await heal_in_room(self.client, self.upkeep):
+                return
+            if hp < DUNGEON_LOW:
+                # Nearly dead and no wisps: a potion, else rest on the spot,
+                # never a step (the talk to King Gobbsmack starts his fight:
+                # back in the throne room at 5% after a defeat, it talked and
+                # lost in two rounds).
+                if self.upkeep.use_potions and await self.client.stats.potion_charge() >= 1.0:
+                    logger.info(f"drinking a potion (hp {hp:.0%}) before the dungeon's next step")
+                    await ui.click(self.client, ui.POTION_BUTTON)
+                    await asyncio.sleep(1.5)
+                else:
+                    logger.info(f"resting here at {hp:.0%} before the dungeon's next step")
+                    await recover(self.client, self.upkeep, self.controller)
                 return
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
