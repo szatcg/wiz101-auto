@@ -1018,6 +1018,13 @@ def _team_state_recent(zone: str) -> bool:
 def in_same_area(zone: str, first_room: str) -> bool:
     """A zone under the same area as a dungeon's first room (one of its rooms)."""
     area = first_room.rsplit("/", 1)[0]
+    if area.lower().endswith("/interiors"):
+        # (A world's flat Interiors folder isn't one dungeon: Production
+        # Junction counted as a room of the Cinnamon Troll Cave, and the bot
+        # stayed in it alone after the dungeon-return button took it there.)
+        from .teamup import _dungeon_base
+
+        return _dungeon_base(zone) == _dungeon_base(first_room)
     return zone.startswith(area + "/") and area.count("/") >= 1
 
 
