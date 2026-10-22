@@ -3133,8 +3133,8 @@ DRAIN_MARGIN = 0.12  # health kept above a death's drain before a kill
 
 
 def _death_drains(battle: Battle) -> Battle:
-    """Against DEATH_DRAIN enemies: no hit-all spell while two or more are up
-    (it could kill several at once), and no hits at all while our health is
+    """Against DEATH_DRAIN enemies: no hit-all spell while one is up (the
+    player: none in this fight; one could kill several at once), and no hits at all while our health is
     within a drain (+ margin) of zero and only drain enemies are left: a heal
     first. Only the hand's cards."""
     def drain(e) -> float:
@@ -3149,8 +3149,8 @@ def _death_drains(battle: Battle) -> Battle:
     def held(c: Card) -> bool:
         if not c.is_damage:
             return False
-        if c.is_aoe and len(drains) >= 2:
-            return True
+        if c.is_aoe:
+            return True  # (the player: no hit-all spells at all in this fight)
         return low and (c.is_aoe or not others)
 
     return replace(battle, cards=[replace(c, castable=False) if held(c) else c for c in battle.cards])

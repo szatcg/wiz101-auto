@@ -32,3 +32,7 @@ def test_no_kill_when_a_drain_would_finish_us():
 def test_respawn_hit_when_low():
     a = decide(fight(["Oogie Boogie", "Elite Ice Minion"], hp=1500))
     assert cast(a) in (None, "Orthrus")
+
+
+def test_no_aoe_on_the_last_oogie_boogie_either():
+    assert cast(decide(fight(["Oogie Boogie", "Elite Ice Minion"]))) != "Humongofrog"

@@ -30,11 +30,14 @@ TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus",
                     # Rosina's Lab, the next story quest's giver, is past its
                     # boss (the player: "it needs to team up"); alone it lost
                     # to the Boogie-Bogey Man five times.
-                    "Karamelle/Interiors/KM_Z10_Gym"}
+                    "Karamelle/Interiors/KM_Z10_Gym",
+                    # King Gobbsmack's Oogie Boogies (the player: "we will
+                    # need to use team up for this"; four losses alone).
+                    "Karamelle/Interiors/KM_Z10_ThroneRoom_B"}
 # Every zone of those dungeons (their rooms are separate interiors).
 TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_", "WizardCity/Gauntlets/WC_Triton_Gauntlet1/",
                     "G14_DM/",  # Darkmoor's rooms (the player: with a team, walking)
-                    "Karamelle/Interiors/KM_Z10_Gym")
+                    "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B")
 # Zones under those prefixes that aren't dungeon rooms: Castle Darkmoor's hub
 # (its sigils; the Mark there is how the bot gets back to Darkmoor).
 TEAM_UP_HUBS = {"G14_DM/DM_Z01_CastleDarkmoor"}
@@ -346,7 +349,7 @@ def _room_no(zone: str) -> int:
 # player, 2026-10-19: "we need a team for Sir Blackwater"; the sigil's players
 # put the bot in its own copy of Castle Darkmoor, alone at Howling Chaney
 # again): only a Team Up team goes in.
-NO_SOLO_PREFIXES = ("G14_DM/", "Karamelle/Interiors/KM_Z10_Gym")
+NO_SOLO_PREFIXES = ("G14_DM/", "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B")
 
 
 def no_solo(dungeon: str) -> bool:
