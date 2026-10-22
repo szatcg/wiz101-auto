@@ -2198,7 +2198,11 @@ class Quester:
             logger.info(f"not walking into {dest} alone (team-only dungeon)")
             return False
         await self._hub_shortcut(dest)
-        await self._stream_shortcut(dest)
+        if not await self._stream_shortcut(dest) and await self._dungeon_in_the_way(dest):
+            # (The teleporter didn't take once at the Karamelle hub, and the
+            # walk to Gobblerton went through the Pipeline Cave's fights: the
+            # next step tries the teleporter again instead.)
+            return False
         for _ in range(max_hops):
             zone = await self.client.zone_name()
             if zone == dest:
@@ -2347,6 +2351,15 @@ class Quester:
         if best and (not here or through_dungeon(here) or len(here) > best_len + 1):
             return best
         return ""
+
+    async def _dungeon_in_the_way(self, dest: str) -> bool:
+        """The known doors from here to `dest` run through a dungeon while a
+        world-teleporter stop gives a way round it."""
+        zone = await self.client.zone_name() or ""
+        if not self._stream_stop_for(zone, dest) or zone in DungeonMemory.load().dungeons:
+            return False
+        dungeons = set(DungeonMemory.load().dungeons)
+        return any(hop[3] in dungeons for hop in self.doors.route(zone, dest)[:-1])
 
     async def _stream_shortcut(self, dest: str) -> bool:
         """The world teleporter to a stop one known door from `dest` when the
