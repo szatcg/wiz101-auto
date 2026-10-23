@@ -92,8 +92,12 @@ def matches_item(item: str, *names: str) -> bool:
         return False
     for name in names:
         n = _norm(name)
-        if not n or any(s.replace(" ", "") in n for s in _SKIP):
+        if not n or (any(s.replace(" ", "") in n for s in _SKIP) and "wispdandruff" not in n):
             continue
+        # (Lemuria's 'Wisp Specks' are the LM_WispDandruff_Blue/Red objects:
+        # 'wisp' skips the health and mana wisps, not these.)
+        if "wispdandruff" in n and _norm(item).startswith("wispspeck"):
+            return True
         # (The plural as written too: 'Berries' became 'berry', not in the
         # game's own 'Berries': none ever matched in Vigrid Roughland.)
         if target in n or (len(_norm(item)) >= 3 and _norm(item) in n):
