@@ -97,6 +97,16 @@ class PotionShopper:
             await self.q._recall(self.q._mark.zone)
         return ok
 
+    async def _dump(self, stage: str) -> None:
+        try:
+            lines = await ui.dump_tree(self.client.root_window, max_depth=8)
+            from pathlib import Path
+
+            Path("state").mkdir(exist_ok=True)
+            Path("state", f"potion_shop_{stage}.txt").write_text(chr(10).join(lines), encoding="utf-8")
+        except Exception as exc:
+            logger.debug(f"potion shop dump failed: {exc}")
+
     async def buy(self) -> bool:
         root = self.client.root_window
         for _ in range(SHOP_TRIES):
@@ -112,8 +122,15 @@ class PotionShopper:
             return False
         await _click(self.client, "fillallpotions")
         await asyncio.sleep(0.3)
+        await self._dump("before_buy")
         await _click(self.client, "buyAction")
         await asyncio.sleep(0.5)
+        box = await ui.modal_box(self.client)
+        if box is not None:
+            # (What the game says: "not enough gold", "are you sure"...: the
+            # trips bought nothing for hours and the log only said "no gold?".)
+            logger.info(f"potions: the shop says {(await ui.modal_text(box))!r}")
+        await self._dump("after_buy")
         await ui.confirm_modal(self.client)
         for _ in range(10):
             if not await _visible(root, "fillallpotions"):
