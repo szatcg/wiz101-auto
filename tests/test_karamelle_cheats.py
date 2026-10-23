@@ -31,3 +31,21 @@ def test_quake_charmer_no_blade_in_round_1():
 def test_bundozer_no_blade():
     a = decide(fight("The Bundozer", rnd=3))
     assert not (a.card is not None and a.card.name == "Mythblade")
+
+
+def feint():
+    return Card(5, "Feint", pip_cost=1, school="myth",
+                effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)])
+
+
+def test_snow_queen_no_feint():
+    b = fight("Snow Queen", rnd=2)
+    b.cards.append(feint())
+    a = decide(b)
+    assert not (a.card is not None and a.card.name == "Feint")
+
+
+def test_snow_queen_round_one_hit():
+    b = fight("Snow Queen", rnd=1, pips=2)
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card is not None and a.card.is_damage

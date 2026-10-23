@@ -2809,6 +2809,7 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     # Last word for a must-hit boss: later rules (boss set-up's "keeping pips
     # for Orthrus") turned the hit back into a pass, and Belloq's Ra came.
     action = _keep_hitting(battle, action) or action
+    action = _round_one_hit(battle, action) or action
     action = _no_saving(battle, action) or action
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
@@ -3007,6 +3008,14 @@ BOSS_BANS = {
     # Karamelle (the player's list, 2026-10-22): the Bundozer punishes blades
     # and auras (feints instead).
     "the bundozer": _blade,
+    # Lemuria (the player's list, 2026-10-22): the Snow Queen answers every
+    # Feint but a Balance one with a Shadow Cleanse Ward on herself, twice;
+    # Duck Savage removes damage-over-time spells; Solomon Crane alters
+    # shields and traps.
+    "snow queen": lambda c: ("feint" in f"{c.name} {c.template_name}".lower()
+                             and c.school.lower() != "balance"),
+    "duck savage": lambda c: EffectKind.DOT in c.kinds and EffectKind.DAMAGE not in c.kinds,
+    "solomon crane": lambda c: not c.is_damage and (_shield(c) or EffectKind.TRAP in c.kinds),
     "rasputin": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
     "the rat": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
     # Darkmoor (the player's cheat list, 2026-10-14):
@@ -3384,6 +3393,26 @@ def _blade_enchant(battle: Battle) -> Action | None:
 # in which nobody hit him. His minions triage damage-over-time off him, so no
 # DoTs at him while they live.
 HIT_EVERY_ROUND = {"belloq"}
+
+
+# The Snow Queen summons an Awful Snowman at the start of round 1: a hit on her
+# in round 1, before the minions come in, cancels it (the player's list).
+HIT_ROUND_ONE = ("snow queen",)
+
+
+def _round_one_hit(battle: Battle, action: Action) -> Action | None:
+    boss = next((e for e in battle.live_enemies if e.name.lower() in HIT_ROUND_ONE), None)
+    if boss is None or battle.round != 1 or len(battle.live_enemies) > 1:
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage:
+        return None
+    hits = [c for c in _castable(battle.cards)
+            if c.is_damage and not c.is_heal and c.target is Target.ENEMY_SINGLE]
+    if not hits:
+        return None
+    best = min(hits, key=lambda c: (c.pip_cost, -hit_damage(c, battle.me, boss)))
+    return Action(ActionKind.CAST, best, boss,
+                  reason=f"a hit on {boss.name} in round 1 cancels her Snowman: {best.name}")
 
 
 def _keep_hitting(battle: Battle, action: Action) -> Action | None:
