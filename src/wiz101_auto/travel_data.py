@@ -236,6 +236,9 @@ EXTRA_DISPLAY_ZONES = [
     # (King Gobbsmack's throne room: read as MooShu's Emperor Palace, the bot
     # took the hub button back and forth.)
     ("castle gobbsmack throne room", "Karamelle/Interiors/KM_Z10_ThroneRoom_B"),
+    # (Lemuria's Ursai Village Monitoring Station, past the Volcano's boss: read
+    # as Ursai Village itself, and the bot went round the Volcano's sigil.)
+    ("ursai village monitoring station", "Lemuria/Interiors/LM_Z02_UrsaiMonitoringStation"),
     # (Karamelle's mine tunnels: unknown by name, the bot searched Grizzleheim
     # for the Cabal Soldier and set the story aside.)
     ("mining tunnel a", "Karamelle/Interiors/KM_Z06_MiningTunnel_A"),
