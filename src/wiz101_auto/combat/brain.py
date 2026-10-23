@@ -2799,6 +2799,10 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     battle = _immune_holds(battle)
     battle = _death_drains(battle)
     battle = _quake_holds(battle)
+    # (The bans first, for every rule below: the Shadow Self Nova rule took
+    # the Malughast's Feint card for a Nova on a shadow pip and cast it on
+    # him, against the ban, in the late rules that saw the unbanned hand.)
+    battle = _boss_bans(battle)
     try:
         card_rules(battle)
     except SearchTimeout:

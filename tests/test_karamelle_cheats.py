@@ -64,3 +64,12 @@ def test_malughast_no_malughasts_feint_either():
                         effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)]))
     a = decide(b)
     assert not (a.card is not None and a.card.name == "Malughast's Feint")
+
+
+def test_malughast_feint_not_cast_as_a_nova_on_a_shadow_pip():
+    b = fight("The Malughast", rnd=7, pips=3)
+    b.shadow_pips = 1
+    b.cards.append(Card(7, "Malughast's Feint", pip_cost=1, school="shadow",
+                        effects=[Effect(EffectKind.TRAP, Target.ENEMY_ALL, 70)]))
+    a = decide(b)
+    assert not (a.card is not None and a.card.name == "Malughast's Feint")
