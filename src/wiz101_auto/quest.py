@@ -2473,7 +2473,17 @@ class Quester:
                 logger.info(f"heading to {dest}: known doors from {start_zone.split('/')[-1]}; "
                             "going there first")
                 return await self.go_to_zone(start_zone, max_hops - 1) and True
+        beaten_in = False
         if hops and is_team_up_zone(hops[0][3]) and not is_team_up_zone(zone):
+            # (A team already beat the dungeon's boss and the step left isn't a
+            # fight: 'Explore the Monitoring Station' is a room of the Volcano,
+            # and the bot queued and waited for a second team for it.)
+            from .teamup import _dungeon_base, beaten_bases
+
+            objective_now = await self.objective() or ""
+            beaten_in = (_dungeon_base(hops[0][3]) in beaten_bases() and bool(objective_now)
+                         and not is_combat_objective(objective_now))
+        if hops and is_team_up_zone(hops[0][3]) and not is_team_up_zone(zone) and not beaten_in:
             # (The Galleries' sigil was learned as a door: 'Shadow Palace' went
             # through it alone, after the Galleries were put on the team list
             # for two defeats, and lost again.)
@@ -3171,10 +3181,13 @@ class Quester:
         # (Or a lever: 'Activate Cage Release Lever' after Captain Zubkov and
         # Commandant Lassard were beaten queued for a team at the Mayor's House.)
         solo_step = talk_target(objective_now) or objective_now.lower().startswith("activate ")
+        explore_beaten = (objective_now.lower().startswith("explore ")
+                          and _dungeon_base(dungeon or "") in beaten)
         solo_try = time.monotonic() < self.__dict__.setdefault("_solo_try", {}).get(dungeon or "", 0.0)
         if solo_try:
             pass  # (an alone try after no team came: below, as any dungeon)
-        elif (is_team_dungeon(dungeon or "") and solo_step and talk_in_dungeon(objective_now, dungeon or "")
+        elif (is_team_dungeon(dungeon or "") and (solo_step or explore_beaten)
+                and (explore_beaten or talk_in_dungeon(objective_now, dungeon or ""))
                 and (dungeon or "") not in TEAM_UP_DUNGEONS and _dungeon_base(dungeon or "") in beaten):
             # (Only once a team beat its boss: 'Go To Eclipse Tower' is no
             # fight by name, and the bot walked alone into Ravik Dreamscape.
