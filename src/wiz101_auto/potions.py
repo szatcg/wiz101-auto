@@ -97,6 +97,35 @@ class PotionShopper:
             await self.q._recall(self.q._mark.zone)
         return ok
 
+    async def _shop_numbers(self) -> tuple[int, int | None]:
+        """(the selected purchase's cost, the gold held) as the shop shows them."""
+        async def number(name: str) -> int | None:
+            digits = "".join(ch for ch in (await ui.named_text(self.client, name) or "") if ch.isdigit())
+            return int(digits) if digits else None
+
+        return (await number("costNumber") or 0), await number("totalCoins")
+
+    async def _buy_one_by_one(self, root) -> bool:
+        bought = 0
+        for _ in range(12):
+            await _click(self.client, "fillonepotion")
+            await asyncio.sleep(0.4)
+            cost, coins = await self._shop_numbers()
+            if not cost or coins is None or cost > coins:
+                break
+            await _click(self.client, "buyAction")
+            await asyncio.sleep(0.6)
+            await ui.confirm_modal(self.client)
+            await asyncio.sleep(0.6)
+            bought += 1
+        logger.info(f"potions: bought {bought} one at a time (the full set was out of reach)")
+        for _ in range(10):
+            if not await _visible(root, "fillallpotions"):
+                break
+            await _click(self.client, "main", "exit")
+            await asyncio.sleep(0.3)
+        return True
+
     async def _dump(self, stage: str) -> None:
         try:
             lines = await ui.dump_tree(self.client.root_window, max_depth=8)
@@ -123,6 +152,11 @@ class PotionShopper:
         await _click(self.client, "fillallpotions")
         await asyncio.sleep(0.3)
         await self._dump("before_buy")
+        cost, coins = await self._shop_numbers()
+        if cost and coins is not None and cost > coins:
+            # Not enough gold for them all (18,480 for the set against 16,877):
+            # one potion at a time, while the gold lasts.
+            return await self._buy_one_by_one(root)
         await _click(self.client, "buyAction")
         await asyncio.sleep(0.5)
         box = await ui.modal_box(self.client)
