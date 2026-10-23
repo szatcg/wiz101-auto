@@ -6536,8 +6536,12 @@ class Quester:
         done = set(load_completed())
         story_world = (self._main_world or "").replace(" ", "").lower()
         for world, guide in all_guides():
-            if self._mainline and story_world and world.replace(" ", "").lower() != story_world:
-                continue  # (an older world's leftover waits while the story goes on)
+            if story_world and world.replace(" ", "").lower() != story_world:
+                # (An older world's leftover waits while the story goes on; also
+                # with no story quest in the book: in Lemuria, with no guide of
+                # its own, the bot went round Zafaria's people for 'You Can
+                # Drive' instead.)
+                continue
             # (Alone only with no story quest in the book at all: 'An Old Sea
             # Chantry' was in it, spelled 'A Old...' in the guide, and the bot
             # set off to fetch the quest it had just handed in.)
