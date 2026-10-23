@@ -7394,7 +7394,8 @@ class Quester:
         m = re.search(r"photomance\s+(.+?)(?:\s+in\s+.*)?$", objective or "", re.I)
         if not m:
             return
-        thing = m.group(1).strip().lower()
+        # (Without 'the': 'the Malughast' is the LM_Standin_Malughast object.)
+        thing = re.sub(r"^(the|a|an)\s+", "", m.group(1).strip().lower())
         words = {thing, thing.replace(" ", ""), thing.replace(" ", "_"), thing.rstrip("s")}
         spots = await self._entities_named_like(tuple(w for w in words if len(w) > 3))
         if not spots:
