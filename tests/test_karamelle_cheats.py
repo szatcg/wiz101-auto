@@ -49,3 +49,18 @@ def test_snow_queen_round_one_hit():
     b = fight("Snow Queen", rnd=1, pips=2)
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.card is not None and a.card.is_damage
+
+
+def test_malughast_no_feint():
+    b = fight("The Malughast", rnd=2)
+    b.cards.append(feint())
+    a = decide(b)
+    assert not (a.card is not None and a.card.name == "Feint")
+
+
+def test_malughast_no_malughasts_feint_either():
+    b = fight("The Malughast", rnd=2)
+    b.cards.append(Card(6, "Malughast's Feint", pip_cost=0, school="shadow",
+                        effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70)]))
+    a = decide(b)
+    assert not (a.card is not None and a.card.name == "Malughast's Feint")

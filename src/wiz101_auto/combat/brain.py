@@ -367,7 +367,7 @@ def attack_value(card: Card, battle: Battle, target: Combatant | None, strat: St
 # Bosses whose minions go first (the player: Rasputin's, Horizon Hold).
 # (Medulla: Beans heals and strips, Pork Detonates; the Aberrant Paradox
 # respawns and heals if hit before his minions are all down.)
-MINIONS_FIRST = ("rasputin", "the rat", "medulla", "aberrant paradox")
+MINIONS_FIRST = ("rasputin", "the rat", "medulla", "aberrant paradox", "the malughast")
 MINIONS_FIRST_BONUS = 2000.0
 
 
@@ -3014,6 +3014,11 @@ BOSS_BANS = {
     # shields and traps.
     "snow queen": lambda c: ("feint" in f"{c.name} {c.template_name}".lower()
                              and c.school.lower() != "balance"),
+    # The Malughast (both Lemuria encounters, the player's list): any Feint on
+    # him, his own "Malughast's Feint" cards included, brings a double Shadow
+    # Cleanse Ward on himself (and in Solomon Crane's House, a Sacrifice: 1,000
+    # to every ally).
+    "the malughast": lambda c: "feint" in f"{c.name} {c.template_name}".lower(),
     "duck savage": lambda c: EffectKind.DOT in c.kinds and EffectKind.DAMAGE not in c.kinds,
     "solomon crane": lambda c: not c.is_damage and (_shield(c) or EffectKind.TRAP in c.kinds),
     "rasputin": lambda c: not c.is_damage and EffectKind.TRAP in c.kinds,
