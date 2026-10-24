@@ -125,8 +125,8 @@ async def _dance_forever(client):
         if why == "no energy" or not why:
             now, most = await dancer.energy()
             logger.info(f"pet-alt: {games} game(s) this session; out of energy ({now}/{most}): "
-                        f"checking again in {ENERGY_WAIT / 60:.0f} min")
-            wait = ENERGY_WAIT
+                        f"done (the player 2026-10-24: stop when the energy is out)")
+            return
         else:
             fails += 1
             logger.warning(f"pet-alt: stopped after {games} game(s): {why} ({fails}/{MAX_FAILS} in a row)")
