@@ -73,3 +73,12 @@ def test_malughast_feint_not_cast_as_a_nova_on_a_shadow_pip():
                         effects=[Effect(EffectKind.TRAP, Target.ENEMY_ALL, 70)]))
     a = decide(b)
     assert not (a.card is not None and a.card.name == "Malughast's Feint")
+
+
+def test_snow_queen_no_dot_and_never_passes():
+    b = fight("Snow Queen", rnd=3)
+    b.cards.append(Card(7, "Dot", pip_cost=1, school="myth",
+                        effects=[Effect(EffectKind.DOT, Target.ENEMY_SINGLE, 100)]))
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card is not None and a.card.name != "Dot"
+

@@ -3016,8 +3016,10 @@ BOSS_BANS = {
     # Feint but a Balance one with a Shadow Cleanse Ward on herself, twice;
     # Duck Savage removes damage-over-time spells; Solomon Crane alters
     # shields and traps.
-    "snow queen": lambda c: ("feint" in f"{c.name} {c.template_name}".lower()
-                             and c.school.lower() != "balance"),
+    # She counters damage-over-time spells with Cooldown (the list, 2026-10-25).
+    "snow queen": lambda c: (("feint" in f"{c.name} {c.template_name}".lower()
+                              and c.school.lower() != "balance")
+                             or (EffectKind.DOT in c.kinds and EffectKind.DAMAGE not in c.kinds)),
     # The Malughast (both Lemuria encounters, the player's list): any Feint on
     # him, his own "Malughast's Feint" cards included, brings a double Shadow
     # Cleanse Ward on himself (and in Solomon Crane's House, a Sacrifice: 1,000
@@ -3401,7 +3403,10 @@ def _blade_enchant(battle: Battle) -> Action | None:
 # Belloq casts an escalating Ra (1,200+) at the start of any round after one
 # in which nobody hit him. His minions triage damage-over-time off him, so no
 # DoTs at him while they live.
-HIT_EVERY_ROUND = {"belloq"}
+# The Snow Queen's "Chosen" aura: the player she names must attack every round
+# (a pass or another wizard's hit has her shield herself, -100% Tower Shields).
+# Alone, we are the Chosen one: hit every round.
+HIT_EVERY_ROUND = {"belloq", "snow queen"}
 
 
 # The Snow Queen summons an Awful Snowman at the start of round 1: a hit on her
