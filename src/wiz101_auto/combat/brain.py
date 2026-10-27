@@ -3219,9 +3219,19 @@ def _no_saving(battle: Battle, action: Action) -> Action | None:
                   reason=f"no saving pips here (they don't carry over): {best.name}")
 
 
+# General Benedict Brutus von Booth (the player's list): a 4-round cycle. Round 1 he
+# puts a protected -200% Brace aura on himself (hits do nothing); at the end of round
+# 3 it drops and he Furnaces himself (vulnerable); at the end of round 4 a cheated
+# Fire Dragon and Incinerate burst. Rounds 1-2 of the cycle (positions 0, 1): blades,
+# traps, shields, no single hits; rounds 3-4: hit him hard.
+BOOTH_SETUP_ROUNDS = (0, 1)
+
+
 def _boss_bans(battle: Battle) -> Battle:
     names = {e.name.lower().replace("-", " ") for e in battle.live_enemies}
     rules = [rule for boss, rule in BOSS_BANS.items() if any(n == boss or n.startswith(boss) for n in names)]
+    if any(n.startswith("general benedict") for n in names) and (battle.round - 1) % 4 in BOOTH_SETUP_ROUNDS:
+        rules.append(lambda c: c.is_damage and not c.is_aoe and aims_at_one_enemy(c))
     if not rules:
         return battle
     # Banned in every round, the deck's cards too: a plan of "pass > Feint >

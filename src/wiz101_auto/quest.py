@@ -4334,6 +4334,13 @@ class Quester:
             # it began, from stalls on the way to the sigil.)
             logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r} (solo try going on)")
             return
+        if ("recovering before going on" in line or "not leaving it" in line
+                or "resting here" in line) and await self._in_dungeon(await self.client.zone_name() or ""):
+            # (A rest in a dungeon is a wait on purpose, DUNGEON_REST_SECONDS long: the
+            # Go Home this loop brought took the bot out of Booth's Lair, and the
+            # dungeon was reset when it came back.)
+            logger.info(f"resting in the dungeon: not breaking out of {line!r}")
+            return
         logger.warning(f"ALERT: loop: {line!r} {LOOP_REPEATS_TEXT} on {objective!r}; breaking out of it")
         self.controller.allow_idle(60)
         try:
@@ -11601,9 +11608,14 @@ class Quester:
                     return
                 # No potion: a short rest (health hardly comes back in a
                 # dungeon: 10 minutes at 18% in Production Junction), then on.
-                since = self.__dict__.setdefault("_low_rest_since", {}).setdefault(zone_now, time.monotonic())
+                rests = self.__dict__.setdefault("_low_rest_since", {})
+                first = zone_now not in rests
+                since = rests.setdefault(zone_now, time.monotonic())
                 if time.monotonic() - since < DUNGEON_REST_SECONDS:
-                    logger.info(f"resting here at {hp:.0%} before the dungeon's next step")
+                    if first:
+                        # (Once: the same line every 8 s tripped the loop breaker, whose
+                        # Go Home took the bot out of Booth's Lair and reset the dungeon.)
+                        logger.info(f"resting here at {hp:.0%} before the dungeon's next step")
                     await recover(self.client, self.upkeep, self.controller)
                     await asyncio.sleep(5.0)
                     return

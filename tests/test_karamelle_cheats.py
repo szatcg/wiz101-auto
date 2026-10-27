@@ -82,3 +82,16 @@ def test_snow_queen_no_dot_and_never_passes():
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.card is not None and a.card.name != "Dot"
 
+
+def test_booth_no_single_hits_in_the_setup_rounds():
+    for rnd in (1, 2, 5):
+        a = decide(fight("General Benedict Brutus von Booth", rnd=rnd, pips=7))
+        hit = a.kind is ActionKind.CAST and a.card is not None and a.card.is_damage
+        assert not hit
+
+
+def test_booth_hit_in_round_three():
+    b = fight("General Benedict Brutus von Booth", rnd=3, pips=7)
+    b.cards = [c for c in b.cards if c.is_damage]
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card is not None and a.card.is_damage
