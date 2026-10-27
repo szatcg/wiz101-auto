@@ -12,12 +12,12 @@ from collections import Counter
 from pathlib import Path
 
 from loguru import logger
-from wizwalker import Keycode
 from wizwalker.combat import CombatHandler
 
 from .. import ui
 from ..deck import load_deck_counts
 from ..dungeons import DungeonMemory
+from . import brain as brain_mod
 from .brain import (
     Strategy,
     card_rules,
@@ -109,7 +109,7 @@ def _minion_text(battle) -> str:
 
 HAND_MAX = 7  # cards a hand refills to each round
 LOOKAHEAD_ON = True  # the whole-deck planner in live fights (the simulator: as good or better everywhere)
-LOOKAHEAD_LATE = 15.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
+LOOKAHEAD_LATE = 9.0  # seconds into the round: past this, no whole-deck plan (the turn timer)
 CAST_FAILS_MAX = 2  # a card whose cast failed this often in a fight isn't tried again in it
 LOW_HP_HIT_MARGIN = 1.2  # our health this close to the next hit: the brain's hit isn't overridden
 TEAM_PLAN_EVERY = 60.0  # a team fight: the stream's plan card rewritten at most this often (it takes seconds)
@@ -345,7 +345,18 @@ def _save_my_stats(me) -> None:
 
 
 CANCEL_PICK_SPOT = (640, 160)  # right-clicked to put a picked card back (above the arena)
-EMPTY_HAND_ESC_AT = 4  # ... the one Esc at this read
+def time_pressure(elapsed: float) -> float:
+    """How much of its normal search time the brain gets, `elapsed` seconds into the
+    round (the turn timer is ~30 s, and each move is a few clicks and reads)."""
+    if elapsed < 6.0:
+        return 1.0
+    if elapsed < 12.0:
+        return 0.4
+    if elapsed < 18.0:
+        return 0.1
+    return 0.0
+
+
 EMPTY_HAND_READS = 6  # reads, a second apart, before an empty hand is played as one
 
 
@@ -844,13 +855,10 @@ class Fighter(CombatHandler):
                 # didn't take. Esc once, then wait and read again.
                 n = empty[battle.round] = empty.get(battle.round, 0) + 1
                 if n == 1:
+                    # (Never an Esc here: after our own cast or Pass the cards are just not
+                    # dealt out yet, and the Esc opened the game menu over the battle, where
+                    # nothing could be done: the player.)
                     logger.warning("no cards read in hand: reading again for a few seconds")
-                elif n == EMPTY_HAND_ESC_AT:
-                    # (Not at the first empty read: after our own cast or Pass the cards
-                    # are just not dealt out yet, and the Esc opened the game menu over
-                    # the battle: the player saw the bot pause in combat.)
-                    logger.warning("still no cards in hand: Esc")
-                    await self.client.send_key(Keycode.ESC, 0.1)
                 await asyncio.sleep(1.0)
                 continue
             _note_unknown_cards(battle)
@@ -880,6 +888,8 @@ class Fighter(CombatHandler):
                                 for c in battle.cards]
             self._note_immune(battle)
             battle.immune = {n for n, last in self._immune.items() if battle.round <= last}
+            # (The turn timer: the later in the round, the less the searches may take.)
+            brain_mod.TIME_PRESSURE[0] = time_pressure(time.monotonic() - round_started)
             # One plan discard a round at most (four in a round ran the deck dry).
             action = decide(battle, self.strategy, discards_left=discards_left,
                             plan_discards=self._plan_toss_round != battle.round, odds_discards=True)
@@ -1130,7 +1140,8 @@ class Fighter(CombatHandler):
                 return action
         try:
             chance = await self._power_chance()
-            choice = await asyncio.to_thread(lookahead.choose, rules, action, chance, discards_left)
+            choice = await asyncio.to_thread(lookahead.choose, rules, action, chance, discards_left,
+                brain_mod.budget(lookahead.BUDGET))
         except Exception as exc:
             logger.debug(f"lookahead failed: {exc!r}")
             return action

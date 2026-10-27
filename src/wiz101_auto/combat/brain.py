@@ -276,6 +276,13 @@ def clear_chance(card: Card, attacker: Combatant, targets: list[Combatant]) -> f
 CRIT_MARGIN = 1.0  # a crit "kills" at its predicted damage (the player: no margin; one miss was bad luck)
 GAMBLE_PLAN_HORIZON = 12  # how far the sure plan a gamble is weighed against looks
 GAMBLE_PLAN_SECONDS = 1.0  # ... within this long
+# The turn timer (~30 s): every search budget below is scaled by this, set by the fighter
+# from how far into the round it is (the player: it ran out of time on its turns).
+TIME_PRESSURE = [1.0]
+
+
+def budget(seconds: float) -> float:
+    return seconds * TIME_PRESSURE[0]
 CRIT_GAMBLE = 0.5  # a spell that ends the fight only on a crit is cast at this chance or better
 
 
@@ -290,7 +297,7 @@ def _crit_gamble(battle: Battle, action: Action) -> Action | None:
     # gamble (the player: the gamble crit and still killed none; a blade more
     # would have made it sure).
     try:
-        sure = plan_hand_use(battle, GAMBLE_PLAN_HORIZON, time.monotonic() + GAMBLE_PLAN_SECONDS)[0]
+        sure = plan_hand_use(battle, GAMBLE_PLAN_HORIZON, time.monotonic() + budget(GAMBLE_PLAN_SECONDS))[0]
     except Exception:
         sure = 99
     # Low health: we may not live to see the sure kill (the player: take the
@@ -459,7 +466,7 @@ def heal_falls_short(battle: Battle, card: Card) -> bool:
     if hit <= 0 or min(me.max_health, me.health + card.heal_amount()) > hit:
         return False
     try:
-        rounds, _used = plan_hand_use(battle, PLAN_ROUNDS, time.monotonic() + HEAL_PLAN_SECONDS)
+        rounds, _used = plan_hand_use(battle, PLAN_ROUNDS, time.monotonic() + budget(HEAL_PLAN_SECONDS))
     except SearchTimeout:
         return False
     return rounds < 99
@@ -2004,7 +2011,7 @@ def _plan_discard(battle: Battle) -> Action | None:
         # this search ran 29 s, the turn timer ran out and the round was lost.
         try:
             base, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON,
-                                       deadline=time.monotonic() + DISCARD_PLAN_SECONDS)
+                                       deadline=time.monotonic() + budget(DISCARD_PLAN_SECONDS))
         except SearchTimeout:
             return None
     if base >= 99 or not used:
@@ -2656,7 +2663,7 @@ def _dig_for_odds(battle: Battle) -> Action | None:
     if not battle.live_enemies or not battle.deck_known or len(battle.upcoming) < 2:
         return None
     # (As far ahead as the Best Draw panel: a boss is past PLAN_ROUNDS.)
-    base, better = improving_draws(battle, DISCARD_PLAN_HORIZON, DISCARD_PLAN_SECONDS)
+    base, better = improving_draws(battle, DISCARD_PLAN_HORIZON, budget(DISCARD_PLAN_SECONDS))
     if not better or base >= 99:
         return None
     n = len(battle.upcoming)
@@ -2667,7 +2674,8 @@ def _dig_for_odds(battle: Battle) -> Action | None:
     if now >= ODDS_ENOUGH or (more - now < ODDS_GAIN and (more - now) * saves < ODDS_ROUNDS_GAIN):
         return None
     try:
-        _rounds, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON, time.monotonic() + DISCARD_PLAN_SECONDS)
+        _rounds, used = plan_hand_use(battle, DISCARD_PLAN_HORIZON,
+                                      time.monotonic() + budget(DISCARD_PLAN_SECONDS))
     except SearchTimeout:
         return None
     plan_names = {c.name for c in battle.cards if c.index in used}

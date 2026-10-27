@@ -198,6 +198,7 @@ VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's 
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 DUNGEON_LOW = 0.3  # below this in a dungeon: a potion or a rest before any step (a talk can start a fight)
+NEVER_TEAM_UP = ("NV_Z04_I01_GeneralQuarters",)  # (the Follicle Falcons: solo, always)
 DUNGEON_LEAVE_TO_HEAL = 0.35  # below this alone, no potion or wisps: out to heal, then back in
 DUNGEON_REST_SECONDS = 120.0  # ... a rest there this long at most (health hardly comes back)
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
@@ -4480,6 +4481,8 @@ class Quester:
             entry = memory.dungeons.get(dungeon or "")
         if not dungeon or entry is None or not entry.sigil:
             return False
+        if any(k in f"{dungeon} {room}" for k in NEVER_TEAM_UP):
+            return False  # (the player: no Team Up for these, the bot kills them itself)
         # (Already on the list but fought solo, recalled straight into the boss
         # room past the sigil: the same, no Recall back in.)
         if dungeon not in TEAM_UP_DUNGEONS:

@@ -215,6 +215,13 @@ def install(client):
         it to be picked up, then quietly drops it: the wizard doesn't move
         (logged as 'rejected' 400 times). Once more with a longer wait."""
         try:
+            if await client.in_battle():
+                # (A walk or jump of the quest step still going when a fight began: its retries
+                # and window closing ran under the card clicks, and the turn timer ran out.)
+                return None
+        except Exception:
+            pass
+        try:
             before = await client.body.position()
         except Exception:
             return await wizwalker_teleport(xyz, *args, **kwargs)
