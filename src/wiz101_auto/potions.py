@@ -22,6 +22,7 @@ from .upkeep import is_free, wait_for_loading
 
 COMMONS = "WizardCity/WC_Hub"
 HILDA = XYZ(-4398.71, 1016.20, 229.0)  # Hilda Brewer in the Commons
+MIN_GOLD = 2000  # gold held before a potion trip is worth making (one potion costs about this much)
 RETRY_MINUTES = 30.0  # after a failed trip (no gold, shop not found)
 TRAVEL_RETRY_MINUTES = 3.0  # the Commons not reached (Go Home pressed just after the hub button did nothing)
 SHOP_TRIES = 8
@@ -57,6 +58,16 @@ class PotionShopper:
         except Exception:
             return False
         if not should_buy_potions(before, most, team_return=team_return):
+            return False
+        try:
+            gold = await self.client.stats.current_gold()
+        except Exception:
+            gold = None
+        if gold is not None and gold < MIN_GOLD:
+            # (The player, 2026-10-27: the bot is broke and went on a trip to the Commons
+            # every 30 minutes for nothing: gold first.)
+            logger.info(f"potions: only {gold} gold (under {MIN_GOLD}); no shop trip")
+            self._retry_at = time.monotonic() + RETRY_MINUTES * 60
             return False
         self._travel_failed = False
         if not await self.trip():
