@@ -198,6 +198,7 @@ VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's 
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 DUNGEON_LOW = 0.3  # below this in a dungeon: a potion or a rest before any step (a talk can start a fight)
+UNRELATED_DEFEATS_COUNTED = 3  # losses to others on the way to a Defeat objective, then they count
 NEVER_TEAM_UP = ("NV_Z04_I01_GeneralQuarters",)  # (the Follicle Falcons: solo, always)
 DUNGEON_LEAVE_TO_HEAL = 0.35  # below this alone, no potion or wisps: out to heal, then back in
 DUNGEON_REST_SECONDS = 120.0  # ... a rest there this long at most (health hardly comes back)
@@ -4610,8 +4611,17 @@ class Quester:
         # Corruption' is Tim-tim Snakeeye, and his losses never added up.)
         if target and fought and not bosses and not any(
                 target.lower() in n.lower() or n.lower() in target.lower() for n in fought):
-            logger.info(f"defeated by {', '.join(fought)}, not {target}: not counted against {objective!r}")
-            return
+            # (Not for ever: four guards in the Tent Antechamber beat the bot 12 times on the
+            # way to the Mad Chronomonger and the quest never counted a loss.)
+            others = self.__dict__.setdefault("_unrelated_defeats", {})
+            others[objective] = others.get(objective, 0) + 1
+            if others[objective] < UNRELATED_DEFEATS_COUNTED:
+                logger.info(f"defeated by {', '.join(fought)}, not {target}: not counted against "
+                            f"{objective!r} ({others[objective]} of {UNRELATED_DEFEATS_COUNTED})")
+                return
+            others.pop(objective, None)
+            logger.info(f"defeated by {', '.join(fought)} {UNRELATED_DEFEATS_COUNTED} times on the way to "
+                        f"{target}: counted against {objective!r}")
         level = await self.client.stats.reference_level()
         quest = self._active_quest or self._last_main
         # (Or the last main quest known: right after a restart the book isn't
