@@ -1171,6 +1171,19 @@ def defeat_target(objective: str) -> str | None:
     return target or None
 
 
+BOOTH_OBJECTIVE = "Defeat General Benedict Brutus von Booth in Booth's Lair"
+
+
+def booth_skip(zone: str, objective: str) -> str:
+    """In Booth's Lair the General can be fought without the Dogs of War and
+    the Follicle Falcon before him (the player, 2026-10-26: the bot skips
+    straight to him): any Defeat objective there goes for him."""
+    if (zone.endswith("NV_Z01_BoothsLair") and defeat_target(objective)
+            and "benedict" not in objective.lower()):
+        return BOOTH_OBJECTIVE
+    return objective
+
+
 def talk_target(objective: str) -> str | None:
     """The one a "Talk To Willie Marks in Willie's Clocktower" objective names."""
     m = re.match(r"^\s*talk\s+to\s+(.+?)(?:\s+in\s+.+)?\s*$", objective, re.I)
@@ -10762,6 +10775,7 @@ class Quester:
         ("Defeat Gobbler Gorger ..."), else the closest mob, to start a fight."""
         if is_team_up_zone(await self.client.zone_name() or ""):
             return  # with a team, the team starts fights (see _team_step)
+        objective = booth_skip(await self.client.zone_name() or "", objective)
         target = defeat_target(objective)
         if target:
             from .bossfarm import find_entity_named

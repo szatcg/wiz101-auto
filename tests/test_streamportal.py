@@ -126,3 +126,12 @@ def test_named_stop_by_a_door_zone_label():
                       "Karamelle/KM_Z00_HUB", learned, lambda z, d: True,
                       ["witchstreehouse", "licoriceforest"])
     assert got == "Black Licorice Forest"
+
+
+def test_booth_skips_to_the_general():
+    from wiz101_auto.quest import booth_skip
+
+    zone = "Novus/Interiors/NV_Z01_BoothsLair"
+    assert "Benedict" in booth_skip(zone, "Defeat Dogs of War in Booth's Lair")
+    assert booth_skip("Novus/NV_Z01_Conatus", "Defeat Dogs of War in Booth's Lair").startswith("Defeat Dogs")
+    assert booth_skip(zone, "Go To General Booth in Booth's Lair") == "Go To General Booth in Booth's Lair"
