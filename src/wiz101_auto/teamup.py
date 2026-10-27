@@ -97,6 +97,8 @@ def next_room(order: list[str], pos: int) -> str | None:
 
 
 QUEUE_FILE = Path("state") / "team_queue.json"  # {"dungeon", "quest", "at"}: queued, questing meanwhile
+LAST_RESUME_ONLY = [0.0]  # when a sigil last offered only RESUME (the old run is still open: no TEAM UP!)
+RESUME_ONLY_WAIT = 25 * 60  # then the quest waits this long: the run runs out, and TEAM UP! comes back
 STALE_QUEUE_SECONDS = 60 * 60  # queued this long with no team: leave and queue again
 QUEUE_RECHECK = 5 * 60  # queued: the main quest waits this long, then the sigil again (queue still on? the
 # player saw none while the bot thought it waited: out of it for any reason, queue again soon)
@@ -1070,6 +1072,7 @@ async def team_up(quester, dungeon: str) -> str:
         # Team Up badge at all: not a queue. Back to the sigil until TEAM UP!
         # shows again.
         logger.warning("team up: only RESUME on the sigil and no Waiting badge: not queued")
+        LAST_RESUME_ONLY[0] = time.time()
         return "none"
     if not clicked:
         # The sigil shows only Resume while we're queued (after a restart the

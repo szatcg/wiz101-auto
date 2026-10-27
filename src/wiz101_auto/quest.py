@@ -3294,13 +3294,19 @@ class Quester:
                     return True
                 quest = self._active_quest or ""
                 if quest:
-                    from .teamup import QUEUE_RECHECK
+                    from .teamup import LAST_RESUME_ONLY, QUEUE_RECHECK, RESUME_ONLY_WAIT
 
                     level = await self.client.stats.reference_level()
+                    wait = QUEUE_RECHECK * 2
+                    if time.time() - LAST_RESUME_ONLY[0] < 120:
+                        # (The sigil offered only RESUME: our old run is still open and a Team Up
+                        # can't be started: 3 tries alone every 10 minutes, for hours. Away long
+                        # enough for the run to end.)
+                        wait = RESUME_ONLY_WAIT
                     logger.warning(f"{name}: no team and {SOLO_TRIES} tries alone lost; side quests "
-                                   "while the queue stands")
+                                   f"for {wait / 60:.0f} min")
                     self.setbacks.set_quest_aside(quest, objective_now, level, main=True,
-                                                  retry_after=QUEUE_RECHECK * 2)
+                                                  retry_after=wait)
                     self.setbacks.save()
                     tries[dungeon or ""] = 0
                     self._ranked_for = None
