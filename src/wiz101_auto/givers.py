@@ -124,6 +124,9 @@ _QUEST_LINE = re.compile(r"^\*?\s*(?P<name>[^(]+?)\s*\(\s*\d+\s*(gold|xp)", re.I
 _AFTER = re.compile(r"after finishing\s*[“\"]\s*\*?\s*(?P<q>[^”\"]+?)\s*[”\"]", re.I)
 
 
+FAR_GIVER = 30000.0  # an NPC farther than this is a misplaced entity, not a giver
+
+
 @dataclass(frozen=True)
 class GuideQuest:
     giver: str
@@ -471,6 +474,11 @@ class QuestGivers:
             return False
         _d, name, pos = found[0]
         self._remember(zone, name)  # once, whatever happens
+        if _d > FAR_GIVER:
+            # (The Manticore, 75,962 away in La Ville Rose: asked again every minute for 25
+            # minutes, "no talk prompt", while the bot did nothing else.)
+            logger.info(f"not asking {name} for quests: {_d:.0f} away")
+            return False
         me = await self.client.body.position()
         back = XYZ(me.x, me.y, me.z)
         logger.info(f"asking {name} for quests ({_d:.0f} away)")
