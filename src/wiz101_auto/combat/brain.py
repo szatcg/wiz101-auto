@@ -3092,6 +3092,11 @@ BOSS_BANS = {
     # Karamelle (the player's list, 2026-10-22): the Bundozer punishes blades
     # and auras (feints instead).
     "the bundozer": _blade,
+    # Novus (the player's list, 2026-10-27): whenever either side casts a Global, Blade or
+    # Trap, Basil the Brigand answers with Plague, a Tower or Legion Shield or Frozen Armor:
+    # no blades or traps (Pierce takes the shield off before the hit).
+    "basil the brigand": lambda c: (not c.is_damage
+                                    and (EffectKind.BLADE in c.kinds or EffectKind.TRAP in c.kinds)),
     # Lemuria (the player's list, 2026-10-22): the Snow Queen answers every
     # Feint but a Balance one with a Shadow Cleanse Ward on herself, twice;
     # Duck Savage removes damage-over-time spells; Solomon Crane alters

@@ -130,3 +130,10 @@ def test_thins_a_pack_when_health_is_short():
     b = Battle(me=me, allies=[], enemies=foes, cards=[blade, hit], pips=3, round=3)
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.card is not None and a.card.name == "Humongofrog"
+
+
+def test_basil_no_blades_or_traps():
+    b = fight("Basil the Brigand", rnd=2)
+    b.cards.append(feint())
+    a = decide(b)
+    assert not (a.card is not None and a.card.name in ("Mythblade", "Feint"))
