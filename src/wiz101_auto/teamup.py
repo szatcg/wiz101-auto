@@ -97,6 +97,7 @@ def next_room(order: list[str], pos: int) -> str | None:
 
 
 QUEUE_FILE = Path("state") / "team_queue.json"  # {"dungeon", "quest", "at"}: queued, questing meanwhile
+STALE_QUEUE_SECONDS = 60 * 60  # queued this long with no team: leave and queue again
 QUEUE_RECHECK = 5 * 60  # queued: the main quest waits this long, then the sigil again (queue still on? the
 # player saw none while the bot thought it waited: out of it for any reason, queue again soon)
 
@@ -106,7 +107,9 @@ def save_queue(dungeon: str, quest: str, sure: bool = False) -> None:
     Waiting badge can't be read then, so no lapse checks (they sent the bot
     back to the sigil every 4 minutes while it was still queued)."""
     QUEUE_FILE.parent.mkdir(exist_ok=True)
-    data = {"dungeon": dungeon, "quest": quest, "at": time.time(), "sure": sure}
+    old = load_queue()
+    since = old.get("since", old.get("at", time.time())) if old.get("dungeon") == dungeon else time.time()
+    data = {"dungeon": dungeon, "quest": quest, "at": time.time(), "sure": sure, "since": since}
     QUEUE_FILE.write_text(json.dumps(data), encoding="utf-8")
 
 
@@ -1032,6 +1035,18 @@ async def team_up(quester, dungeon: str) -> str:
     if not clicked:
         # The sigil shows only Resume while we're queued (after a restart the
         # Waiting badge wasn't always readable): wait for the team to take us.
+        saved = load_queue()
+        stale = (saved.get("dungeon") != dungeon
+                 or time.time() - saved.get("since", saved.get("at", time.time())) > STALE_QUEUE_SECONDS)
+        if stale and await cancel_queue(client):
+            # (The player, 2026-10-27: the bot waited six hours at Matheus House's sigil "already
+            # queued", while the game's queue was for Tung-Ak's Stronghold, left from earlier:
+            # no team could ever form. A queue we have no record of for this dungeon, or one
+            # this old with no team, is left, and the sigil's TEAM UP! asked for again.)
+            logger.warning(f"team up: left a stale queue (ours for {saved.get('dungeon', '') or 'nothing'}); "
+                           f"queueing for {dungeon.split('/')[-1]} again")
+            clear_queue()
+            return "none"
         logger.info("team up: no TEAM UP! button on the sigil (already queued?); waiting on")
         form_done = True
         already = True
