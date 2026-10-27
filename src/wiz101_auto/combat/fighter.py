@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import dataclasses
 import json
 import time
@@ -344,6 +345,7 @@ def _save_my_stats(me) -> None:
 
 
 CANCEL_PICK_SPOT = (640, 160)  # right-clicked to put a picked card back (above the arena)
+EMPTY_HAND_ESC_AT = 4  # ... the one Esc at this read
 EMPTY_HAND_READS = 6  # reads, a second apart, before an empty hand is played as one
 
 
@@ -842,7 +844,12 @@ class Fighter(CombatHandler):
                 # didn't take. Esc once, then wait and read again.
                 n = empty[battle.round] = empty.get(battle.round, 0) + 1
                 if n == 1:
-                    logger.warning("no cards read in hand: Esc, then reading again for a few seconds")
+                    logger.warning("no cards read in hand: reading again for a few seconds")
+                elif n == EMPTY_HAND_ESC_AT:
+                    # (Not at the first empty read: after our own cast or Pass the cards
+                    # are just not dealt out yet, and the Esc opened the game menu over
+                    # the battle: the player saw the bot pause in combat.)
+                    logger.warning("still no cards in hand: Esc")
                     await self.client.send_key(Keycode.ESC, 0.1)
                 await asyncio.sleep(1.0)
                 continue
@@ -931,7 +938,11 @@ class Fighter(CombatHandler):
                 # (The stream's plan card: a whole simulation; in a team fight
                 # once in a while, not before every move.)
                 self._plan_written = time.monotonic()
-                _write_plan(battle, action, self.strategy, discards_left, self._gone, self._discarded)
+                # (In a thread, a copy of the battle: the simulation took 1.5 s and more
+                # on the loop that clicks the cards, for a card on the stream page.)
+                asyncio.create_task(asyncio.to_thread(
+                    _write_plan, copy.deepcopy(battle), action, self.strategy, discards_left,
+                    dict(self._gone), dict(self._discarded)))
             foes = ", ".join(
                 f"{e.name}{'*' if e.is_boss else ''} {e.health}/{e.max_health}{' dead' if e.is_dead else ''}"
                 for e in battle.enemies
