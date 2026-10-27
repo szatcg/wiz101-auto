@@ -95,3 +95,26 @@ def test_booth_hit_in_round_three():
     b.cards = [c for c in b.cards if c.is_damage]
     a = decide(b)
     assert a.kind is ActionKind.CAST and a.card is not None and a.card.is_damage
+
+
+def test_digs_for_the_finisher_binning_traps_against_ordinary_enemies():
+    me = Combatant("Me", 6000, 6000, is_client=True, school="myth")
+    foes = [Combatant("Falcon", 5000, 5000, is_enemy=True), Combatant("Falcon", 5000, 5000, is_enemy=True)]
+    hand = [feint(), Card(2, "Mythblade", pip_cost=0, school="myth",
+                          effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])]
+    orthrus = Card(9, "Orthrus", pip_cost=7, school="myth",
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 1500)])
+    b = Battle(me=me, allies=[], enemies=foes, cards=hand, pips=2, round=1, upcoming=[orthrus, orthrus])
+    b.deck_known = True
+    a = decide(b)
+    assert a.kind is ActionKind.DISCARD and a.card.name == "Feint"
+
+
+def test_no_digging_against_a_boss():
+    b = fight("Treemugger", rnd=1)
+    b.cards.append(feint())
+    b.upcoming = [Card(9, "Orthrus", pip_cost=7, school="myth",
+                       effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 1500)])]
+    b.deck_known = True
+    a = decide(b)
+    assert not (a.kind is ActionKind.DISCARD and "finisher" in (a.reason or ""))

@@ -2831,6 +2831,38 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     return action
 
 
+FINISHER_PIPS = 5  # a hit this dear is the deck's finisher (Orthrus: one copy in the deck)
+KEEP_BLADES = 2  # blades kept in a hand while digging for the finisher
+
+
+def _dig_for_finisher(battle: Battle, strat: Strategy | None) -> Action | None:
+    """The player's (2026-10-26, one Orthrus in the deck): against ordinary enemies, with the
+    finisher not in hand and still to draw, the cards the fight won't need go at once, so the
+    draws come to it: traps first (no Feint against enemies a hit kills), then blades past
+    two. No search: the fight is judged by what it is, early, before the turn timer runs."""
+    strat = strat or Strategy()
+    if not strat.allow_discard or not battle.deck_known or not battle.live_enemies:
+        return None
+    if any(e.is_boss for e in battle.live_enemies) or scripted_fight(battle):
+        return None  # (bosses: their traps and blades are the plan)
+
+    def finisher(c: Card) -> bool:
+        return c.is_damage and not c.is_heal and not c.treasure and c.pip_cost >= FINISHER_PIPS
+
+    if any(finisher(c) for c in battle.cards) or not any(finisher(c) for c in battle.upcoming):
+        return None
+    traps = [c for c in battle.cards if EffectKind.TRAP in c.kinds and not c.is_damage and not c.treasure
+             and not c.enchanted]
+    if traps:
+        return Action(ActionKind.DISCARD, traps[0], reason="digging for the finisher: no trap needed here")
+    blades = [c for c in battle.cards if EffectKind.BLADE in c.kinds and not c.is_damage and not c.treasure
+              and not c.enchanted]
+    if len(blades) > KEEP_BLADES:
+        weakest = min(blades, key=card_strength)
+        return Action(ActionKind.DISCARD, weakest, reason="digging for the finisher: blades past two")
+    return None
+
+
 def _decide_hand(battle: Battle, strat: Strategy | None = None, *, discards_left: int = 2,
                  plan_discards: bool = False, odds_discards: bool | None = None) -> Action:
     """The action for this step. Reshuffle (the player's: never discarded)
@@ -2839,6 +2871,9 @@ def _decide_hand(battle: Battle, strat: Strategy | None = None, *, discards_left
     sure = _dig_for_sure_kill(battle) if discards_left > 0 else None
     if sure is not None:
         return sure
+    fin = _dig_for_finisher(battle, strat) if discards_left > 0 else None
+    if fin is not None:
+        return fin
     if plan_discards if odds_discards is None else odds_discards:
         # (Not one a round: each discard is one more draw, while the odds gain.)
         try:

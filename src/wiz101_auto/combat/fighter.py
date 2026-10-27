@@ -1109,6 +1109,8 @@ class Fighter(CombatHandler):
         urgent = card is not None and (card.is_heal or EffectKind.SHIELD in card.kinds)
         if action.kind is ActionKind.ENCHANT or urgent:
             return action
+        if action.kind is ActionKind.DISCARD and (action.reason or "").startswith("digging for the finisher"):
+            return action
         if scripted_fight(battle) or not battle.deck_known:
             return action
         from .brain import hit_size
