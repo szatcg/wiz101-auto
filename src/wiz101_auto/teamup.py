@@ -596,6 +596,40 @@ async def close_events_window(client) -> bool:
     return True
 
 
+def _letters(text: str) -> str:
+    return "".join(c for c in text.lower() if c.isalpha())
+
+
+async def queue_is_for(client, dungeon: str) -> bool | None:
+    """Press the Waiting badge, read the window's title (the dungeon queued for) and close the
+    window again. True if it names `dungeon`, False if another dungeon, None if it can't be
+    read. (The player, 2026-10-27: the game's queue was for Tung-Ak's Stronghold while the bot
+    waited at Matheus House's sigil: the title tells.)"""
+    try:
+        badge = await ui._visible_named(client.root_window, "btnTeamUp")
+        if badge is None:
+            return None
+        await ui.click_center(client, badge)
+        await asyncio.sleep(1.5)
+        window = await ui._visible_named(client.root_window, "TeamUpMainWindow")
+        if window is None:
+            return None
+        title = await ui._visible_named(window, "titleText")
+        text = ui._TAGS.sub("", await title.maybe_text() or "") if title is not None else ""
+        close = await ui._visible_named(window, "CloseTeamUpButton")
+        if close is not None:
+            await ui.click_center(client, close)
+            await asyncio.sleep(0.8)
+        if not _letters(text):
+            return None
+        base = _letters(dungeon.split("/")[-1].split("_", 2)[-1])  # NV_Z05_MatheusHouse: matheushouse
+        logger.info(f"team up: the game's queue is for {text.strip()!r}")
+        return base.startswith(_letters(text)) or _letters(text).startswith(base) or _letters(text) in base
+    except Exception as exc:
+        logger.debug(f"queue title unreadable: {exc!r}")
+        return None
+
+
 async def cancel_queue(client) -> bool:
     """Leave the Team Up queue: press the Waiting badge and say yes to what
     it asks. True once no longer queued."""
@@ -617,6 +651,11 @@ async def cancel_queue(client) -> bool:
         await ui.press_modal_button(client, box, "centerButton")
     else:
         await _click(client, CANCEL_WORDS, "cancel")
+        await asyncio.sleep(1.0)
+        box = await ui.modal_box(client)
+        if box is not None:  # (the game asks to confirm leaving the queue)
+            logger.info(f"team up: the game asks: {(await ui.modal_text(box))[:120]!r}; yes")
+            await ui.press_modal_button(client, box, "centerButton")
     await asyncio.sleep(1.5)
     if await queued(client):
         logger.warning("team up: still queued; windows saved to state/teamup_cancel.txt")
@@ -1038,6 +1077,11 @@ async def team_up(quester, dungeon: str) -> str:
         saved = load_queue()
         stale = (saved.get("dungeon") != dungeon
                  or time.time() - saved.get("since", saved.get("at", time.time())) > STALE_QUEUE_SECONDS)
+        if stale:
+            # (The window's title says which dungeon the game's queue is for: ours, it stays.)
+            if await queue_is_for(client, dungeon) is not False:
+                stale = False
+                save_queue(dungeon, team_list().get(dungeon, saved.get("quest", "")), sure=True)
         if stale and await cancel_queue(client):
             # (The player, 2026-10-27: the bot waited six hours at Matheus House's sigil "already
             # queued", while the game's queue was for Tung-Ak's Stronghold, left from earlier:
