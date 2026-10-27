@@ -198,6 +198,7 @@ VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's 
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
 DUNGEON_LOW = 0.3  # below this in a dungeon: a potion or a rest before any step (a talk can start a fight)
+DUNGEON_LEAVE_TO_HEAL = 0.35  # below this alone, no potion or wisps: out to heal, then back in
 DUNGEON_REST_SECONDS = 120.0  # ... a rest there this long at most (health hardly comes back)
 ENGAGE_RESET_MISSES = 6  # tries at a boss that start nothing: leave the dungeon and enter a fresh copy
 ENGAGE_WALK_TRIES = 3  # walk-ins at a boss that start nothing: then landings on him in between
@@ -11618,8 +11619,23 @@ class Quester:
         # else a potion when low (as with a team).
         from .dungeons import no_return
 
-        if heal_now and (is_team_up_zone(zone_now) or no_return(zone_now)
-                         or await self._dungeon_in_progress(zone_now)):
+        leave_to_heal = False
+        if heal_now and in_dungeon and self.upkeep and not no_return(zone_now):
+            # (The player, 2026-10-26: heal with the wisps outside and come back in by Recall
+            # or the dungeon-return button. Alone, nearly dead, no potion, and no wisps in
+            # the room: the bot went on at 16% and died, or rested in the room for ever.)
+            from .teamup import mate_seen_lately
+
+            hp, _mana = await health_mana(self.client)
+            if hp < DUNGEON_LEAVE_TO_HEAL and not mate_seen_lately():
+                have_potion = (self.upkeep.use_potions and await self.client.stats.potion_charge() >= 1.0)
+                if not have_potion and not await heal_in_room(self.client, self.upkeep):
+                    leave_to_heal = True
+                    logger.info(f"{hp:.0%} health, no potion and no wisps in the room: out to heal, "
+                                "then back in")
+        if heal_now and not leave_to_heal and (
+                is_team_up_zone(zone_now) or no_return(zone_now)
+                or await self._dungeon_in_progress(zone_now)):
             # Never out of a dungeon in progress (the player's blanket rule:
             # potions keep it going between the fights; it went for wisps, the
             # hub and Hilda Brewer from the Basstille): the room, else a potion.
