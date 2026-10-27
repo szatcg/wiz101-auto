@@ -231,7 +231,10 @@ def normalize_card(card: Card) -> Card:
         pips = [e for e in card.effects if e.kind is EffectKind.PIPS] or [
             Effect(EffectKind.PIPS, Target.SELF, 1, school="myth")]
         return _remade(card, [Effect(EffectKind.TRAP, Target.ENEMY_ALL, value), *pips])
-    if "pierce" in name and not card.is_enchant and kinds and kinds <= {EffectKind.OTHER}:
+    # (Shatter, the player's 2026-10-27 card for a shielded boss: takes every ward off, before the
+    # big hit; the planner counts it as a Pierce, the simulator takes all the wards.)
+    if (("pierce" in name or "shatter" in name) and not card.is_enchant and kinds
+            and kinds <= {EffectKind.OTHER}):
         n = next((e.value for e in card.effects if e.kind is EffectKind.OTHER), 1.0) or 1.0
         return _remade(card, [Effect(EffectKind.REMOVE_WARD, Target.ENEMY_SINGLE, n)])
     if "potent trap" in name and EffectKind.ENCHANT_TRAP not in kinds:

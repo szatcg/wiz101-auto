@@ -367,9 +367,12 @@ def _cast(f: Fight, action, rng: random.Random):
                 t.incoming_effects.extend((_fx_key(c), e.school, e.value / 100)
                                           for e in c.effects if e.kind is EffectKind.TRAP)
     elif EffectKind.REMOVE_WARD in kinds and action.target:
-        ward = next((x for x in action.target.incoming_effects if x[2] < 0), None)
-        if ward is not None:
-            action.target.incoming_effects.remove(ward)
+        if "shatter" in f"{c.name} {c.template_name}".lower():
+            action.target.incoming_effects = [x for x in action.target.incoming_effects if x[2] >= 0]
+        else:
+            ward = next((x for x in action.target.incoming_effects if x[2] < 0), None)
+            if ward is not None:
+                action.target.incoming_effects.remove(ward)
     elif EffectKind.TRAP in kinds and action.target:
         for e in c.effects:
             if e.kind is EffectKind.TRAP:
