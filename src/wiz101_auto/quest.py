@@ -3291,6 +3291,10 @@ class Quester:
                     self._last_rank = -1e9
                     return True
             return False
+        if await self._return_to_dungeon():
+            self._dungeon = (zone or "", await self.client.zone_name() or "")
+            self._sigil_failed_at = None
+            return True
         self.controller.allow_idle(SIGIL_WAIT + 10)
         try:
             # Mark the entrance: a solo dungeon resets the moment we're defeated,
@@ -4858,6 +4862,37 @@ class Quester:
             return
         tried.add(zone)
         await self._mark_here("team", require_clear=False)
+
+    async def _return_to_dungeon(self) -> bool:
+        """About to go in alone through a sigil, with the compass's dungeon-return
+        button up (a defeat threw us out of a dungeon still open): that button
+        goes back into the same run. Through the sigil it is a fresh dungeon:
+        the rooms done are done again (the player: Booth's Lair, every time)."""
+        try:
+            shown = any([await w.is_visible() for w in
+                         await self.client.root_window.get_windows_with_name("ResumeInstanceButton")])
+        except Exception:
+            return False
+        if not shown:
+            return False
+        before = await self.client.zone_name() or ""
+        note_zone_jump()
+        if not await ui.click_named(self.client, "ResumeInstanceButton"):
+            return False
+        logger.info("pressed the dungeon-return button instead of the sigil (back into the run we left)")
+        self._resumed_alone_at = time.monotonic()
+        self.controller.allow_idle(40)
+        try:
+            await asyncio.sleep(1.0)
+            await ui.confirm_modal(self.client)
+            await wait_for_loading(self.client, appear_timeout=8.0)
+        finally:
+            self.controller.end_idle()
+        here = await self.client.zone_name() or ""
+        if here != before and await self._in_dungeon(here):
+            return True
+        logger.warning("the dungeon-return button didn't take us into the dungeon: the sigil then")
+        return False
 
     async def _resume_instance(self, marked_zone: str) -> bool:
         """The compass's dungeon-return button (a red X beside Recall, shown
