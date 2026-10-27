@@ -118,3 +118,15 @@ def test_no_digging_against_a_boss():
     b.deck_known = True
     a = decide(b)
     assert not (a.kind is ActionKind.DISCARD and "finisher" in (a.reason or ""))
+
+
+def test_thins_a_pack_when_health_is_short():
+    me = Combatant("Me", 1500, 6000, is_client=True, school="myth")
+    foes = [Combatant(f"Guard{i}", 400, 3000, is_enemy=True) for i in range(4)]
+    hit = Card(1, "Humongofrog", pip_cost=2, school="myth",
+               effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 3000)])
+    blade = Card(2, "Mythblade", pip_cost=0, school="myth",
+                 effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])
+    b = Battle(me=me, allies=[], enemies=foes, cards=[blade, hit], pips=3, round=3)
+    a = decide(b)
+    assert a.kind is ActionKind.CAST and a.card is not None and a.card.name == "Humongofrog"

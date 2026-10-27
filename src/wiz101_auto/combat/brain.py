@@ -2823,12 +2823,49 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     action = _keep_hitting(battle, action) or action
     action = _round_one_hit(battle, action) or action
     action = _no_saving(battle, action) or action
+    action = _thin_the_pack(battle, action) or action
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
         weakest = min(copies, key=card_strength)
         if card_strength(weakest) < card_strength(action.card):
             action = replace(action, card=weakest)
     return action
+
+
+THIN_PACK_MIN_ENEMIES = 3  # this many ordinary enemies up: the damage race is on
+THIN_PACK_ROUNDS = 3  # health for fewer rounds than this of their hits: kill one now
+
+
+def _thin_the_pack(battle: Battle, action: Action) -> Action | None:
+    """The bot died to four guards (Tent Antechamber, 9 deaths) waiting 5 rounds for the one
+    Orthrus to kill all four: they took 1,500-2,500 a round. With three or more ordinary
+    enemies up and health for under THIN_PACK_ROUNDS of their hits, a hit that kills one
+    outright goes now (each kill takes its share off every round after) instead of a setup,
+    a pass or an enchant. Heals, shields and kills already chosen stand."""
+    live = battle.live_enemies
+    if len(live) < THIN_PACK_MIN_ENEMIES or any(e.is_boss for e in live):
+        return None
+    if action.kind is ActionKind.CAST and action.card is not None and (
+            action.card.is_damage or action.card.is_heal or EffectKind.SHIELD in action.card.kinds):
+        return None
+    inc = incoming_per_round(battle)
+    if inc <= 0 or battle.me.health > THIN_PACK_ROUNDS * inc:
+        return None
+    best = None
+    for c in _castable(battle.cards):
+        if not c.is_damage or c.is_heal or c.is_aoe or c.target is not Target.ENEMY_SINGLE:
+            continue
+        for e in live:
+            if hit_damage(c, battle.me, e) >= e.health:
+                key = (c.pip_cost, -e.health)
+                if best is None or key < best[0]:
+                    best = (key, c, e)
+    if best is None:
+        return None
+    _key, card, foe = best
+    return Action(ActionKind.CAST, card, foe,
+                  reason=f"{len(live)} enemies and health for under {THIN_PACK_ROUNDS} rounds: "
+                         f"{card.name} kills {foe.name} now")
 
 
 FINISHER_PIPS = 5  # a hit this dear is the deck's finisher (Orthrus: one copy in the deck)
