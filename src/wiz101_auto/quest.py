@@ -11684,7 +11684,17 @@ class Quester:
                     await ui.click(self.client, ui.POTION_BUTTON)
                     await asyncio.sleep(1.5)
                     return
-                # No potion: a short rest (health hardly comes back in a
+                # No potion: alone, out to heal with the wisps and back in (the player,
+                # 2026-10-26; the bot rested here at 2% in General Quarters, two minutes,
+                # then went on and died).
+                from .teamup import mate_seen_lately
+
+                if not mate_seen_lately() and not no_return(zone_now) and not is_team_up_zone(zone_now):
+                    logger.info(f"{hp:.0%} health, no potion: out to heal, then back in")
+                    await recover(self.client, self.upkeep, self.controller, self.go_to_zone,
+                                  trip=self._heal_trip, mark=self._heal_mark)
+                    return
+                # A short rest (health hardly comes back in a
                 # dungeon: 10 minutes at 18% in Production Junction), then on.
                 rests = self.__dict__.setdefault("_low_rest_since", {})
                 first = zone_now not in rests
