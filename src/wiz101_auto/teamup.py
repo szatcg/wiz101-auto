@@ -1094,8 +1094,9 @@ async def team_up(quester, dungeon: str) -> str:
         # The sigil shows only Resume while we're queued (after a restart the
         # Waiting badge wasn't always readable): wait for the team to take us.
         saved = load_queue()
-        stale = (saved.get("dungeon") != dungeon
-                 or time.time() - saved.get("since", saved.get("at", time.time())) > STALE_QUEUE_SECONDS)
+        # (Not by age alone: a queue an hour old that the title can't be read for was cancelled
+        # and made again every few minutes for nothing; the title says whose it is.)
+        stale = saved.get("dungeon") != dungeon
         # (The window's title says which dungeon the game's queue is for: ours, it stays; another's
         # goes, whatever our own record says: the game's queue was for the Hall of Purposeful
         # Abstraction while the record said the Cabal Base.)
