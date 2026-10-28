@@ -171,6 +171,7 @@ NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
 HUB_SKIP_NEAR = 3000.0  # the quest marker this near: no hub button, walk to it
 FISH_PROBE_NEAR = 1500.0  # this near a fishing objective's marker: probe there
+FINDER_QUEUE_HOURS = 3.0  # no Quest Finder while a Team Up queue is this fresh
 FINDER_FOLLOW_SECONDS = 600.0  # Quest Finder tracked this long per try (its marker: a quest giver)
 FINDER_EVERY_SECONDS = 1800.0  # with no main quest in the book, Quest Finder first this often
 # Objective words -> cards the deck needs for its scripted fight.
@@ -6283,6 +6284,15 @@ class Quester:
                                   FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=True)
         if not finder_here:
             finder = None
+        if finder is not None:
+            from .teamup import load_queue
+
+            queue = load_queue()
+            if queue and time.time() - queue.get("at", 0) < FINDER_QUEUE_HOURS * 3600:
+                # (Tracking Quest Finder made the game queue for the Hall of Purposeful
+                # Abstraction, replacing the Team Up queue for the main quest's dungeon: the
+                # Cabal Base never got a team in hours. Not while a queue stands.)
+                finder = None
         if finder is not None and not (chosen and (chosen.mainline or chosen.activity)):
             # Quest Finder's marker points at someone with a quest for us, the
             # story's next one maybe (the player: after 'Gemstone Secrets' no
