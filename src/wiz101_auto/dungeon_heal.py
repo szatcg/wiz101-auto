@@ -122,9 +122,11 @@ class DungeonHealer:
         if is_world_hub(zone) or is_world_hub(await self.client.zone_name() or ""):
             return False  # already at the hub (a defeat respawns us here): heal the usual way
         from .dungeons import no_return
-        from .teamup import is_team_up_zone
+        from .teamup import is_team_up_zone, mate_seen_lately
 
-        if is_team_up_zone(await self.client.zone_name() or ""):
+        # (A team dungeon tried alone, no teammate seen lately: the bot sat at 1% in the Cabal
+        # Base for 20 minutes, "out to heal" and refused here every few seconds.)
+        if is_team_up_zone(await self.client.zone_name() or "") and mate_seen_lately():
             # With a team: never off to the hub (it left its teammate in the
             # Keep of Ganelon at 40% after the Pendragon); a potion, else on.
             from . import ui
