@@ -1096,11 +1096,15 @@ async def team_up(quester, dungeon: str) -> str:
         saved = load_queue()
         stale = (saved.get("dungeon") != dungeon
                  or time.time() - saved.get("since", saved.get("at", time.time())) > STALE_QUEUE_SECONDS)
-        if stale:
-            # (The window's title says which dungeon the game's queue is for: ours, it stays.)
-            if await queue_is_for(client, dungeon) is not False:
-                stale = False
-                save_queue(dungeon, team_list().get(dungeon, saved.get("quest", "")), sure=True)
+        # (The window's title says which dungeon the game's queue is for: ours, it stays; another's
+        # goes, whatever our own record says: the game's queue was for the Hall of Purposeful
+        # Abstraction while the record said the Cabal Base.)
+        ours = await queue_is_for(client, dungeon)
+        if ours is False:
+            stale = True
+        elif ours is True:
+            stale = False
+            save_queue(dungeon, team_list().get(dungeon, saved.get("quest", "")), sure=True)
         if stale and await cancel_queue(client):
             # (The player, 2026-10-27: the bot waited six hours at Matheus House's sigil "already
             # queued", while the game's queue was for Tung-Ak's Stronghold, left from earlier:
