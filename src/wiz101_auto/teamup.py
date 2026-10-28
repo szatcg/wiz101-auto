@@ -645,6 +645,22 @@ async def cancel_queue(client) -> bool:
     await ui.click_center(client, badge)
     await asyncio.sleep(1.5)
     await _dump(client, "cancel")
+    # (By its own name: the words search found no button, and the bot waited at the Cabal Base's
+    # sigil for hours while the game's queue was for the Hall of Purposeful Abstraction.)
+    window = await ui._visible_named(client.root_window, "TeamUpMainWindow")
+    cancel = await ui._visible_named(window, "CancelTeamUpButton") if window is not None else None
+    if cancel is not None:
+        logger.info("team up: pressing Cancel Team Up!")
+        await ui.click_center(client, cancel)
+        await asyncio.sleep(1.2)
+        box = await ui.modal_box(client)
+        if box is not None:
+            logger.info(f"team up: the game asks: {(await ui.modal_text(box))[:120]!r}; yes")
+            await ui.press_modal_button(client, box, "centerButton")
+        await asyncio.sleep(1.5)
+        if not await queued(client):
+            logger.success("team up: left the queue")
+            return True
     if await close_events_window(client):
         return not await queued(client)
     box = await ui.modal_box(client)
