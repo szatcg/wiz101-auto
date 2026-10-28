@@ -11695,7 +11695,7 @@ class Quester:
                 # then went on and died).
                 from .teamup import mate_seen_lately
 
-                if not mate_seen_lately() and not no_return(zone_now) and not is_team_up_zone(zone_now):
+                if not mate_seen_lately() and not no_return(zone_now):
                     logger.info(f"{hp:.0%} health, no potion: out to heal, then back in")
                     # (The healer's own trip: _heal_trip never leaves a dungeon, and the
                     # recover() through it looped at 1% in the Cabal Base for 20 minutes.)
