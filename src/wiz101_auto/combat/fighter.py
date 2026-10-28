@@ -357,6 +357,7 @@ def time_pressure(elapsed: float) -> float:
     return 0.0
 
 
+THINK_LIMIT = 20.0  # seconds the brain may think about one move (the turn timer is ~30 s)
 EMPTY_HAND_READS = 6  # reads, a second apart, before an empty hand is played as one
 
 
@@ -871,7 +872,12 @@ class Fighter(CombatHandler):
                 note_mate_seen()
             hand =", ".join(f"{c.name}{'' if c.castable else '(x)'}" for c in battle.cards)
             logger.debug(f"hand: {hand}; deck left: {len(battle.upcoming)}")
-            plan = plan_fight(battle, self.strategy).text
+            try:
+                plan = (await asyncio.wait_for(asyncio.to_thread(plan_fight, battle, self.strategy),
+                                               THINK_LIMIT)).text
+            except TimeoutError:
+                logger.warning(f"the fight plan took over {THINK_LIMIT:.0f} s: no plan line this move")
+                plan = self._last_plan or ""
             if plan != self._last_plan:
                 logger.info(plan)
                 self._last_plan = plan
@@ -891,8 +897,16 @@ class Fighter(CombatHandler):
             # (The turn timer: the later in the round, the less the searches may take.)
             brain_mod.TIME_PRESSURE[0] = time_pressure(time.monotonic() - round_started)
             # One plan discard a round at most (four in a round ran the deck dry).
-            action = decide(battle, self.strategy, discards_left=discards_left,
-                            plan_discards=self._plan_toss_round != battle.round, odds_discards=True)
+            try:
+                # (In a thread with a limit: the bot sat 2 minutes at 100% CPU with the heartbeat
+                # stale, in the middle of a fight against the Manticore Squad, in a move the
+                # fight's own clock ran out of.)
+                action = await asyncio.wait_for(asyncio.to_thread(
+                    decide, battle, self.strategy, discards_left=discards_left,
+                    plan_discards=self._plan_toss_round != battle.round, odds_discards=True), THINK_LIMIT)
+            except TimeoutError:
+                logger.warning(f"the brain took over {THINK_LIMIT:.0f} s on this hand: a pass")
+                action = Action(ActionKind.PASS, reason="the brain ran out of time")
             reshuffling = "reshuffle" in (action.reason or "").lower() or (
                 action.card is not None and action.card.name.strip().lower() == "reshuffle")
             # Rollouts weigh the move that ends the turn, within a time budget:
