@@ -29,6 +29,7 @@ from . import lifetime
 from .questlist import (
     SIDE_WORLDS,
     WORLDS,
+    completed_by_world,
     load_completed,
     load_world_lists,
     norm,
@@ -216,13 +217,14 @@ def build_data(docs: Path = Path("docs")) -> dict:
     here_index = WORLDS.index(here) if here in WORLDS else -1
 
     deaths_by_world = lifetime.load().get("deaths_by_world", {})
+    done_in = completed_by_world(lists, completed, (*WORLDS, *SIDE_WORLDS))
     worlds = []
     for name in (*WORLDS, *SIDE_WORLDS):
         side = name in SIDE_WORLDS
         i = WORLDS.index(name) if not side else -1
         listed = lists.get(name, [])
         # Side worlds are optional: moving on in the story doesn't finish them.
-        st = quest_status(listed, completed, book_names, later_world_reached=0 <= i < here_index)
+        st = quest_status(listed, done_in.get(name, []), book_names, later_world_reached=0 <= i < here_index)
         if not side and here_index >= 0 and i > here_index:
             # A story world not reached yet: nothing in it is done. Quest names
             # shared with earlier worlds ('Monkey Business') marked Novus done

@@ -261,6 +261,26 @@ def load_completed(path: Path = COMPLETED_LOG) -> list[str]:
         return []
 
 
+def completed_by_world(lists: dict, completed: list[str], order) -> dict[str, list[str]]:
+    """Each world's share of the completed-quest log. A name on several
+    worlds' lists counts once per completion, given to the worlds in `order`
+    (story order) first come: 'Monkey Business', done in Azteca and Mirage,
+    showed Novus's as done while the story there was on #53."""
+    from collections import Counter
+
+    left = Counter(norm(n) for n in completed)
+    out: dict[str, list[str]] = {}
+    for world in order:
+        mine = []
+        for q in lists.get(world, []):
+            key = norm(q.name)
+            if left[key] > 0:
+                left[key] -= 1
+                mine.append(q.name)
+        out[world] = mine
+    return out
+
+
 def quest_status(
     listed: list[ListedQuest], completed: list[str], book: list[str], later_world_reached: bool
 ) -> dict[str, str]:

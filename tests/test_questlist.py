@@ -60,6 +60,19 @@ def test_quest_status_story_order():
     assert set(quest_status(listed, [], [], True).values()) == {"done"}
 
 
+def test_completed_by_world_shares_names_once_per_completion():
+    from wiz101_auto.questlist import ListedQuest, completed_by_world
+
+    def world(*names):
+        return [ListedQuest(i + 1, n, "Area") for i, n in enumerate(names)]
+
+    lists = {"Azteca": world("Monkey Business"), "Mirage": world("X", "Monkey Business"),
+             "Novus": world("Fish", "Monkey Business")}
+    done = ["Monkey Business", "X", "Monkey Business"]
+    got = completed_by_world(lists, done, ("Azteca", "Mirage", "Novus"))
+    assert got == {"Azteca": ["Monkey Business"], "Mirage": ["X", "Monkey Business"], "Novus": []}
+
+
 def test_tidy_world_list_merges_repeated_quest_numbers():
     from wiz101_auto.questlist import parse_quest_list, tidy_world_list
 
