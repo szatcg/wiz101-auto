@@ -310,7 +310,9 @@ _STRAY_CLOSE = {"exit", "Exit", "Close", "close", "btnClose", "CloseButton", "Cl
                 # The Team Up window (a player joined the queue mid-fight):
                 # its X keeps the queue; over the cards every cast failed.
                 "CloseTeamUpButton"}
-_BATTLE_WINDOWS = {"PlanningPhase", "CombatRoot", "ChatWindowFrame", "HealthAndMana", "CombatScreen"}
+_BATTLE_WINDOWS = {"PlanningPhase", "CombatRoot", "ChatWindowFrame", "HealthAndMana", "CombatScreen",
+                   # its exit button opens "If you leave a Dungeon..." over the fight
+                   "windowHUD"}
 
 
 async def close_stray_windows(client) -> list[str]:
