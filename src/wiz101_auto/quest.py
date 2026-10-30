@@ -11468,6 +11468,10 @@ class Quester:
                 logger.info("everyone here asked for quests: side quests in other worlds next")
                 self._ranked_for = None
                 self._last_rank = -1e9
+                # (The memo said "unchanged since the last read", so the book
+                # was never ranked again with `anywhere`: the bot ground in the
+                # Arcanum hub, which has no enemies, with side quests elsewhere.)
+                self._ranking_memo = None
             elif target:
                 self._hunt_exhausted_logged = False
             if target:
