@@ -51,6 +51,11 @@ def pierce(i):
                                effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 1)]))
 
 
+def shatter(i):
+    return normalize_card(Card(i, "Shatter", school="Myth", pip_cost=1,
+                               effects=[Effect(EffectKind.OTHER, Target.ENEMY_SINGLE, 1)]))
+
+
 def feint(i, tid, item=False, pips=1):
     return Card(i, "Feint", school="death", pip_cost=pips, template_id=tid, item=item,
                 effects=[Effect(EffectKind.TRAP, Target.ENEMY_SINGLE, 70),
@@ -188,6 +193,25 @@ def test_pierce_only_when_a_shield_keeps_the_kill_out_of_reach():
     weak = enemy("Boss", 600, boss=True)
     weak.incoming_effects = [("spell:5", "", -0.5)]
     assert brain.pierce_target(fight([o, pierce(1)], [weak], pips=7)) is None
+
+
+def test_shatter_takes_every_shield_when_they_keep_orthrus_from_killing():
+    # The player: Shatter clears all the enemy's beneficial wards; Pierce one.
+    # A Myth Shield and a universal shield: Orthrus's 1500 does 450 < 1400.
+    o = orthrus(0, dmg=1500)
+    boss = enemy("Boss", 1400, boss=True)
+    boss.incoming_effects = [("spell:7", "", -0.4), ("spell:5", "myth", -0.5)]
+    assert brain.pierce_target(fight([o, pierce(1)], [boss], pips=7)) is None  # one off: 900, short
+    b = fight([o, shatter(1)], [boss], pips=7)
+    assert brain.pierce_target(b, b.cards[1]) is boss
+    a = brain.decide(b)
+    assert a.card is not None and a.card.name == "Shatter" and a.target is boss
+    # Shields Orthrus kills through anyway: no Shatter.
+    weak = enemy("Boss", 300, boss=True)
+    weak.incoming_effects = [("spell:7", "", -0.4), ("spell:5", "myth", -0.5)]
+    b2 = fight([o, shatter(1)], [weak], pips=7)
+    brain.card_rules(b2)
+    assert not b2.cards[1].castable
 
 
 # --- enchants ---------------------------------------------------------------------------

@@ -213,6 +213,9 @@ class Battle:
 NEVER_PLAY = {"ultra assail"}
 
 
+ALL_WARDS = 99.0  # a REMOVE_WARD value: every shield (Shatter)
+
+
 def normalize_card(card: Card) -> Card:
     """Spells whose effect list, as the game reads, doesn't say what they do
     (the player's words and the card faces), made into what the brain plans
@@ -236,6 +239,8 @@ def normalize_card(card: Card) -> Card:
     if (("pierce" in name or "shatter" in name) and not card.is_enchant and kinds
             and kinds <= {EffectKind.OTHER}):
         n = next((e.value for e in card.effects if e.kind is EffectKind.OTHER), 1.0) or 1.0
+        if "shatter" in name:
+            n = ALL_WARDS  # (the player: Shatter takes every beneficial ward off, Pierce one)
         return _remade(card, [Effect(EffectKind.REMOVE_WARD, Target.ENEMY_SINGLE, n)])
     if "potent trap" in name and EffectKind.ENCHANT_TRAP not in kinds:
         value = next((e.value for e in card.effects if e.value > 0), 10.0)

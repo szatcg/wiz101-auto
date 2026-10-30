@@ -2029,6 +2029,8 @@ def _plan_discard(battle: Battle) -> Action | None:
     spare = [c for c in battle.cards if c.index not in used and not any(c is h for h in kept_heals)
              and not c.treasure
              and not c.is_enchant and not is_reshuffle(c) and not c.item and c.name not in plan_names
+             # (Shatter stays: the player's card for enemies that shield up later in the fight.)
+             and not (EffectKind.REMOVE_WARD in c.kinds and _wards_off(c) > 1)
              and _spare(battle, c, used)]
     if not spare:
         return None
@@ -3750,28 +3752,41 @@ def timed_blade_in_reach(battle: Battle, card: Card) -> bool:
     return max(1, _rounds_until_affordable(battle, hit)) <= card.timed_blade
 
 
-def _first_ward(e: Combatant) -> tuple[int, tuple[str, str, float]] | None:
-    """The ward a Pierce takes off: the newest shield on it (effects are read newest first)."""
-    for i, eff in enumerate(e.incoming_effects):
-        if eff[2] < 0:
-            return i, eff
-    return None
+def _wards_off(card: Card | None) -> int:
+    """How many shields the card takes off: Pierce the newest one, Shatter all."""
+    if card is None:
+        return 1
+    return max(1, int(max((e.value for e in card.effects if e.kind is EffectKind.REMOVE_WARD), default=1)))
 
 
-def pierce_target(battle: Battle) -> Combatant | None:
-    """The enemy whose newest shield (a myth or every-school one: Pierce takes
-    the newest ward, whatever its school) keeps our kill out of reach: without
-    it the kill line is shorter by more than the round Pierce takes. Else None:
-    Pierce isn't cast (the player's rule)."""
+def _strip_wards(e: Combatant, n: int) -> tuple[Combatant, bool]:
+    """`e` with its newest `n` shields gone (effects are read newest first),
+    and how many went."""
+    keep, gone_value, gone = [], 0.0, 0
+    for eff in e.incoming_effects:
+        if eff[2] < 0 and gone < n:
+            gone += 1
+            gone_value += eff[2]
+            continue
+        keep.append(eff)
+    return replace(e, incoming_effects=keep, incoming_boost=e.incoming_boost - gone_value,
+                   shield_count=max(0, e.shield_count - gone)), gone
+
+
+def pierce_target(battle: Battle, card: Card | None = None) -> Combatant | None:
+    """The enemy whose shields (Pierce: the newest one, whatever its school;
+    Shatter: all of them) keep our kill out of reach: without them the kill
+    line is shorter by more than the round the card takes, or the big hit
+    kills it bare and not shielded (the player: Shatter before Orthrus when
+    the shields stop it killing). Else None: the card isn't cast."""
     mine = (battle.me.school or "").lower()
+    n = _wards_off(card)
     best = None
     for e in battle.live_enemies:
-        ward = _first_ward(e)
-        if ward is None or ward[1][1] not in ("", mine):
+        wards = [eff for eff in e.incoming_effects if eff[2] < 0][:n]
+        if not wards or not any(w[1] in ("", mine) for w in wards):
             continue
-        i, (_k, _s, v) = ward
-        bare = replace(e, incoming_effects=e.incoming_effects[:i] + e.incoming_effects[i + 1:],
-                       incoming_boost=e.incoming_boost - v, shield_count=max(0, e.shield_count - 1))
+        bare, _gone = _strip_wards(e, n)
         clean = replace(battle, cards=[c for c in battle.cards if EffectKind.REMOVE_WARD not in c.kinds])
         with_ward = _kill_search(clean, e, KILL_LOOKAHEAD + 2)
         without = _kill_search(replace(clean, enemies=[bare if x is e else x for x in battle.enemies]),
@@ -3791,14 +3806,16 @@ def pierce_target(battle: Battle) -> Combatant | None:
 
 
 def _pierce_action(battle: Battle) -> Action | None:
+    """Pierce or Shatter on the enemy whose shields keep the kill out of
+    reach; Shatter first when both would do (it takes them all)."""
     cards = [c for c in battle.cards if c.castable and EffectKind.REMOVE_WARD in c.kinds and not c.banned]
-    if not cards:
-        return None
-    t = pierce_target(battle)
-    if t is None:
-        return None
-    return Action(ActionKind.CAST, cards[0], t,
-                  reason=f"{cards[0].name}: {t.name}'s shield keeps the kill out of reach")
+    for card in sorted(cards, key=lambda c: -_wards_off(c)):
+        t = pierce_target(battle, card)
+        if t is not None:
+            what = "shields" if _wards_off(card) > 1 else "shield"
+            return Action(ActionKind.CAST, card, t,
+                          reason=f"{card.name}: {t.name}'s {what} keep the kill out of reach")
+    return None
 
 
 def _nova_action(battle: Battle) -> Action | None:
@@ -3826,7 +3843,7 @@ def card_rules(battle: Battle) -> Battle:
             c.castable = False
         elif c.timed_blade and not c.is_damage and not timed_blade_in_reach(battle, c):
             c.castable = False
-        elif EffectKind.REMOVE_WARD in c.kinds and pierce_target(battle) is None:
+        elif EffectKind.REMOVE_WARD in c.kinds and pierce_target(battle, c) is None:
             c.castable = False
     return battle
 
