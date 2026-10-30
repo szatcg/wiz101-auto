@@ -23,7 +23,7 @@ from loguru import logger
 
 from . import ui
 from .relog import _find_button
-from .upkeep import wait_for_loading
+from .upkeep import close_endorsement, wait_for_loading
 
 TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus",
                     "WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01",  # the Waterworks
@@ -1040,6 +1040,11 @@ async def team_up(quester, dungeon: str) -> str:
     NO_PLAYERS_SWITCH: queue again there), "none" with no team."""
     client = quester.client
     zone = await client.zone_name()
+    # (Endorse a Wizard, after the team that lost Manticore broke up, covered
+    # the sigil: no TEAM UP! read, "only RESUME", and the main quest went
+    # unqueued for 25 min.)
+    if await close_endorsement(client):
+        await asyncio.sleep(1.0)
     await _dump(client, "sigil")
     use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS or dungeon in team_list()
     choices = (("TeamTypeQuestingCheckBox", f"TeamSize{team_size(dungeon)}CheckBox")

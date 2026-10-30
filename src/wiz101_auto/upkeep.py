@@ -1281,6 +1281,20 @@ async def skip_tutorial(client) -> bool:
     return False
 
 
+async def close_endorsement(client) -> bool:
+    """'Endorse a Wizard' (after fighting beside another player): Friendly,
+    which closes it. True if it was open."""
+    if not await ui.is_visible(client, ui.ENDORSEMENT):
+        return False
+    logger.info("endorsing the wizard we fought with (Friendly) to close the window")
+    if not await ui.click(client, ui.ENDORSE_FRIENDLY):
+        await ui.click(client, ui.ENDORSE_CLOSE)
+    await asyncio.sleep(0.5)
+    if await ui.is_visible(client, ui.ENDORSEMENT):
+        await ui.click(client, ui.ENDORSE_CLOSE)
+    return True
+
+
 async def clear_popups(client):
     if await reconnect_if_asked(client):
         return
@@ -1294,13 +1308,7 @@ async def clear_popups(client):
         await asyncio.sleep(0.5)
     await ui.close_chat(client)
     await ui.dismiss_notice(client)
-    if await ui.is_visible(client, ui.ENDORSEMENT):
-        logger.info("endorsing the wizard we fought with (Friendly) to close the window")
-        if not await ui.click(client, ui.ENDORSE_FRIENDLY):
-            await ui.click(client, ui.ENDORSE_CLOSE)
-        await asyncio.sleep(0.5)
-        if await ui.is_visible(client, ui.ENDORSEMENT):
-            await ui.click(client, ui.ENDORSE_CLOSE)
+    await close_endorsement(client)
     await ui.click(client, ui.CANCEL_CHEST_REROLL)
     if await ui.is_visible(client, ui.MINIGAME_EXIT):
         logger.info("closing the minigame picker")
