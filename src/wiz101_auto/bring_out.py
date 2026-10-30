@@ -86,6 +86,7 @@ class BringOut:
             return True
         hp, mana = await health_mana(self.client)
         if hp >= cfg.min_health_to_fight:
+            self._heal_best, self._heal_tries = -1.0, 0
             return True
         best = getattr(self, "_heal_best", -1.0)
         if hp > best + 0.01:
@@ -95,6 +96,7 @@ class BringOut:
             # no wisps here and resting gains nothing: looping at 65% for 30 min
             # blocked the fight, so go in with what we have
             logger.info(f"healing here gains nothing (at {hp:.0%}); going to the boss anyway")
+            self._heal_best, self._heal_tries = -1.0, 0  # the next boss heals afresh
             return True
         logger.info(f"healing here to {cfg.min_health_to_fight:.0%} before the boss (at {hp:.0%})")
         await recover(self.client, cfg, self.q.controller)  # on the spot: no trips out of the dungeon
