@@ -6292,6 +6292,18 @@ class Quester:
         goal = finder.goal if finder is not None else ""
         finder_place = zone_world(objective_zone(goal) or "") if goal else None
         finder_here = finder is not None and (not main_w or finder_place in (None, main_w))
+        if finder_here:
+            from .teamup import load_queue
+
+            queue = load_queue()
+            if queue and time.time() - queue.get("at", 0) < FINDER_QUEUE_HOURS * 3600:
+                # (Tracking Quest Finder made the game queue for the Hall of Purposeful
+                # Abstraction, replacing the Team Up queue for the main quest's dungeon: the
+                # Cabal Base never got a team in hours. Not while a queue stands.)
+                # Decided here, before the side quests anywhere: a Quest Finder dropped
+                # below still kept them off, and the bot "ground" 25 min in the
+                # Arcanum's hub, which has no enemies, with a book full of side quests.
+                finder, finder_here = None, False
         away = bool(main_w and here_w and here_w != main_w)
         if chosen is None and not hunted_out and not finder_here and not away:
             # Any side quest in the book, earlier worlds included, beats
@@ -6301,15 +6313,6 @@ class Quester:
                                   FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=True)
         if not finder_here:
             finder = None
-        if finder is not None:
-            from .teamup import load_queue
-
-            queue = load_queue()
-            if queue and time.time() - queue.get("at", 0) < FINDER_QUEUE_HOURS * 3600:
-                # (Tracking Quest Finder made the game queue for the Hall of Purposeful
-                # Abstraction, replacing the Team Up queue for the main quest's dungeon: the
-                # Cabal Base never got a team in hours. Not while a queue stands.)
-                finder = None
         if finder is not None and not (chosen and (chosen.mainline or chosen.activity)):
             # Quest Finder's marker points at someone with a quest for us, the
             # story's next one maybe (the player: after 'Gemstone Secrets' no

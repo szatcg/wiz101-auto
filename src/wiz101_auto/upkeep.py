@@ -1076,8 +1076,13 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 await back_to_start()
                 return True
             continue
-        if not rested and zone.split("/", 1)[0] in REST_WORLDS:
+        no_wisp_world = HEALTH in needed_wisps(cfg, hp, mana) and best_wisp_zone(
+            zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana), hops=hops_from_hub) is None
+        if not rested and (zone.split("/", 1)[0] in REST_WORLDS or no_wisp_world):
             # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.
+            # (Or none known in this world at all: the Arcanum, where "no wisps to
+            # heal with; carrying on" took the bot into The Paradox at 117 health,
+            # 5 losses in a row.)
             await move_to_safety(client, REST_SAFE_DISTANCE)
             rested = True
             rest_start = (loop.time(), hp, mana)
