@@ -17,3 +17,15 @@ def test_standing_still_or_a_jump_is_not_a_door():
     jump = [(t / 4, A, 100.0 + (5000 if t > 8 else 0), 100.0, 0.0) for t in range(12)]
     assert walked_through(jump, B) is None
     assert walked_through(still, "Zafaria/ZF_Z00_Hub") is None  # another world: never a door
+
+
+def test_a_team_up_jump_into_a_dungeon_entered_elsewhere_is_no_door():
+    from types import SimpleNamespace
+
+    from wiz101_auto.gatewatch import other_entrance
+
+    duel = "Novus/Interiors/NV_Z06_NucleusDuelingSpace"
+    dungeons = {duel: SimpleNamespace(outside="Novus/NV_Z06_NucleusGallery")}
+    assert other_entrance(dungeons, "Novus/NV_Z03_PuertoNuovo_VA", duel)
+    assert not other_entrance(dungeons, "Novus/NV_Z06_NucleusGallery", duel)
+    assert not other_entrance(dungeons, "Novus/NV_Z03_PuertoNuovo_VA", "Novus/NV_Z06_NucleusGallery")

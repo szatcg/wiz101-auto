@@ -3314,7 +3314,7 @@ class Quester:
                     self._last_rank = -1e9
                     return True
             return False
-        if await self._return_to_dungeon():
+        if await self._return_to_dungeon(dungeon):
             self._dungeon = (zone or "", await self.client.zone_name() or "")
             self._sigil_failed_at = None
             return True
@@ -3782,6 +3782,7 @@ class Quester:
             return False  # (still inside the one entered from here: kept)
         if is_hub(zone) or zone == outside or zone.split("/", 1)[0] != first_room.split("/", 1)[0]:
             self._dungeon = None
+            self._left_run = first_room  # (what the dungeon-return button goes back into)
             return False
         # Its rooms share the first room's area (Marleybone/MB_BigBen/...);
         # another street of the world is not in it (Hyde Park, visited to heal,
@@ -4897,11 +4898,19 @@ class Quester:
         tried.add(zone)
         await self._mark_here("team", require_clear=False)
 
-    async def _return_to_dungeon(self) -> bool:
+    async def _return_to_dungeon(self, dungeon: str | None = None) -> bool:
         """About to go in alone through a sigil, with the compass's dungeon-return
         button up (a defeat threw us out of a dungeon still open): that button
         goes back into the same run. Through the sigil it is a fresh dungeon:
-        the rooms done are done again (the player: Booth's Lair, every time)."""
+        the rooms done are done again (the player: Booth's Lair, every time).
+        Only when the run we left is `dungeon`: the button goes back into the
+        last one left, and on the way to Manticore (through the Dueling Space's
+        door) it took the bot into the Chronomonger's Workshop."""
+        from .teamup import _dungeon_base
+
+        left = getattr(self, "_left_run", None)
+        if not left or not dungeon or _dungeon_base(left) != _dungeon_base(dungeon):
+            return False
         try:
             shown = any([await w.is_visible() for w in
                          await self.client.root_window.get_windows_with_name("ResumeInstanceButton")])

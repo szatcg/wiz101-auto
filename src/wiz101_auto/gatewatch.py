@@ -46,6 +46,16 @@ def walked_through(samples: list[tuple[float, str, float, float, float]], new_zo
     return door, (bx, by, bz)
 
 
+def other_entrance(dungeons: dict, old: str, new: str) -> bool:
+    """`new` is a known dungeon entered from another zone than `old`: a Team
+    Up took us in mid-walk (three "doors" from Puerto Nuovo into the Nucleus
+    Dueling Space, whose sigil is in the Nucleus Gallery; one was the
+    Chronomonger's Workshop sigil, and the way to Manticore went in there)."""
+    entry = dungeons.get(new)
+    outside = getattr(entry, "outside", "") if entry is not None else ""
+    return bool(outside) and outside != old
+
+
 async def gate_watch(client, doors, controller) -> None:
     samples: deque = deque(maxlen=int(6 / SAMPLE_EVERY))
     loop = asyncio.get_running_loop()
@@ -66,6 +76,11 @@ async def gate_watch(client, doors, controller) -> None:
             jumped = time.monotonic() - last_zone_jump() < 10
             found = None if jumped else walked_through(list(samples), zone)
             old = samples[-1][1]
+            if found is not None:
+                from .dungeons import DungeonMemory
+
+                if other_entrance(DungeonMemory.load().dungeons, old, zone):
+                    found = None
             samples.clear()
             try:
                 from .teamup import in_team_run, note_team_run
