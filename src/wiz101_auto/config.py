@@ -72,6 +72,7 @@ class CombatConfig:
     flee_below: float = 0.0  # 0 disables fleeing
     rollouts: bool = True  # play each move out in the simulator and take the best (not a fight-ending move)
     adapt_deck: bool = True  # a lost fight: search a deck for those enemies, switch; the general deck after
+    keep_deck: bool = True  # put the in-game deck back to state/deck_general.json when it drifts
 
 
 @dataclass

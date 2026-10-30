@@ -631,7 +631,7 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             quester.deck_adapter = adapter
-            if adapter is None:
+            if adapter is None and cfg.combat.keep_deck:
                 from .deck_keeper import DeckKeeper
 
                 quester.deck_keeper = DeckKeeper()  # the one deck, put back when it drifts
