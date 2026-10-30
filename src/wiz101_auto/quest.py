@@ -3223,6 +3223,11 @@ class Quester:
             # cancelled, the form left up and no queue. It waits now.)
             self.controller.allow_idle(90)
             try:
+                # (On the sigil first: 135 away from Manticore's Plan, no prompt
+                # and so no TEAM UP! was read as "only RESUME", and the main
+                # quest waited 25 min unqueued, twice.)
+                if not await self._onto_sigil(sigil):
+                    logger.warning("team up: no prompt by the sigil; trying the Team Up anyway")
                 outcome = await team_up(self, dungeon)
             finally:
                 self.controller.end_idle()
@@ -3324,27 +3329,10 @@ class Quester:
             # so a mark inside is useless, but Recall to the sigil saves the walk.
             await self._mark_here()
             await asyncio.sleep(0.5)
-            if not await self._enter_prompt_up():
-                # Off the sigil (the Interrogation Chamber's marker refuses a
-                # teleport; the landing 130 away, X there did nothing): walk on.
-                # (The centre, then the slot circles around it: a 4-player
-                # sigil's prompt shows on its slots, not where the marker is;
-                # the Saqqara Bird's in Fort Rachias never prompted at its centre.)
-                spots = [sigil, *(XYZ(sigil.x + SIGIL_SLOT * math.cos(a), sigil.y + SIGIL_SLOT * math.sin(a),
-                                      sigil.z) for a in (i * math.pi / 2 for i in range(4)))]
-                for spot in spots:
-                    await self.client.goto(spot.x, spot.y)
-                    for _ in range(6):
-                        await asyncio.sleep(0.5)
-                        if await self._enter_prompt_up():
-                            break
-                    else:
-                        continue
-                    break
-                else:
-                    shown = await ui.text_at(self.client, ui.NPC_RANGE_TEXT)
-                    logger.warning("no 'Press X to Enter' prompt by the sigil; pressing X anyway"
-                                   + (f" (the prompt there: {shown!r})" if shown else ""))
+            if not await self._onto_sigil(sigil):
+                shown = await ui.text_at(self.client, ui.NPC_RANGE_TEXT)
+                logger.warning("no 'Press X to Enter' prompt by the sigil; pressing X anyway"
+                               + (f" (the prompt there: {shown!r})" if shown else ""))
             logger.info(f"on the dungeon sigil; pressing X once and waiting up to {SIGIL_WAIT:.0f}s")
             await self.client.send_key(Keycode.X, 0.1)
             if await self._wait_stream_list(await self._entities_near_named(("teleportgate",), 600)):
@@ -3758,6 +3746,26 @@ class Quester:
         if not went:
             logger.debug(f"heal trip: the healer didn't go (busy {self.healer.busy}, mark {self._mark})")
         return went
+
+    async def _onto_sigil(self, sigil: XYZ) -> bool:
+        """Stand where the sigil's prompt shows. True once it does.
+        (Off the sigil: the Interrogation Chamber's marker refuses a teleport;
+        the landing 130 away, X there did nothing. The centre, then the slot
+        circles around it: a 4-player sigil's prompt shows on its slots, not
+        where the marker is; the Saqqara Bird's in Fort Rachias never prompted
+        at its centre.)"""
+        await asyncio.sleep(0.5)
+        if await self._enter_prompt_up():
+            return True
+        spots = [sigil, *(XYZ(sigil.x + SIGIL_SLOT * math.cos(a), sigil.y + SIGIL_SLOT * math.sin(a),
+                              sigil.z) for a in (i * math.pi / 2 for i in range(4)))]
+        for spot in spots:
+            await self.client.goto(spot.x, spot.y)
+            for _ in range(6):
+                await asyncio.sleep(0.5)
+                if await self._enter_prompt_up():
+                    return True
+        return False
 
     async def _in_dungeon(self, zone: str) -> bool:
         """Still inside the dungeon we entered by its sigil? Leaving it (its
