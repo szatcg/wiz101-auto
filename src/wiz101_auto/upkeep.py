@@ -1053,14 +1053,16 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                     logger.info(f"no wisps or route out of {zone}; following the quest out to heal")
                     _leaving_interior.add(zone)
                     return True
-            if fruitless >= FRUITLESS_VISITS and close_enough(cfg, hp, mana):
+            # (Not while resting: regeneration gains ~20% a minute; "76% is enough"
+            # took the bot into The Paradox at 75-80% and it lost with it at 1,579.)
+            if fruitless >= FRUITLESS_VISITS and close_enough(cfg, hp, mana) and not rested:
                 # Nothing to be had around here and we're nearly there: waiting for
                 # regeneration costs minutes that questing puts to better use.
                 logger.info(f"no wisps here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
                 await back_to_start()
                 return True
 
-        if close_enough(cfg, hp, mana):
+        if close_enough(cfg, hp, mana) and not rested:
             # Nothing to pick up nearby, and resting regenerates little or
             # nothing: this close to the threshold, questing on is better.
             logger.info(f"nothing to heal with here; {hp:.0%} health, {mana:.0%} mana is enough to go on")
