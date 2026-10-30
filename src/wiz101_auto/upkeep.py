@@ -1350,6 +1350,10 @@ async def _close_dungeon_exit(client):
             cap = (await ui.find_named(box, {"CaptionText"})).get("CaptionText")
             text = ((await cap.maybe_text()) or "").lower() if cap is not None else ""
             no = await _find_button(box, ("no",))
+            if no is None and "leave a dungeon" in text:
+                # The buttons carry no text in memory (Yes = centerButton,
+                # No = rightButton): a stale box sat over a fight, every click missed.
+                no = (await ui.find_named(box, {"rightButton"})).get("rightButton")
             if no is not None and "leave a dungeon" in text:
                 logger.info("closing the \"leave the dungeon?\" box: No")
                 await ui.click_center(client, no)
