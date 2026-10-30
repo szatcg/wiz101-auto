@@ -896,6 +896,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     rest_start: tuple[float, float, float] | None = None  # (when, hp, mana) resting began
     moved_on = False  # already left a zone that gave nothing
     tripped = False  # tried a heal trip through the hub
+    far_tried = False  # went to another world's heal zone (no wisps in this world)
     travelled = False
     fruitless = 0  # remembered spots visited in a row without gaining anything
     respawn_waits = 0  # waits for the wisps here to come back
@@ -1080,6 +1081,14 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             continue
         no_wisp_world = HEALTH in needed_wisps(cfg, hp, mana) and best_wisp_zone(
             zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana), hops=hops_from_hub) is None
+        far = next((z for z in cfg.heal_zones if z.split("/", 1)[0] != zone.split("/", 1)[0]), None)
+        if no_wisp_world and far and go_to_zone and not far_tried:
+            # (The player: no slow resting in the Arcanum before The Paradox:
+            # to Unicorn Way, heal there, back, and try again at full health.)
+            far_tried = True
+            logger.info(f"no health wisps anywhere in {zone.split('/', 1)[0]}: to {far} to heal")
+            if await go_to_zone(far):
+                continue
         if not rested and (zone.split("/", 1)[0] in REST_WORLDS or no_wisp_world):
             # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.
             # (Or none known in this world at all: the Arcanum, where "no wisps to

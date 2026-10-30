@@ -166,6 +166,7 @@ MAP_GO_TRIES = 3  # Go To World pressed this many times without leaving: close t
 DUNGEON_SETTLE = 15.0  # after a fight in a dungeon: no heal trip out for this long (cutscenes)
 BOSS_SPAWN_WAIT = 60.0  # with a boss to beat next: up to this long for him to appear before a heal trip
 PET_RESUME_SECONDS = 600.0  # in the Pet Pavilion: the trip resumed at most this often
+FULL_HEALTH = 0.99  # main-quest fights and ones lost before: only at full health (the player)
 NO_FIGHT_HEAL_BELOW = 0.35  # a step with no fight: heal only below this health...
 NO_FIGHT_MANA_BELOW = 0.15  # ... or this mana
 NAMED_TALK_TRIES = 2  # talks to a same-named NPC away from the marker before following the marker
@@ -2229,6 +2230,17 @@ class Quester:
 
     async def go_to_zone(self, dest: str, max_hops: int = 6) -> bool:
         """Walk the known gates to `dest`. True once there."""
+        world = dest.split("/", 1)[0]
+        for _ in range(4):
+            # Another world (a heal at Unicorn Way from the Arcanum, which has
+            # no wisps): home, then the house's Spiral Map.
+            here = await self.client.zone_name() or ""
+            if not here or here.split("/", 1)[0] == world:
+                break
+            if not await self._to_world(world, f"to {dest.split('/')[-1]}"):
+                break
+        if (await self.client.zone_name() or "").split("/", 1)[0] != world:
+            return False
         if is_team_up_zone(dest) and not is_team_up_zone(await self.client.zone_name() or ""):
             if await self._to_team_sigil(dest):
                 return await self.client.zone_name() == dest
@@ -3554,9 +3566,16 @@ class Quester:
         if not self.upkeep:
             return
         base = self.__dict__.setdefault("_base_min_health", self.upkeep.min_health_to_fight)
-        target = defeat_target(await self.objective() or "") or ""
+        objective = await self.objective() or ""
+        target = defeat_target(objective) or ""
         boss = bool(target) and is_known_boss(target)
-        want = max(base, self.upkeep.rest_until_health) if boss else base
+        # The player (2026-10-30): a main-quest fight, or one lost before, only
+        # at FULL health ("not an 85% threshold"): The Paradox, no boss by the
+        # game's rank, was tried at 75-86% and lost each time.
+        hard = bool(target) and (self._active_quest in self._mainline
+                                 or self.setbacks.defeats.get(objective, 0) > 0)
+        want = FULL_HEALTH if hard else max(base, self.upkeep.rest_until_health) if boss else base
+        boss = boss or hard
         if want != self.upkeep.min_health_to_fight:
             self.upkeep.min_health_to_fight = want
             if boss:
