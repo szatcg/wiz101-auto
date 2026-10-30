@@ -3141,6 +3141,17 @@ class Quester:
             await self.client.goto(sigil.x, sigil.y)
             await asyncio.sleep(1.0)
         elif distance(await self._position(), sigil) > SIGIL_RANGE:
+            # (Dundara's Tunnel: its sigil is in the Wallaru hub, but the tunnel's far door
+            # leads to Kingsland: from there the bot jumped to the hub's sigil coordinates
+            # in Kingsland, high in the sky, and "entered the dungeon" for the zone
+            # not being the hub's, over and over.)
+            here_zone = await self.client.zone_name()
+            if zone and here_zone and here_zone != zone and self._dungeon_at(zone, sigil):
+                logger.info(f"that sigil is in {zone.split('/')[-1]}, not "
+                            f"{here_zone.split('/')[-1]}: going there")
+                if not await self.go_to_zone(zone):
+                    self._sigil_failed_at = sigil
+                    return False
             await self.client.teleport(sigil)
             await asyncio.sleep(TELEPORT_SETTLE)
         await wait_for_loading(self.client)
