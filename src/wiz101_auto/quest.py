@@ -3157,6 +3157,11 @@ class Quester:
         here_dungeon = self._dungeon_at(zone or "", sigil) or ""
         tries_used = (load_solo_tries().get(here_dungeon, 0) if here_dungeon else 0) >= SOLO_TRIES
         if self.upkeep and not (here_dungeon and _is_team(here_dungeon) and tries_used):
+            # (The threshold for this objective, not the last one's: Zolomon's 95%
+            # stayed set for 'Explore Krokodile Dundara's Tunnel', the wisps were
+            # through that tunnel, and the bot looped sigil -> heal 8 times, then
+            # the loop breaker sent it home to the dorm.)
+            await self._boss_health_bar()
             hp, mana = await health_mana(self.client)
             if self.upkeep.needs_recovery(hp, mana):
                 logger.info(f"{hp:.0%} health, {mana:.0%} mana: healing before entering the dungeon")
