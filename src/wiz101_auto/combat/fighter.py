@@ -1073,6 +1073,23 @@ class Fighter(CombatHandler):
                     if await self._committed(before):
                         logger.warning("the target took at its other spot")
                         return
+            if target is None:
+                # Read as needing no target, yet the game waits for one: the
+                # card is still picked (Manticore's Madness, "For Science...
+                # etc!", a Random card: no cast in 5 rounds, and Pass didn't go
+                # through either). Pick an enemy, then ourselves.
+                for who in [*battle.live_enemies, battle.me]:
+                    member = snap.members.get(id(who))
+                    if member is None:
+                        continue
+                    try:
+                        await self.client.mouse_handler.click_window(await self._target_window(member))
+                    except (ValueError, AttributeError):
+                        continue
+                    await asyncio.sleep(1.0)
+                    if await self._committed(before):
+                        logger.warning(f"{action.card.name} wanted a target: cast on {who.name}")
+                        return
             # Clicks on the leftmost card don't register at its center; probe
             # further left inside the card and keep whatever works.
             for fx in CLICK_PROBES:
