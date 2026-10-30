@@ -196,6 +196,7 @@ STREAM_PAGES = 4  # pages of a Streamportal's list looked through
 GATE_RETRY_SECONDS = 60.0  # a world teleporter that didn't take is tried again after this
 DOOR_FAILS_FORGET = 3  # a learned door that failed this often (the Ark Hold's launch pod) is forgotten
 TALK_RING = 150.0  # around an NPC that walking up to gave no prompt: spots this far off
+VISIT_WORLD_STAGES = 14  # world-travel stages one visit may take (a trip is ~4) before it is dropped
 VISIT_RETRIES = 3  # a visit in this world with no way there: tries before it's dropped
 TRACK_RETRY_SECONDS = 15.0  # tracking the chosen quest failed: rank again this soon
 DUNGEON_TOP_UP = 0.8  # in a dungeon below this health: wisps, else a potion, before going on
@@ -8432,6 +8433,17 @@ class Quester:
         zone = await self.client.zone_name() or ""
         world = dest.split("/", 1)[0]
         if await self._to_world(world, f"visit {npc}"):
+            # Travel stages are counted: a visit that keeps bouncing between
+            # worlds with the main quest's own trip (The Professor in
+            # Marleybone vs 'Defeat The Paradox' in Arcanum) is dropped.
+            trips = int(want.get("trips", 0)) + 1
+            if trips > VISIT_WORLD_STAGES:
+                logger.warning(f"visit {npc}: {trips} world-travel stages, not there yet; dropping it")
+                self._visit_zone_failed()
+                VISIT_FILE.unlink(missing_ok=True)
+                self._visit_tries = 0
+                return True
+            VISIT_FILE.write_text(json.dumps({**want, "trips": trips}), encoding="utf-8")
             return True
         if zone != dest and await self._npc_named(npc, near=await self._position()) is not None:
             # Right here, wherever the map last saw them (Vigilant Adapa in the
