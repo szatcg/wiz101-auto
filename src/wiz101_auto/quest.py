@@ -3093,6 +3093,18 @@ class Quester:
             logger.info(f"the Team Up queue's quest {queue.get('quest')!r} is done: forgetting the queue")
             clear_queue()
             queue = {}
+        main_w = getattr(self, "_main_world", None)
+        if (queue and main_w and queue.get("quest") in (self._mainline or set())
+                and queue.get("dungeon", "").split("/", 1)[0] not in ("", main_w.split("/", 1)[0])):
+            # A main quest's queue in another world can't be its own (Heart of the
+            # Wilds in Lemuria filed under Wallaru's 'Perchance to Scream'): it kept
+            # side quests out of their dungeons, and the bot ground the Outback.
+            from .teamup import clear_queue
+
+            logger.info(f"the Team Up queue for {queue.get('dungeon', '').split('/')[-1]} isn't in "
+                        f"{main_w}, the world of {queue.get('quest')!r}: forgetting it")
+            clear_queue()
+            queue = {}
         from .teamup import _dungeon_base
 
         here_dungeon = self._dungeon_at(zone or "", sigil) or ""
@@ -6339,7 +6351,6 @@ class Quester:
         # it has none in that world"). Quest Finder points at givers near the
         # wizard: out of the story's world, back there first (grinding there).
         main_w = zone_world(world)
-        here_w = zone_world(await self.client.zone_name() or "")
         goal = finder.goal if finder is not None else ""
         finder_place = zone_world(objective_zone(goal) or "") if goal else None
         finder_here = finder is not None and (not main_w or finder_place in (None, main_w))
@@ -6355,11 +6366,13 @@ class Quester:
                 # below still kept them off, and the bot "ground" 25 min in the
                 # Arcanum's hub, which has no enemies, with a book full of side quests.
                 finder, finder_here = None, False
-        away = bool(main_w and here_w and here_w != main_w)
-        if chosen is None and not hunted_out and not finder_here and not away:
+        if chosen is None and not hunted_out and not finder_here:
             # Any side quest in the book, earlier worlds included, beats
             # fighting for experience (the player: "grinding is very
             # inefficient; the previous world's side quests instead").
+            # (Wherever the wizard is: out of the story's world after a heal
+            # trip, "away" skipped this and it ground the Outback, 31 loop
+            # alerts on "no enemies in view", with side quests in the book.)
             chosen = choose_quest([q for _, q in all_quests], set_aside, self.quest_order, world,
                                   FALLBACK_SIDE_PLACES.get(zone_world(world) or "", ()), anywhere=True)
         if not finder_here:
