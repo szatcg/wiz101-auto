@@ -346,7 +346,8 @@ WARREN_SCOUT_ROUNDS = 2  # full scouts of a warren before fighting through it
 WARREN_USE_RANGE = 1500.0  # objects this near a scouting hop are used
 WALK_IN_QUIET = 120.0  # seconds after a walk-in with no stuck checks (the boss's cutscene)
 # Outdoor zones with enemies, per world (until a fight there is won).
-GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf"}
+GRIND_FALLBACK = {"Celestia": "Celestia/CL_Z02_Crab_Realm", "Grizzleheim": "Grizzleheim/GH_Wolf",
+                 "Wallaru": "Wallaru/WL_Z02_Outback"}
 # Where to grind, highest level first (Khrysalis at level 95: it set off for
 # Celestia and got lost at the house's world gate).
 GRIND_WORLDS = ["Khrysalis", "Azteca", "Avalon", "Zafaria", "Celestia", "DragonSpire", "MooShu",
@@ -10848,6 +10849,18 @@ class Quester:
         spots = self.entity_map.spots(zone, lambda n: n in fought, (me.x, me.y, me.z))
         spots = [s for s in spots if distance(XYZ(*s), me) > 800]
         if not spots:
+            return False
+        # (Hopping between stale spots of an empty hub went on for ever, Wallaru:
+        # after 6 empty hops in a row here, give up so the grind moves to a
+        # zone that has enemies.)
+        hops = self.__dict__.setdefault("_empty_hops", {})
+        if hops.get("zone") != zone:
+            hops.clear()
+            hops["zone"] = zone
+        hops["n"] = hops.get("n", 0) + 1
+        if hops["n"] > 6:
+            if hops["n"] > 12:
+                hops["n"] = 0
             return False
         i = self.__dict__.get("_enemy_spot_i", 0) % len(spots)
         self._enemy_spot_i = i + 1
