@@ -7607,6 +7607,7 @@ class Quester:
         # the Mines, the Witches' Trail left behind).
         if here and here not in getattr(self.client, "_walk_only", ()):
             self.client._walk_only = (*getattr(self.client, "_walk_only", ()), here)
+            self.client._pet_walk_zone = here  # (taken off again when Pet Mode is over)
         self.client._pet_mode_until = time.monotonic() + PET_MODE_SPAN
         return True
 
@@ -7615,6 +7616,13 @@ class Quester:
         Maulwurf von Trap': no talk prompt for a pet, ten minutes round him):
         Play As Pet again turns it off. True if it clicked."""
         if time.monotonic() >= getattr(self.client, "_pet_mode_until", 0.0):
+            # (Pet Mode's span ran out: the zone it made walk-only stayed so, and
+            # every walk to the Goannas of the next quest failed, "no way on foot".)
+            pet_zone = getattr(self.client, "_pet_walk_zone", None)
+            if pet_zone:
+                self.client._walk_only = tuple(
+                    z for z in getattr(self.client, "_walk_only", ()) if z != pet_zone)
+                self.client._pet_walk_zone = None
             return False
         self.client._pet_mode_until = 0.0
         here = await self.client.zone_name() or ""
