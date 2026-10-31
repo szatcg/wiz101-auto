@@ -5991,6 +5991,16 @@ class Quester:
                 complete = False
             if complete:
                 await self._save_quest_cache([q for _, q in all_quests])
+                self._partial_skips = 0
+            elif before and len(all_quests) * 2 < before and self.__dict__.get("_partial_skips", 0) < 5:
+                # (A 4-quest read of a 47-quest book, right after a restart,
+                # was ranked: "nothing to do in Wallaru", the Team Up queue
+                # and the main quest dropped and never re-read. Not ranked;
+                # read again soon.)
+                self._partial_skips = self.__dict__.get("_partial_skips", 0) + 1
+                self._partial_retry_at = time.monotonic() + 40.0
+                logger.warning("a partial quest book read is not ranked; reading it again soon")
+                return False
             return bool(await self._rank_quests(all_quests, complete, pages))
         finally:
             await self._close_quest_book()
@@ -12045,6 +12055,10 @@ class Quester:
             quest_id = None
         switched = quest_id is not None and quest_id != getattr(self, "_ranked_quest", quest_id)
         recheck = getattr(self, "_pin_recheck", False)
+        retry_at = self.__dict__.get("_partial_retry_at", 0.0)
+        if retry_at and time.monotonic() > retry_at:
+            self._partial_retry_at = 0.0
+            recheck = True
         zone_here = await self.client.zone_name() or ""
         if (not recheck and not on_set_aside and objective != getattr(self, "_ranked_for", None)
                 and "/interiors/" in zone_here.lower()
