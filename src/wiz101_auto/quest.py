@@ -2002,6 +2002,10 @@ class Quester:
                 # re-aim at the door; give up after a few (the caller tries
                 # other sides, then teleports).
                 blocked += 1
+                # (A "leave the dungeon?" box over the exit blocks all movement; the
+                # watchdog closed it with No before the step's own answer ran, and the
+                # bot walked at the 'Meet Ned Collie' exit for 10 minutes.)
+                await self._answer_dungeon_exit()
                 if blocked > STUCK_TRIES:
                     break
                 await strafe_while_walking(self.client, blocked)
