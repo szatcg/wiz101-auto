@@ -1019,7 +1019,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 tripped = True
                 if await trip(marked=marked):
                     return True
-            if poor_zone and "/interiors/" in zone.lower():
+            if poor_zone and "/interiors/" in zone.lower() and not rested:
                 # Never out of a dungeon or room for wisps (the player's rule):
                 # out of the Timeless Center after Vigilant Adapa, all of Zruvan
                 # Grotto was lost. A potion if it's low, then on.
@@ -1033,9 +1033,20 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                                     f"({hp:.0%} health, {mana:.0%} mana) instead of leaving")
                         await ui.click(client, ui.POTION_BUTTON)
                         await asyncio.sleep(1.5)
+                hp, mana = await health_mana(client)
+                if cfg.needs_recovery(hp, mana):
+                    # Rest here instead (regeneration, ~20% a minute): the player's rule is
+                    # main fights only at full health; "carrying on" started Desperation
+                    # at 48%. The no-gain probe below still ends a rest that gives nothing.
+                    logger.info(f"no wisps in {zone.split('/')[-1]}; not leaving it: resting here "
+                                f"({hp:.0%} health, {mana:.0%} mana)")
+                    await move_to_safety(client, REST_SAFE_DISTANCE)
+                    rested = True
+                    rest_start = (loop.time(), hp, mana)
+                    continue
                 logger.info(f"no wisps in {zone.split('/')[-1]}; not leaving it: carrying on")
                 return True
-            if go_to_zone and not travelled and poor_zone:
+            if go_to_zone and not travelled and poor_zone and "/interiors/" not in zone.lower():
                 # No wisps to be had here right now (e.g. the hub after a defeat):
                 # go heal where they spawn instead of waiting for respawns.
                 travelled = True
@@ -1082,7 +1093,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
         no_wisp_world = HEALTH in needed_wisps(cfg, hp, mana) and best_wisp_zone(
             zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana), hops=hops_from_hub) is None
         far = next((z for z in cfg.heal_zones if z.split("/", 1)[0] != zone.split("/", 1)[0]), None)
-        if no_wisp_world and far and go_to_zone and not far_tried:
+        if no_wisp_world and far and go_to_zone and not far_tried and "/interiors/" not in zone.lower():
             # (The player: no slow resting in the Arcanum before The Paradox:
             # to Unicorn Way, heal there, back, and try again at full health.)
             far_tried = True
@@ -1102,7 +1113,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             # Go where they are; nowhere known: carry on and heal at the next.
             dest = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana),
                                   avoid=barren_zones(), hops=hops_from_hub)
-            if dest and dest != zone and go_to_zone and await go_to_zone(dest):
+            if (dest and dest != zone and go_to_zone and "/interiors/" not in zone.lower()
+                    and await go_to_zone(dest)):
                 logger.info(f"went to {dest} for wisps")
                 continue
             if trip and not tripped:
@@ -1137,7 +1149,7 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                     return True
                 dest = best_wisp_zone(zone, preferred=_heal_prefs(cfg), need=needed_wisps(cfg, hp, mana),
                                       avoid=barren_zones(), hops=hops_from_hub)
-                if dest and go_to_zone and await go_to_zone(dest):
+                if dest and go_to_zone and "/interiors/" not in zone.lower() and await go_to_zone(dest):
                     logger.info(f"went to {dest} to heal")
                     rested, rest_start = False, None
                     continue
