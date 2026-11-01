@@ -1132,6 +1132,14 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 await ui.click(client, ui.POTION_BUTTON)
                 await asyncio.sleep(1.5)
                 return True
+            if cfg.needs_recovery(hp, mana) and "/interiors/" not in zone.lower():
+                # (Wallaru's hub after the heal trip: 68% and "carrying on" went into
+                # Desperation again. Rest here; the no-gain probe ends a useless rest.)
+                logger.info(f"no wisps to heal with; resting here ({hp:.0%} health, {mana:.0%} mana)")
+                await move_to_safety(client, REST_SAFE_DISTANCE)
+                rested = True
+                rest_start = (loop.time(), hp, mana)
+                continue
             logger.info(f"no wisps to heal with ({hp:.0%} health, {mana:.0%} mana); carrying on")
             await back_to_start()
             return True

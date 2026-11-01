@@ -2655,7 +2655,7 @@ class Quester:
                 # day). Off the team list: fought alone, set aside after losses.
                 logger.warning(f"{inside.split('/')[-1]}: no Team Up queue for it (its entrance has "
                                "none): off the team list, fought alone")
-                remove_team_dungeon(inside)
+                remove_team_dungeon(inside, no_queue=True)
                 return
             logger.info(f"in {inside.split('/')[-1]} alone, its {SOLO_TRIES} tries alone used: "
                         "leaving it for a team")
@@ -4578,6 +4578,10 @@ class Quester:
             entry = memory.dungeons.get(dungeon or "")
         if not dungeon or entry is None or not entry.sigil:
             return False
+        from .teamup import no_team_queue
+
+        if no_team_queue(dungeon) or no_team_queue(room):
+            return False  # (no Team Up at its entrance: losses count toward setting it aside)
         if any(k in f"{dungeon} {room}" for k in NEVER_TEAM_UP):
             return False  # (the player: no Team Up for these, the bot kills them itself)
         # (Already on the list but fought solo, recalled straight into the boss

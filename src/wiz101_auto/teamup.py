@@ -268,8 +268,29 @@ def add_team_dungeon(dungeon: str, quest: str) -> None:
     TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
 
 
-def remove_team_dungeon(dungeon: str) -> None:
+NO_QUEUE_FILE = Path("state") / "no_team_queue.json"
+
+
+def no_team_queue(dungeon: str) -> bool:
+    """The dungeon's entrance has no Team Up queue (seen once): never put back on the team list."""
+    try:
+        return _dungeon_base(dungeon) in json.loads(NO_QUEUE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def remove_team_dungeon(dungeon: str, no_queue: bool = False) -> None:
     """Off the team list (every room of that dungeon)."""
+    if no_queue:
+        try:
+            try:
+                have = json.loads(NO_QUEUE_FILE.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                have = []
+            if _dungeon_base(dungeon) not in have:
+                NO_QUEUE_FILE.write_text(json.dumps([*have, _dungeon_base(dungeon)]), encoding="utf-8")
+        except OSError:
+            pass
     teams = team_list()
     base = _dungeon_base(dungeon)
     keep = {k: v for k, v in teams.items() if _dungeon_base(k) != base}
