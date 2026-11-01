@@ -268,6 +268,15 @@ def add_team_dungeon(dungeon: str, quest: str) -> None:
     TEAM_LIST_FILE.write_text(json.dumps(teams, indent=1), encoding="utf-8")
 
 
+def remove_team_dungeon(dungeon: str) -> None:
+    """Off the team list (every room of that dungeon)."""
+    teams = team_list()
+    base = _dungeon_base(dungeon)
+    keep = {k: v for k, v in teams.items() if _dungeon_base(k) != base}
+    if len(keep) != len(teams):
+        TEAM_LIST_FILE.write_text(json.dumps(keep, indent=1), encoding="utf-8")
+
+
 def is_open_hub(zone: str) -> bool:
     """A world's hub zone ('Empyrea/EM_Z00_Aeriel_HUB', 'WizardCity/WC_Hub')."""
     last = zone.split("/")[-1].lower()

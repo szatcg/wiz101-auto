@@ -2630,6 +2630,18 @@ class Quester:
         tries = self.__dict__.setdefault("_solo_tries", load_solo_tries())
         used = SOLO_TRIES if no_solo(inside) else tries.get(inside, 0)
         if used >= SOLO_TRIES:
+            from .teamup import _dungeon_base, load_queue, remove_team_dungeon
+
+            queue = load_queue()
+            if not queue or _dungeon_base(queue.get("dungeon", "")) != _dungeon_base(inside):
+                # No queue for it, so no team is coming: its way in has no TEAM UP!
+                # (Desperation's Dreamscape, a portal in the Juggernaut Crab Theater:
+                # in, "leaving it for a team", out and in again, 744 loop alerts in a
+                # day). Off the team list: fought alone, set aside after losses.
+                logger.warning(f"{inside.split('/')[-1]}: no Team Up queue for it (its entrance has "
+                               "none): off the team list, fought alone")
+                remove_team_dungeon(inside)
+                return
             logger.info(f"in {inside.split('/')[-1]} alone, its {SOLO_TRIES} tries alone used: "
                         "leaving it for a team")
             return
