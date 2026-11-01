@@ -123,3 +123,12 @@ def test_side_quests_in_wintertusk_after_celestias():
     assert choose_quest([cel, wt, wiz], world="Celestia", fallback=places) is cel
     assert choose_quest([wt, wiz], world="Celestia", fallback=places) is wt
     assert choose_quest([wiz], world="Celestia", fallback=places) is None
+
+
+def test_side_quests_from_the_newest_world_first():
+    from wiz101_auto.quest import QuestEntry, choose_quest
+
+    old = QuestEntry(1, "Arrow to the Knee", world="Arena", zone="Wizard City", reward=9999)
+    new = QuestEntry(2, "Previously on Wizard101...", world="Hope Springs", zone="Wallaru", reward=10)
+    got = choose_quest([old, new], set(), {}, "Selenopolis", (), anywhere=True)
+    assert got is new

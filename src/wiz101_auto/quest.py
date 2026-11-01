@@ -715,6 +715,16 @@ def quest_world(q: QuestEntry) -> str | None:
     return zone_world(q.zone.replace(" ", "")) or None
 
 
+def world_recency(q: QuestEntry) -> int:
+    """How late in the story a quest's world comes (Wallaru > Novus > ...
+    > Wizard City); -1 for a side world or one not known."""
+    from .questlist import WORLDS
+
+    w = (quest_world(q) or "").replace(" ", "").lower()
+    order = [x.replace(" ", "").lower() for x in WORLDS]
+    return order.index(w) if w in order else -1
+
+
 def in_side_world(q: QuestEntry) -> bool:
     """A quest of an optional side world (Grizzleheim, Wintertusk, ...): the
     game marks their story as main-story, but the bot's main story is the
@@ -916,7 +926,9 @@ def choose_quest(
         if not here and anywhere:
             # This world's people all asked (`anywhere`): the side quests left in
             # the book in other worlds beat grinding (the player: experience).
-            here = [q for q in available if quest_zone(q) and "/" in quest_zone(q)]
+            # (Or its world known from the book: Wallaru's areas, 'Hope Springs',
+            # 'Outback', aren't in the zone names, and its side quests were left out.)
+            here = [q for q in available if (quest_zone(q) and "/" in quest_zone(q)) or world_recency(q) >= 0]
         if not here:
             return None  # nothing worth doing in this world: the caller grinds there
         active = next((q for q in here if q.active), None)
@@ -925,6 +937,9 @@ def choose_quest(
         return max(
             here,
             key=lambda q: (
+                # The newest world first (the player: its side quests give much more
+                # experience; Wizard City's 'Arrow to the Knee' came up from Wallaru).
+                world_recency(q),
                 q.reward,
                 bool(q.goal) and not is_combat_objective(q.goal),  # quick, no fight
                 -(UNKNOWN_HOPS if q.hops is None else q.hops),
