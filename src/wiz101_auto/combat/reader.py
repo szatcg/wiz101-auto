@@ -375,13 +375,23 @@ def _log_effects(c: Combatant):
         logger.info(f"{c.name} effects: {text}")
 
 
+PIERCE_SCHOOLS = ("fire", "ice", "storm", "myth", "life", "death", "balance", "star", "sun", "moon", "shadow")
+
+
 async def _lasting(c: Combatant, participant):
     """Auras: lasting outgoing boosts (never used up by a hit)."""
     try:
         for eff in await participant.aura_effects():
-            if (await eff.effect_type()).name == "modify_outgoing_damage":
+            kind = (await eff.effect_type()).name
+            if kind == "modify_outgoing_damage":
                 _key, school = await _effect_identity(eff, 0)
                 c.aura[school] = c.aura.get(school, 0.0) + await eff.effect_param() / 100
+            elif "armor_piercing" in kind:
+                # (Armored Ned Collie's +300% "smoothie" aura on us: pierce for every school.)
+                _key, school = await _effect_identity(eff, 0)
+                value = await eff.effect_param() / 100
+                for s in ([school] if school else [*PIERCE_SCHOOLS, ""]):
+                    c.pierce[s] = c.pierce.get(s, 0.0) + value
     except Exception as exc:
         logger.debug(f"aura effects unreadable for {c.name}: {exc}")
 

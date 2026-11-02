@@ -3067,10 +3067,45 @@ def _blade(c: Card) -> bool:
 
 # Cards a boss punishes (the player's Avalon list, docs/guides/Boss cheats.md):
 # made uncastable while the boss lives.
+# Armored Ned Collie (Wallaru, 'Collie Collared'; the player's notes): from round 1 a
+# -300% resist aura ("no spell piercing this armor"); after round 1 any damage spell
+# of ours makes him put a +300% armor-piercing aura on us ("that smoothie kicking in
+# yet?"). So: no hits in round 1, then a small hit first, the big one once primed.
+ARMORED_NED = "armored ned collie"
+NED_PRIMED_PIERCE = 1.0  # our pierce from his aura (+300%): primed
+NED_ASSUME_PRIMED_ROUND = 5  # by then primed anyway (a small hit went in round 2+)
+
+
+def _ned_rule(battle: Battle, action: Action, strat: Strategy) -> Action | None:
+    """Against Armored Ned Collie: never a hit into his armor before we're
+    primed, then the smallest hit to prime us. None: as chosen."""
+    ned = next((e for e in battle.live_enemies if _is(e, ARMORED_NED)), None)
+    if ned is None or action.kind is not ActionKind.CAST or action.card is None or not action.card.is_damage:
+        return None
+    if max(battle.me.pierce.values(), default=0.0) >= NED_PRIMED_PIERCE:
+        return None  # primed: the chosen hit stands
+    if (battle.round or 0) >= NED_ASSUME_PRIMED_ROUND:
+        return None  # (in case his aura on us isn't read: a small hit has gone by now)
+    if (battle.round or 0) <= 1:
+        return _hold_for_one_shot(battle, strat, f"{ned.name}'s armor aura: no hits in round 1")
+    hits = [c for c in battle.cards if c.castable and c.is_damage and not c.banned]
+    small = min(hits, key=lambda c: (c.pip_cost, c.base_damage()), default=None)
+    if small is None or (small is action.card and len(hits) == 1 and action.card.pip_cost >= 4):
+        # Only the big hit in hand: not into his armor (it would do nothing).
+        return _hold_for_one_shot(battle, strat, f"{ned.name}'s armor: a small hit first, none in hand")
+    target = None if small.is_aoe else ned
+    return Action(ActionKind.CAST, small, target,
+                  reason=f"{small.name}: a small hit first, for {ned.name}'s +300% pierce aura on us")
+
+
 BOSS_BANS = {
     "matkis axethief": _single_trap_or_prism,  # wipes all his traps and prisms
     "black annie": lambda c: aims_at_one_enemy(c) and c.pip_cost <= 3,  # Vampire + stun
     "flevur flave": lambda c: _blade(c) or _shield(c),  # steals them
+    # (The player, 2026-11-01: Steal Charm for a blade or charm, Steal Ward / Snow
+    # Drift for a shield or a heal over time.)
+    ARMORED_NED: lambda c: (_blade(c) and not c.is_damage) or _shield(c)
+    or (c.is_heal and not c.is_damage and any(e.rounds for e in c.effects)),
     "ridenhouer delish": _shield,  # steals shields and absorbs
     # (The player's list: a blade, a trap or a heal (or a fizzle) can bring her
     # Woolly Mammoth / Earthquake / Supernova; shields too.)
@@ -3568,7 +3603,7 @@ def scripted_fight(battle: Battle) -> bool:
     which knows nothing of cheats, leaves those fights to them."""
     names = {e.name.lower() for e in battle.live_enemies}
     special = (NO_SINGLE_TARGET | SYLSTER_FIGHT | HIT_EVERY_ROUND | MINION_LAST | set(ONE_SHOT_ONLY)
-               | {SHIELDED_UNTIL_OTHERS_DIE})
+               | {SHIELDED_UNTIL_OTHERS_DIE, ARMORED_NED})
     return bool(names & special)
 ONE_SHOT_GIVE_UP_ROUND = 12  # waited this long for a one-shot: hit normally (no endless setup)
 
@@ -3579,6 +3614,9 @@ def _is(e: Combatant, key: str) -> bool:
 
 def _cheat_rules(battle: Battle, action: Action, strat: Strategy) -> Action | None:
     """The cheating bosses' rules on the chosen move (see above). None: as chosen."""
+    ned = _ned_rule(battle, action, strat)
+    if ned is not None:
+        return ned
     if action.kind is not ActionKind.CAST or action.card is None or not action.card.is_damage:
         return None
     card, alive = action.card, battle.live_enemies
@@ -4120,6 +4158,12 @@ def _decide_seen(battle: Battle, strat: Strategy | None = None, **kw) -> Action:
     except Exception:
         pass
     action = specials(battle, action) or action
+    try:
+        # (Last word, after the setup rules: they put Orthrus back on Armored Ned
+        # Collie unprimed, into his -300% armor.)
+        action = _ned_rule(battle, action, strat or Strategy()) or action
+    except Exception:
+        pass
     if (action.kind is ActionKind.CAST and action.card is not None and action.card.is_damage
             and not action.card.enchanted):
         # The player's: a sun enchant (Giant: +125 base damage) goes on the

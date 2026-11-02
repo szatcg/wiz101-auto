@@ -339,3 +339,28 @@ def test_sharpened_blade_never_on_frenzy():
                   effects=[Effect(EffectKind.BLADE, Target.SELF, 40, school="myth")])
     b = fight([orthrus(0, castable=False), frenzy, sharp], [enemy("Boss", 15000, boss=True)], pips=2)
     assert brain._blade_enchant(b) is None
+
+
+def test_armored_ned_collie_small_hit_first_then_orthrus_once_primed():
+    # The player's notes: round 1 his -300% armor; after it, any hit of ours puts
+    # a +300% pierce aura on us; only then the big hit.
+    def frog(i):
+        return Card(i, "Humongofrog", school="myth", pip_cost=4, template_id=901,
+                    effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 400, school="myth")])
+
+    def ned():
+        return enemy("Armored Ned Collie", 16810, boss=True)
+
+    b = fight([orthrus(0, dmg=20000), frog(1)], [ned()], pips=7)
+    b.round = 1
+    a = brain.decide(b)
+    assert not (a.card is not None and a.card.is_damage and a.kind is ActionKind.CAST)
+    b = fight([orthrus(0, dmg=20000), frog(1)], [ned()], pips=7)
+    b.round = 2
+    a = brain.decide(b)
+    assert a.card is not None and a.card.name == "Humongofrog"
+    b = fight([orthrus(0, dmg=20000), frog(1)], [ned()], pips=7)
+    b.round = 3
+    b.me.pierce = {"myth": 3.0}
+    a = brain.decide(b)
+    assert a.card is not None and a.card.name == "Orthrus"
