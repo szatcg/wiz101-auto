@@ -793,12 +793,19 @@ class Fighter(CombatHandler):
             pool = [*battle.cards, *battle.upcoming]
             scripted = any(e.name.lower() in SCRIPTED_FIGHTS and any(scripted_spell(e.name, c) for c in pool)
                            for e in battle.live_enemies)
-            if (battle.deck_known and out_of_attacks(battle) and not self._flee_tried_this_round and not team
-                    and not scripted):
+            from .brain import cannot_win
+
+            lost = battle.deck_known and not team and not scripted and (
+                out_of_attacks(battle) or cannot_win(battle))
+            if lost and not self._flee_tried_this_round:
                 # Passing until we die (Shakes O'Leary healed back up) loses
                 # the fight anyway; fleeing keeps our health for the retry.
+                # (Also the one attack left when it can't kill everyone, the
+                # player: flee instead of wasting time.)
                 self._flee_tried_this_round = True
-                logger.warning("no attack cards left in hand or deck: fleeing to try again")
+                why = ("no attack cards left in hand or deck" if out_of_attacks(battle)
+                       else "the cards left can't win this fight")
+                logger.warning(f"{why}: fleeing to try again")
                 # (Even in a dungeon with no mark: passing until we die gains
                 # nothing, the player's rule; fleeing keeps us in the room.)
                 # (Who this fight was with, before the round's usual note: a

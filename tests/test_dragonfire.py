@@ -364,3 +364,13 @@ def test_armored_ned_collie_small_hit_first_then_orthrus_once_primed():
     b.me.pierce = {"myth": 3.0}
     a = brain.decide(b)
     assert a.card is not None and a.card.name == "Orthrus"
+
+
+def test_one_last_attack_that_cant_kill_everyone_means_flee():
+    big = [enemy("Scrappers", 6000), enemy("Fredrick", 7160), enemy("Vel", 4675)]
+    b = fight([orthrus(0, dmg=1200)], big, pips=7, upcoming=[])
+    assert brain.cannot_win(b)
+    b = fight([orthrus(0, dmg=20000)], [enemy("Vel", 4675)], pips=7, upcoming=[])
+    assert not brain.cannot_win(b)
+    b = fight([orthrus(0, dmg=1200)], big, pips=7, upcoming=[orthrus(1, dmg=1200)])
+    assert not brain.cannot_win(b)  # (two attacks left: not judged here)

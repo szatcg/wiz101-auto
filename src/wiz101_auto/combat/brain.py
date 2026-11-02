@@ -2633,6 +2633,24 @@ def out_of_attacks(battle: Battle) -> bool:
     return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
 
 
+def cannot_win(battle: Battle) -> bool:
+    """Alone, the cards left can't win: no attack at all, or one last attack
+    that even fully stacked kills nobody's way out (the player: flee instead of
+    wasting time; Fredrick's fight: the one Orthrus left everyone up, and the
+    bot set up for the second until it died at 263 health)."""
+    if not battle.live_enemies or battle.allies or scripted_fight(battle):
+        return False
+    attacks = [c for c in [*battle.cards, *battle.upcoming] if c.is_damage]
+    if not attacks:
+        return True
+    if len(attacks) > 1:
+        return False
+    try:
+        return not one_shot_plan(battle, attacks[0]).kills
+    except SearchTimeout:
+        return False
+
+
 RESHUFFLE_WHEN_LEFT = 2  # the deck this close to empty: Reshuffle rather than pass
 RESHUFFLE_HEAL_BELOW = 0.5  # saving pips for Reshuffle, a heal below this health still goes first
 
