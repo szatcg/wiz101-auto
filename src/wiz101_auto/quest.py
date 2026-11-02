@@ -1588,6 +1588,9 @@ def quests_from_cache(cache: dict | None, memory: set[str], tracked: str, object
     return out
 
 
+_RESUME_BAD: dict = {}
+
+
 class Quester:
     def __init__(self, client, cfg: QuestConfig, controller, progression=None, upkeep=None, dialogue=None):
         self.client = client
@@ -5044,7 +5047,7 @@ class Quester:
             logger.info(f"not the dungeon-return button: the run it goes back to is "
                         f"{left.split('/')[-1]}, not {marked_zone.split('/')[-1]}")
             return False
-        bad = getattr(self, "_resume_bad", None)
+        bad = _RESUME_BAD.get("bad")  # (module-level: several Questers share it)
         if bad and bad[0] == _dungeon_base(marked_zone) and time.monotonic() - bad[1] < 1800:
             # It took us into another dungeon's run last time: the game's button
             # goes to a run we can't see here, so Recall or the walk instead.
@@ -5069,7 +5072,7 @@ class Quester:
         inside = here == marked_zone or in_same_area(here, marked_zone) or in_same_area(marked_zone, here)
         if not inside:
             logger.warning(f"the dungeon-return button took us to {here}, not {marked_zone}'s dungeon")
-            self._resume_bad = (_dungeon_base(marked_zone), time.monotonic())
+            _RESUME_BAD["bad"] = (_dungeon_base(marked_zone), time.monotonic())
             if await self._in_dungeon(here):
                 # Out again at once: that dungeon's quest may be set aside (it
                 # fought Clemente Moraga a seventh time).
