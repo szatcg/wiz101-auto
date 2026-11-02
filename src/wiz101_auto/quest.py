@@ -5034,6 +5034,16 @@ class Quester:
         after a defeat throws us out of a dungeon): back into the dungeon we
         left. Recall into the Labyrinth from the Basilica did nothing. True if
         it took us into the marked zone or another room of its dungeon."""
+        from .teamup import _dungeon_base
+
+        left = getattr(self, "_left_run", None)
+        if left and _dungeon_base(left) != _dungeon_base(marked_zone):
+            # The button goes back into the last run left, another dungeon's (after a
+            # flee from Despair it went into the Abyss's hall twice, and the bot
+            # fought the Abyss alone): Recall or the walk instead.
+            logger.info(f"not the dungeon-return button: the run it goes back to is "
+                        f"{left.split('/')[-1]}, not {marked_zone.split('/')[-1]}")
+            return False
         before = await self.client.zone_name() or ""
         note_zone_jump()
         if not await ui.click_named(self.client, "ResumeInstanceButton"):
