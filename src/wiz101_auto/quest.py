@@ -5044,6 +5044,11 @@ class Quester:
             logger.info(f"not the dungeon-return button: the run it goes back to is "
                         f"{left.split('/')[-1]}, not {marked_zone.split('/')[-1]}")
             return False
+        bad = getattr(self, "_resume_bad", None)
+        if bad and bad[0] == _dungeon_base(marked_zone) and time.monotonic() - bad[1] < 1800:
+            # It took us into another dungeon's run last time: the game's button
+            # goes to a run we can't see here, so Recall or the walk instead.
+            return False
         before = await self.client.zone_name() or ""
         note_zone_jump()
         if not await ui.click_named(self.client, "ResumeInstanceButton"):
@@ -5064,6 +5069,7 @@ class Quester:
         inside = here == marked_zone or in_same_area(here, marked_zone) or in_same_area(marked_zone, here)
         if not inside:
             logger.warning(f"the dungeon-return button took us to {here}, not {marked_zone}'s dungeon")
+            self._resume_bad = (_dungeon_base(marked_zone), time.monotonic())
             if await self._in_dungeon(here):
                 # Out again at once: that dungeon's quest may be set aside (it
                 # fought Clemente Moraga a seventh time).
