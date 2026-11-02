@@ -11832,8 +11832,12 @@ class Quester:
                 have_potion = (self.upkeep.use_potions and await self.client.stats.potion_charge() >= 1.0)
                 if not have_potion and not await heal_in_room(self.client, self.upkeep):
                     leave_to_heal = True
-                    logger.info(f"{hp:.0%} health, no potion and no wisps in the room: out to heal, "
-                                "then back in")
+                    # (Logged once a while: the boss-spawn wait repeats this every second, and the
+                    # repeats raised a false "ALERT: loop".)
+                    if time.monotonic() - getattr(self, "_leave_heal_logged", 0.0) > 30.0:
+                        self._leave_heal_logged = time.monotonic()
+                        logger.info(f"{hp:.0%} health, no potion and no wisps in the room: out to "
+                                    "heal, then back in")
         if heal_now and not leave_to_heal and (
                 is_team_up_zone(zone_now) or no_return(zone_now)
                 or await self._dungeon_in_progress(zone_now)):
