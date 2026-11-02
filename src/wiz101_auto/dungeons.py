@@ -219,6 +219,13 @@ class DungeonMemory:
             # teleporter put us out in The Wild): not a dungeon. Learned as
             # one, every objective in The Wild walked back into the tower.
             return
+        for other, e in self.dungeons.items():
+            if (other != interior and e.sigil and entry.sigil and e.outside == entry.outside
+                    and abs(e.sigil[0] - entry.sigil[0]) < 5 and abs(e.sigil[1] - entry.sigil[1]) < 5):
+                # One sigil opens one dungeon: a second room "behind" it is
+                # a wrong landing (Despair's dream got Uwe's Workshop sigil in
+                # Sweetzburg, and the bot went there for a team that never was).
+                return
         self.dungeons[interior] = entry
         self.save()
 
