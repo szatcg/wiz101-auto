@@ -1007,6 +1007,9 @@ def _dig_for_setup(battle: Battle, strat: Strategy) -> Action | None:
             for copies in by_name.values():
                 copies.sort(key=lambda c: expected_damage(c, me, focus), reverse=True)
                 singles += [c for c in copies[1:] if c not in singles]
+    # (Shatter stays: binned "digging for a trap" against Armored Ned Collie, the
+    # player's card for bosses that shield up later.)
+    singles = [c for c in singles if not (EffectKind.REMOVE_WARD in c.kinds and _wards_off(c) > 1)]
     if not group:
         if len(singles) < 2:
             singles = []
