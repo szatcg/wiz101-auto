@@ -932,7 +932,13 @@ class Fighter(CombatHandler):
                 action = await self._lookahead(battle, action, discards_left)
                 # (The planner's pick too: the last attack is held for a
                 # stacked kill, the Nova on a shadow pip, Pierce on a shield.)
-                action = specials(battle, action) or action
+                # Under the boss rules: on the raw battle the hold picked
+                # Mythblade against Armored Ned Collie, who steals blades, 5 times.
+                from .brain import Strategy, _ned_rule, _no_single_target
+
+                ruled = _no_single_target(battle)
+                action = specials(ruled, action) or action
+                action = _ned_rule(ruled, action, self.strategy or Strategy()) or action
             action = prism_first(battle, action)  # never a big hit into a resist a prism in hand turns
             from .brain import luska_guard
 
