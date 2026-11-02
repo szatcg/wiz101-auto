@@ -3110,12 +3110,15 @@ class Quester:
 
         queue = load_queue()
         quest = self._active_quest or ""
+        # (Not when it is the quest being followed: the book read last can predate it,
+        # 'The Little Prince' was dropped from its own queue the minute it was made.)
         # (Or gone from the book read last: 'A Job from the Gnome Ranger' was
         # done but never logged so, and its stale queue kept the bot out of
         # Nibbleheim's Choc Shoppe, the story's next stop.)
         book = set(self._book_names or ())
         if queue and (queue.get("quest") in set(load_completed()[-30:])
-                      or (book and len(book) > 5 and queue.get("quest") not in book)):
+                      or (book and len(book) > 5 and queue.get("quest") not in book
+                            and queue.get("quest") != quest)):
             # Its quest is done (Broodmother beaten: 'First Through the Breach'
             # finished, and the stale queue kept the bot out of Tymen's dungeon).
             from .teamup import clear_queue
