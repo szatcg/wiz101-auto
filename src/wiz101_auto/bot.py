@@ -631,10 +631,12 @@ async def run(cfg: Config):
         if cfg.mode == "quest":
             quester = Quester(client, cfg.quest, controller, progression, cfg.upkeep, dialogue)
             quester.deck_adapter = adapter
-            if adapter is None and cfg.combat.keep_deck:
+            if adapter is None:
                 from .deck_keeper import DeckKeeper
 
-                quester.deck_keeper = DeckKeeper()  # the one deck, put back when it drifts
+                # The one deck, put back when it drifts; with keep_deck off, only
+                # re-read (the fights plan with what's really in it).
+                quester.deck_keeper = DeckKeeper(read_only=not cfg.combat.keep_deck)
             if cfg.gear_checks:
                 quester.gear = GearManager(client, progression.school or "")
                 quester.gear.before_check = lambda: move_to_safety(client, 1200.0, "before checking gear")

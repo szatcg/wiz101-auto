@@ -164,7 +164,10 @@ def restore_counts(target: dict[str, int], counts: dict[str, int]) -> dict[str, 
 
 
 class DeckKeeper:
-    def __init__(self):
+    def __init__(self, read_only: bool = False):
+        # read_only (config combat.keep_deck: false, the player's deck untouched):
+        # only re-reads the deck for the fights, never changes it.
+        self.read_only = read_only
         self._checked = 0.0
         self._tries: dict[str, int] = {}
         self._boss = False  # the boss deck was the one asked for last
@@ -336,6 +339,10 @@ class DeckKeeper:
         None: no fight known, so the deck worn and the extras asked for stay.
         With a team, only a deck item switch (no card rebuilds). True if it
         did something."""
+        if self.read_only:
+            # (The player's 9-card deck: the stored 12-card one said "Orthrus still
+            # in the deck" after the only one went, and the bot passed until dead.)
+            return await self.refresh(client) if STALE_FILE.exists() else False
         if boss is None:
             boss = self._worn == "single" if self._worn else self._boss
             extra = self._extra
