@@ -446,3 +446,19 @@ def test_a_prism_on_confusion_lets_orthrus_go():
     assert brain.must_hold(b, o)  # Confusion resists: held
     b.prismed = {"Confusion"}  # our Myth Prism on it: the hit lands as storm
     assert not brain.must_hold(b, o)
+
+
+def test_pierces_in_the_deck_count_against_shields_before_fleeing():
+    # Four Elite Citizens with -45% shields; Pierces to take them off.
+    def citizens():
+        out = []
+        for _ in range(2):
+            e = enemy("Elite Citizen", 900)
+            e.incoming_effects = [("spell:3605232", "", -0.45)]
+            out.append(e)
+        return out
+    o = orthrus(0, dmg=1000)
+    b = fight([o], citizens(), pips=7, upcoming=[])
+    assert brain.cannot_win(b)  # 1000 x 0.55 < 900
+    b2 = fight([o], citizens(), pips=7, upcoming=[pierce(1), pierce(2)])
+    assert not brain.cannot_win(b2)

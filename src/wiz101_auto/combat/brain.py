@@ -2677,6 +2677,28 @@ def cannot_win(battle: Battle) -> bool:
     # bot fled five times in round 1; with it, ~21,500 killed him).
     later = [replace(c, castable=True) for c in battle.upcoming if c.is_enchant]
     hit = attacks[0]
+    # Shields the Pierces and Shatters in hand and deck can take off count as
+    # gone (four Elite Citizens' -45% shields: "can't win", fled twice).
+    strippers = [c for c in [*battle.cards, *battle.upcoming] if EffectKind.REMOVE_WARD in c.kinds]
+    if strippers:
+        budget = sum(max((e.value for e in c.effects if e.kind is EffectKind.REMOVE_WARD), default=1.0)
+                     for c in strippers)  # (Pierce 1, Shatter all)
+        stripped = []
+        for e in battle.enemies:
+            wards = [x for x in e.incoming_effects if x[2] < 0]
+            take = int(min(len(wards), budget))
+            budget -= take
+            gone = set(range(take))
+            kept, i = [], 0
+            for x in e.incoming_effects:
+                if x[2] < 0:
+                    if i in gone:
+                        i += 1
+                        continue
+                    i += 1
+                kept.append(x)
+            stripped.append(replace(e, incoming_effects=kept) if take else e)
+        battle = replace(battle, enemies=stripped)
     if later:
         battle = replace(battle, cards=[*battle.cards, *later],
                          upcoming=[c for c in battle.upcoming if not c.is_enchant])

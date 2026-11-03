@@ -775,6 +775,10 @@ class Fighter(CombatHandler):
                 continue
 
             battle.upcoming = self._upcoming(battle)
+            # (The gear's cards come from the deck too: the stack plan without the
+            # amulet's and pet's Mythblades said four Elite Citizens couldn't be
+            # one-shot, and the bot fled the main story's mob twice.)
+            battle.upcoming = self._with_items_to_come(battle).upcoming
             # Known only when every card still to come has been seen (after a
             # restart Humongofrog and Cyclops weren't yet: "no attack cards
             # left" fled a fight on its first round).
@@ -808,7 +812,7 @@ class Fighter(CombatHandler):
             from .brain import cannot_win
 
             lost = battle.deck_known and not team and not scripted and (
-                out_of_attacks(battle) or cannot_win(self._with_items_to_come(battle)))
+                out_of_attacks(battle) or cannot_win(battle))
             if lost and not self._flee_tried_this_round:
                 # Passing until we die (Shakes O'Leary healed back up) loses
                 # the fight anyway; fleeing keeps our health for the retry.
