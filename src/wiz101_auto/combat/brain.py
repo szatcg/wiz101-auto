@@ -914,6 +914,11 @@ def _aoe_trap_target(battle: Battle, card: Card) -> Combatant:
         return min(dmg * boost, e.health) - min(dmg, e.health)
 
     pool = battle.live_enemies
+    goal = one_shot_goal(battle)
+    if goal:
+        # A one-shot-only boss: every trap on him (a Feint went on Confusion,
+        # 14,925 and 71% myth resist, not on Dream Freddie).
+        return min(goal, key=lambda e: e.trap_count)
     if any(e.is_boss for e in pool):
         # A boss here: no trap on an add the hit kills anyway (a Feint on the
         # Crazed Thunder Horn that Orthrus finished with ~2948 into 2145, not on
@@ -3668,6 +3673,11 @@ def _is(e: Combatant, key: str) -> bool:
     return key in e.name.lower()
 
 
+def one_shot_goal(battle: Battle) -> list[Combatant]:
+    """The live one-shot-only bosses (ONE_SHOT_ONLY): what the stacked hit is for."""
+    return [e for e in battle.live_enemies if any(_is(e, k) for k in ONE_SHOT_ONLY)]
+
+
 def _cheat_rules(battle: Battle, action: Action, strat: Strategy) -> Action | None:
     """The cheating bosses' rules on the chosen move (see above). None: as chosen."""
     ned = _ned_rule(battle, action, strat)
@@ -3979,6 +3989,7 @@ def one_shot_plan(battle: Battle, hit: Card, rounds: int = ONE_SHOT_ROUNDS) -> O
     if not enemies:
         return OneShot(0, True, [], None, {})
     aimed = enemies if hit.is_aoe else [max(enemies, key=lambda e: (e.is_boss, e.health))]
+    aimed = one_shot_goal(battle) or aimed  # (Dream Freddie dead is the kill; Confusion can't be)
     out = list(me.outgoing_effects)
     ins = {id(e): list(e.incoming_effects) for e in enemies}
 
@@ -4090,6 +4101,11 @@ def must_hold(battle: Battle, hit: Card, target: Combatant | None = None) -> boo
     for e in victims:
         left[id(e)] -= hit_damage(big, battle.me, e)
     survivors = [e for e in enemies if left[id(e)] > 0]
+    goal = one_shot_goal(battle)
+    if goal:
+        # A one-shot-only boss: the hit that kills him goes (his partner may
+        # be past any one hit: Confusion, 71% myth resist), the others wait.
+        return any(left[id(e)] > 0 for e in goal)
     if not survivors:
         return False
     others = [c for c in [*battle.cards, *battle.upcoming] if c.is_damage and c is not hit and not c.banned]
