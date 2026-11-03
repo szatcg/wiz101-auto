@@ -12145,7 +12145,20 @@ class Quester:
             self._partial_retry_at = 0.0
             recheck = True
         zone_here = await self.client.zone_name() or ""
-        if (not recheck and not on_set_aside and objective != getattr(self, "_ranked_for", None)
+        side_at_cap = False
+        if self._active_quest and self._active_quest not in self._mainline:
+            # At the level cap a side quest's dungeon isn't worth finishing (the
+            # player: only the main story matters): The Great Dreamscape came
+            # back, and the bot fought on through 'Previously on Wizard101...'
+            # in the Fourth Lark, Old Guy then Fredrick, instead.
+            from .setbacks import MAX_LEVEL
+
+            try:
+                side_at_cap = await self.client.stats.reference_level() >= MAX_LEVEL
+            except Exception:
+                side_at_cap = False
+        if (not recheck and not on_set_aside and not side_at_cap
+                and objective != getattr(self, "_ranked_for", None)
                 and "/interiors/" in zone_here.lower()
                 and (is_team_up_zone(zone_here) or await self._in_dungeon(zone_here))):
             # In a dungeon: the quest the game tracks there is the one (the
