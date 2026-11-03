@@ -256,6 +256,10 @@ EXTRA_DISPLAY_ZONES = [
     # (Not in the data: 'Defeat Deep Spawn in Ruined Alcazar' read no zone, and
     # from Crescent Beach the bot fought White Razors on its duel circle.)
     ("ruined alcazar", "Khrysalis/KR_Z07_RuinedAlcazar"),
+    # (Not in the data: 'Defeat Freddie Kroaker in Freddie's Dreamscape' read no
+    # zone, and its marker led to the Hall of Judgement for 4 hours. The quest
+    # list has it in Eucalyptus Forest; the Dreamscape opens off it.)
+    ("freddie's dreamscape", "Wallaru/Interiors/WL_Z07_Dreamscape"),
 ]
 
 

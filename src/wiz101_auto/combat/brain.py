@@ -3637,7 +3637,12 @@ def _keep_hitting(battle: Battle, action: Action) -> Action | None:
 # - Nergal, the Burned Lion dispels the school of any hit that leaves him
 #   alive; Shaka Zebu heals to full with Satyr while his minion lives. Only
 #   a hit that kills them outright: until then, blades and traps.
-ONE_SHOT_ONLY = ("nergal", "shaka zebu")
+ONE_SHOT_ONLY = ("nergal", "shaka zebu", "freddie")
+# - Dream Freddie (Wallaru, The Great Dreamscape; with Confusion): a -90%
+#   Tower Shield on himself whenever he's attacked. Feints stacked, then one
+#   hit that kills him (Orthrus hits him too: no chip hits on Confusion);
+#   Shatter/Pierce for a shield already up (the player's notes).
+ONE_SHOT_FIGHTS = {"dream freddie", "freddie kroaker"}  # (scripted_fight: exact names)
 # - Shaka Zebu's minion: killing it makes him Meteor every 3 rounds: last.
 MINION_LAST = {"shaka zebu"}
 # - Mirror Lake's Spectral Elephant re-shields (-90%) while the Gorilla, Lion
@@ -3651,7 +3656,7 @@ def scripted_fight(battle: Battle) -> bool:
     which knows nothing of cheats, leaves those fights to them."""
     names = {e.name.lower() for e in battle.live_enemies}
     special = (NO_SINGLE_TARGET | SYLSTER_FIGHT | HIT_EVERY_ROUND | MINION_LAST | set(ONE_SHOT_ONLY)
-               | {SHIELDED_UNTIL_OTHERS_DIE, ARMORED_NED})
+               | ONE_SHOT_FIGHTS | {SHIELDED_UNTIL_OTHERS_DIE, ARMORED_NED})
     return bool(names & special)
 ONE_SHOT_GIVE_UP_ROUND = 12  # waited this long for a one-shot: hit normally (no endless setup)
 

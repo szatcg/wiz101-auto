@@ -1182,3 +1182,23 @@ def test_dead_before(monkeypatch):
     monkeypatch.setattr(brain, "hit_size", lambda _b: 1500.0)
     assert brain.dead_before(b, 2)
     assert not brain.dead_before(b, 1)
+
+
+def test_dream_freddie_is_hit_only_by_the_kill():
+    # The player's notes: a -90% Tower Shield on himself whenever he's attacked.
+    from wiz101_auto.combat.brain import Strategy, _cheat_rules, scripted_fight
+    from wiz101_auto.combat.model import Action
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(2, "Mythblade", "blade")
+    my = me(2500, 2700)
+    my.school = "myth"
+    freddie, confusion = enemy("Dream Freddie", 9000, boss=True), enemy("Confusion", 1000)
+    b = battle([orthrus, blade], [freddie, confusion], my=my)
+    assert scripted_fight(b)
+    # Orthrus would only chip him (and kill Confusion): held.
+    held = _cheat_rules(b, Action(ActionKind.CAST, orthrus, None), Strategy())
+    assert held is not None and held.card is not orthrus
+    low = enemy("Dream Freddie", 900, boss=True)
+    b2 = battle([orthrus, blade], [low, enemy("Confusion", 1000)], my=my)
+    assert _cheat_rules(b2, Action(ActionKind.CAST, orthrus, None), Strategy()) is None
