@@ -133,3 +133,17 @@ def test_a_stall_doesnt_turn_a_level_up_wait_into_stuck(tmp_path):
     s.set_quest_aside("Stay Sharp", "x", 95, now=10, stuck=True)
     assert s.deferred["Stay Sharp"].get("level_only")
     assert s.release_stuck(now=1e9) == []
+
+
+def test_at_the_level_cap_a_main_quest_comes_back_after_minutes(tmp_path):
+    from wiz101_auto.setbacks import MAX_LEVEL, MAX_LEVEL_MAIN_RETRY
+
+    s = Setbacks(tmp_path / "s.json")
+    s.set_quest_aside("Main", "Defeat Boss", MAX_LEVEL, now=0, main=True, stuck=True)
+    s.set_quest_aside("Side", "Find X", MAX_LEVEL, now=0, stuck=True)
+    assert "Main" in s.set_aside(MAX_LEVEL, now=MAX_LEVEL_MAIN_RETRY - 1)
+    left = s.set_aside(MAX_LEVEL, now=MAX_LEVEL_MAIN_RETRY + 1)
+    assert "Main" not in left and "Side" in left
+    # Below the cap: a stuck main quest stays aside as before.
+    s.set_quest_aside("Main", "Defeat Boss", 170, now=0, main=True, stuck=True)
+    assert "Main" in s.set_aside(170, now=MAX_LEVEL_MAIN_RETRY + 1)

@@ -18,6 +18,11 @@ MAIN_DEFEATS_TO_DEFER = 5  # main-story objectives: fights have variance, keep t
 DEFER_SECONDS = 3600.0  # come back after this long even without a level-up
 STUCK_RELEASE_SECONDS = 3600.0  # nothing left but grinding: a stuck quest is tried again after this
 MAIN_RETRY_SECONDS = 900.0  # a main-story quest set aside for being stuck: tried again after this
+# The level cap: no level-up ever brings a main quest back, and side quests
+# give nothing (the player: at 180 only the main story matters). A main
+# quest set aside, for losses or for being stuck, is back after this.
+MAX_LEVEL = 180
+MAX_LEVEL_MAIN_RETRY = 600.0
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
 # be found (nor interacted with).
@@ -114,7 +119,8 @@ class Setbacks:
         # quests let 'All Your Basilisk...' back to its broken gate.)
         done = [
             q for q, d in self.deferred.items()
-            if not d.get("stuck") and (
+            if (d.get("main") and level >= MAX_LEVEL and now - d.get("at", 0) > MAX_LEVEL_MAIN_RETRY)
+            or not d.get("stuck") and (
                 level > d.get("level", 0)
                 or (not d.get("main") and not d.get("level_only") and now - d.get("at", 0) > DEFER_SECONDS)
                 or ("until" in d and now > d["until"]))
