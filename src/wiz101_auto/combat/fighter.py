@@ -1197,8 +1197,18 @@ class Fighter(CombatHandler):
         # The planner's card is the hand's own (the rules' copy has the same index).
         if new.card is not None:
             new.card = next((c for c in battle.cards if c.index == new.card.index), new.card)
-        if new.target is not None and new.target not in battle.enemies and new.target is not battle.me:
-            new.target = next((e for e in battle.enemies if e.name == new.target.name), None)
+        if (new.target is not None and new.target is not battle.me
+                and not any(e is new.target for e in battle.enemies)):
+            # By position: two enemies can share a name (and compare equal).
+            i = next((i for i, e in enumerate(rules.enemies) if e is new.target), None)
+            new.target = (battle.enemies[i] if i is not None and i < len(battle.enemies)
+                          else next((e for e in battle.enemies if e.name == new.target.name), None))
+        from .brain import wasted_trap
+
+        if wasted_trap(battle, new):
+            logger.info(f"whole-deck plan wanted {new.describe()}: the hit-all already kills it "
+                        f"and not the other(s); keeping {action.describe()}")
+            return action
         logger.info(f"whole-deck plan: {new.describe()} instead of {action.describe()}")
         return new
 

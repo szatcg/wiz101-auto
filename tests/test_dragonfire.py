@@ -374,3 +374,19 @@ def test_one_last_attack_that_cant_kill_everyone_means_flee():
     assert not brain.cannot_win(b)
     b = fight([orthrus(0, dmg=1200)], big, pips=7, upcoming=[orthrus(1, dmg=1200)])
     assert not brain.cannot_win(b)  # (two attacks left: not judged here)
+
+
+# --- traps where the hit-all needs them -------------------------------------------------
+
+def test_a_trap_on_a_twin_the_hit_all_already_kills_is_wasted():
+    from wiz101_auto.combat.model import Action
+
+    weak, strong = enemy("Phantasmanian Devil", 300), enemy("Phantasmanian Devil", 5410)
+    b = fight([orthrus(0), feint(1, 10)], [weak, strong], pips=7)
+    on_weak = Action(ActionKind.CAST, b.cards[1], weak)
+    on_strong = Action(ActionKind.CAST, b.cards[1], strong)
+    assert brain.wasted_trap(b, on_weak)
+    assert not brain.wasted_trap(b, on_strong)
+    # Both survive the hit: a trap on either is fine.
+    b2 = fight([orthrus(0), feint(1, 10)], [enemy("Phantasmanian Devil", 5410), strong], pips=7)
+    assert not brain.wasted_trap(b2, Action(ActionKind.CAST, b2.cards[1], b2.enemies[0]))

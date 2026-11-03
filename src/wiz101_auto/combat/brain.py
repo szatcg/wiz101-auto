@@ -2633,6 +2633,25 @@ def out_of_attacks(battle: Battle) -> bool:
     return bool(battle.live_enemies) and not any(c.is_damage for c in [*battle.cards, *battle.upcoming])
 
 
+def wasted_trap(battle: Battle, action: Action) -> bool:
+    """A trap on an enemy the hit-all in hand already kills, while another
+    enemy outlives that hit: the trap belongs on the other one. (Two
+    Phantasmanian Devils: the planner put a second and third Feint on one,
+    Orthrus hit it for ~17500 of its 5410 and left the other standing.)"""
+    card, target = action.card, action.target
+    if action.kind is not ActionKind.CAST or card is None or EffectKind.TRAP not in card.kinds:
+        return False
+    live = battle.live_enemies
+    if not any(e is target for e in live):
+        return False
+    hits = [c for c in battle.cards if c.is_damage and c.is_aoe]
+    if not hits:
+        return False
+    best = max(hits, key=lambda c: min(hit_damage(c, battle.me, e) for e in live))
+    return (hit_damage(best, battle.me, target) >= target.health
+            and any(e is not target and hit_damage(best, battle.me, e) < e.health for e in live))
+
+
 def cannot_win(battle: Battle) -> bool:
     """Alone, the cards left can't win: no attack at all, or one last attack
     that even fully stacked kills nobody's way out (the player: flee instead of
