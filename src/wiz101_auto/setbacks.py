@@ -22,7 +22,7 @@ MAIN_RETRY_SECONDS = 900.0  # a main-story quest set aside for being stuck: trie
 # give nothing (the player: at 180 only the main story matters). A main
 # quest set aside, for losses or for being stuck, is back after this.
 MAX_LEVEL = 180
-MAX_LEVEL_MAIN_RETRY = 600.0
+MAX_LEVEL_MAIN_RETRY = 120.0  # (10 min sent it into side-quest dungeons: Fourth Lark plays)
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
 # be found (nor interacted with).
