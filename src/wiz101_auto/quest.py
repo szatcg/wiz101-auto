@@ -12146,7 +12146,9 @@ class Quester:
             recheck = True
         zone_here = await self.client.zone_name() or ""
         side_at_cap = False
-        if self._active_quest and self._active_quest not in self._mainline:
+        if not (self._active_quest and self._active_quest in (self._mainline or ())):
+            # (Unknown counts as side: after a relog in the Fourth Lark nothing
+            # was ranked yet, and the side quest's play went on.)
             # At the level cap a side quest's dungeon isn't worth finishing (the
             # player: only the main story matters): The Great Dreamscape came
             # back, and the bot fought on through 'Previously on Wizard101...'
