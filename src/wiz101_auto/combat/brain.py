@@ -2882,12 +2882,39 @@ def decide(battle: Battle, strat: Strategy | None = None, *, discards_left: int 
     action = _round_one_hit(battle, action) or action
     action = _no_saving(battle, action) or action
     action = _thin_the_pack(battle, action) or action
+    action = _last_attack_kills_all(battle, action) or action
     if action.kind is ActionKind.DISCARD and action.card is not None:
         copies = [c for c in battle.cards if c.name == action.card.name]
         weakest = min(copies, key=card_strength)
         if card_strength(weakest) < card_strength(action.card):
             action = replace(action, card=weakest)
     return action
+
+
+def _last_attack_kills_all(battle: Battle, action: Action) -> Action | None:
+    """The player's rule, last word: the last attack card (one Orthrus) goes
+    only when it kills every enemy. Earlier rules (a last stand, thinning the
+    pack, "dead before the stack is up") cast it into one of three (Happiness,
+    then fled with nothing left) or into Dream Freddie alone. Instead: the
+    stack plan's next move, else a pass."""
+    card = action.card
+    if action.kind is not ActionKind.CAST or card is None or not card.is_damage:
+        return None
+    try:
+        if not must_hold(battle, card, action.target):
+            return None
+        plan = one_shot_plan(battle, card)
+    except SearchTimeout:
+        return None
+    first = plan.first
+    if not plan.kills and all(s == "pass" for s in plan.steps):
+        return None  # nothing left to stack: the flee check judges the fight
+    if first is None or (first.kind is ActionKind.CAST and first.card is card):
+        return Action(ActionKind.PASS, reason=f"holding {card.name} (the last attack): it doesn't kill "
+                                              "every enemy yet")
+    first.reason = (f"holding {card.name} (the last attack) until it kills every enemy: "
+                    f"{' > '.join(plan.steps[:8])}")
+    return first
 
 
 THIN_PACK_MIN_ENEMIES = 3  # this many ordinary enemies up: the damage race is on
