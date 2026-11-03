@@ -385,6 +385,18 @@ async def return_from_idle(client) -> bool:
 IMMUNE_MIN_HIT = 500  # a predicted hit this big that does next to nothing: the target is immune
 IMMUNE_SCRATCH = 0.02  # "next to nothing": under this share of the predicted damage
 IMMUNE_HOLD = 3  # rounds an immune enemy is held off before another try
+PIP_GAIN_MAX = 2  # pip value one round can add (a power pip)
+
+
+def _pip_value(battle) -> int:
+    return battle.pips + 2 * battle.power_pips
+
+
+def hit_was_spent(pips_after: int, pips_now: int) -> bool:
+    """The hit's pips left us: now at most what the cast left plus a round's
+    gain. More means the cast never went through (no immunity to judge)."""
+    return pips_now <= pips_after + PIP_GAIN_MAX
+
 
 class Fighter(CombatHandler):
     def __init__(self, client, strategy: Strategy, *, max_discards: int = 99, flee_below: float = 0.0,
@@ -996,7 +1008,8 @@ class Fighter(CombatHandler):
             if hit and predicted:
                 biggest = max(predicted.values()) if isinstance(predicted, dict) else predicted
                 self._hit_watch = (battle.round, {e.name: e.health for e in battle.live_enemies}, biggest,
-                                   action.target.name if action.target is not None else None)
+                                   action.target.name if action.target is not None else None,
+                                   _pip_value(battle) - action.card.pip_cost)
             if not predicted:
                 # A setup round: the bars show the biggest hit in hand, the one
                 # the blades are for (the player: no crit numbers on those rounds).
@@ -1256,8 +1269,14 @@ class Fighter(CombatHandler):
         if not watch or battle.round <= watch[0]:
             self._hit_watch = watch
             return
-        _rnd, before, predicted, target = watch
+        _rnd, before, predicted, target, pips_after = watch
         if predicted < IMMUNE_MIN_HIT:
+            return
+        if not hit_was_spent(pips_after, _pip_value(battle)):
+            # The pips weren't spent: the hit never went (an Orthrus at 1+4P
+            # stayed in hand, the Drovers "took 0", were held off as immune
+            # and the bot passed at 14 pips with Orthrus killing all three).
+            logger.debug("the last hit's pips are still here: it wasn't cast; no immunity check")
             return
         now = {e.name: e.health for e in battle.enemies}
         for name, hp in before.items():

@@ -390,3 +390,12 @@ def test_a_trap_on_a_twin_the_hit_all_already_kills_is_wasted():
     # Both survive the hit: a trap on either is fine.
     b2 = fight([orthrus(0), feint(1, 10)], [enemy("Phantasmanian Devil", 5410), strong], pips=7)
     assert not brain.wasted_trap(b2, Action(ActionKind.CAST, b2.cards[1], b2.enemies[0]))
+
+
+def test_a_hit_whose_pips_are_still_here_was_never_cast():
+    from wiz101_auto.combat.fighter import hit_was_spent
+
+    # Orthrus (7) at 1+4P: 9 - 7 = 2 left; next round 1+5P (11): never cast.
+    assert not hit_was_spent(9 - 7, 1 + 2 * 5)
+    # Cast: 2 left, +1 pip or +1 power pip.
+    assert hit_was_spent(2, 3) and hit_was_spent(2, 4)
