@@ -3226,10 +3226,17 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if self.upkeep.needs_recovery(hp, mana):
                 logger.info(f"{hp:.0%} health, {mana:.0%} mana: healing before entering the dungeon")
+                at_sigil = await self.client.zone_name()
                 await recover(self.client, self.upkeep, self.controller, self.go_to_zone)
                 hp2, mana2 = await health_mana(self.client)
                 if self.upkeep.needs_recovery(hp2, mana2) and (hp2, mana2) != (hp, mana):
                     return False  # healing is under way: come back to the sigil after
+                if at_sigil and await self.client.zone_name() != at_sigil:
+                    # Healed somewhere else: back to the sigil next step (the
+                    # Hub's wisps topped mana up at once, and the bot marked the
+                    # Hub as the Cabin's entrance and pressed X there).
+                    logger.info("healed in another zone: back to the sigil next")
+                    return False
                 # Nothing to heal with here and "enough to go on" (84%): enter
                 # rather than loop sigil <-> heal (it did, at 82-84%).
         dungeon = self._dungeon_at(zone or "", sigil)
