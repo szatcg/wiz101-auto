@@ -1292,8 +1292,8 @@ class Fighter(CombatHandler):
             # The pips weren't spent: the hit never went (an Orthrus at 1+4P
             # stayed in hand, the Drovers "took 0", were held off as immune
             # and the bot passed at 14 pips with Orthrus killing all three).
-            logger.warning(f"the last hit (~{predicted:.0f}) wasn't cast: its pips are still here "
-                           "(a stun? the click? see state/cast_not_spent.png)")
+            logger.warning(f"the last hit (~{predicted:.0f}) didn't land: its pips are still here "
+                           "(a fizzle, else the click: see state/cast_not_spent.png)")
             # (Dream Freddie: Orthrus "cast" in rounds 9 and 10, card still in
             # hand, no click error, and the wizard died: what the screen shows.)
             _snapshot("state/cast_not_spent.png")
