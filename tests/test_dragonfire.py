@@ -435,3 +435,14 @@ def test_dream_freddie_gets_the_traps_and_orthrus_waits_for_both():
     both = [enemy("Dream Freddie", 2000, boss=True), enemy("Confusion", 2000, boss=True)]
     b2 = fight([o, feint(1, 10)], both, pips=1, power=5, upcoming=[])
     assert not brain.must_hold(b2, o)
+
+
+def test_a_prism_on_confusion_lets_orthrus_go():
+    res = {"myth": 0.71, "storm": -0.3}
+    freddie = enemy("Dream Freddie", 2000, boss=True)
+    confusion = enemy("Confusion", 3000, boss=True, resist=res)
+    o = orthrus(0, dmg=2500)
+    b = fight([o, feint(1, 10)], [freddie, confusion], pips=1, power=5, upcoming=[])
+    assert brain.must_hold(b, o)  # Confusion resists: held
+    b.prismed = {"Confusion"}  # our Myth Prism on it: the hit lands as storm
+    assert not brain.must_hold(b, o)

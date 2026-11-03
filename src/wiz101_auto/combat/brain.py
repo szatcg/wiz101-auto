@@ -4005,7 +4005,8 @@ def one_shot_plan(battle: Battle, hit: Card, rounds: int = ONE_SHOT_ROUNDS) -> O
 
     def damage_now() -> dict[int, float]:
         attacker = replace(me, outgoing_effects=out)
-        return {id(e): hit_damage(big, attacker, replace(e, incoming_effects=ins[id(e)])) for e in aimed}
+        return {id(e): hit_damage(big, attacker, _as_hit(battle, replace(e, incoming_effects=ins[id(e)])))
+                for e in aimed}
 
     for r in range(rounds):
         out = expire(out, r)
@@ -4098,7 +4099,7 @@ def must_hold(battle: Battle, hit: Card, target: Combatant | None = None) -> boo
     victims = enemies if hit.is_aoe or target is None else [target]
     left = {id(e): float(e.health) for e in enemies}
     for e in victims:
-        left[id(e)] -= hit_damage(big, battle.me, e)
+        left[id(e)] -= hit_damage(big, battle.me, _as_hit(battle, e))  # (through our prism)
     survivors = [e for e in enemies if left[id(e)] > 0]
     if not survivors:
         return False
