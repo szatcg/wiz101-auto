@@ -11032,7 +11032,11 @@ class Quester:
                 # Flowers fought its myth boss Blighted Yaxche instead.)
                 dungeon_here = in_dungeon and (not where or not self._dungeon
                                                or self._dungeon[0] == where)
-                inside = dungeon_here or bool(where and self.doors.leading_to(where, here_zone))
+                # (A room is an interior: the Dreamscape's exit leads out into
+                # Eucalyptus Forest, which then passed for one of its rooms, and
+                # the bot went round the Forest's duel circles for Freddie.)
+                room = "/interiors/" in here_zone.lower() and "/interiors/" not in (where or "").lower()
+                inside = dungeon_here or bool(where and room and self.doors.leading_to(where, here_zone))
                 if where and where != here_zone and not inside:
                     return  # "... in Hall of Champions": not here; the quest marker leads there
                 # A locked door whose key the player told us about (Malistaire's:
