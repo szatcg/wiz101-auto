@@ -26,7 +26,11 @@ MAX_LEVEL_MAIN_RETRY = 600.0
 # Never done, whatever the state files say: the Ironworks dungeon (Marleybone)
 # never ends for the bot and gives no XP; Prospector Zeke's hidden cats can't
 # be found (nor interacted with).
-ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry", "Stray Cat Strut", "Strange Charms", "The Lore Master"})
+# 'Previously on Wizard101...' (Wallaru, Hope Springs' plays): the player,
+# 2026-11-03: block it; the bot kept going back to it (Old Guy, Fredrick)
+# instead of the main story.
+ALWAYS_SKIP = frozenset({"Gate Crashers", "No Entry", "Stray Cat Strut", "Strange Charms", "The Lore Master",
+                         "Previously on Wizard101..."})
 
 
 @dataclass
