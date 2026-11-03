@@ -1243,11 +1243,14 @@ def _aoe_plan(battle: Battle, strat: Strategy) -> Action | None:
         # Still in the deck: set up for it (a blade, a trap on each enemy),
         # with 0-pip cards only, and keep the pips for when it's drawn.
         setup = _setup_action(battle, strat, _aoe_trap_target(battle, coming))
-        if setup and setup.card is not None and setup.card.pip_cost == 0:
+        have = battle.pips + 2 * battle.power_pips
+        if setup and setup.card is not None and (
+                setup.card.pip_cost == 0 or have - setup.card.pip_cost >= coming.pip_cost):
+            # (A pip set-up too when the hit-all stays affordable after it: the
+            # bot passed at 1+5P with two Feints in hand against Dream Freddie.)
             return setup
         # Pips to spare beyond what the frog will need: use them on a hit
         # (it passed three rounds on 4+3P pips against the Klaw brothers).
-        have = battle.pips + 2 * battle.power_pips
         spare = [c for c in _castable(battle.cards) if c.is_damage and have - c.pip_cost >= coming.pip_cost]
         if spare:
             best = _best_attack(Battle(**{**battle.__dict__, "cards": spare}), strat)

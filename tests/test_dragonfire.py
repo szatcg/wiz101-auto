@@ -409,3 +409,15 @@ def test_an_enchant_still_in_the_deck_counts_before_fleeing():
     # Nothing to draw: the one hit falls short, a flee.
     b2 = fight([orthrus(0, dmg=1000)], [enemy("Morp", 1200, boss=True)], pips=7, upcoming=[])
     assert brain.cannot_win(b2)
+
+
+def test_a_feint_goes_while_the_hit_all_in_the_deck_stays_affordable():
+    # Dream Freddie: two Feints in hand at 1+5P, Orthrus still to draw: it passed.
+    es = [enemy("Ogre", 12000), enemy("Troll", 14000)]
+    b = fight([feint(1, 10), feint(2, 20, item=True)], es, pips=1, power=5, upcoming=[orthrus(0)])
+    a = brain.decide(b, discards_left=0)
+    assert a.kind is ActionKind.CAST and a.card.name == "Feint", a.describe()
+    # At 2 pips a Feint would leave too few for Orthrus next round: saved.
+    b2 = fight([feint(1, 10)], [enemy("Ogre", 12000), enemy("Troll", 14000)], pips=2, upcoming=[orthrus(0)])
+    a2 = brain.decide(b2, discards_left=0)
+    assert a2.kind is not ActionKind.CAST or a2.card.pip_cost == 0, a2.describe()
