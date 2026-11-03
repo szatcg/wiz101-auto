@@ -808,7 +808,7 @@ class Fighter(CombatHandler):
             from .brain import cannot_win
 
             lost = battle.deck_known and not team and not scripted and (
-                out_of_attacks(battle) or cannot_win(battle))
+                out_of_attacks(battle) or cannot_win(self._with_items_to_come(battle)))
             if lost and not self._flee_tried_this_round:
                 # Passing until we die (Shakes O'Leary healed back up) loses
                 # the fight anyway; fleeing keeps our health for the retry.
@@ -1241,6 +1241,22 @@ class Fighter(CombatHandler):
             global _POWER_CHANCE
             _POWER_CHANCE = self._pp_chance
         return self._pp_chance
+
+    def _with_items_to_come(self, battle):
+        """The battle with the gear's and pet's cards not seen yet this fight
+        added to the deck still to draw (state/item_cards.pkl): they aren't in
+        the deck list (Morp: the Epic that makes Orthrus kill him is the
+        amulet's; round 1 without it "couldn't win" and fled, six times)."""
+        try:
+            from .sim import item_cards
+
+            held = {c.template_name for c in battle.cards} | set(self._items_seen)
+            items = [dataclasses.replace(c, index=-1, castable=True) for c in item_cards()
+                     if c.template_name and c.template_name not in held]
+        except Exception as exc:
+            logger.debug(f"item cards not added: {exc!r}")
+            return battle
+        return dataclasses.replace(battle, upcoming=[*battle.upcoming, *items]) if items else battle
 
     def _upcoming(self, battle) -> list[Card]:
         """Deck cards not yet drawn, cast or discarded this fight (the ones
