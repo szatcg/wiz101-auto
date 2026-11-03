@@ -8134,6 +8134,32 @@ class Quester:
             self.doors.record(old_zone, key, (spot.x, spot.y, spot.z), zone)
             logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
 
+    def _note_leave_ok(self, objective: str | None, zone_here: str) -> None:
+        """Whether a "leave the dungeon?" box may be answered Yes now: inside a
+        dungeon whose objective names another place than the dungeon and the
+        zone it opens from ('Defeat Drover in The Dreaming' from the Fourth
+        Lark, which opens off Hope Springs)."""
+        from . import upkeep as _up
+
+        ok = False
+        try:
+            where = objective_zone(objective) if objective else None
+            if where and "/interiors/" in zone_here.lower() and where != zone_here:
+                # (Every zone out to the open world: the Fourth Lark opens off
+                # the Crab Theater, which opens off Hope Springs.)
+                dungeons = DungeonMemory.load().dungeons
+                outs, z = [], zone_here
+                for _ in range(4):
+                    entry = dungeons.get(z)
+                    if entry is None or not entry.outside:
+                        break
+                    z = entry.outside
+                    outs.append(z)
+                ok = bool(outs) and where not in outs
+        except Exception:
+            ok = False
+        _up.LEAVE_DUNGEON_OK[0] = ok
+
     async def _to_world(self, world: str, why: str) -> bool:
         """Toward another world: by the dorm to Wizard City, into the World
         Tree (Ravenwood, Bartleby's mouth), its world gate, the Spiral Map,
@@ -12149,6 +12175,7 @@ class Quester:
             self._partial_retry_at = 0.0
             recheck = True
         zone_here = await self.client.zone_name() or ""
+        self._note_leave_ok(objective, zone_here)
         side_at_cap = False
         if not (self._active_quest and self._active_quest in (self._mainline or ())):
             # (Unknown counts as side: after a relog in the Fourth Lark nothing

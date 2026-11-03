@@ -1357,6 +1357,11 @@ async def clear_popups(client):
 INFO_BOX_WORDS = ("no available quests",)  # OK-only notices closed by the popup sweep
 
 
+# Set by the quest step: the objective is in another zone than this dungeon
+# and the one it opens from, so its exit box is answered Yes.
+LEAVE_DUNGEON_OK = [False]
+
+
 async def _close_dungeon_exit(client):
     """A relog started in a dungeon left "If you leave a Dungeon you will lose
     all your progress... Yes / No" over the game's settings page (Ghost
@@ -1374,6 +1379,17 @@ async def _close_dungeon_exit(client):
                 # The buttons carry no text in memory (Yes = centerButton,
                 # No = rightButton): a stale box sat over a fight, every click missed.
                 no = (await ui.find_named(box, {"rightButton"})).get("rightButton")
+            if "leave a dungeon" in text and LEAVE_DUNGEON_OK[0]:
+                # The objective is past this dungeon (the quest step says so):
+                # Yes (centerButton). 'Defeat Drover in The Dreaming' from the
+                # Fourth Lark: No, eight times, the bot stuck by its exit.
+                yes = (await ui.find_named(box, {"centerButton"})).get("centerButton")
+                yes = yes or await _find_button(box, ("yes",))
+                if yes is not None:
+                    logger.info("the \"leave the dungeon?\" box: Yes (the objective is outside it)")
+                    await ui.click_center(client, yes)
+                    await asyncio.sleep(0.5)
+                    return
             if no is not None and "leave a dungeon" in text:
                 logger.info("closing the \"leave the dungeon?\" box: No")
                 await ui.click_center(client, no)
