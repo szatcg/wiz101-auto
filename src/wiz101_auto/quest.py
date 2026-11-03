@@ -7628,6 +7628,10 @@ class Quester:
         words = {thing, thing.replace(" ", ""), thing.replace(" ", "_"), thing.rstrip("s")}
         spots = await self._entities_named_like(tuple(w for w in words if len(w) > 3))
         if not spots:
+            # (An NPC's display name is a language key: Judge Eddie.)
+            npc = await self._npc_named(m.group(1).strip())
+            spots = [npc] if npc is not None else []
+        if not spots:
             logger.info(f"Photomancy: no {thing!r} in view to face")
             return
         from .smoothwalk import yaw_to
@@ -12427,6 +12431,7 @@ class Quester:
             target = await self.client.quest_position.position()
 
         if self.cfg.photomancy and "photomance" in objective.lower():
+            await self._face_photo_subject(objective)
             await self.client.send_key(Keycode.Z, 0.1)
             await asyncio.sleep(0.3)
             await self.client.send_key(Keycode.Z, 0.1)
