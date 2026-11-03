@@ -423,15 +423,15 @@ def test_a_feint_goes_while_the_hit_all_in_the_deck_stays_affordable():
     assert a2.kind is not ActionKind.CAST or a2.card.pip_cost == 0, a2.describe()
 
 
-def test_dream_freddie_gets_the_traps_and_the_kill_is_him():
-    freddie = enemy("Dream Freddie", 3000, boss=True)
+def test_dream_freddie_gets_the_traps_and_orthrus_waits_for_both():
+    # The player: Orthrus only when it kills every enemy (Confusion too: a
+    # Myth Prism on it turns its 71% myth resist into a storm weakness).
+    freddie = enemy("Dream Freddie", 2000, boss=True)
     confusion = enemy("Confusion", 14925, boss=True)
     o = orthrus(0, dmg=2500)
     b = fight([o, feint(1, 10)], [freddie, confusion], pips=1, power=5, upcoming=[])
     assert brain._aoe_trap_target(b, o) is freddie
-    assert brain.must_hold(b, o)  # ~2500 into 3000: not yet
-    shot = brain.one_shot_plan(b, o)
-    assert shot.kills  # a Feint, then Orthrus kills him (Confusion never counts)
-    weak = enemy("Dream Freddie", 2000, boss=True)
-    b2 = fight([o, feint(1, 10)], [weak, enemy("Confusion", 14925, boss=True)], pips=1, power=5, upcoming=[])
+    assert brain.must_hold(b, o)  # kills Freddie, not Confusion: held
+    both = [enemy("Dream Freddie", 2000, boss=True), enemy("Confusion", 2000, boss=True)]
+    b2 = fight([o, feint(1, 10)], both, pips=1, power=5, upcoming=[])
     assert not brain.must_hold(b2, o)
