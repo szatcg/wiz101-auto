@@ -2976,7 +2976,18 @@ def _dig_for_finisher(battle: Battle, strat: Strategy | None) -> Action | None:
     traps = [c for c in battle.cards if EffectKind.TRAP in c.kinds and not c.is_damage and not c.treasure
              and not c.enchanted]
     if traps:
-        return Action(ActionKind.DISCARD, traps[0], reason="digging for the finisher: no trap needed here")
+        # Only when the stacked finisher kills them all without it (Prosperity,
+        # Happiness, Karamelle: both Feints binned, then "can't win" and a flee
+        # in round 2; the same three had needed both Feints the fight before).
+        fin = next(c for c in battle.upcoming if finisher(c))
+        rest = replace(battle, cards=[c for c in battle.cards if c is not traps[0]])
+        try:
+            spare = one_shot_plan(rest, fin).kills
+        except SearchTimeout:
+            spare = False
+        if spare:
+            return Action(ActionKind.DISCARD, traps[0],
+                          reason="digging for the finisher: no trap needed here")
     blades = [c for c in battle.cards if EffectKind.BLADE in c.kinds and not c.is_damage and not c.treasure
               and not c.enchanted]
     if len(blades) > KEEP_BLADES:

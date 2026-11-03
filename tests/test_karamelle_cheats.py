@@ -103,11 +103,21 @@ def test_digs_for_the_finisher_binning_traps_against_ordinary_enemies():
     hand = [feint(), Card(2, "Mythblade", pip_cost=0, school="myth",
                           effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])]
     orthrus = Card(9, "Orthrus", pip_cost=7, school="myth",
-                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_SINGLE, 1500)])
-    b = Battle(me=me, allies=[], enemies=foes, cards=hand, pips=2, round=1, upcoming=[orthrus, orthrus])
+                   effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 6000)])
+    b = Battle(me=me, allies=[], enemies=foes, cards=hand, pips=2, round=1, upcoming=[orthrus])
     b.deck_known = True
     a = decide(b)
     assert a.kind is ActionKind.DISCARD and a.card.name == "Feint"
+    # The Feint is what makes the stacked Orthrus kill them all: kept.
+    weak = Card(9, "Orthrus", pip_cost=7, school="myth",
+                effects=[Effect(EffectKind.DAMAGE, Target.ENEMY_ALL, 3200)])
+    foes2 = [Combatant("Falcon", 5000, 5000, is_enemy=True), Combatant("Falcon", 5000, 5000, is_enemy=True)]
+    hand2 = [feint(), Card(2, "Mythblade", pip_cost=0, school="myth",
+                           effects=[Effect(EffectKind.BLADE, Target.ALLY_SINGLE, 35)])]
+    b2 = Battle(me=me, allies=[], enemies=foes2, cards=hand2, pips=2, round=1, upcoming=[weak])
+    b2.deck_known = True
+    a2 = decide(b2)
+    assert not (a2.kind is ActionKind.DISCARD and a2.card.name == "Feint"), a2.describe()
 
 
 def test_no_digging_against_a_boss():
