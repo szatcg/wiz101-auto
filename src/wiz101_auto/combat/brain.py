@@ -2664,8 +2664,16 @@ def cannot_win(battle: Battle) -> bool:
         return True
     if len(attacks) > 1:
         return False
+    # The enchants still in the deck count too: drawn by the time the stack
+    # is up (Morp at 19,815: round 1 without Epic in hand "couldn't win", the
+    # bot fled five times in round 1; with it, ~21,500 killed him).
+    later = [replace(c, castable=True) for c in battle.upcoming if c.is_enchant]
+    hit = attacks[0]
+    if later:
+        battle = replace(battle, cards=[*battle.cards, *later],
+                         upcoming=[c for c in battle.upcoming if not c.is_enchant])
     try:
-        return not one_shot_plan(battle, attacks[0]).kills
+        return not one_shot_plan(battle, hit).kills
     except SearchTimeout:
         return False
 

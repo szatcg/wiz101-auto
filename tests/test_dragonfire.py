@@ -399,3 +399,13 @@ def test_a_hit_whose_pips_are_still_here_was_never_cast():
     assert not hit_was_spent(9 - 7, 1 + 2 * 5)
     # Cast: 2 left, +1 pip or +1 power pip.
     assert hit_was_spent(2, 3) and hit_was_spent(2, 4)
+
+
+def test_an_enchant_still_in_the_deck_counts_before_fleeing():
+    boss = enemy("Morp", 1200, boss=True)
+    epic = enchant(5, "Epic", 400)
+    b = fight([orthrus(0, dmg=1000)], [boss], pips=7, upcoming=[epic])
+    assert not brain.cannot_win(b)
+    # Nothing to draw: the one hit falls short, a flee.
+    b2 = fight([orthrus(0, dmg=1000)], [enemy("Morp", 1200, boss=True)], pips=7, upcoming=[])
+    assert brain.cannot_win(b2)
