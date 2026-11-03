@@ -11907,19 +11907,19 @@ class Quester:
             hp, mana = await health_mana(self.client)
             if hp < DUNGEON_TOP_UP and await heal_in_room(self.client, self.upkeep):
                 return
-            if hp < DUNGEON_LOW:
-                # Nearly dead and no wisps: a potion, else rest on the spot,
-                # never a step (the talk to King Gobbsmack starts his fight:
-                # back in the throne room at 5% after a defeat, it talked and
-                # lost in two rounds).
-                if self.upkeep.use_potions and await self.client.stats.potion_charge() >= 1.0:
-                    logger.info(f"drinking a potion (hp {hp:.0%}) before the dungeon's next step")
-                    await ui.click(self.client, ui.POTION_BUTTON)
-                    await asyncio.sleep(1.5)
-                    return
-                # No potion: alone, out to heal with the wisps and back in (the player,
-                # 2026-10-26; the bot rested here at 2% in General Quarters, two minutes,
-                # then went on and died).
+            if (hp < DUNGEON_LOW and self.upkeep.use_potions
+                    and await self.client.stats.potion_charge() >= 1.0):
+                # Nearly dead and no wisps: a potion, never a step (the talk to
+                # King Gobbsmack starts his fight: back in the throne room at 5%
+                # after a defeat, it talked and lost in two rounds).
+                logger.info(f"drinking a potion (hp {hp:.0%}) before the dungeon's next step")
+                await ui.click(self.client, ui.POTION_BUTTON)
+                await asyncio.sleep(1.5)
+                return
+            if hp < DUNGEON_TOP_UP:
+                # No potion: alone, out to heal and back in (the player, 2026-10-26).
+                # Never a rest here: no regeneration outside a world's hub (the
+                # player, 2026-11-03; on into Furryosa's Dingos at 45%, lost).
                 from .teamup import mate_seen_lately
 
                 if not mate_seen_lately() and not no_return(zone_now):
@@ -11928,21 +11928,6 @@ class Quester:
                     # recover() through it looped at 1% in the Cabal Base for 20 minutes.)
                     if self.healer and await self.healer.between_fights(zone_now):
                         return
-                # A short rest (health hardly comes back in a
-                # dungeon: 10 minutes at 18% in Production Junction), then on.
-                rests = self.__dict__.setdefault("_low_rest_since", {})
-                first = zone_now not in rests
-                since = rests.setdefault(zone_now, time.monotonic())
-                if time.monotonic() - since < DUNGEON_REST_SECONDS:
-                    if first:
-                        # (Once: the same line every 8 s tripped the loop breaker, whose
-                        # Go Home took the bot out of Booth's Lair and reset the dungeon.)
-                        logger.info(f"resting here at {hp:.0%} before the dungeon's next step")
-                    await recover(self.client, self.upkeep, self.controller)
-                    await asyncio.sleep(5.0)
-                    return
-            else:
-                self.__dict__.get("_low_rest_since", {}).pop(zone_now, None)
         if not heal_now:
             logger.debug("in the dungeon with no fight ahead: finishing the objective before healing")
         if (heal_now and in_dungeon and self.upkeep and self.upkeep.use_potions

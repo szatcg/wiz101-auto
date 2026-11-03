@@ -1034,16 +1034,14 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                         await ui.click(client, ui.POTION_BUTTON)
                         await asyncio.sleep(1.5)
                 hp, mana = await health_mana(client)
-                if cfg.needs_recovery(hp, mana):
-                    # Rest here instead (regeneration, ~20% a minute): the player's rule is
-                    # main fights only at full health; "carrying on" started Desperation
-                    # at 48%. The no-gain probe below still ends a rest that gives nothing.
-                    logger.info(f"no wisps in {zone.split('/')[-1]}; not leaving it: resting here "
-                                f"({hp:.0%} health, {mana:.0%} mana)")
-                    await move_to_safety(client, REST_SAFE_DISTANCE)
-                    rested = True
-                    rest_start = (loop.time(), hp, mana)
-                    continue
+                if cfg.needs_recovery(hp, mana) and trip and not tripped:
+                    # No regeneration outside a world's hub (the player): resting
+                    # here gives nothing (Furryosa's Dream: on into the Dingos at
+                    # 45%). To the hub, heal, Recall back to the mark in here.
+                    tripped = True
+                    logger.info(f"no wisps in {zone.split('/')[-1]}: to the hub to heal, back by Recall")
+                    if await trip(marked=marked):
+                        return True
                 logger.info(f"no wisps in {zone.split('/')[-1]}; not leaving it: carrying on")
                 return True
             if go_to_zone and not travelled and poor_zone and "/interiors/" not in zone.lower():
@@ -1100,7 +1098,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
             logger.info(f"no health wisps anywhere in {zone.split('/', 1)[0]}: to {far} to heal")
             if await go_to_zone(far):
                 continue
-        if not rested and (zone.split("/", 1)[0] in REST_WORLDS or no_wisp_world):
+        if not rested and is_hub_zone(zone) and (zone.split("/", 1)[0] in REST_WORLDS or no_wisp_world):
+            # (Regeneration only in a world's hub, the player: nowhere else.)
             # Worlds without easy wisps (Aquila): regenerate standing clear of enemies.
             # (Or none known in this world at all: the Arcanum, where "no wisps to
             # heal with; carrying on" took the bot into The Paradox at 117 health,
@@ -1132,7 +1131,8 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
                 await ui.click(client, ui.POTION_BUTTON)
                 await asyncio.sleep(1.5)
                 return True
-            if cfg.needs_recovery(hp, mana) and "/interiors/" not in zone.lower():
+            if cfg.needs_recovery(hp, mana) and is_hub_zone(zone):
+                # (Only in the hub: no regeneration anywhere else, the player.)
                 # (Wallaru's hub after the heal trip: 68% and "carrying on" went into
                 # Desperation again. Rest here; the no-gain probe ends a useless rest.)
                 logger.info(f"no wisps to heal with; resting here ({hp:.0%} health, {mana:.0%} mana)")
