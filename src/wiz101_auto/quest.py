@@ -2934,7 +2934,7 @@ class Quester:
         if not await self._wait_stream_list():
             logger.debug("stream: no list")
             return False
-        self.controller.allow_idle(30)  # (reading every page isn't a stall)
+        self.controller.allow_idle(120)  # (reading every page isn't a stall)
         try:
             return await self._stream_choose(dest, extra_hints)
         finally:
