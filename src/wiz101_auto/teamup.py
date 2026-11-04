@@ -53,7 +53,9 @@ TEAM_UP_WORDS = ("team up!", "team up")
 USE_QUEUE = False  # the player's choice: Team Up teams left mid-run; go in with players at the sigil
 # Dungeons queued with Team Up after all (the player, 2026-10-04: the
 # Waterworks; a team came in through Team Up at once).
-QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01"}
+QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01",
+                  # The Taking Tree (the player, 2026-11-03: "use team up").
+                  "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
 REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
