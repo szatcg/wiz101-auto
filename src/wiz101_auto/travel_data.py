@@ -260,6 +260,16 @@ EXTRA_DISPLAY_ZONES = [
     # zone, and its marker led to the Hall of Judgement for 4 hours. The quest
     # list has it in Eucalyptus Forest; the Dreamscape opens off it.)
     ("freddie's dreamscape", "Wallaru/Interiors/WL_Z07_Dreamscape"),
+    # Selenopolis (Krokotopia's new area): none of its places are in the data;
+    # 'Find Spell Book in Marketplace of Ideas' searched the old Pyramid's rooms.
+    # (The zones its objectives were met in, state/objective_zones.json.)
+    ("selenopolis", "Krokotopia/KT_Selenopolis/KT_Z04_Selenopolis"),
+    ("vivarium", "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I01_Vivarium"),
+    ("garden of khonsu", "Krokotopia/KT_Selenopolis/KT_Z07_Garden"),
+    ("marketplace of ideas", "Krokotopia/KT_Selenopolis/KT_Z05_Market"),
+    ("underground market", "Krokotopia/KT_Selenopolis/KT_Z05_Market"),
+    ("grand exposition", "Krokotopia/KT_Selenopolis/KT_Z05_Market"),
+    ("tomb of the forgotten", "Krokotopia/KT_Selenopolis/KT_Z06_Forgotten"),
 ]
 
 
