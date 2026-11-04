@@ -5080,6 +5080,15 @@ class Quester:
             logger.warning("the dungeon-return button didn't move us")
             return False
         inside = here == marked_zone or in_same_area(here, marked_zone) or in_same_area(marked_zone, here)
+        if not inside and await self._objectives_dungeon(here):
+            # The mark was stale (Carnosaur Clearing, a dungeon already done) but
+            # the button took us back into the run we're on (Engineering Wing for
+            # 'Defeat Doom Trooper in Doom Moon'): that's the one. It left it for
+            # the hub, then walked to the sigil and started a fresh run.
+            logger.info(f"the dungeon-return button took us back into {here.split('/')[-1]}: "
+                        "the current objective's dungeon (the mark was stale)")
+            self._retire_dungeon_mark()
+            return True
         if not inside:
             logger.warning(f"the dungeon-return button took us to {here}, not {marked_zone}'s dungeon")
             _RESUME_BAD["bad"] = (_dungeon_base(marked_zone), time.monotonic())
@@ -8133,6 +8142,28 @@ class Quester:
         if self.doors.approach(old_zone, key) is None:
             self.doors.record(old_zone, key, (spot.x, spot.y, spot.z), zone)
             logger.info(f"remembered the way from {old_zone} into {zone}: from ({spot.x:.0f}, {spot.y:.0f})")
+
+    async def _objectives_dungeon(self, zone: str) -> bool:
+        """`zone` is the current objective's dungeon: the objective names it, or
+        the zone it opens from ('Defeat Doom Trooper in Doom Moon': Engineering
+        Wing opens off Doom Moon)."""
+        try:
+            where = objective_zone(await self.objective() or "")
+        except Exception:
+            return False
+        if not where or "/interiors/" not in zone.lower():
+            return False
+        if where == zone:
+            return True
+        z = zone
+        for _ in range(4):
+            entry = DungeonMemory.load().dungeons.get(z)
+            if entry is None or not entry.outside:
+                return False
+            if entry.outside == where:
+                return True
+            z = entry.outside
+        return False
 
     def _note_leave_ok(self, objective: str | None, zone_here: str) -> None:
         """Whether a "leave the dungeon?" box may be answered Yes now: inside a
