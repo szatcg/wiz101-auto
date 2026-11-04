@@ -1721,6 +1721,18 @@ class Quester:
         texts = await ui.quest_goal_texts(self.client)
         if not texts:
             return await ui.quest_goal(self.client)
+        if len(texts) > 1:
+            # In a dungeon, a boss goal first (the player: skip to the final boss).
+            try:
+                zone = await self.client.zone_name() or ""
+                if "/interiors/" in zone.lower():
+                    from .dungeons import zone_bosses
+
+                    boss = ui.boss_goal(texts, zone_bosses(zone))
+                    if boss:
+                        return boss
+            except Exception:
+                pass
         try:
             goal = await self.client.goal_id()
         except Exception:

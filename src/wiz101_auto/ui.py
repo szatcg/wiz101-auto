@@ -443,6 +443,18 @@ def pick_goal(texts: list[str], goal_id, known: dict) -> str:
     return fresh[-1]
 
 
+def boss_goal(texts: list[str], bosses: list[str]) -> str | None:
+    """Of the visible goals, the one that defeats a boss known to be here (the
+    player: in a dungeon, straight to the final boss saves the fights before
+    it; Doom Moon went from the first Doom Trooper to Mr. Montgomery)."""
+    names = [b.lower() for b in bosses if b]
+    for t in texts:
+        low = t.lower()
+        if low.startswith("defeat ") and any(n in low for n in names):
+            return t
+    return None
+
+
 async def quest_goal_texts(client) -> list[str]:
     """The texts of the visible 'txtGoalName' elements under QuestHelperHud."""
     hud = await window_at(client, QUEST_GOAL_TEXT[:3])
