@@ -173,6 +173,9 @@ START_EARLY_WORDS = ("start early", "start early!", "start now", "start")
 EARLY_PRESS_GAP = 120.0  # START EARLY pressed at most this often (it's a toggle)
 _early_pressed = [-1e9]
 _early_low_logged = [-1e9]
+_early_low_since = [None]  # when health first blocked START EARLY (monotonic)
+EARLY_FALLBACK_HEALTH = 0.5  # healing impossible (a dungeon, no wisps): go in at this much...
+EARLY_FALLBACK_WAIT = 180.0  # ...after waiting this long
 EARLY_MIN_HEALTH = 0.8  # START EARLY only this healthy (the team waits for it)
 FULL_TEAM_WAIT = 10 * 60  # a dungeon asking for 4 (Darkmoor): no START EARLY before this
 
@@ -201,7 +204,15 @@ async def start_early(client) -> bool:
         hp, _mana = await health_mana(client)
     except Exception:
         hp = 1.0
-    if hp < EARLY_MIN_HEALTH:
+    now_m = time.monotonic()
+    if hp >= EARLY_MIN_HEALTH:
+        _early_low_since[0] = None
+    elif _early_low_since[0] is None:
+        _early_low_since[0] = now_m
+    # (Healing can be impossible: in a dungeon with no wisps the bot looped at
+    # 60% while the player who joined waited: go in after a while at half health.)
+    waited = _early_low_since[0] is not None and now_m - _early_low_since[0] >= EARLY_FALLBACK_WAIT
+    if hp < EARLY_MIN_HEALTH and not (waited and hp >= EARLY_FALLBACK_HEALTH):
         # Healed first: the team waits for our START EARLY (Enki: it went in at
         # 1,815 of 9,044 mid-heal, died, and the team fell with Enki at 470).
         now = time.monotonic()
