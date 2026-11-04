@@ -56,6 +56,8 @@ USE_QUEUE = False  # the player's choice: Team Up teams left mid-run; go in with
 QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01",
                   # The Taking Tree (the player, 2026-11-03: "use team up").
                   "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
+# Never-solo dungeons that are quest bosses, not farming: questing, 2+ (faster).
+QUESTING_DUNGEONS = {"Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
 REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
@@ -1084,7 +1086,7 @@ async def team_up(quester, dungeon: str) -> str:
     await _dump(client, "sigil")
     use_queue = USE_QUEUE or dungeon in QUEUE_DUNGEONS or dungeon in team_list()
     choices = (("TeamTypeQuestingCheckBox", f"TeamSize{team_size(dungeon)}CheckBox")
-               if dungeon in team_list() else TEAM_CHOICES)
+               if dungeon in team_list() or dungeon in QUESTING_DUNGEONS else TEAM_CHOICES)
     if not use_queue:
         # No queue: wait on the sigil for players to gather (and go in with them).
         await close_stray_forms(client)
