@@ -176,7 +176,7 @@ _early_low_logged = [-1e9]
 _early_low_since = [None]  # when health first blocked START EARLY (monotonic)
 EARLY_FALLBACK_HEALTH = 0.5  # healing impossible (a dungeon, no wisps): go in at this much...
 EARLY_FALLBACK_WAIT = 180.0  # ...after waiting this long
-EARLY_MIN_HEALTH = 0.8  # START EARLY only this healthy (the team waits for it)
+EARLY_MIN_HEALTH = 0.5  # (80% kept a joined team waiting for a heal that never came)
 FULL_TEAM_WAIT = 10 * 60  # a dungeon asking for 4 (Darkmoor): no START EARLY before this
 
 
