@@ -144,7 +144,11 @@ class DungeonHealer:
         hp0, _m0 = await health_mana(self.client)
         last = getattr(self, "_last_trip", None)
         recent = bool(last) and time.monotonic() - last[2] < FUTILE_TRIP_SECONDS
-        if recent and last[0] == zone and hp0 <= last[1] + 0.02:
+        # (Only a trip that got as far as healing counts: one cut short at its
+        # start, in the Prop Department at 9%, blocked every trip after it and
+        # the bot sat at 5% for ten minutes, "healed nothing".)
+        done = bool(last) and len(last) > 3 and last[3]
+        if recent and done and last[0] == zone and hp0 <= last[1] + 0.02:
             # The last trip from here healed nothing (the Black Sun Pyramid:
             # the hub button failed or the health read 100% on arrival, and it
             # went 8 times in 10 minutes at 82%, losing mana to each Mark): a
@@ -159,7 +163,7 @@ class DungeonHealer:
                 logger.info(f"the last heal trip from here healed nothing: going on at {hp0:.0%} health")
             self.futile_until = time.monotonic() + FUTILE_TRIP_SECONDS
             return False
-        self._last_trip = (zone, hp0, time.monotonic())
+        self._last_trip = (zone, hp0, time.monotonic(), False)
         if self.q._active_quest:
             # Back from the trip, the quest we left stays the one (its
             # 'mid-way' time starts again): a ranking after the Recall picked
@@ -222,6 +226,8 @@ class DungeonHealer:
             hp, mana = await health_mana(self.client)
             took = (time.monotonic() - started) / 60
             logger.info(f"healed to {hp:.0%} health, {mana:.0%} mana in {took:.0f} min; recalling back")
+            if self._last_trip:
+                self._last_trip = (*self._last_trip[:3], True)  # (it got as far as healing)
             await wait_until_free(self.client)
             if await self.client.zone_name() == zone or await self.q._recall(zone, "the marked spot"):
                 self.q._recall_pending = False
