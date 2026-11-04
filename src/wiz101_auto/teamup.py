@@ -174,9 +174,9 @@ EARLY_PRESS_GAP = 120.0  # START EARLY pressed at most this often (it's a toggle
 _early_pressed = [-1e9]
 _early_low_logged = [-1e9]
 _early_low_since = [None]  # when health first blocked START EARLY (monotonic)
-EARLY_FALLBACK_HEALTH = 0.5  # healing impossible (a dungeon, no wisps): go in at this much...
+EARLY_FALLBACK_HEALTH = 0.2  # healing impossible (a dungeon, no wisps): go in at this much...
 EARLY_FALLBACK_WAIT = 180.0  # ...after waiting this long
-EARLY_MIN_HEALTH = 0.5  # (80% kept a joined team waiting for a heal that never came)
+EARLY_MIN_HEALTH = 0.3  # (50% lost a joined team: the bot questing on at 37%, not healing)
 FULL_TEAM_WAIT = 10 * 60  # a dungeon asking for 4 (Darkmoor): no START EARLY before this
 
 
