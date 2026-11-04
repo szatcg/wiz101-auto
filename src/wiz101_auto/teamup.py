@@ -172,6 +172,8 @@ START_EARLY_WORDS = ("start early", "start early!", "start now", "start")
 
 EARLY_PRESS_GAP = 120.0  # START EARLY pressed at most this often (it's a toggle)
 _early_pressed = [-1e9]
+_early_low_logged = [-1e9]
+EARLY_MIN_HEALTH = 0.8  # START EARLY only this healthy (the team waits for it)
 FULL_TEAM_WAIT = 10 * 60  # a dungeon asking for 4 (Darkmoor): no START EARLY before this
 
 
@@ -192,6 +194,20 @@ async def start_early(client) -> bool:
     # pressed every few seconds it readied and un-readied us, and the team
     # never started.
     if time.monotonic() - _early_pressed[0] < EARLY_PRESS_GAP or not early_ok(load_queue()):
+        return False
+    try:
+        from .upkeep import health_mana
+
+        hp, _mana = await health_mana(client)
+    except Exception:
+        hp = 1.0
+    if hp < EARLY_MIN_HEALTH:
+        # Healed first: the team waits for our START EARLY (Enki: it went in at
+        # 1,815 of 9,044 mid-heal, died, and the team fell with Enki at 470).
+        now = time.monotonic()
+        if now - _early_low_logged[0] > 30:
+            _early_low_logged[0] = now
+            logger.info(f"team up: a player joined, but at {hp:.0%} health: healing before START EARLY")
         return False
     # (The button reads "START EARLY 1/2" with a player in: exact text never matched.)
     found = await _path_to_text(client.root_window, START_EARLY_WORDS[:3], [], prefix=True)
