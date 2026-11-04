@@ -1424,6 +1424,7 @@ class DialoguePolicy:
     def __init__(self):
         self._accept_until = 0.0
         self.accepted = 0  # quests accepted: the game tracks a new one, so the quester re-ranks
+        self.story_accepted = 0  # storyline quests accepted (ends a giver sweep)
 
     def accept_offers_for(self, seconds: float = 30.0):
         self._accept_until = time.monotonic() + seconds
@@ -1481,6 +1482,7 @@ async def dialogue_loop(client, cfg: QuestConfig, controller, policy: DialoguePo
                         logger.info(f"accepting a storyline quest: {text[:80]}")
                         if policy is not None:
                             policy.accepted += 1
+                            policy.story_accepted += 1
                         if not await ui.click(client, ui.ADVANCE_DIALOG):
                             await client.send_key(Keycode.SPACEBAR)
                         await asyncio.sleep(0.6)

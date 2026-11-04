@@ -11738,6 +11738,18 @@ class Quester:
             if not await self.go_to_zone(sweep) and await self.client.zone_name() == here_now:
                 self.givers.main_sweep_zone = ""  # no way there known
             return
+        story = getattr(self.dialogue, "story_accepted", 0) if self.dialogue else 0
+        if sweep and story != self.__dict__.get("_sweep_story_seen", 0):
+            # A storyline quest was accepted during the sweep: it's the next one
+            # (after 'Nightchant and the Moon' Mellori gave 'Save Ozzy, Pork &
+            # Quartermane' at once, and the sweep asked Selenopolis's statues
+            # for 20 minutes without reading the book again).
+            self._sweep_story_seen = story
+            self.givers.main_sweep_zone = ""
+            self._ranked_for = None
+            self._last_rank = -1e9
+            logger.info("a storyline quest was accepted: the giver sweep ends; reading the quest book")
+            return
         if (not self._live_mainline() and sweep and sweep == here_now
                 and await self.givers.ask_nearby()):
             # The sweep for the next story quest goes on until everyone here
