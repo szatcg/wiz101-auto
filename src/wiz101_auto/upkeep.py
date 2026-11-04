@@ -859,6 +859,9 @@ def needed_wisps(cfg: UpkeepConfig, hp: float, mana: float) -> frozenset[str]:
     return frozenset(need or BOTH)
 
 
+TEAM_START_GRACE = 45.0  # seconds after START EARLY: no heal trips (the team teleport comes)
+
+
 async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=None, mark=None) -> bool:
     """Make sure the wizard is healthy before engaging anything.
 
@@ -874,6 +877,15 @@ async def recover(client, cfg: UpkeepConfig, controller, go_to_zone=None, trip=N
     hp, mana = await health_mana(client)
     if not cfg.needs_recovery(hp, mana):
         return True
+    from .teamup import _early_pressed
+
+    if time.monotonic() - _early_pressed[0] < TEAM_START_GRACE:
+        # START EARLY was just pressed: the team's teleport is coming; healing
+        # first walked off from it (Enki: dead at 2%, a player joined, the bot
+        # left for wisps a second later and the team went in without it).
+        logger.info("a team is starting (START EARLY pressed): waiting for its teleport before healing")
+        await asyncio.sleep(3.0)
+        return False
     zone_now = await client.zone_name() or ""
     if zone_now in _leaving_interior:
         return True  # already found nothing here; the quest is walking us out
