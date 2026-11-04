@@ -1231,3 +1231,19 @@ def test_selenopolis_cheats():
     drake = enemy("Drake Lockley", 9000, boss=True)
     got = banned(battle([orthrus, blade, trap], [drake], my=my))
     assert "Feint" in got and "Orthrus" not in got
+
+
+def test_banned_cards_go_to_draw_the_hit_instead_of_passing():
+    from wiz101_auto.combat.brain import decide
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Mythblade", "blade")
+    trap = _setup(2, "Feint", "trap")
+    my = me(2500, 2700)
+    my.school = "myth"
+    tree = enemy("Taking Tree", 20000, boss=True)
+    b = battle([blade, trap], [tree], my=my)
+    b.upcoming = [orthrus]
+    b.deck_known = True
+    a = decide(b, discards_left=2)
+    assert a.kind is ActionKind.DISCARD, a.describe()

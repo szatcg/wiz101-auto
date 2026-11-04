@@ -2057,6 +2057,22 @@ SETUP_ROUNDS_MAX = 4  # the target untouched by this round: a castable hit goes,
 UNTOUCHED = 0.95  # "untouched": at this share of max health or more
 
 
+def _discard_banned(battle: Battle) -> Action | None:
+    """Instead of a pass: a card this fight bans (a cheat rule) goes, to draw
+    the attack still in the deck (the Taking Tree: Feints and Mythblades
+    banned, Orthrus to draw, and the bot passed at 2+5P round after round)."""
+    if not any(c.is_damage for c in battle.upcoming):
+        return None
+    if any(c.is_damage and c.castable for c in battle.cards):
+        return None
+    dead = [c for c in battle.cards if c.banned and not c.is_damage and not c.treasure]
+    if not dead:
+        return None
+    card = dead[0]
+    return Action(ActionKind.DISCARD, card,
+                  reason=f"{card.name} is banned in this fight: out, drawing for a hit")
+
+
 def _dig_for_a_hit(battle: Battle) -> Action | None:
     """No hit in hand and hits still in the deck: a spare blade or trap (one
     stacked SETUP_ENOUGH deep already, or a second copy in hand) goes, to draw
@@ -4442,6 +4458,7 @@ def _decide_step(battle: Battle, strat: Strategy | None = None, *, discards_left
             or _relevant_shield(battle)
             or _prism_action(battle)
             or (_dig_for_a_hit(battle) if discards_left > 0 else None)
+            or (_discard_banned(battle) if discards_left > 0 else None)
             or _free_setup(battle, strat)
             or _free_hit(battle)
         )
