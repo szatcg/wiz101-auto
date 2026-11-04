@@ -1227,6 +1227,10 @@ def test_selenopolis_cheats():
     # The Taking Tree swaps blades and traps: none of them.
     tree = enemy("Taking Tree", 9000, boss=True)
     assert {"Mythblade", "Feint"} <= banned(battle([orthrus, blade, trap], [tree], my=my))
+    # With a blade on him, ours swaps with his: blades go (traps still don't).
+    tree.outgoing_effects = [("spell:9", "", 0.35)]
+    got = banned(battle([orthrus, blade, trap], [tree], my=my))
+    assert "Mythblade" not in got and "Feint" in got
     # Drake Lockley answers traps: none.
     drake = enemy("Drake Lockley", 9000, boss=True)
     got = banned(battle([orthrus, blade, trap], [drake], my=my))

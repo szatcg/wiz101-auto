@@ -33,11 +33,15 @@ TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus",
                     "Karamelle/Interiors/KM_Z10_Gym",
                     # King Gobbsmack's Oogie Boogies (the player: "we will
                     # need to use team up for this"; four losses alone).
-                    "Karamelle/Interiors/KM_Z10_ThroneRoom_B"}
+                    "Karamelle/Interiors/KM_Z10_ThroneRoom_B",
+                    # Selenopolis' Taking Tree (the player, 2026-11-03: "use team up";
+                    # it swaps single blades and traps, a bare Orthrus can't win).
+                    "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
 # Every zone of those dungeons (their rooms are separate interiors).
 TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_", "WizardCity/Gauntlets/WC_Triton_Gauntlet1/",
                     "G14_DM/",  # Darkmoor's rooms (the player: with a team, walking)
-                    "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B")
+                    "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B",
+                    "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode")
 # Zones under those prefixes that aren't dungeon rooms: Castle Darkmoor's hub
 # (its sigils; the Mark there is how the bot gets back to Darkmoor).
 TEAM_UP_HUBS = {"G14_DM/DM_Z01_CastleDarkmoor"}

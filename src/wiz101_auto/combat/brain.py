@@ -3264,7 +3264,8 @@ BOSS_BANS = {
     # Selenopolis (the player's list, 2026-11-03):
     # The Taking Tree swaps a helpful charm or ward away from its receiver and a
     # harmful one on him back onto the caster: no single blades, traps or shields.
-    "taking tree": lambda c: not c.is_damage and (_blade(c) or _shield(c) or EffectKind.TRAP in c.kinds),
+    # (Blades only while he has none: with one up, ours swaps with his, the player.)
+    "taking tree": lambda c: not c.is_damage and (_shield(c) or EffectKind.TRAP in c.kinds),
     # The Prophet's aura turns every heal into damage (Enki burns all damage and
     # heals over time on turn 5): no heals, no heals over time.
     "the prophet": lambda c: c.is_heal and not c.is_damage,
@@ -3503,6 +3504,10 @@ def ra_unmatched(battle: Battle, ra: Combatant) -> bool:
 def _boss_bans(battle: Battle) -> Battle:
     names = {e.name.lower().replace("-", " ") for e in battle.live_enemies}
     rules = [rule for boss, rule in BOSS_BANS.items() if any(n == boss or n.startswith(boss) for n in names)]
+    tree = next((e for e in battle.live_enemies if e.name.lower().startswith("taking tree")), None)
+    if tree is not None and not any(v > 0 for _k, _s, v in tree.outgoing_effects):
+        # No blade on the Taking Tree: ours would be swapped away to someone else.
+        rules.append(lambda c: not c.is_damage and _blade(c))
     ra = next((e for e in battle.live_enemies if e.name.lower().strip() == "ra"), None)
     if ra is not None:
         # Selenopolis' Ra (the player's list): "Night must be equal to Day":
