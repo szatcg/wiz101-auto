@@ -11461,6 +11461,10 @@ class Quester:
             self._gate_failed(zone, dest_zone)
         target_zone = objective_zone(objective)
         given = given_zone(objective)
+        if target_zone is None and given and given != zone:
+            # The text names a place the zone data lacks ('... in Vivarium'),
+            # but the objective was first given in a known room: go there.
+            target_zone = given
         if (given and given == zone and target_zone != zone
                 and given.split("/")[0] == (target_zone or "").split("/")[0]):
             # Already in the room it began in (the Dance Hall, for '... in
