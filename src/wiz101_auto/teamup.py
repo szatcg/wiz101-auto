@@ -33,15 +33,11 @@ TEAM_UP_DUNGEONS = {"Aquila/AQ_Z01_MountOlympus",
                     "Karamelle/Interiors/KM_Z10_Gym",
                     # King Gobbsmack's Oogie Boogies (the player: "we will
                     # need to use team up for this"; four losses alone).
-                    "Karamelle/Interiors/KM_Z10_ThroneRoom_B",
-                    # Selenopolis' Taking Tree (the player, 2026-11-03: "use team up";
-                    # it swaps single blades and traps, a bare Orthrus can't win).
-                    "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
+                    "Karamelle/Interiors/KM_Z10_ThroneRoom_B"}
 # Every zone of those dungeons (their rooms are separate interiors).
 TEAM_UP_PREFIXES = ("Aquila/AQ_Z01_", "Aquila/Interiors/AQ_Z01_", "WizardCity/Gauntlets/WC_Triton_Gauntlet1/",
                     "G14_DM/",  # Darkmoor's rooms (the player: with a team, walking)
-                    "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B",
-                    "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode")
+                    "Karamelle/Interiors/KM_Z10_Gym", "Karamelle/Interiors/KM_Z10_ThroneRoom_B")
 # Zones under those prefixes that aren't dungeon rooms: Castle Darkmoor's hub
 # (its sigils; the Mark there is how the bot gets back to Darkmoor).
 TEAM_UP_HUBS = {"G14_DM/DM_Z01_CastleDarkmoor"}
@@ -53,11 +49,11 @@ TEAM_UP_WORDS = ("team up!", "team up")
 USE_QUEUE = False  # the player's choice: Team Up teams left mid-run; go in with players at the sigil
 # Dungeons queued with Team Up after all (the player, 2026-10-04: the
 # Waterworks; a team came in through Team Up at once).
-QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01",
-                  # The Taking Tree (the player, 2026-11-03: "use team up").
-                  "Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
+QUEUE_DUNGEONS = {"WizardCity/Gauntlets/WC_Triton_Gauntlet1/WC_Triton_Gauntlet_01"}
 # Never-solo dungeons that are quest bosses, not farming: questing, 2+ (faster).
-QUESTING_DUNGEONS = {"Krokotopia/KT_Selenopolis/Interiors/KT_Z07I03_DarkAbode"}
+# (The Taking Tree's Dark Abode went on the team list instead: queued, and
+# solo tries while waiting, the player: "the bot can still try while waiting".)
+QUESTING_DUNGEONS: set[str] = set()
 REQUEUE_EVERY = 60.0  # seconds between looks for the sigil's TEAM UP! (after its cooldown)
 CANCEL_WORDS = ("cancel", "cancel team up", "leave", "leave queue", "stop", "yes", "ok")
 
