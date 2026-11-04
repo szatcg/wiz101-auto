@@ -1202,3 +1202,32 @@ def test_dream_freddie_is_hit_only_by_the_kill():
     low = enemy("Dream Freddie", 900, boss=True)
     b2 = battle([orthrus, blade], [low, enemy("Confusion", 1000)], my=my)
     assert _cheat_rules(b2, Action(ActionKind.CAST, orthrus, None), Strategy()) is None
+
+
+def test_selenopolis_cheats():
+    from wiz101_auto.combat.brain import _boss_bans
+
+    orthrus = _myth(0, "Orthrus", 1300, 7, aoe=True)
+    blade = _setup(1, "Mythblade", "blade")
+    trap = _setup(2, "Feint", "trap")
+    my = me(2500, 2700)
+    my.school = "myth"
+
+    def banned(b):
+        return {c.name for c in _boss_bans(b).cards if c.banned}
+
+    # Ra: no hit while his blades outnumber ours; matched, the hit goes.
+    ra = enemy("Ra", 9000, boss=True)
+    ra.outgoing_effects = [("spell:1", "balance", 0.35), ("spell:2", "balance", 0.35)]
+    b = battle([orthrus, blade], [ra], my=my)
+    assert "Orthrus" in banned(b) and "Mythblade" not in banned(b)
+    my.outgoing_effects = [("spell:3", "myth", 0.35), ("spell:4", "myth", 0.4)]
+    assert "Orthrus" not in banned(battle([orthrus, blade], [ra], my=my))
+    my.outgoing_effects = []
+    # The Taking Tree swaps blades and traps: none of them.
+    tree = enemy("Taking Tree", 9000, boss=True)
+    assert {"Mythblade", "Feint"} <= banned(battle([orthrus, blade, trap], [tree], my=my))
+    # Drake Lockley answers traps: none.
+    drake = enemy("Drake Lockley", 9000, boss=True)
+    got = banned(battle([orthrus, blade, trap], [drake], my=my))
+    assert "Feint" in got and "Orthrus" not in got

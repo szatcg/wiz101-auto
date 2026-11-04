@@ -3245,6 +3245,18 @@ BOSS_BANS = {
     # Karamelle (the player's list, 2026-10-22): the Bundozer punishes blades
     # and auras (feints instead).
     "the bundozer": _blade,
+    # Selenopolis (the player's list, 2026-11-03):
+    # The Taking Tree swaps a helpful charm or ward away from its receiver and a
+    # harmful one on him back onto the caster: no single blades, traps or shields.
+    "taking tree": lambda c: not c.is_damage and (_blade(c) or _shield(c) or EffectKind.TRAP in c.kinds),
+    # The Prophet's aura turns every heal into damage (Enki burns all damage and
+    # heals over time on turn 5): no heals, no heals over time.
+    "the prophet": lambda c: c.is_heal and not c.is_damage,
+    "enki": lambda c: c.is_heal and not c.is_damage,
+    # Drake Lockley (with Quentin Quail) answers traps and pierces with Duck
+    # Savage (500 storm each): none of those, hit directly.
+    "drake lockley": lambda c: not c.is_damage and (EffectKind.TRAP in c.kinds
+                                                    or EffectKind.REMOVE_WARD in c.kinds),
     # Novus (the player's list, 2026-10-27): whenever either side casts a Global, Blade or
     # Trap, Basil the Brigand answers with Plague, a Tower or Legion Shield or Frozen Armor:
     # no blades or traps (Pierce takes the shield off before the hit).
@@ -3465,9 +3477,24 @@ def _no_saving(battle: Battle, action: Action) -> Action | None:
 BOOTH_SETUP_ROUNDS = (0, 1)
 
 
+def ra_unmatched(battle: Battle, ra: Combatant) -> bool:
+    """Ra's hanging blades outnumber ours ("Night must be equal to Day")."""
+    his = sum(1 for _k, _s, v in ra.outgoing_effects if v > 0)
+    ours = sum(1 for _k, _s, v in battle.me.outgoing_effects if v > 0)
+    return ours < his
+
+
 def _boss_bans(battle: Battle) -> Battle:
     names = {e.name.lower().replace("-", " ") for e in battle.live_enemies}
     rules = [rule for boss, rule in BOSS_BANS.items() if any(n == boss or n.startswith(boss) for n in names)]
+    ra = next((e for e in battle.live_enemies if e.name.lower().strip() == "ra"), None)
+    if ra is not None:
+        # Selenopolis' Ra (the player's list): "Night must be equal to Day":
+        # a hit (or a kill: he revives) before our hanging blades match his
+        # brings 1,500 balance and wipes our charms; damage over time always does.
+        rules.append(lambda c: EffectKind.DOT in c.kinds and EffectKind.DAMAGE not in c.kinds)
+        if ra_unmatched(battle, ra):
+            rules.append(lambda c: c.is_damage)
     if any(n.startswith("general benedict") for n in names) and (battle.round - 1) % 4 in BOOTH_SETUP_ROUNDS:
         rules.append(lambda c: c.is_damage and not c.is_aoe and aims_at_one_enemy(c))
     if not rules:
