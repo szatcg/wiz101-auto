@@ -227,7 +227,10 @@ class DungeonHealer:
             took = (time.monotonic() - started) / 60
             logger.info(f"healed to {hp:.0%} health, {mana:.0%} mana in {took:.0f} min; recalling back")
             if self._last_trip:
-                self._last_trip = (*self._last_trip[:3], True)  # (it got as far as healing)
+                # (Futile only when it got as far as healing and health didn't rise: a
+                # good trip, then 13 points lost in a fight, is no "healed nothing"
+                # -- the Moonseum loop: 8 skipped trips in 10 min at 60%.)
+                self._last_trip = (*self._last_trip[:3], hp <= self._last_trip[1] + 0.02)
             await wait_until_free(self.client)
             if await self.client.zone_name() == zone or await self.q._recall(zone, "the marked spot"):
                 self.q._recall_pending = False
